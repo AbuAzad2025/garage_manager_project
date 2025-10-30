@@ -123,6 +123,16 @@
         {% endfor %}
       </div>
 
+      <!-- فرع الشركة (اختياري، وإذا تُرك فارغ يعيّن للفرع الرئيسي) -->
+      <div class="mb-3">
+        <label class="form-label fw-bold">
+          <i class="fas fa-code-branch text-primary me-1"></i>
+          {{ form.branch_id.label.text }}
+          <small class="text-muted">(اختياري — الافتراضي: الفرع الرئيسي)</small>
+        </label>
+        {{ form.branch_id(class="form-select") }}
+      </div>
+
       <!-- بطاقات توضيحية لأنواع المستودعات -->
       <div class="row g-3 mb-3" id="warehouse-types-info">
         <!-- رئيسي -->

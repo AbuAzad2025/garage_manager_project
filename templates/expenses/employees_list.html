@@ -100,6 +100,9 @@
             </td>
             <td class="text-truncate" style="max-width:240px">{{ e.notes or '—' }}</td>
             <td class="text-nowrap">
+              <a href="{{ url_for('expenses_bp.employee_statement', emp_id=e.id) }}" class="btn btn-sm btn-info" title="كشف الحساب">
+                <i class="fas fa-file-invoice"></i>
+              </a>
               {% if current_user.has_permission('manage_expenses') %}
               <a href="{{ url_for('expenses_bp.edit_employee', emp_id=e.id) }}" class="btn btn-sm btn-warning" title="تعديل">
                 <i class="fas fa-edit"></i>

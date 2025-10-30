@@ -1,214 +1,274 @@
-html, body {
-  font-family: "DejaVu Sans", "Tahoma", "Arial", sans-serif;
-  direction: rtl;
-  text-align: right;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #000;
-  margin: 0;
-  background: #fdfdfd;
-}
-
-#receipt {
-  max-width: 100%;
-  margin: 1rem auto;
-  padding: 1rem;
-  box-sizing: border-box;
-  background: #fff;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.title {
-  font-weight: 800;
-  letter-spacing: 0.3px;
-  margin-bottom: 0.4rem;
-  font-size: 1.2rem;
-}
-
-.brand-line {
-  height: 3px;
-  background: linear-gradient(90deg, #0d6efd, #20c997);
-  border-radius: 6px;
-  margin: 6px 0 18px;
-}
-
-.box {
-  background: #fff;
-  border: 1px solid #e6e6e6;
-  border-radius: 10px;
-  padding: 12px;
-  page-break-inside: avoid;
-  break-inside: avoid;
-}
-
-.kv th {
-  width: 38mm;
-  background: #f8f9fa;
-  color: #555;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.minh {
-  min-height: 40px;
-}
-
-.receipt-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
-  page-break-inside: avoid;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.brand img.logo {
-  height: 48px;
-  width: auto;
-  object-fit: contain;
-}
-
-.brand .brand-text {
-  line-height: 1.25;
-}
-
-.brand .brand-name {
-  font-weight: 800;
-  font-size: 16px;
-}
-
-.brand .brand-sub {
-  font-size: 12px;
-  color: #666;
-}
-
-table {
-  border-collapse: collapse;
-  table-layout: fixed;
-  width: 100%;
-}
-
-thead {
-  display: table-header-group;
-}
-
-tfoot {
-  display: table-footer-group;
-}
-
-th, td {
-  vertical-align: middle;
-  word-break: normal;
-  overflow-wrap: anywhere;
-  hyphens: auto;
-  border: 1px solid #222;
-  padding: 4px 6px;
-}
-
-thead th {
-  background: #f3f6fb;
-  border-bottom: 1px solid #e6e6e6 !important;
-  font-weight: 700;
-  color: #394b6a;
-}
-
-.col-s-idx { width: 10%; }
-.col-s-amt { width: 22%; }
-.col-s-mth { width: 20%; }
-.col-s-det { width: 48%; }
-
-.num {
-  font-variant-numeric: tabular-nums;
-  text-align: end;
-}
-
-.wrap {
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-
-.sign-row {
-  display: flex;
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.sign {
-  flex: 1;
-  text-align: center;
-  border-top: 1px solid #bbb;
-  padding-top: 10px;
-  min-height: 40px;
-}
-
-.receipt-footer {
-  margin: 24px auto 8px;
-  text-align: center;
-  font-size: 12px;
-  color: #444;
-  border-top: 1px solid #ddd;
-  padding-top: 8px;
-}
-
-.main-footer,
-.app-footer,
-.footer,
-footer {
-  display: none !important;
-}
+/* 
+ * نظام طباعة احترافي موحد - A4 Format
+ * يُستخدم لجميع صفحات الطباعة في النظام
+ */
 
 @media print {
-  @page {
-    /* الحجم والهوامش تأتي من القالب */
-  }
-
-  html, body {
-    margin: 0 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    background: #fff !important;
-  }
-
-  .container, .container-fluid {
-    width: auto !important;
-    max-width: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  #receipt {
-    margin: 0 auto !important;
-    padding-bottom: 22mm !important;
-  }
-
-  .box, .totals, .receipt-header, tr {
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
-  .no-print, nav, .navbar, .sidebar, .btn, .actions, a {
+  /* إخفاء عناصر غير ضرورية */
+  .no-print,
+  .btn,
+  button,
+  .navbar,
+  .sidebar,
+  .main-header,
+  .main-footer,
+  .breadcrumb,
+  .card-header .btn,
+  .page-link,
+  .pagination,
+  input[type="checkbox"]:not(:checked) ~ label,
+  form,
+  .alert,
+  .toast,
+  .modal,
+  .dropdown-menu,
+  nav,
+  aside {
     display: none !important;
   }
 
-  a[href]:after {
-    content: "" !important;
+  /* A4 Page Setup */
+  @page {
+    size: A4;
+    margin: 15mm 10mm;
   }
 
-  .receipt-footer {
-    position: fixed;
-    height: 12mm;
+  /* تصميم الطباعة */
+  body {
+    font-family: 'Arial', 'Tahoma', sans-serif;
+    font-size: 11pt;
+    line-height: 1.4;
+    color: #000;
+    background: #fff;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* الحاويات */
+  .container,
+  .container-fluid {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* البطاقات */
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    margin-bottom: 10mm;
+  }
+
+  .card-header {
+    background: #f8f9fa !important;
+    border-bottom: 2px solid #000 !important;
+    padding: 5mm 3mm !important;
+    font-weight: bold;
+    font-size: 12pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .card-body {
+    padding: 3mm !important;
+  }
+
+  /* الجداول */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+    font-size: 10pt;
+  }
+
+  table thead {
+    display: table-header-group;
+  }
+
+  table tfoot {
+    display: table-footer-group;
+  }
+
+  table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  table th {
+    background-color: #e9ecef !important;
+    border: 1px solid #000 !important;
+    padding: 3mm 2mm !important;
+    font-weight: bold;
+    text-align: center !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  table td {
+    border: 1px solid #dee2e6 !important;
+    padding: 2mm !important;
+    text-align: right !important;
+  }
+
+  /* الصفوف الزوجية */
+  table tbody tr:nth-child(even) {
+    background-color: #f8f9fa !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Footer الجدول */
+  table tfoot td {
+    background-color: #e9ecef !important;
+    font-weight: bold !important;
+    border-top: 2px solid #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* العناوين */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+    font-weight: bold;
+    color: #000;
+  }
+
+  h2 {
+    font-size: 14pt;
+    margin: 5mm 0;
+    border-bottom: 2px solid #000;
+    padding-bottom: 2mm;
+  }
+
+  h3 {
+    font-size: 12pt;
+    margin: 4mm 0 2mm;
+  }
+
+  /* الألوان */
+  .text-danger {
+    color: #dc3545 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .text-success {
+    color: #28a745 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .text-warning {
+    color: #ffc107 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .text-info {
+    color: #17a2b8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .bg-success, .bg-danger, .bg-warning, .bg-info, .bg-primary, .bg-secondary {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Badges */
+  .badge {
+    border: 1px solid #000;
+    padding: 1mm 2mm;
+    font-size: 9pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* رأس الصفحة للطباعة */
+  .print-header {
     text-align: center;
-    font-size: 11px;
-    border-top: 1px solid #777;
-    padding-top: 3mm;
-    background: transparent;
-    display: block !important;
+    margin-bottom: 5mm;
+    border-bottom: 2px solid #000;
+    padding-bottom: 3mm;
+  }
+
+  .print-header h2 {
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-header .company-info {
+    font-size: 9pt;
+    color: #666;
+    margin-top: 2mm;
+  }
+
+  /* ذيل الصفحة */
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 8pt;
+    color: #666;
+    border-top: 1px solid #dee2e6;
+    padding-top: 2mm;
+  }
+
+  /* تجنب كسر الصفحات */
+  .row, .col-md-3, .col-md-4, .col-md-6, .col-md-12 {
+    page-break-inside: avoid;
+  }
+
+  /* إزالة الظلال والتأثيرات */
+  .shadow, .shadow-sm, .shadow-lg {
+    box-shadow: none !important;
+  }
+
+  /* الروابط */
+  a {
+    text-decoration: none;
+    color: #000;
+  }
+
+  a[href]:after {
+    content: none !important;
+  }
+
+  /* الأيقونات */
+  .fas, .fab, .far {
+    font-size: inherit;
+  }
+
+  /* تحسين المسافات */
+  .mb-4, .mb-3, .mt-4, .mt-3 {
+    margin: 2mm 0 !important;
+  }
+
+  /* عرض كامل للطباعة الأفقية */
+  @page :landscape {
+    size: A4 landscape;
+  }
+
+  .print-landscape {
+    size: A4 landscape;
+  }
+}
+
+/* نمط خاص لزر الطباعة (قبل الطباعة) */
+.btn-print {
+  position: fixed;
+  top: 70px;
+  left: 20px;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+@media print {
+  .btn-print {
+    display: none !important;
   }
 }

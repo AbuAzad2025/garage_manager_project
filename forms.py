@@ -2429,11 +2429,14 @@ class EmployeeForm(FlaskForm):
     name     = StrippedStringField('الاسم الكامل', validators=[DataRequired(), Length(max=100)])
     position = StrippedStringField('المسمى الوظيفي', validators=[Optional(), Length(max=100)])
     salary   = MoneyField('الراتب الشهري', validators=[Optional(), NumberRange(min=0)])
+    hire_date = DateField('تاريخ التعيين', format='%Y-%m-%d', validators=[Optional()])
     phone    = StrippedStringField('رقم الجوال', validators=[Optional(), Length(max=20)])
     email    = StrippedStringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120)])
     bank_name      = StrippedStringField('اسم البنك', validators=[Optional(), Length(max=100)])
     account_number = StrippedStringField('رقم الحساب البنكي', validators=[Optional(), Length(max=100)])
     currency = CurrencySelectField('العملة', validators=[DataRequired()])
+    branch_id = SelectField('الفرع', validators=[DataRequired()], coerce=int, choices=[], validate_choice=False)
+    site_id = SelectField('الموقع', validators=[Optional()], coerce=int, choices=[], validate_choice=False)
     notes    = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
     submit   = SubmitField('حفظ الموظف')
 
@@ -2455,6 +2458,8 @@ class EmployeeForm(FlaskForm):
         emp.account_number = (self.account_number.data or '').strip() or None
         emp.notes = (self.notes.data or '').strip() or None
         emp.currency = (self.currency.data or 'ILS').upper()
+        emp.branch_id = int(self.branch_id.data) if self.branch_id.data else None
+        emp.site_id = int(self.site_id.data) if (self.site_id.data or 0) not in (0, None, '') else None
         return emp
 
 
@@ -2485,13 +2490,18 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
     amount = MoneyField('المبلغ', validators=[DataRequired(), NumberRange(min=0.01)])
     currency = CurrencySelectField('العملة', validators=[DataRequired()])
     type_id  = SelectField('نوع المصروف', coerce=int, validators=[DataRequired()])
+    branch_id = SelectField('الفرع', validators=[DataRequired()], coerce=int, choices=[], validate_choice=False)
+    site_id = SelectField('الموقع', validators=[Optional()], coerce=int, choices=[], validate_choice=False)
 
     employee_id        = AjaxSelectField('الموظف', endpoint='api.search_employees',       get_label='name', validators=[Optional()], coerce=int)
     shipment_id        = AjaxSelectField('الشحنة', endpoint='api.search_shipments',       get_label='shipment_number', validators=[Optional()], coerce=int)
     utility_account_id = AjaxSelectField('حساب المرفق', endpoint='api.search_utility_accounts', get_label='alias', validators=[Optional()], coerce=int)
     stock_adjustment_id= AjaxSelectField('تسوية مخزون', endpoint='api.search_stock_adjustments', get_label='id', validators=[Optional()], coerce=int)
     warehouse_id       = AjaxSelectField('المستودع', endpoint='api.search_warehouses',    get_label='name', validators=[Optional()], coerce=int)
-    partner_id         = AjaxSelectField('الشريك', endpoint='api.search_partners',         get_label='name', validators=[Optional()], coerce=int)
+    
+    # حقول خاصة بالسلف/الأقساط (للسلف فقط)
+    installments_count = IntegerField('عدد الأقساط', validators=[Optional(), NumberRange(min=1, max=60)], default=1)
+    create_deduction = BooleanField('خصم شهري تلقائي', default=False)
 
     beneficiary_name = StrippedStringField('اسم الجهة المستفيدة', validators=[Optional(), Length(max=200)])
     paid_to          = StrippedStringField('مدفوع إلى',            validators=[Optional(), Length(max=200)])
@@ -3531,6 +3541,7 @@ class WarehouseForm(FlaskForm):
     name = StrippedStringField('اسم المستودع', validators=[DataRequired(), Length(max=100)])
     warehouse_type = SelectField('نوع المستودع', choices=[('MAIN', 'رئيسي'), ('PARTNER', 'شريك'), ('EXCHANGE', 'تبادل'), ('ONLINE', 'orنلاين'), ('INVENTORY', 'ملكيتي')], validators=[DataRequired()], coerce=str, default='MAIN', validate_choice=False)
     location = StrippedStringField('الموقع', validators=[Optional(), Length(max=200)])
+    branch_id = SelectField('الفرع', validators=[Optional()], coerce=int, choices=[], validate_choice=False)
     parent_id  = AjaxSelectField('المستودع الأب', endpoint='api.search_warehouses', get_label='name', validators=[Optional()], coerce=to_int, allow_blank=True, validate_choice=False)
     partner_id = AjaxSelectField('الشريك', endpoint='api.search_partners', get_label='name', validators=[Optional()], coerce=to_int, allow_blank=True, validate_choice=False)
     supplier_id = AjaxSelectField('المورد', endpoint='api.search_suppliers', get_label='name', validators=[Optional()], coerce=to_int, allow_blank=True, validate_choice=False)

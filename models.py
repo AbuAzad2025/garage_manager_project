@@ -3481,12 +3481,19 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
     salary = db.Column(db.Numeric(15, 2), default=0, nullable=True)  # الراتب الشهري
     phone = db.Column(db.String(20))
     email = db.Column(db.String(120), unique=True, index=True, nullable=True)
+    hire_date = db.Column(db.Date, nullable=True, index=True)  # تاريخ التعيين
     bank_name = db.Column(db.String(100))
     account_number = db.Column(db.String(100))
     notes = db.Column(db.Text)
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False, index=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('sites.id'), nullable=True, index=True)
 
     expenses = relationship("Expense", back_populates="employee", cascade="all, delete-orphan")
+    branch = relationship('Branch', back_populates='employees')
+    site = relationship('Site', back_populates='employees')
+    deductions = relationship('EmployeeDeduction', back_populates='employee', cascade="all, delete-orphan")
+    advance_installments = relationship('EmployeeAdvanceInstallment', back_populates='employee', cascade="all, delete-orphan")
 
     __table_args__ = ()
 
@@ -3558,8 +3565,88 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
             "balance": self.balance,
         }
 
+    @hybrid_property
+    def total_advances(self):
+        """مجموع السلف غير المسددة"""
+        from models import ExpenseType
+        advance_type = db.session.query(ExpenseType).filter_by(code='EMPLOYEE_ADVANCE').first()
+        if not advance_type:
+            return 0.0
+        return float(
+            db.session.query(func.coalesce(func.sum(Expense.amount), 0))
+            .filter(Expense.employee_id == self.id, Expense.type_id == advance_type.id)
+            .scalar()
+        )
+
+    @hybrid_property
+    def total_deductions(self):
+        """مجموع الخصومات الشهرية النشطة"""
+        from datetime import date
+        today = date.today()
+        return float(
+            db.session.query(func.coalesce(func.sum(EmployeeDeduction.amount), 0))
+            .filter(
+                EmployeeDeduction.employee_id == self.id,
+                EmployeeDeduction.is_active == True,
+                or_(EmployeeDeduction.end_date.is_(None), EmployeeDeduction.end_date >= today)
+            )
+            .scalar()
+        )
+
+    @hybrid_property
+    def net_salary(self):
+        """الراتب الصافي = الراتب الأساسي - الخصومات"""
+        return float(self.salary or 0) - self.total_deductions
+
     def __repr__(self):
         return f"<Employee {self.name}>"
+
+
+class EmployeeDeduction(db.Model, TimestampMixin, AuditMixin):
+    """خصومات شهرية من راتب الموظف (تأمين، هاتف، قرض، إلخ)"""
+    __tablename__ = "employee_deductions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
+    deduction_type = db.Column(db.String(50), nullable=False, index=True)  # تأمين/هاتف/قرض/أخرى
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    currency = db.Column(db.String(10), default="ILS", nullable=False)
+    start_date = db.Column(db.Date, nullable=False, index=True)
+    end_date = db.Column(db.Date, nullable=True, index=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    notes = db.Column(db.Text)
+    expense_id = db.Column(db.Integer, db.ForeignKey('expenses.id'), nullable=True, index=True)  # ربط بمصروف إن وجد
+
+    employee = relationship('Employee', back_populates='deductions')
+    expense = relationship('Expense')
+
+    def __repr__(self):
+        return f"<EmployeeDeduction {self.deduction_type} {self.amount}>"
+
+
+class EmployeeAdvanceInstallment(db.Model, TimestampMixin, AuditMixin):
+    """أقساط سداد السلف من الرواتب"""
+    __tablename__ = "employee_advance_installments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
+    advance_expense_id = db.Column(db.Integer, db.ForeignKey('expenses.id'), nullable=False, index=True)
+    installment_number = db.Column(db.Integer, nullable=False)
+    total_installments = db.Column(db.Integer, nullable=False)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    currency = db.Column(db.String(10), default="ILS", nullable=False)
+    due_date = db.Column(db.Date, nullable=False, index=True)
+    paid = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    paid_date = db.Column(db.Date, nullable=True)
+    salary_expense_id = db.Column(db.Integer, db.ForeignKey('expenses.id'), nullable=True, index=True)  # الراتب الذي خُصم منه
+
+    employee = relationship('Employee', back_populates='advance_installments')
+    advance_expense = relationship('Expense', foreign_keys=[advance_expense_id])
+    salary_expense = relationship('Expense', foreign_keys=[salary_expense_id])
+
+    def __repr__(self):
+        return f"<AdvanceInstallment {self.installment_number}/{self.total_installments}>"
+
 
 class EquipmentType(db.Model, TimestampMixin):
     __tablename__ = 'equipment_types'
@@ -3768,12 +3855,77 @@ def _product_before_save(mapper, connection, t: Product):
     t.is_exchange = bool(t.is_exchange)
     t.is_published = bool(t.is_published)
 
+class Branch(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'branches'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False, index=True)
+    code = db.Column(db.String(32), nullable=False, unique=True)
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), index=True)
+    address = db.Column(db.String(200))
+    city = db.Column(db.String(100))
+    geo_lat = db.Column(db.Numeric(10, 6))
+    geo_lng = db.Column(db.Numeric(10, 6))
+    phone = db.Column(db.String(32))
+    email = db.Column(db.String(120))
+    manager_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    timezone = db.Column(db.String(64))
+    currency = db.Column(db.String(10), nullable=False, server_default=sa_text("'ILS'"))
+    tax_id = db.Column(db.String(64))
+    notes = db.Column(db.Text)
+    is_archived = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), index=True)
+    archived_at = db.Column(db.DateTime, index=True)
+    archived_by = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    archive_reason = db.Column(db.String(200))
+
+    manager_user = db.relationship('User', foreign_keys=[manager_user_id])
+    archived_by_user = db.relationship('User', foreign_keys=[archived_by])
+
+    sites = db.relationship('Site', back_populates='branch', cascade="all, delete-orphan")
+    employees = db.relationship('Employee', back_populates='branch')
+    expenses = db.relationship('Expense', back_populates='branch')
+    warehouses = db.relationship('Warehouse', back_populates='branch')
+
+    def __repr__(self):
+        return f"<Branch {self.code}:{self.name}>"
+
+
+class Site(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'sites'
+
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False, index=True)
+    code = db.Column(db.String(32), nullable=False, index=True)
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), index=True)
+    address = db.Column(db.String(200))
+    geo_lat = db.Column(db.Numeric(10, 6))
+    geo_lng = db.Column(db.Numeric(10, 6))
+    manager_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    notes = db.Column(db.Text)
+    is_archived = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), index=True)
+    archived_at = db.Column(db.DateTime, index=True)
+    archived_by = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
+    archive_reason = db.Column(db.String(200))
+
+    branch = db.relationship('Branch', back_populates='sites')
+    manager_user = db.relationship('User', foreign_keys=[manager_user_id])
+    archived_by_user = db.relationship('User', foreign_keys=[archived_by])
+
+    employees = db.relationship('Employee', back_populates='site')
+    expenses = db.relationship('Expense', back_populates='site')
+
+    def __repr__(self):
+        return f"<Site {self.code}@{self.branch_id}>"
+
+
 class Warehouse(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'warehouses'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, index=True)
     warehouse_type = db.Column(sa_str_enum(WarehouseType, name='warehouse_type'), default=WarehouseType.MAIN.value, nullable=False, index=True, server_default=sa_text("'MAIN'"))
     location = db.Column(db.String(200))
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), index=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False, server_default=sa_text("1"))
     parent_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'))
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'))
@@ -3786,6 +3938,7 @@ class Warehouse(db.Model, TimestampMixin, AuditMixin):
     online_is_default = db.Column(db.Boolean, nullable=False, default=False, server_default=sa_text("0"))
     parent = db.relationship('Warehouse', remote_side=[id], backref='children')
     supplier = db.relationship('Supplier', back_populates='warehouses')
+    branch = db.relationship('Branch', back_populates='warehouses')
     partner = db.relationship('Partner', back_populates='warehouses')
     stock_levels = db.relationship('StockLevel', back_populates='warehouse')
     transfers_source = db.relationship('Transfer', back_populates='source_warehouse', foreign_keys='Transfer.source_id')
@@ -8763,6 +8916,8 @@ class ExpenseType(db.Model, TimestampMixin, AuditMixin):
     name = db.Column(db.String(100), unique=True, nullable=False, index=True)
     description = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    code = db.Column(db.String(50), unique=True, index=True)
+    fields_meta = db.Column(db.JSON)  # قد تكون Text في SQLite، SQLAlchemy يحولها تلقائياً
 
     expenses = relationship("Expense", back_populates="type", order_by="Expense.id")
 
@@ -8776,7 +8931,7 @@ class ExpenseType(db.Model, TimestampMixin, AuditMixin):
         return s.title()
 
     def to_dict(self):
-        return {"id": self.id, "name": self.name, "description": self.description, "is_active": self.is_active}
+        return {"id": self.id, "name": self.name, "description": self.description, "is_active": self.is_active, "code": self.code, "fields_meta": self.fields_meta}
 
     def __repr__(self):
         return f"<ExpenseType {self.name}>"
@@ -8798,6 +8953,8 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     fx_quote_currency = db.Column(db.String(10))
 
     type_id = db.Column(db.Integer, db.ForeignKey("expense_types.id", ondelete="RESTRICT"), nullable=False, index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False, index=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('sites.id'), nullable=True, index=True)
     employee_id = db.Column(db.Integer, db.ForeignKey("employees.id", ondelete="SET NULL"), index=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"), index=True)
     partner_id = db.Column(db.Integer, db.ForeignKey("partners.id", ondelete="SET NULL"), index=True)
@@ -8842,6 +8999,8 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     archive_reason = db.Column(db.String(200))
 
     employee = relationship("Employee", back_populates="expenses")
+    branch = relationship('Branch', back_populates='expenses')
+    site = relationship('Site', back_populates='expenses')
     type = relationship("ExpenseType", back_populates="expenses")
     warehouse = relationship("Warehouse", back_populates="expenses")
     partner = relationship("Partner", back_populates="expenses")
@@ -8974,6 +9133,8 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             "amount": float(self.amount or 0),
             "currency": self.currency,
             "type_id": self.type_id,
+            "branch_id": self.branch_id,
+            "site_id": self.site_id,
             "employee_id": self.employee_id,
             "warehouse_id": self.warehouse_id,
             "partner_id": self.partner_id,

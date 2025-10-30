@@ -32,6 +32,10 @@
 
   <form method="POST" id="expenseForm" class="needs-validation" novalidate>
     {{ form.hidden_tag() }}
+    <script>
+      window.expenseTypeMeta = {{ types_meta|tojson|safe }};
+      window._types = {{ _types|map(attribute='to_dict')|list|tojson|safe }};
+    </script>
     <div class="card shadow-sm">
       <div class="card-body">
     <div class="row g-3">
@@ -68,9 +72,26 @@
           <!-- الجهة المرتبطة (ديناميكية حسب النوع) -->
           <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-link me-1"></i>الجهة المرتبطة (حسب النوع)</h6></div>
 
+          <div class="col-md-3">
+            {{ form.branch_id.label(class="form-label fw-bold text-danger") }}
+            {{ form.branch_id(class="form-select", id="branch_id", required=true) }}
+            <small class="text-muted">فرع الشركة (إلزامي)</small>
+            {% for e in form.branch_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-3">
+            {{ form.site_id.label(class="form-label") }}
+            {{ form.site_id(class="form-select", id="site_id") }}
+            <small class="text-muted">موقع داخل الفرع (اختياري)</small>
+            {% for e in form.site_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
           <div id="employee-field" class="col-md-6">
             {{ form.employee_id.label(class="form-label fw-bold") }}
-            {{ form.employee_id(class="form-select", id="employee_id") }}
+            {{ form.employee_id(class="form-select ajax", id="employee_id", **{
+              'data-url': url_for('api.search_employees'),
+              'data-current': form.employee_id.data or ''
+            }) }}
             <small class="text-muted">للرواتب فقط</small>
             {% for e in form.employee_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
@@ -90,26 +111,29 @@
 
           <div id="utility-field" class="col-md-4">
             {{ form.utility_account_id.label(class="form-label") }}
-            {{ form.utility_account_id(class="form-select form-select-sm", id="utility_account_id") }}
+            {{ form.utility_account_id(class="form-select form-select-sm ajax", id="utility_account_id", **{
+              'data-url': url_for('api.search_utility_accounts'),
+              'data-current': form.utility_account_id.data or ''
+            }) }}
             <small class="text-muted">للكهرباء/الماء</small>
           </div>
 
           <div id="warehouse-field" class="col-md-4">
             {{ form.warehouse_id.label(class="form-label") }}
-            {{ form.warehouse_id(class="form-select form-select-sm", id="warehouse_id") }}
+            {{ form.warehouse_id(class="form-select form-select-sm ajax", id="warehouse_id", **{
+              'data-url': url_for('api.search_warehouses'),
+              'data-current': form.warehouse_id.data or ''
+            }) }}
             <small class="text-muted">للإيجار/الصيانة</small>
           </div>
 
           <div id="shipment-field" class="col-md-4">
             {{ form.shipment_id.label(class="form-label") }}
-            {{ form.shipment_id(class="form-select form-select-sm", id="shipment_id") }}
-            <small class="text-muted">للمواصلات</small>
-          </div>
-
-          <div id="partner-field" class="col-md-4">
-            {{ form.partner_id.label(class="form-label") }}
-            {{ form.partner_id(class="form-select form-select-sm", id="partner_id") }}
-            <small class="text-muted">للإيجار</small>
+            {{ form.shipment_id(class="form-select form-select-sm ajax", id="shipment_id", **{
+              'data-url': url_for('api.search_shipments'),
+              'data-current': form.shipment_id.data or ''
+            }) }}
+            <small class="text-muted">للشحنات</small>
           </div>
 
           <div id="beneficiary-field" class="col-md-4">
@@ -122,7 +146,27 @@
             {{ form.stock_adjustment_id.label(class="form-label") }}
             {{ form.stock_adjustment_id(class="form-select form-select-sm", id="stock_adjustment_id") }}
             <small class="text-muted">للصيانة/المخزون</small>
+          </div>
+
+          <!-- حقول خاصة بالسلف (تظهر فقط لنوع سلفة موظف) -->
+          <div id="advance-fields" class="col-12" style="display:none;">
+            <div class="row g-2">
+              <div class="col-md-4">
+                {{ form.installments_count.label(class="form-label") }}
+                {{ form.installments_count(class="form-control form-control-sm", id="installments_count", placeholder="1") }}
+                <small class="text-muted">عدد الأقساط الشهرية لسداد السلفة</small>
+              </div>
+              <div class="col-md-4">
+                <div class="form-check mt-4">
+                  {{ form.create_deduction(class="form-check-input", id="create_deduction") }}
+                  <label class="form-check-label" for="create_deduction">
+                    {{ form.create_deduction.label.text }}
+                  </label>
+                  <small class="form-text text-muted d-block">خصم تلقائي من الراتب الشهري</small>
+                </div>
+              </div>
             </div>
+          </div>
 
           <!-- حقول الدفع -->
           <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-money-bill me-1"></i>تفاصيل الدفع</h6></div>
@@ -181,7 +225,14 @@
             </div>
 
           <!-- حقول إضافية -->
-          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-info-circle me-1"></i>معلومات إضافية</h6></div>
+          <div class="col-12">
+            <hr class="my-2">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#optionalSection" aria-expanded="false" aria-controls="optionalSection">
+              <i class="fas fa-sliders-h me-1"></i> حقول اختيارية
+            </button>
+          </div>
+
+          <div id="optionalSection" class="collapse col-12">
 
           <div class="col-md-4">
               {{ form.tax_invoice_number.label(class="form-label") }}
@@ -199,6 +250,7 @@
               {{ form.notes.label(class="form-label") }}
             {{ form.notes(class="form-control", rows=2, placeholder="ملاحظات إضافية") }}
             <small class="text-muted">أي ملاحظات أخرى</small>
+          </div>
           </div>
 
         </div>
@@ -227,26 +279,25 @@ document.addEventListener('DOMContentLoaded', function() {
   const utilityField = document.getElementById('utility-field');
   const warehouseField = document.getElementById('warehouse-field');
   const shipmentField = document.getElementById('shipment-field');
-  const partnerField = document.getElementById('partner-field');
   const beneficiaryField = document.getElementById('beneficiary-field');
   const stockField = document.getElementById('stock-field');
   
-  // أنواع المصاريف حسب ID
-  const expenseTypes = {
-    1: 'رواتب',          // employee_id + period
-    2: 'إيجار',          // warehouse_id or partner_id
-    3: 'كهرباء وماء',    // utility_account_id
-    4: 'صيانة',          // warehouse_id
-    5: 'مواصلات',        // shipment_id
-    6: 'اتصالات',        // beneficiary_name
-    7: 'تسويق وإعلان',   // beneficiary_name
-    8: 'مستلزمات مكتبية', // beneficiary_name
-    9: 'ضرائب ورسوم',    // beneficiary_name
-    10: 'تأمينات',       // beneficiary_name
-    11: 'استشارات',      // beneficiary_name
-    12: 'ضيافة',         // beneficiary_name
-    13: 'أخرى'           // beneficiary_name
-  };
+  // Meta ديناميكي قادم من الخادم
+  const typeMeta = (window.expenseTypeMeta || {});
+  
+  // تهيئة قوائم البحث AJAX بسيطة
+  function initAjaxSelects() {
+    document.querySelectorAll('select.ajax').forEach(sel => {
+      const url = sel.getAttribute('data-url');
+      if (!url) return;
+      // دعم بحث بسيط عبر datalist-like
+      sel.addEventListener('focus', () => sel.size = Math.min(sel.options.length, 8));
+      sel.addEventListener('blur', () => sel.size = 0);
+      sel.addEventListener('input', e => {
+        // placeholder: يمكن لاحقاً ربط Select2، حالياً نستخدم السيرفر لملء الخيارات عبر الصفحة
+      });
+    });
+  }
   
   // ✅ دالة لتعطيل/تفعيل الحقول داخل container
   function setFieldsDisabled(container, disabled) {
@@ -271,14 +322,13 @@ document.addEventListener('DOMContentLoaded', function() {
       utilityField: !!utilityField,
       warehouseField: !!warehouseField,
       shipmentField: !!shipmentField,
-      partnerField: !!partnerField,
       beneficiaryField: !!beneficiaryField,
       stockField: !!stockField
     });
     
     // ✅ إخفاء وتعطيل كل الحقول أولاً
     [employeeField, periodFields, utilityField, warehouseField, shipmentField, 
-     partnerField, beneficiaryField, stockField].forEach(f => {
+     beneficiaryField, stockField].forEach(f => {
       if (f) {
         f.style.display = 'none';
         setFieldsDisabled(f, true); // ✅ تعطيل الحقول المخفية
@@ -286,63 +336,32 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     const typeId = parseInt(typeSelect.value);
-    console.log('🔄 نوع المصروف:', typeId);
+    const meta = typeMeta[typeId] || {};
+    const required = new Set((meta.required || []));
+    const optional = new Set((meta.optional || []));
+
+    function showIf(key, container) {
+      if (!container) return;
+      if (required.has(key) || optional.has(key)) {
+        container.style.display = 'block';
+        setFieldsDisabled(container, false);
+      }
+    }
+
+    // خرائط المفاتيح إلى الحاويات
+    showIf('employee_id', employeeField);
+    showIf('period', periodFields);
+    showIf('utility_account_id', utilityField);
+    showIf('warehouse_id', warehouseField);
+    showIf('shipment_id', shipmentField);
+    showIf('stock_adjustment_id', stockField);
+    showIf('beneficiary_name', beneficiaryField);
     
-    // ✅ إظهار وتفعيل الحقول المناسبة فقط
-    switch(typeId) {
-      case 1: // رواتب → موظف + فترة فقط
-        if (employeeField) {
-          employeeField.style.display = 'block';
-          setFieldsDisabled(employeeField, false);
-        }
-        if (periodFields) {
-          periodFields.style.display = 'block';
-          setFieldsDisabled(periodFields, false);
-        }
-        console.log('✅ رواتب: موظف + فترة');
-        break;
-      case 2: // إيجار → مستودع أو شريك
-        if (warehouseField) {
-          warehouseField.style.display = 'block';
-          setFieldsDisabled(warehouseField, false);
-        }
-        if (partnerField) {
-          partnerField.style.display = 'block';
-          setFieldsDisabled(partnerField, false);
-        }
-        console.log('✅ إيجار: مستودع + شريك');
-        break;
-      case 3: // كهرباء وماء → حساب مرافق
-        if (utilityField) {
-          utilityField.style.display = 'block';
-          setFieldsDisabled(utilityField, false);
-        }
-        console.log('✅ كهرباء/ماء: حساب مرافق');
-        break;
-      case 4: // صيانة → مستودع + تسوية
-        if (warehouseField) {
-          warehouseField.style.display = 'block';
-          setFieldsDisabled(warehouseField, false);
-        }
-        if (stockField) {
-          stockField.style.display = 'block';
-          setFieldsDisabled(stockField, false);
-        }
-        console.log('✅ صيانة: مستودع + تسوية');
-        break;
-      case 5: // مواصلات → شحنة
-        if (shipmentField) {
-          shipmentField.style.display = 'block';
-          setFieldsDisabled(shipmentField, false);
-        }
-        console.log('✅ مواصلات: شحنة');
-        break;
-      default: // باقي الأنواع → اسم مستفيد
-        if (beneficiaryField) {
-          beneficiaryField.style.display = 'block';
-          setFieldsDisabled(beneficiaryField, false);
-        }
-        console.log('✅ أخرى: اسم مستفيد');
+    // إظهار حقول السلف فقط لنوع EMPLOYEE_ADVANCE
+    const advanceFields = document.getElementById('advance-fields');
+    const selectedType = _types.find(t => t.id === typeId);
+    if (advanceFields && selectedType && selectedType.code === 'EMPLOYEE_ADVANCE') {
+      advanceFields.style.display = 'block';
     }
   }
   
@@ -396,6 +415,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   methodSelect.addEventListener('change', updateMethodDetails);
   updateMethodDetails();
+  initAjaxSelects();
 });
 </script>
 

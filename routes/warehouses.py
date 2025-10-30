@@ -76,6 +76,7 @@ from models import (
     WarehouseType,
     ImportRun,
     ProductCategory,
+    Branch,
 )
 
 warehouse_bp = Blueprint("warehouse_bp", __name__, url_prefix="/warehouses")
@@ -798,12 +799,31 @@ def create_warehouse():
             return None
 
     form = WarehouseForm()
+    try:
+        from models import Branch
+        form.branch_id.choices = [(0, '-- تلقائي: الفرع الرئيسي --')] + [
+            (b.id, f"{b.code} - {b.name}") for b in Branch.query.filter_by(is_active=True).order_by(Branch.name).all()
+        ]
+    except Exception:
+        form.branch_id.choices = [(0, '-- تلقائي: الفرع الرئيسي --')]
     if form.validate_on_submit():
         wh_type = (form.warehouse_type.data or "").strip().upper()
+        # حدد فرع المستودع: إذا لم يُحدد، نعين الفرع الرئيسي MAIN
+        def _get_main_branch_id():
+            main = Branch.query.filter(Branch.code == 'MAIN').first()
+            if main:
+                return main.id
+            first_active = Branch.query.filter_by(is_active=True).order_by(Branch.id.asc()).first()
+            return first_active.id if first_active else None
+
+        selected_branch_id = form.branch_id.data if form.branch_id.data not in (None, 0, '0') else None
+        resolved_branch_id = selected_branch_id or _get_main_branch_id()
+
         w = Warehouse(
             name=(form.name.data or "").strip(),
             warehouse_type=wh_type,
             location=((form.location.data or "").strip() or None),
+            branch_id=resolved_branch_id,
             parent_id=_to_int(form.parent_id.data),
             partner_id=_to_int(form.partner_id.data),
             supplier_id=_to_int(form.supplier_id.data),
@@ -847,6 +867,23 @@ def edit_warehouse(warehouse_id):
 
     w = _get_or_404(Warehouse, warehouse_id)
     form = WarehouseForm(obj=w)
+    # تعبئة الفروع للاختيار في شاشة التعديل
+    try:
+        form.branch_id.choices = [(0, '-- بدون تغيير --')] + [
+            (b.id, f"{b.code} - {b.name}") for b in Branch.query.filter_by(is_active=True).order_by(Branch.name).all()
+        ]
+        if w.branch_id and (w.branch_id, ) not in form.branch_id.choices:
+            # تأكد أن الاختيار الحالي موجود ضمن القائمة
+            cur = Branch.query.get(w.branch_id)
+            if cur:
+                form.branch_id.choices.append((cur.id, f"{cur.code} - {cur.name}"))
+    except Exception:
+        form.branch_id.choices = [(0, '-- بدون تغيير --')]
+    try:
+        from models import Branch
+        form.branch_id.choices = [(0, '-- بدون فرع --')] + [(b.id, f"{b.code} - {b.name}") for b in Branch.query.filter_by(is_active=True).order_by(Branch.name).all()]
+    except Exception:
+        form.branch_id.choices = [(0, '-- بدون فرع --')]
 
     if form.validate_on_submit():
         w.name = (form.name.data or "").strip()

@@ -16,7 +16,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from extensions import db
 from utils import clear_role_permission_cache, clear_users_cache_by_role, get_entity_balance_in_ils, validate_currency_consistency
 from models import (
-    Account, AuditLog, Customer, ExchangeTransaction, Expense, ExpenseType, GLBatch, GLEntry, GL_ACCOUNTS,
+    Account, AuditLog, Customer, Employee, ExchangeTransaction, Expense, ExpenseType, GLBatch, GLEntry, GL_ACCOUNTS,
     Invoice, Note, OnlineCart, OnlineCartItem, OnlinePayment, OnlinePreOrder, OnlinePreOrderItem,
     PartnerSettlement, Payment, PaymentDirection, PaymentEntityType, PaymentMethod, PaymentStatus, Permission,
     PreOrder, Product, Role, ServicePart, ServiceRequest, ServiceStatus, ServiceTask,
@@ -561,6 +561,124 @@ def seed_expense_types(force: bool, dry_run: bool, deactivate_missing: bool) -> 
                 for ex in others:
                     if ex.is_active: ex.is_active=False
         click.echo("OK: expense types seeded.")
+    except SQLAlchemyError as e:
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
+
+@click.command("seed-employees")
+@click.option("--force", is_flag=True)
+@with_appcontext
+def seed_employees(force: bool) -> None:
+    if _is_production() and not force:
+        if not click.confirm("Production environment detected. Continue?", default=False):
+            click.echo("Canceled.")
+            return
+    base = [
+        ("أحمد", "محاسب", 3500),
+        ("ليلى", "أمينة مستودع", 3200),
+        ("خالد", "مندوب مبيعات", 3000),
+        ("سوسن", "موارد بشرية", 2800),
+    ]
+    try:
+        with _begin():
+            for name, position, salary in base:
+                row = Employee.query.filter(func.lower(Employee.name) == name.lower()).first()
+                if not row:
+                    db.session.add(Employee(name=name, position=position, salary=_Q2(salary), currency="ILS"))
+                else:
+                    if not row.position:
+                        row.position = position
+                    if not row.salary:
+                        row.salary = _Q2(salary)
+        click.echo("OK: employees seeded.")
+    except SQLAlchemyError as e:
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
+
+def _get_expense_type_id(name: str) -> int:
+    ex = ExpenseType.query.filter(func.lower(ExpenseType.name) == name.strip().lower()).first()
+    if not ex:
+        ex = ExpenseType(name=name.strip(), description=name.strip(), is_active=True)
+        db.session.add(ex)
+        db.session.flush()
+    return int(ex.id)
+
+@click.command("seed-salaries")
+@click.option("--months", type=int, default=6)
+@click.option("--start", type=str, default="")
+@with_appcontext
+def seed_salaries(months: int, start: str) -> None:
+    from datetime import date, timedelta
+    # تحديد أول يوم من الشهر لبداية الفترة
+    today = date.today()
+    if start:
+        try:
+            y, m = [int(x) for x in start.split("-")[:2]]
+            start_date = date(y, m, 1)
+        except Exception:
+            start_date = date(today.year, today.month, 1)
+    else:
+        start_date = date(today.year, today.month, 1)
+    salary_type_id = _get_expense_type_id("رواتب")
+    emps = Employee.query.order_by(Employee.id).all()
+    if not emps:
+        click.echo("No employees. Run: flask seed-employees")
+        return
+    try:
+        with _begin():
+            for i in range(months):
+                # حساب تاريخ هذا الشهر بالإزاحة العكسية i
+                year = start_date.year
+                month = start_date.month - i
+                while month <= 0:
+                    month += 12
+                    year -= 1
+                payday = date(year, month, 25)
+                for emp in emps:
+                    amt = _Q2(emp.salary or 0)
+                    ex = Expense(
+                        date=payday,
+                        amount=amt,
+                        currency="ILS",
+                        type_id=salary_type_id,
+                        employee_id=emp.id,
+                        payee_type="EMPLOYEE",
+                        payee_entity_id=emp.id,
+                        payee_name=emp.name,
+                        payment_method="cash",
+                        description=f"راتب شهر {month:02d}-{year} للموظف {emp.name}",
+                        notes=None,
+                    )
+                    db.session.add(ex)
+        click.echo(f"OK: salaries seeded for {len(emps)} employees x {months} months.")
+    except SQLAlchemyError as e:
+        db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
+
+@click.command("seed-expenses-demo")
+@with_appcontext
+def seed_expenses_demo() -> None:
+    from datetime import datetime, timedelta
+    et_electric = _get_expense_type_id("كهرباء")
+    et_water = _get_expense_type_id("مياه")
+    et_misc = _get_expense_type_id("متفرقات")
+    base = [
+        (et_electric, 1200.00, "فاتورة كهرباء شهرية"),
+        (et_water, 450.00, "فاتورة مياه شهرية"),
+        (et_misc, 300.00, "قرطاسية ومستلزمات"),
+    ]
+    now = datetime.utcnow()
+    try:
+        with _begin():
+            for idx, (tid, amount, desc) in enumerate(base):
+                ex = Expense(
+                    date=now - timedelta(days=idx * 7),
+                    amount=_Q2(amount),
+                    currency="ILS",
+                    type_id=tid,
+                    payee_type="OTHER",
+                    payment_method="cash",
+                    description=desc,
+                )
+                db.session.add(ex)
+        click.echo("OK: demo expenses seeded.")
     except SQLAlchemyError as e:
         db.session.rollback(); raise click.ClickException(f"Commit failed: {e}") from e
 
@@ -1811,6 +1929,7 @@ def register_cli(app) -> None:
         note_add, note_list, audit_tail,
         currency_balance, currency_validate, currency_report, currency_health, currency_update, currency_test,
         create_superadmin,
-        optimize_db
+        optimize_db,
+        seed_employees, seed_salaries, seed_expenses_demo
     ]
     for cmd in commands: app.cli.add_command(cmd)

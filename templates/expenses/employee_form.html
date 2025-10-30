@@ -40,6 +40,13 @@
           </div>
 
           <div class="col-md-4">
+            {{ form.hire_date.label(class="form-label") }}
+            {{ form.hire_date(type="date", class=("form-control is-invalid" if form.hire_date.errors else "form-control")) }}
+            <small class="form-text text-muted">تاريخ بدء العمل</small>
+            {% for e in form.hire_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
             {{ form.phone.label(class="form-label") }}
             {{ form.phone(class=("form-control is-invalid" if form.phone.errors else "form-control"), placeholder="05xxxxxxxx") }}
             {% for e in form.phone.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
@@ -61,6 +68,18 @@
             {{ form.account_number.label(class="form-label") }}
             {{ form.account_number(class=("form-control is-invalid" if form.account_number.errors else "form-control"), placeholder="رقم الحساب البنكي") }}
             {% for e in form.account_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
+            {{ form.branch_id.label(class="form-label") }}
+            {{ form.branch_id(class=("form-select is-invalid" if form.branch_id.errors else "form-select")) }}
+            {% for e in form.branch_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div class="col-md-4">
+            {{ form.site_id.label(class="form-label") }}
+            {{ form.site_id(class=("form-select is-invalid" if form.site_id.errors else "form-select")) }}
+            {% for e in form.site_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
           <div class="col-md-4">

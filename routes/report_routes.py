@@ -672,6 +672,7 @@ def customers_report():
 def expenses_report():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
+    tab = (request.args.get("tab") or "expenses").strip()
     
     # فلاتر إضافية
     expense_type = (request.args.get("type") or "").strip()  # نوع المصروف (id أو اسم)
@@ -746,12 +747,81 @@ def expenses_report():
     partners = Partner.query.order_by(Partner.name).all()
     expense_types = ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()
     
+    # تبويب المقبوضات حسب الجامع (المستخدم)
+    receipts_rows = []
+    receipts_total = 0.0
+    if tab == "receipts":
+        from models import User
+        pq = db.session.query(
+            Payment.created_by.label("uid"),
+            func.coalesce(func.count(Payment.id), 0).label("count"),
+            func.coalesce(func.sum(Payment.total_amount), 0).label("total")
+        ).filter(
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status == PaymentStatus.COMPLETED.value
+        )
+        if start:
+            pq = pq.filter(Payment.payment_date >= start)
+        if end:
+            pq = pq.filter(Payment.payment_date <= end)
+        pq = pq.group_by(Payment.created_by)
+        agg = pq.all()
+        # جلب أسماء المستخدمين دفعة واحدة
+        uid_to_name = {}
+        if agg:
+            uids = [r.uid for r in agg if r.uid]
+            if uids:
+                users = db.session.query(User.id, User.username).filter(User.id.in_(uids)).all()
+                uid_to_name = {u.id: u.username for u in users}
+        receipts_rows = [
+            {
+                "user_id": r.uid or 0,
+                "user_name": uid_to_name.get(r.uid or 0, "—"),
+                "payments_count": int(r.count or 0),
+                "total_amount": float(r.total or 0),
+            }
+            for r in agg
+        ]
+        receipts_total = sum(x["total_amount"] for x in receipts_rows)
+
+    # تصدير CSV عند الطلب
+    if (request.args.get("export") or "").lower() == "csv":
+        if tab == "receipts":
+            csv_text = _csv_from_rows([
+                {
+                    "user_id": row.get("user_id"),
+                    "user_name": row.get("user_name"),
+                    "payments_count": row.get("payments_count"),
+                    "total_amount": row.get("total_amount"),
+                }
+                for row in receipts_rows
+            ])
+            return Response(csv_text, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=receipts_by_user.csv"})
+        # بناء صفوف مشابهة لجدول العرض
+        csv_rows = []
+        for e in rows:
+            csv_rows.append({
+                "id": e.id,
+                "date": (e.date.strftime('%Y-%m-%d') if getattr(e, 'date', None) else ''),
+                "type": (e.type.name if getattr(e, 'type', None) else e.type_id),
+                "amount": float(e.amount or 0),
+                "currency": e.currency or '',
+                "employee": (e.employee.name if getattr(e, 'employee', None) else ''),
+                "warehouse": (e.warehouse.name if getattr(e, 'warehouse', None) else ''),
+                "partner": (e.partner.name if getattr(e, 'partner', None) else ''),
+                "description": getattr(e, 'desc', None) or getattr(e, 'description', '') or '',
+                "is_paid": 'YES' if getattr(e, 'is_paid', False) else 'NO',
+            })
+        csv_text = _csv_from_rows(csv_rows)
+        return Response(csv_text, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=expenses.csv"})
+
     return render_template(
         "reports/expenses.html",
         data=rows,
         total_amount=total,
         start=request.args.get("start", ""),
         end=request.args.get("end", ""),
+        tab=tab,
         selected_type=expense_type or "",
         selected_employee_id=int(employee_id) if employee_id else None,
         selected_warehouse_id=int(warehouse_id) if warehouse_id else None,
@@ -767,6 +837,8 @@ def expenses_report():
         type_values=type_values,
         emp_labels=emp_labels,
         emp_values=emp_values,
+        receipts_rows=receipts_rows,
+        receipts_total=receipts_total,
     )
 
 @reports_bp.route("/ap-aging", methods=["GET"])

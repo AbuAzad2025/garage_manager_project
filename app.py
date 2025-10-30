@@ -31,6 +31,7 @@ from routes.expenses import expenses_bp
 from routes.vendors import vendors_bp
 from routes.shipments import shipments_bp
 from routes.warehouses import warehouse_bp
+from routes.branches import branches_bp
 from routes.payments import payments_bp
 from routes.permissions import permissions_bp
 from routes.roles import roles_bp
@@ -169,6 +170,14 @@ def create_app(config_object=Config) -> Flask:
     init_extensions(app)
     # utils_init_app(app)  # Commented out - function not available in utils package
     
+    # زرع أنواع المصاريف الأساسية دائماً عند الإقلاع (بعيداً عن الهجرات)
+    try:
+        with app.app_context():
+            from services.bootstrap_data import seed_core_expense_types
+            seed_core_expense_types(db)
+    except Exception as _e:
+        app.logger.warning(f"Bootstrap expense types skipped: {_e}")
+
     csrf.exempt(ledger_bp)
     
     from routes.security import security_bp
@@ -440,6 +449,7 @@ def create_app(config_object=Config) -> Flask:
         vendors_bp,
         shipments_bp,
         warehouse_bp,
+        branches_bp,
         payments_bp,
         permissions_bp,
         roles_bp,

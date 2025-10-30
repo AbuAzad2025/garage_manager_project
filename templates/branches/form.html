@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}{{ branch and 'تعديل فرع' or 'إضافة فرع' }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" dir="rtl">
+  
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">
+      <i class="fas fa-{{ branch and 'edit' or 'plus' }} me-2"></i>
+      {{ branch and 'تعديل فرع' or 'إضافة فرع جديد' }}
+    </h3>
+    <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-right me-1"></i> رجوع
+    </a>
+  </div>
+
+  <form method="post" class="needs-validation" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <i class="fas fa-info-circle me-1"></i> المعلومات الأساسية
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          
+          <div class="col-md-4">
+            <label class="form-label fw-bold">
+              الاسم <span class="text-danger">*</span>
+            </label>
+            <input type="text" name="name" class="form-control" placeholder="مثال: فرع رام الله" value="{{ branch.name if branch else '' }}" required>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-bold">
+              الرمز <span class="text-danger">*</span>
+            </label>
+            <input type="text" name="code" class="form-control" placeholder="مثال: RAMALLAH" value="{{ branch.code if branch else '' }}" required {% if branch and branch.code == 'MAIN' %}readonly{% endif %}>
+            <small class="text-muted">رمز فريد بالإنجليزية</small>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">المدينة</label>
+            <input type="text" name="city" class="form-control" placeholder="مثال: رام الله" value="{{ branch.city if branch else '' }}">
+          </div>
+
+          <div class="col-md-8">
+            <label class="form-label">العنوان</label>
+            <input type="text" name="address" class="form-control" placeholder="العنوان الكامل" value="{{ branch.address if branch else '' }}">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">الهاتف</label>
+            <input type="text" name="phone" class="form-control" placeholder="02-xxxxxxx" value="{{ branch.phone if branch else '' }}">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">البريد الإلكتروني</label>
+            <input type="email" name="email" class="form-control" placeholder="branch@company.com" value="{{ branch.email if branch else '' }}">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">مدير الفرع</label>
+            <select name="manager_user_id" class="form-select">
+              <option value="0">-- بدون مدير --</option>
+              {% for u in users %}
+              <option value="{{ u.id }}" {% if branch and branch.manager_user_id == u.id %}selected{% endif %}>
+                {{ u.username }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">العملة الافتراضية</label>
+            <select name="currency" class="form-select">
+              <option value="ILS" {% if not branch or branch.currency == 'ILS' %}selected{% endif %}>شيكل (ILS)</option>
+              <option value="USD" {% if branch and branch.currency == 'USD' %}selected{% endif %}>دولار (USD)</option>
+              <option value="JOD" {% if branch and branch.currency == 'JOD' %}selected{% endif %}>دينار (JOD)</option>
+              <option value="EUR" {% if branch and branch.currency == 'EUR' %}selected{% endif %}>يورو (EUR)</option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">الرقم الضريبي</label>
+            <input type="text" name="tax_id" class="form-control" placeholder="رقم التسجيل الضريبي" value="{{ branch.tax_id if branch else '' }}">
+          </div>
+
+          <div class="col-md-12">
+            <label class="form-label">ملاحظات</label>
+            <textarea name="notes" class="form-control" rows="3" placeholder="ملاحظات إدارية عن الفرع">{{ branch.notes if branch else '' }}</textarea>
+          </div>
+
+          <div class="col-md-12">
+            <div class="form-check form-switch">
+              <input type="checkbox" name="is_active" class="form-check-input" id="is_active" value="1" {% if not branch or branch.is_active %}checked{% endif %}>
+              <label class="form-check-label fw-bold" for="is_active">
+                <i class="fas fa-toggle-on me-1"></i> فرع نشط
+              </label>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="card-footer">
+        <div class="d-flex gap-2 justify-content-start">
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-save me-1"></i> {{ branch and 'تحديث' or 'حفظ' }}
+          </button>
+          <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-secondary">إلغاء</a>
+        </div>
+      </div>
+    </div>
+
+  </form>
+
+</div>
+{% endblock %}
+

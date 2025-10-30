@@ -152,6 +152,16 @@ def employees_list():
 # @permission_required("manage_expenses")  # Commented out
 def add_employee():
     form = EmployeeForm()
+    # فروع ومواقع
+    try:
+        from models import Branch, Site
+        form.branch_id.choices = [(b.id, f"{b.code} - {b.name}") for b in Branch.query.filter_by(is_active=True).order_by(Branch.name).all()]
+        form.site_id.choices = [(0, '-- بدون موقع --')] + [
+            (s.id, f"{s.code} - {s.name}") for s in Site.query.filter_by(is_active=True).order_by(Site.name).all()
+        ]
+    except Exception:
+        form.branch_id.choices = []
+        form.site_id.choices = [(0, '-- بدون موقع --')]
     if form.validate_on_submit():
         e = Employee()
         form.populate_obj(e)
@@ -171,6 +181,15 @@ def add_employee():
 def edit_employee(emp_id):
     e = _get_or_404(Employee, emp_id)
     form = EmployeeForm(obj=e)
+    try:
+        from models import Branch, Site
+        form.branch_id.choices = [(b.id, f"{b.code} - {b.name}") for b in Branch.query.filter_by(is_active=True).order_by(Branch.name).all()]
+        form.site_id.choices = [(0, '-- بدون موقع --')] + [
+            (s.id, f"{s.code} - {s.name}") for s in Site.query.filter_by(is_active=True).order_by(Site.name).all()
+        ]
+    except Exception:
+        form.branch_id.choices = []
+        form.site_id.choices = [(0, '-- بدون موقع --')]
     if form.validate_on_submit():
         form.populate_obj(e)
         try:
@@ -181,6 +200,40 @@ def edit_employee(emp_id):
             db.session.rollback()
             flash(f"❌ خطأ في تعديل الموظف: {err}", "danger")
     return render_template("expenses/employee_form.html", form=form, is_edit=True)
+
+@expenses_bp.route("/employees/<int:emp_id>/statement", methods=["GET"], endpoint="employee_statement")
+@login_required
+def employee_statement(emp_id):
+    """كشف حساب الموظف: السلف، الخصومات، الرواتب، الرصيد"""
+    from models import EmployeeDeduction, EmployeeAdvanceInstallment, ExpenseType
+    
+    e = _get_or_404(Employee, emp_id, joinedload(Employee.branch), joinedload(Employee.site))
+    
+    # السلف
+    advance_type = ExpenseType.query.filter_by(code='EMPLOYEE_ADVANCE').first()
+    advances = []
+    if advance_type:
+        advances = Expense.query.filter_by(employee_id=emp_id, type_id=advance_type.id).order_by(Expense.date.desc()).all()
+        # إضافة الأقساط لكل سلفة
+        for adv in advances:
+            adv.installments = EmployeeAdvanceInstallment.query.filter_by(advance_expense_id=adv.id).order_by(EmployeeAdvanceInstallment.installment_number).all()
+    
+    # الخصومات الشهرية
+    deductions = EmployeeDeduction.query.filter_by(employee_id=emp_id).order_by(EmployeeDeduction.start_date.desc()).all()
+    
+    # الرواتب المدفوعة
+    salary_type = ExpenseType.query.filter_by(code='SALARY').first()
+    salaries = []
+    if salary_type:
+        salaries = Expense.query.filter_by(employee_id=emp_id, type_id=salary_type.id).order_by(Expense.date.desc()).all()
+    
+    return render_template(
+        "expenses/employee_statement.html",
+        employee=e,
+        advances=advances,
+        deductions=deductions,
+        salaries=salaries,
+    )
 
 @expenses_bp.route("/employees/delete/<int:emp_id>", methods=["POST"], endpoint="delete_employee")
 @login_required
@@ -376,14 +429,26 @@ def detail(exp_id):
 def add():
     form = ExpenseForm()
     # ✅ ملء جميع القوائم المنسدلة
-    form.type_id.choices = [(t.id, t.name) for t in ExpenseType.query.order_by(ExpenseType.name).all()]
+    _types = ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()
+    form.type_id.choices = [(t.id, t.name) for t in _types]
+    try:
+        from models import Branch, Site
+        form.branch_id.choices = [(b.id, f"{b.code} - {b.name}") for b in Branch.query.filter_by(is_active=True).order_by(Branch.name).all()]
+        form.site_id.choices = [(0, '-- بدون موقع --')] + [
+            (s.id, f"{s.code} - {s.name}") for s in Site.query.filter_by(is_active=True).order_by(Site.name).all()
+        ]
+    except Exception:
+        form.branch_id.choices = []
+        form.site_id.choices = [(0, '-- بدون موقع --')]
     form.employee_id.choices = [(0, '-- اختر موظفاً --')] + [(e.id, e.name) for e in Employee.query.order_by(Employee.name).limit(200).all()]
     form.utility_account_id.choices = [(0, '-- اختر حساب --')] + [(u.id, f"{u.provider} - {u.account_no or u.alias or u.utility_type}") for u in UtilityAccount.query.filter_by(is_active=True).order_by(UtilityAccount.provider).limit(100).all()]
     form.warehouse_id.choices = [(0, '-- اختر مستودع --')] + [(w.id, w.name) for w in Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).limit(100).all()]
     form.shipment_id.choices = [(0, '-- اختر شحنة --')] + [(s.id, f"شحنة #{s.id}") for s in Shipment.query.order_by(Shipment.id.desc()).limit(50).all()]
-    form.partner_id.choices = [(0, '-- اختر شريك --')] + [(p.id, p.name) for p in Partner.query.filter_by(is_archived=False).order_by(Partner.name).limit(100).all()]
     form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')] + [(sa.id, f"تسوية #{sa.id}") for sa in StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()]
     
+    # تمرير ميتاداتا الحقول إلى القالب ليتحكم بما يظهر ويُلزم
+    types_meta = {t.id: (t.fields_meta or {}) for t in _types}
+
     if form.validate_on_submit():
         exp = Expense()
         if hasattr(form, "apply_to"):
@@ -403,13 +468,111 @@ def add():
                 exp.warehouse_id = None
             if not getattr(form, "shipment_id", None) or form.shipment_id.data == 0:
                 exp.shipment_id = None
-            if not getattr(form, "partner_id", None) or form.partner_id.data == 0:
-                exp.partner_id = None
             if not getattr(form, "stock_adjustment_id", None) or form.stock_adjustment_id.data == 0:
                 exp.stock_adjustment_id = None
+
+        # ✅ تحقق خادمي حسب نوع المصروف: الحقول الإلزامية من fields_meta
+        try:
+            etype = ExpenseType.query.get(int(form.type_id.data)) if getattr(form, 'type_id', None) else None
+            meta = (etype.fields_meta or {}) if etype else {}
+            required = set((meta.get('required') or []))
+            missing = []
+            # خرائط المفاتيح إلى قيم الكائن exp بعد populate
+            def _is_empty(v):
+                return v in (None, '', 0, '0')
+            if 'employee_id' in required and _is_empty(exp.employee_id):
+                missing.append('الموظف')
+            if 'period' in required and _is_empty(exp.period_start) and _is_empty(exp.period_end):
+                missing.append('الفترة')
+            if 'utility_account_id' in required and _is_empty(exp.utility_account_id):
+                missing.append('حساب المرفق')
+            if 'warehouse_id' in required and _is_empty(exp.warehouse_id):
+                missing.append('المستودع')
+            if 'shipment_id' in required and _is_empty(exp.shipment_id):
+                missing.append('رقم الشحنة')
+            if 'beneficiary_name' in required and _is_empty(exp.beneficiary_name):
+                missing.append('الجهة/الغرض')
+
+            if missing:
+                errs = '، '.join(missing)
+                flash(f"❌ حقول إلزامية مفقودة: {errs}", 'danger')
+                raise ValueError('missing required fields')
+        except Exception:
+            # في حال فشل التحليل نعيد النموذج للمستخدم
+            return render_template(
+                "expenses/expense_form.html",
+                form=form,
+                is_edit=False,
+            ), 400
+        # ✅ حساب تلقائي للراتب الصافي (قبل الحفظ)
+        try:
+            etype = ExpenseType.query.get(exp.type_id) if exp.type_id else None
+            if etype and etype.code == 'SALARY' and exp.employee_id:
+                emp = Employee.query.get(exp.employee_id)
+                if emp:
+                    # حساب الصافي: الراتب الأساسي - الخصومات الشهرية
+                    suggested_net = float(emp.net_salary or 0)
+                    # إن كان المبلغ المُدخل يساوي الأساسي، نعدله للصافي تلقائياً
+                    if abs(float(exp.amount) - float(emp.salary or 0)) < 0.01:
+                        exp.amount = suggested_net
+                        current_app.logger.info(f"✅ تم تعديل راتب الموظف #{emp.id} تلقائياً للصافي: {suggested_net}")
+        except Exception as e:
+            current_app.logger.warning(f"⚠️ فشل حساب الراتب الصافي التلقائي: {e}")
+        
         db.session.add(exp)
         try:
             db.session.commit()
+            
+            # ✅ معالجة ذكية للسلف: إنشاء أقساط إن طُلب
+            try:
+                from models import EmployeeAdvanceInstallment, ExpenseType
+                from dateutil.relativedelta import relativedelta
+                
+                etype = ExpenseType.query.get(exp.type_id) if exp.type_id else None
+                if etype and etype.code == 'EMPLOYEE_ADVANCE' and exp.employee_id:
+                    installments_count = int(getattr(form, 'installments_count', None).data or 1)
+                    if installments_count > 1:
+                        installment_amt = float(exp.amount) / installments_count
+                        start_month = exp.date.date() if isinstance(exp.date, datetime) else exp.date
+                        for i in range(1, installments_count + 1):
+                            due = start_month + relativedelta(months=i)
+                            inst = EmployeeAdvanceInstallment(
+                                employee_id=exp.employee_id,
+                                advance_expense_id=exp.id,
+                                installment_number=i,
+                                total_installments=installments_count,
+                                amount=installment_amt,
+                                currency=exp.currency,
+                                due_date=due,
+                                paid=False,
+                            )
+                            db.session.add(inst)
+                        db.session.commit()
+                        current_app.logger.info(f"✅ أقساط السلفة {exp.id}: {installments_count} قسط")
+            except Exception as e:
+                current_app.logger.error(f"❌ فشل إنشاء أقساط السلفة: {e}")
+            
+            # ✅ معالجة ذكية: إنشاء خصم شهري تلقائي إن طُلب
+            try:
+                from models import EmployeeDeduction
+                create_ded = getattr(form, 'create_deduction', None)
+                if create_ded and create_ded.data and exp.employee_id:
+                    ded = EmployeeDeduction(
+                        employee_id=exp.employee_id,
+                        deduction_type=etype.name if etype else 'أخرى',
+                        amount=exp.amount,
+                        currency=exp.currency,
+                        start_date=exp.date.date() if isinstance(exp.date, datetime) else exp.date,
+                        end_date=exp.period_end if exp.period_end else None,
+                        is_active=True,
+                        notes=exp.description or '',
+                        expense_id=exp.id,
+                    )
+                    db.session.add(ded)
+                    db.session.commit()
+                    current_app.logger.info(f"✅ خصم شهري لموظف {exp.employee_id} من مصروف {exp.id}")
+            except Exception as e:
+                current_app.logger.error(f"❌ فشل إنشاء خصم شهري: {e}")
             
             # ✅ إنشاء سجل Check تلقائياً إذا كانت طريقة الدفع شيك
             try:

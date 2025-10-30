@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% block title %}كشف حساب الموظف - {{ employee.name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4" dir="rtl">
+  
+  <!-- رأس الصفحة (مخفي عند الطباعة) -->
+  <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <h3 class="mb-0">
+      <i class="fas fa-file-invoice me-2"></i>
+      كشف حساب الموظف: {{ employee.name }}
+    </h3>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-right me-1"></i> رجوع
+      </a>
+      <button class="btn btn-primary btn-print" onclick="window.print()">
+        <i class="fas fa-print me-1"></i> طباعة
+      </button>
+    </div>
+  </div>
+
+  <!-- رأس الطباعة (يظهر فقط عند الطباعة) -->
+  <div class="print-header d-none d-print-block">
+    <h2>نظام أزاد لإدارة الكراج</h2>
+    <div class="company-info">
+      رام الله - فلسطين 🇵🇸 | {{ "now"|format_datetime("%Y-%m-%d %H:%M") }}
+    </div>
+    <h3 class="mt-3">كشف حساب الموظف</h3>
+  </div>
+
+  <!-- معلومات الموظف -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+      <i class="fas fa-user me-1"></i> معلومات الموظف
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <strong>الاسم:</strong> {{ employee.name }}
+        </div>
+        <div class="col-md-3">
+          <strong>المسمى:</strong> {{ employee.position or '—' }}
+        </div>
+        <div class="col-md-3">
+          <strong>تاريخ التعيين:</strong> {{ employee.hire_date.strftime('%Y-%m-%d') if employee.hire_date else '—' }}
+        </div>
+        <div class="col-md-3">
+          <strong>الفرع:</strong> {{ employee.branch.name if employee.branch else '—' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ملخص مالي -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted">الراتب الأساسي</h6>
+          <h4 class="text-primary">{{ "%.2f"|format(employee.salary or 0) }} ₪</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted">إجمالي السلف</h6>
+          <h4 class="text-warning">{{ "%.2f"|format(employee.total_advances) }} ₪</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted">الخصومات الشهرية</h6>
+          <h4 class="text-danger">{{ "%.2f"|format(employee.total_deductions) }} ₪</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted">الراتب الصافي</h6>
+          <h4 class="text-success">{{ "%.2f"|format(employee.net_salary) }} ₪</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- السلف -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning text-white">
+      <i class="fas fa-hand-holding-usd me-1"></i> السلف المسحوبة
+    </div>
+    <div class="card-body">
+      {% if advances %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>المبلغ</th>
+              <th>الوصف</th>
+              <th>حالة السداد</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for adv in advances %}
+            <tr>
+              <td>{{ adv.date.strftime('%Y-%m-%d') if adv.date else '—' }}</td>
+              <td>{{ "%.2f"|format(adv.amount) }} {{ adv.currency }}</td>
+              <td>{{ adv.description or '—' }}</td>
+              <td>
+                {% set installments = adv.installments %}
+                {% if installments %}
+                  {% set paid_count = installments|selectattr('paid')|list|length %}
+                  {% set total_count = installments|length %}
+                  <span class="badge bg-{% if paid_count == total_count %}success{% else %}warning{% endif %}">
+                    {{ paid_count }}/{{ total_count }} أقساط
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary">بدون أقساط</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted text-center mb-0">لا توجد سلف مسجلة</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- الخصومات الشهرية -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-danger text-white">
+      <i class="fas fa-minus-circle me-1"></i> الخصومات الشهرية
+    </div>
+    <div class="card-body">
+      {% if deductions %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>النوع</th>
+              <th>المبلغ</th>
+              <th>من</th>
+              <th>إلى</th>
+              <th>الحالة</th>
+              <th>ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ded in deductions %}
+            <tr>
+              <td>{{ ded.deduction_type }}</td>
+              <td>{{ "%.2f"|format(ded.amount) }} {{ ded.currency }}</td>
+              <td>{{ ded.start_date.strftime('%Y-%m-%d') if ded.start_date else '—' }}</td>
+              <td>{{ ded.end_date.strftime('%Y-%m-%d') if ded.end_date else 'مستمر' }}</td>
+              <td>
+                <span class="badge bg-{% if ded.is_active %}success{% else %}secondary{% endif %}">
+                  {{ 'نشط' if ded.is_active else 'موقوف' }}
+                </span>
+              </td>
+              <td>{{ ded.notes or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted text-center mb-0">لا توجد خصومات شهرية</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- الرواتب المدفوعة -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white">
+      <i class="fas fa-money-bill-wave me-1"></i> الرواتب المدفوعة
+    </div>
+    <div class="card-body">
+      {% if salaries %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover">
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>الشهر</th>
+              <th>المبلغ</th>
+              <th>طريقة الدفع</th>
+              <th>ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sal in salaries %}
+            <tr>
+              <td>{{ sal.date.strftime('%Y-%m-%d') if sal.date else '—' }}</td>
+              <td>
+                {% if sal.period_start %}
+                  {{ sal.period_start.strftime('%Y-%m') }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>{{ "%.2f"|format(sal.amount) }} {{ sal.currency }}</td>
+              <td>{{ sal.payment_method|upper }}</td>
+              <td>{{ sal.description or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted text-center mb-0">لا توجد رواتب مدفوعة</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- الرصيد النهائي -->
+  <div class="card shadow-lg">
+    <div class="card-body text-center">
+      <h5>الرصيد النهائي</h5>
+      {% set balance = employee.balance %}
+      <h2 class="{% if balance < 0 %}text-danger{% elif balance > 0 %}text-success{% else %}text-secondary{% endif %}">
+        {{ "%.2f"|format(balance|abs) }} ₪
+        {% if balance < 0 %}
+          <small class="text-muted d-block mt-2">له عندنا (يستحق دفع)</small>
+        {% elif balance > 0 %}
+          <small class="text-muted d-block mt-2">عليه لنا (مدين)</small>
+        {% else %}
+          <small class="text-muted d-block mt-2">الحساب متوازن</small>
+        {% endif %}
+      </h2>
+    </div>
+  </div>
+
+  <!-- ذيل الطباعة (يظهر فقط عند الطباعة) -->
+  <div class="print-footer d-none d-print-block">
+    تم الطباعة بواسطة: {{ current_user.username }} | التاريخ: {{ "now"|format_datetime("%Y-%m-%d %H:%M") }}
+    <br>
+    <small>نظام أزاد لإدارة الكراج - v5.0.0 Enterprise</small>
+  </div>
+
+</div>
+{% endblock %}
+

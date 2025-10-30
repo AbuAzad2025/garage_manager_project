@@ -65,6 +65,9 @@
   <!-- Safe Enhancements CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/enhancements.css') }}">
   
+  <!-- Print Styles - A4 Professional Format -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+  
   <!-- Performance & Event Utilities (loaded early for all pages) -->
   <script src="{{ url_for('static', filename='js/event-utils.js') }}" defer></script>
   <script src="{{ url_for('static', filename='js/csrf-utils.js') }}"></script>
