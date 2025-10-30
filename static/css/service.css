@@ -346,7 +346,8 @@
   margin-bottom: 1.5rem;
 }
 
-.card-header {
+/* تم تعطيلها للسماح بالألوان المخصصة */
+.card-header:not([style]) {
   border-radius: 1rem 1rem 0 0 !important;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border-bottom: 2px solid #dee2e6;

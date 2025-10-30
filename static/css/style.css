@@ -817,12 +817,22 @@ button:focus, .btn:focus {
   transform: translateY(-3px) !important;
 }
 
-.card-header {
+/* تم تعطيل هذه القاعدة - كانت تمنع الألوان المخصصة */
+/*.card-header {
   background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%) !important;
   color: #ffffff !important;
   border-bottom: none !important;
   font-weight: 600 !important;
   border-radius: 0.75rem 0.75rem 0 0 !important;
+}*/
+
+/* القاعدة الجديدة - تسمح بالتخصيص */
+.card-header:not([style]) {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: #ffffff;
+  border-bottom: none;
+  font-weight: 600;
+  border-radius: 0.75rem 0.75rem 0 0;
 }
 
 .card-body {
@@ -1295,7 +1305,8 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-2px);
 }
 
-.card-header {
+/* تعطيل القاعدة الثانية أيضاً */
+.card-header:not([style]):not(.custom-header) {
   background: var(--card-header-bg);
   color: var(--card-header-text);
   border-bottom: none;

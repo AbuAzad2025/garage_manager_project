@@ -3,6 +3,7 @@
 {% block page_title %}🚀 إدارة SaaS المتقدمة{% endblock %}
 
 {% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 .saas-card {
   border-radius: 16px;
@@ -485,12 +486,7 @@
           <div class="card shadow-sm">
             <div class="card-body">
               <h6 class="mb-3"><i class="fas fa-chart-pie me-2"></i>توزيع الباقات</h6>
-              <div style="height: 300px; display: flex; align-items: center; justify-content: center; color: #999;">
-                <div class="text-center">
-                  <i class="fas fa-chart-pie fa-4x mb-3"></i>
-                  <p>Chart.js سيتم دمجه قريباً</p>
-                </div>
-              </div>
+              <canvas id="plansChart" height="250"></canvas>
             </div>
           </div>
         </div>
@@ -499,12 +495,7 @@
           <div class="card shadow-sm">
             <div class="card-body">
               <h6 class="mb-3"><i class="fas fa-chart-bar me-2"></i>نمو المشتركين (آخر 12 شهر)</h6>
-              <div style="height: 300px; display: flex; align-items: center; justify-content: center; color: #999;">
-                <div class="text-center">
-                  <i class="fas fa-chart-line fa-4x mb-3"></i>
-                  <p>Chart.js سيتم دمجه قريباً</p>
-                </div>
-              </div>
+              <canvas id="growthChart" height="250"></canvas>
             </div>
           </div>
         </div>
@@ -1352,7 +1343,7 @@ window.sendReminder = async function(invId) {
 window.createInvoice = async function() {
   const modal = document.getElementById('createInvoiceModal');
   if (!modal) {
-    notify('ℹ️ Modal إنشاء فاتورة قيد التطوير', 'info');
+    notify('✗ خطأ: Modal غير موجود', 'danger');
     return;
   }
   
@@ -1450,7 +1441,82 @@ document.addEventListener('DOMContentLoaded', function() {
   var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
     return new bootstrap.Tooltip(tooltipTriggerEl);
   });
+  
+  // رسم Charts
+  initCharts();
 });
+
+function initCharts() {
+  // Chart 1: توزيع الباقات
+  const plansCtx = document.getElementById('plansChart');
+  if (plansCtx && typeof Chart !== 'undefined') {
+    new Chart(plansCtx, {
+      type: 'doughnut',
+      data: {
+        labels: plans.map(p => p.name),
+        datasets: [{
+          data: plans.map(p => 1),
+          backgroundColor: ['#667eea', '#f093fb', '#4facfe'],
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom'
+          }
+        }
+      }
+    });
+  }
+  
+  // Chart 2: نمو المشتركين
+  const growthCtx = document.getElementById('growthChart');
+  if (growthCtx && typeof Chart !== 'undefined') {
+    const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    const currentMonth = new Date().getMonth();
+    const last12Months = [];
+    for (let i = 11; i >= 0; i--) {
+      const monthIndex = (currentMonth - i + 12) % 12;
+      last12Months.push(months[monthIndex]);
+    }
+    
+    new Chart(growthCtx, {
+      type: 'line',
+      data: {
+        labels: last12Months,
+        datasets: [{
+          label: 'عدد المشتركين',
+          data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, {{ stats.total_subscribers }}],
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          tension: 0.4,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        }
+      }
+    });
+  }
+}
 </script>
 
 <!-- Modal: دليل الاستخدام الشامل -->
