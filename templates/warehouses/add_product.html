@@ -136,20 +136,25 @@
     </div>
     <div class="card-body">
       <div class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-3">
+          <label class="form-label">{{ product_form.currency.label.text }} <span class="text-danger">*</span></label>
+          {{ product_form.currency(class_="form-select", id="product_currency", required=True) }}
+          <small class="text-muted"><i class="fas fa-globe text-info"></i> العملة المُستخدمة لكل الأسعار</small>
+        </div>
+        <div class="col-md-3">
           <label class="form-label">{{ product_form.price.label.text }} <span class="text-danger">*</span></label>
           <div class="input-group">
-            {{ product_form.price(class_="form-control", required=True, placeholder="0.00") }}
-            <span class="input-group-text">₪</span>
+            {{ product_form.price(class_="form-control", id="product_price", required=True, placeholder="0.00") }}
+            <span class="input-group-text" id="currency-symbol">₪</span>
           </div>
           <small class="text-muted"><i class="fas fa-money-bill-wave text-success"></i> السعر الذي سنبيع به للعملاء</small>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label">{{ stock_form.quantity.label.text }} <span class="text-muted">(اختياري)</span></label>
           {{ stock_form.quantity(class_="form-control", placeholder="0") }}
           <small class="text-muted"><i class="fas fa-boxes"></i> عدد القطع المُضافة الآن</small>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label">{{ product_form.min_qty.label.text }} <span class="text-muted">(اختياري)</span></label>
           {{ product_form.min_qty(class_="form-control", placeholder="5") }}
           <small class="text-muted"><i class="fas fa-bell text-warning"></i> تنبيه عند النقص لهذا العدد</small>
@@ -162,6 +167,12 @@
           </div>
           <small class="text-muted"><i class="fas fa-percent"></i> نسبة الضريبة</small>
         </div>
+      </div>
+      
+      <div class="alert alert-info mt-3 mb-0">
+        <i class="fas fa-info-circle"></i> <strong>ملاحظة:</strong>
+        جميع الأسعار (السعر الأساسي، سعر الشراء، التكلفة، إلخ) ستكون بالعملة المختارة أعلاه.
+        عند البيع بعملة مختلفة، سيتم التحويل تلقائياً.
       </div>
     </div>
   </div>
@@ -589,6 +600,34 @@
 {% block scripts %}
 {{ super() }}
 <script>
+// تحديث رمز العملة ديناميكياً
+document.addEventListener('DOMContentLoaded', function() {
+  const currencySelect = document.getElementById('product_currency');
+  const currencySymbol = document.getElementById('currency-symbol');
+  
+  const currencySymbols = {
+    'ILS': '₪',
+    'USD': '$',
+    'EUR': '€',
+    'JOD': 'د.أ',
+    'GBP': '£',
+    'AED': 'د.إ',
+    'SAR': 'ر.س',
+    'EGP': 'ج.م'
+  };
+  
+  function updateCurrencySymbol() {
+    const selectedCurrency = currencySelect.value || 'ILS';
+    const symbol = currencySymbols[selectedCurrency] || selectedCurrency;
+    currencySymbol.textContent = symbol;
+  }
+  
+  if (currencySelect && currencySymbol) {
+    currencySelect.addEventListener('change', updateCurrencySymbol);
+    updateCurrencySymbol();
+  }
+});
+
 // إصلاح مشكلة backdrop
 $('#categoryModal, #equipmentTypeModal').on('shown.bs.modal', function() {
   $('.modal-backdrop').css('z-index', parseInt($(this).css('z-index')) - 10);

@@ -1157,17 +1157,42 @@ def product_by_barcode(code: str):
 @limiter.limit("60/minute")
 # @permission_required("view_parts", "view_inventory", "manage_inventory")  # Commented out
 def product_info(pid: int):
+    from decimal import Decimal
+    from models import convert_amount
+    
     p = db.session.get(Product, pid)
     if not p:
         return jsonify({"error": "Not Found"}), 404
+    
     wid = request.args.get("warehouse_id", type=int)
+    target_currency = (request.args.get("currency") or "ILS").upper()
+    
     available = None
     if wid:
         sl = StockLevel.query.filter_by(product_id=pid, warehouse_id=wid).first()
         available = sl.quantity if sl else 0
-    return jsonify(
-        {"id": p.id, "name": p.name, "sku": p.sku, "price": float(p.price or 0), "available": (int(available) if available is not None else None)}
-    )
+    
+    product_currency = (p.currency or "ILS").upper()
+    product_price = Decimal(str(p.price or 0))
+    
+    if product_currency == target_currency:
+        converted_price = float(product_price)
+    else:
+        try:
+            converted_price = float(convert_amount(product_price, product_currency, target_currency))
+        except:
+            converted_price = float(product_price)
+    
+    return jsonify({
+        "id": p.id,
+        "name": p.name,
+        "sku": p.sku,
+        "price": converted_price,
+        "original_price": float(product_price),
+        "original_currency": product_currency,
+        "target_currency": target_currency,
+        "available": (int(available) if available is not None else None)
+    })
 
 @bp.post("/categories")
 @login_required

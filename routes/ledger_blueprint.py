@@ -347,12 +347,12 @@ def get_ledger_data():
                 if expense.employee:
                     expense_entity_name = expense.employee.name
                     expense_entity_type = "موظف"
-                elif expense.supplier:
-                    expense_entity_name = expense.supplier.name
-                    expense_entity_type = "مورد"
                 elif expense.partner:
                     expense_entity_name = expense.partner.name
                     expense_entity_type = "شريك"
+                elif expense.paid_to:
+                    expense_entity_name = expense.paid_to
+                    expense_entity_type = "جهة"
                 elif expense.payee_name:
                     expense_entity_name = expense.payee_name
                     expense_entity_type = "جهة"

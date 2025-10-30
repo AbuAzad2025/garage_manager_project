@@ -496,10 +496,12 @@
     updatePaymentDetails();
     
     // عرض المتاح والسعر كما في الفاتورة
-    async function fetchProductInfo(pid, wid){
+    async function fetchProductInfo(pid, wid, targetCurrency){
       if(!(pid && wid)) return {};
       try{
-        const res = await fetch(`/api/products/${pid}/info?warehouse_id=${wid}`, { headers: { 'Accept': 'application/json' } });
+        let url = `/api/products/${pid}/info?warehouse_id=${wid}`;
+        if(targetCurrency) url += `&currency=${encodeURIComponent(targetCurrency)}`;
+        const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
         return await res.json();
       }catch(_){ return {}; }
     }
@@ -507,12 +509,20 @@
     $('#productSelect').on('select2:select', async function(){
       var pid = $(this).val();
       var wid = $('#warehouseSelect').val();
-      var info = await fetchProductInfo(pid, wid);
+      var currency = $('select[name="currency"]').val() || 'ILS';
+      var info = await fetchProductInfo(pid, wid, currency);
       var avail = (typeof info.available !== 'undefined') ? info.available : null;
       var price = (typeof info.price !== 'undefined') ? info.price : null;
+      var originalCurr = info.original_currency || 'ILS';
+      var targetCurr = info.target_currency || currency;
       var parts = [];
       if (avail !== null) parts.push('متاح: ' + avail);
-      if (price !== null) parts.push('سعر: ' + Number(price).toFixed(2));
+      if (price !== null) {
+        parts.push('سعر: ' + Number(price).toFixed(2) + ' ' + targetCurr);
+        if (originalCurr !== targetCurr) {
+          parts.push('(أصلي: ' + Number(info.original_price).toFixed(2) + ' ' + originalCurr + ')');
+        }
+      }
       $('#prodAvail').text(parts.join(' | '));
     });
 

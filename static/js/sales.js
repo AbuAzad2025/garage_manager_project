@@ -11,10 +11,12 @@
   function loadJQueryOnce(){return new Promise(res=>{if(window.jQuery) return res();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js';s.onload=()=>res();document.head.appendChild(s);});}
   const debounce=(fn, d=200)=>{let t; return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),d);}};
 
-  async function fetchProductInfo(pid, wid){
+  async function fetchProductInfo(pid, wid, targetCurrency){
     if(!(pid && wid)) return {};
     try{
-      const res=await fetch(`/api/products/${pid}/info?warehouse_id=${wid}`, {headers:{'Accept':'application/json'}});
+      let url = `/api/products/${pid}/info?warehouse_id=${wid}`;
+      if(targetCurrency) url += `&currency=${encodeURIComponent(targetCurrency)}`;
+      const res=await fetch(url, {headers:{'Accept':'application/json'}});
       return await res.json();
     }catch(_){ return {}; }
   }
@@ -290,16 +292,17 @@
           $pd.off('select2:select').on('select2:select', async (e) => {
             const data = e.params?.data || {};
             const pid = +$pd.val(); const widNow = +$wh.val();
+            const saleCurrency = qs('select[name="currency"]')?.value || 'ILS';
             if (priceInp && row.dataset.priceManual!=='1') {
               if (typeof data.price!=='undefined') {
                 const p = toNum(data.price);
                 if(p>0){priceInp.value=p.toFixed(2);recalc();}
               } else {
-                const info=await fetchProductInfo(pid,widNow);
+                const info=await fetchProductInfo(pid,widNow,saleCurrency);
                 if(info && toNum(info.price)>0){priceInp.value=toNum(info.price).toFixed(2);recalc();}
               }
             }
-            updateAvailability(pid,widNow,row);
+            updateAvailability(pid,widNow,row,saleCurrency);
           });
         };
 
@@ -315,11 +318,11 @@
       });
     }
 
-    async function updateAvailability(pid,wid,row){
+    async function updateAvailability(pid,wid,row,targetCurrency){
       const badge = row.querySelector('.stock-badge');
       if (!badge) return;
       if (!(pid && wid)) { badge.textContent=''; return; }
-      const data = await fetchProductInfo(pid,wid);
+      const data = await fetchProductInfo(pid,wid,targetCurrency);
       const avail = Number.isFinite(+data.available)? +data.available : null;
       badge.textContent = (avail===null?'':'متاح: '+avail);
     }
