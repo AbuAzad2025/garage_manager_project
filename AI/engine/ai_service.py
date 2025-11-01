@@ -13,8 +13,19 @@ from AI.engine.ai_knowledge_finance import (
     get_finance_knowledge, 
     calculate_palestine_income_tax,
     calculate_vat,
-    get_customs_info
+    get_customs_info,
+    get_tax_knowledge_detailed
 )
+from AI.engine.ai_gl_knowledge import (
+    get_gl_knowledge_for_ai,
+    explain_gl_entry,
+    analyze_gl_batch,
+    detect_gl_error,
+    suggest_gl_correction,
+    explain_any_number,
+    trace_transaction_flow
+)
+from AI.engine.ai_accounting_professional import get_professional_accounting_knowledge
 from AI.engine.ai_self_review import (
     log_interaction,
     check_policy_compliance,
