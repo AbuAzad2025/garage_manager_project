@@ -600,6 +600,15 @@ def trial_balance():
         total_debits = 0
         total_credits = 0
         
+        # قاموس الأوصاف
+        account_descriptions = {
+            'ASSET': 'ما تملكه الشركة من موارد',
+            'LIABILITY': 'ما على الشركة من التزامات',
+            'EQUITY': 'حقوق المالك في الشركة',
+            'REVENUE': 'الدخل من العمليات',
+            'EXPENSE': 'التكاليف والمصروفات'
+        }
+        
         for acc in accounts_balance:
             debit = float(acc.total_debit or 0)
             credit = float(acc.total_credit or 0)
@@ -609,6 +618,7 @@ def trial_balance():
                 'account': acc.account,
                 'name': acc.name,
                 'type': acc.type,
+                'description': account_descriptions.get(acc.type, ''),
                 'debit': debit,
                 'credit': credit,
                 'net': net,

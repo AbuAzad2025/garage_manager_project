@@ -49,6 +49,7 @@
                             <th>الحساب</th>
                             <th>الاسم</th>
                             <th>النوع</th>
+                            <th>الوصف</th>
                             <th class="text-end">المدين</th>
                             <th class="text-end">الدائن</th>
                             <th class="text-end">الرصيد الصافي</th>
@@ -61,8 +62,21 @@
                             <td><code>{{ row.account }}</code></td>
                             <td>{{ row.name }}</td>
                             <td>
+                                {% if row.type == 'ASSET' %}
+                                <span class="badge bg-primary">أصل</span>
+                                {% elif row.type == 'LIABILITY' %}
+                                <span class="badge bg-warning">خصم</span>
+                                {% elif row.type == 'EQUITY' %}
+                                <span class="badge bg-info">حقوق ملكية</span>
+                                {% elif row.type == 'REVENUE' %}
+                                <span class="badge bg-success">إيراد</span>
+                                {% elif row.type == 'EXPENSE' %}
+                                <span class="badge bg-danger">مصروف</span>
+                                {% else %}
                                 <span class="badge bg-secondary">{{ row.type }}</span>
+                                {% endif %}
                             </td>
+                            <td class="small text-muted">{{ row.description or '-' }}</td>
                             <td class="text-end">{{ "{:,.2f}".format(row.debit) }} ₪</td>
                             <td class="text-end">{{ "{:,.2f}".format(row.credit) }} ₪</td>
                             <td class="text-end fw-bold">{{ "{:,.2f}".format(row.net|abs) }} ₪</td>
@@ -78,7 +92,7 @@
                     </tbody>
                     <tfoot class="table-dark fw-bold fs-5">
                         <tr>
-                            <td colspan="3" class="text-end">الإجمالي</td>
+                            <td colspan="4" class="text-end">الإجمالي</td>
                             <td class="text-end">{{ "{:,.2f}".format(total_debits) }} ₪</td>
                             <td class="text-end">{{ "{:,.2f}".format(total_credits) }} ₪</td>
                             <td colspan="2" class="text-center">
@@ -93,6 +107,47 @@
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+            
+            <!-- ملخص تعريفي -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card border-info">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0"><i class="fas fa-info-circle"></i> دليل ميزان المراجعة</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary"><i class="fas fa-coins"></i> الحسابات المدينة (Debit):</h6>
+                                    <ul class="small">
+                                        <li><strong>الأصول:</strong> النقدية، البنك، العملاء، المخزون</li>
+                                        <li><strong>المصروفات:</strong> الإيجار، الرواتب، المرافق، COGS</li>
+                                    </ul>
+                                    
+                                    <h6 class="text-success"><i class="fas fa-hand-holding-usd"></i> الحسابات الدائنة (Credit):</h6>
+                                    <ul class="small">
+                                        <li><strong>الإيرادات:</strong> المبيعات، الخدمات، الأرباح</li>
+                                        <li><strong>الخصوم:</strong> الموردون، القروض، الدائنون</li>
+                                        <li><strong>حقوق الملكية:</strong> رأس المال، الأرباح المحتجزة</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert alert-light border">
+                                        <h6 class="text-dark"><i class="fas fa-balance-scale"></i> المعادلة المحاسبية:</h6>
+                                        <p class="mb-2 fw-bold text-center">المدين = الدائن</p>
+                                        <p class="mb-2 text-center">{{ "{:,.2f}".format(total_debits) }} = {{ "{:,.2f}".format(total_credits) }}</p>
+                                        <hr>
+                                        <p class="mb-0 small text-muted">
+                                            <i class="fas fa-check-circle text-success"></i>
+                                            التوازن يعني أن القيود تم تسجيلها بشكل صحيح وفق نظرية القيد المزدوج
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <!-- أزرار الإجراءات -->
