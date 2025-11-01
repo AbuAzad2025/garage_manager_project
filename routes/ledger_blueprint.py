@@ -1129,8 +1129,8 @@ def get_accounts_summary():
         
         accounts.append({
             "name": "المبيعات",
-            "debit_balance": total_sales,
-            "credit_balance": 0.0
+            "debit_balance": 0.0,
+            "credit_balance": total_sales
         })
         
         # 2. حساب الخدمات (الصيانة)
@@ -1170,8 +1170,8 @@ def get_accounts_summary():
         
         accounts.append({
             "name": "الخدمات (الصيانة)",
-            "debit_balance": total_services,
-            "credit_balance": 0.0
+            "debit_balance": 0.0,
+            "credit_balance": total_services
         })
         
         # 3. حساب تكلفة البضاعة المباعة (COGS) - مع التحذيرات
@@ -1209,8 +1209,8 @@ def get_accounts_summary():
         
         accounts.append({
             "name": "تكلفة البضاعة المباعة (COGS)",
-            "debit_balance": 0.0,
-            "credit_balance": total_cogs
+            "debit_balance": total_cogs,
+            "credit_balance": 0.0
         })
         
         # 4. حساب المشتريات والنفقات
@@ -1236,8 +1236,8 @@ def get_accounts_summary():
         
         accounts.append({
             "name": "المشتريات والنفقات",
-            "debit_balance": 0.0,
-            "credit_balance": total_expenses
+            "debit_balance": total_expenses,
+            "credit_balance": 0.0
         })
         
         # 3. حساب الخزينة (من الدفعات)
