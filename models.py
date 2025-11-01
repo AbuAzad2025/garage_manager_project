@@ -8665,7 +8665,6 @@ def _set_completed_at_on_status_change(target, value, oldvalue, initiator):
     if newv == ServiceStatus.COMPLETED.value and not target.completed_at:
         target.completed_at = datetime.now(timezone.utc)
 
-# ===== إنشاء قيود GL تلقائية للصيانة =====
 @event.listens_for(ServiceRequest, "after_insert")
 @event.listens_for(ServiceRequest, "after_update")
 def _service_gl_batch_upsert(mapper, connection, target: "ServiceRequest"):
@@ -8687,6 +8686,28 @@ def _service_gl_batch_upsert(mapper, connection, target: "ServiceRequest"):
                         amount_ils = float(amount * float(rate))
             except:
                 pass
+        
+        existing_batch = connection.execute(
+            sa_text("""
+                SELECT id FROM gl_batches
+                WHERE source_type = 'SERVICE' 
+                  AND source_id = :sid 
+                  AND purpose = 'SERVICE'
+                  AND status = 'POSTED'
+            """),
+            {"sid": target.id}
+        ).scalar()
+        
+        if existing_batch:
+            connection.execute(
+                sa_text("DELETE FROM gl_entries WHERE batch_id = :bid"),
+                {"bid": existing_batch}
+            )
+            connection.execute(
+                sa_text("DELETE FROM gl_batches WHERE id = :bid"),
+                {"bid": existing_batch}
+            )
+        
         entries = [
             (GL_ACCOUNTS.get("AR", "1100_AR"), amount_ils, 0),
             (GL_ACCOUNTS.get("SERVICE_REV", "4100_SERVICE_REVENUE"), 0, amount_ils),
@@ -10200,12 +10221,10 @@ def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
     try:
         from models import fx_rate
         
-        # تحويل المبلغ للشيقل
         amount = float(target.amount or 0)
         if amount <= 0:
             return
         
-        # تحويل العملة
         amount_ils = amount
         if target.currency and target.currency != 'ILS':
             try:
@@ -10215,12 +10234,7 @@ def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
             except:
                 pass
         
-        # القيد المحاسبي:
-        # مدين: حساب المصروف المخصص (من ExpenseType.fields_meta) أو افتراضي
-        # دائن: النقدية (حسب طريقة الدفع)
-        
-        # قراءة حساب GL من نوع المصروف
-        expense_account = GL_ACCOUNTS.get("EXP", "5000_EXPENSES")  # افتراضي
+        expense_account = GL_ACCOUNTS.get("EXP", "5000_EXPENSES")
         try:
             etype_row = connection.execute(
                 select(ExpenseType.fields_meta).where(ExpenseType.id == target.type_id)
@@ -10239,14 +10253,34 @@ def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
         elif target.payment_method == 'card':
             cash_account = GL_ACCOUNTS.get("CARD", "1020_CARD_CLEARING")
         elif target.payment_method in ('cheque', 'check'):
-            cash_account = "2050_CHECKS_PAYABLE"  # شيكات مستحقة الدفع
+            cash_account = "2050_CHECKS_PAYABLE"
+        
+        existing_batch = connection.execute(
+            sa_text("""
+                SELECT id FROM gl_batches
+                WHERE source_type = 'EXPENSE' 
+                  AND source_id = :sid 
+                  AND purpose = 'EXPENSE'
+                  AND status = 'POSTED'
+            """),
+            {"sid": target.id}
+        ).scalar()
+        
+        if existing_batch:
+            connection.execute(
+                sa_text("DELETE FROM gl_entries WHERE batch_id = :bid"),
+                {"bid": existing_batch}
+            )
+            connection.execute(
+                sa_text("DELETE FROM gl_batches WHERE id = :bid"),
+                {"bid": existing_batch}
+            )
         
         entries = [
-            (expense_account, amount_ils, 0),  # مدين: حساب المصروف المخصص
-            (cash_account, 0, amount_ils),  # دائن: النقدية/البنك
+            (expense_account, amount_ils, 0),
+            (cash_account, 0, amount_ils),
         ]
         
-        # محاولة قراءة اسم نوع المصروف للـ memo
         expense_type_name = "مصروف عام"
         try:
             etype_name_row = connection.execute(
