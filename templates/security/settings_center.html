@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}مركز الإعدادات والتخصيص{% endblock %}
+{% block page_title %}⚙️ مركز الإعدادات والتخصيص{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active"><i class="fas fa-cogs"></i> Settings Center</li>
+{% if active_tab %}
+<li class="breadcrumb-item active">{{ active_tab|title }}</li>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-cogs"></i>
+        <strong>Settings & Customization Center:</strong>
+        <span class="badge bg-white text-danger ms-2">8 أدوات في مكان واحد</span>
+      </div>
+      <small class="opacity-75">إعدادات + ثيمات + مظهر + علامة تجارية</small>
+    </div>
+  </div>
+
+  <div class="card shadow">
+    <div class="card-header text-white" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+      <h5 class="mb-0"><i class="fas fa-cogs"></i> Settings & Customization Center</h5>
+    </div>
+    
+    <div class="card-body p-0">
+      
+      <ul class="nav nav-tabs nav-fill" style="border-bottom: 2px solid #dee2e6;">
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'system' %}active{% endif %}" 
+             href="{{ url_for('security.settings_center', tab='system') }}">
+            <i class="fas fa-cog"></i> إعدادات النظام
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'constants' %}active{% endif %}" 
+             href="{{ url_for('security.settings_center', tab='constants') }}">
+            <i class="fas fa-database"></i> الثوابت
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'config' %}active{% endif %}" 
+             href="{{ url_for('security.settings_center', tab='config') }}">
+            <i class="fas fa-sliders-h"></i> تكوين متقدم
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'branding' %}active{% endif %}" 
+             href="{{ url_for('security.settings_center', tab='branding') }}">
+            <i class="fas fa-tag"></i> العلامة التجارية
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'theme' %}active{% endif %}" 
+             href="{{ url_for('security.settings_center', tab='theme') }}">
+            <i class="fas fa-palette"></i> المظهر والثيمات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'logos' %}active{% endif %}" 
+             href="{{ url_for('security.settings_center', tab='logos') }}">
+            <i class="fas fa-image"></i> الشعارات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'darkmode' %}active{% endif %}" 
+             href="{{ url_for('security.settings_center', tab='darkmode') }}">
+            <i class="fas fa-moon"></i> الوضع الليلي
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'branches' %}active{% endif %}" 
+             href="{{ url_for('security.settings_center', tab='branches') }}">
+            <i class="fas fa-code-branch"></i> الفروع
+          </a>
+        </li>
+      </ul>
+
+      <div class="tab-content p-4">
+        
+        {% if active_tab == 'system' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-cog text-primary"></i> إعدادات النظام</h4>
+          <a href="{{ url_for('security.system_settings') }}" class="btn btn-primary" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح الإعدادات
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'constants' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-database text-info"></i> الثوابت</h4>
+          <a href="{{ url_for('security.system_constants') }}" class="btn btn-info" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح الثوابت
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'config' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-sliders-h text-warning"></i> تكوين متقدم</h4>
+          <a href="{{ url_for('security.advanced_config') }}" class="btn btn-warning" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح التكوين
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'branding' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-tag text-danger"></i> العلامة التجارية</h4>
+          <a href="{{ url_for('security.system_branding') }}" class="btn btn-danger" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح العلامة
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'theme' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-palette text-success"></i> المظهر والثيمات</h4>
+          <a href="{{ url_for('security.theme_editor') }}" class="btn btn-success" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح المحرر
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'logos' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-image text-secondary"></i> الشعارات</h4>
+          <a href="{{ url_for('security.logo_manager') }}" class="btn btn-secondary" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح الشعارات
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'darkmode' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-moon text-dark"></i> الوضع الليلي</h4>
+          <a href="{{ url_for('security.dark_mode_settings') }}" class="btn btn-dark" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح الإعدادات
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'branches' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-code-branch text-info"></i> الفروع والمواقع</h4>
+          <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-info" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح الفروع
+          </a>
+        </div>
+        {% endif %}
+        
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

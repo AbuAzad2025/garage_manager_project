@@ -123,7 +123,7 @@
 <div class="alert alert-info alert-dismissible fade show" role="alert">
   <i class="fas fa-info-circle me-2"></i>
   <strong>ملاحظة:</strong> سيتم خصم الكمية من <strong>{{ warehouse.name }}</strong> وإضافتها للمستودع الوجهة تلقائياً.
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
 </div>
 
 <!-- تنبيه قواعد التحويل -->
@@ -172,7 +172,7 @@
               <i class="fas fa-barcode field-icon"></i>
               {{ form.reference.label }}
               <i class="fas fa-info-circle info-tooltip ms-1" 
-                 data-bs-toggle="tooltip" 
+                 data-toggle="tooltip" 
                  title="اتركه فارغاً للإنشاء التلقائي (مثال: TRF20241020AB12CD34)"></i>
             </label>
             {{ form.reference(class="form-control", placeholder="اتركه فارغاً للتوليد التلقائي") }}
@@ -598,10 +598,7 @@
 
   // ========== تفعيل Tooltips ==========
   if (typeof bootstrap !== 'undefined') {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-      return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    $('[data-toggle="tooltip"]').tooltip();
   }
 
   // ========== Focus على أول حقل ==========

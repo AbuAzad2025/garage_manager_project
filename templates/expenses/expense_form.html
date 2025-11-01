@@ -26,7 +26,7 @@
         {% endfor %}
       {% endfor %}
     </ul>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <button type="button" class="close" data-dismiss="alert"></button>
   </div>
   {% endif %}
 
@@ -34,7 +34,7 @@
     {{ form.hidden_tag() }}
     <script>
       window.expenseTypeMeta = {{ types_meta|tojson|safe }};
-      window._types = {{ _types|map(attribute='to_dict')|list|tojson|safe }};
+      window._types = {{ _types|tojson|safe }};
     </script>
     <div class="card shadow-sm">
       <div class="card-body">
@@ -92,12 +92,12 @@
               'data-url': url_for('api.search_employees'),
               'data-current': form.employee_id.data or ''
             }) }}
-            <small class="text-muted">للرواتب فقط</small>
+            <small class="text-muted">للرواتب والسلف</small>
             {% for e in form.employee_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
 
           <div id="period-fields" class="col-md-6">
-            <label class="form-label fw-bold">فترة الراتب</label>
+            <label class="form-label fw-bold">الفترة</label>
             <div class="row g-2">
               <div class="col-6">
                 {{ form.period_start(type="date", class="form-control form-control-sm", id="period_start", placeholder="من") }}
@@ -106,7 +106,7 @@
                 {{ form.period_end(type="date", class="form-control form-control-sm", id="period_end", placeholder="إلى") }}
               </div>
             </div>
-            <small class="text-muted">للرواتب فقط</small>
+            <small class="text-muted">للرواتب والمرافق والاشتراكات</small>
           </div>
 
           <div id="utility-field" class="col-md-4">
@@ -115,7 +115,7 @@
               'data-url': url_for('api.search_utility_accounts'),
               'data-current': form.utility_account_id.data or ''
             }) }}
-            <small class="text-muted">للكهرباء/الماء</small>
+            <small class="text-muted">للمرافق (كهرباء/ماء/اتصالات)</small>
           </div>
 
           <div id="warehouse-field" class="col-md-4">
@@ -129,10 +129,7 @@
 
           <div id="shipment-field" class="col-md-4">
             {{ form.shipment_id.label(class="form-label") }}
-            {{ form.shipment_id(class="form-select form-select-sm ajax", id="shipment_id", **{
-              'data-url': url_for('api.search_shipments'),
-              'data-current': form.shipment_id.data or ''
-            }) }}
+            {{ form.shipment_id(class="form-select form-select-sm", id="shipment_id") }}
             <small class="text-muted">للشحنات</small>
           </div>
 
@@ -145,7 +142,7 @@
           <div id="stock-field" class="col-md-4">
             {{ form.stock_adjustment_id.label(class="form-label") }}
             {{ form.stock_adjustment_id(class="form-select form-select-sm", id="stock_adjustment_id") }}
-            <small class="text-muted">للصيانة/المخزون</small>
+            <small class="text-muted">لتسويات المخزون</small>
           </div>
 
           <!-- حقول خاصة بالسلف (تظهر فقط لنوع سلفة موظف) -->
@@ -192,10 +189,26 @@
                 {{ form.check_due_date.label(class="form-label") }}
                 {{ form.check_due_date(type="date", class="form-control") }}
               </div>
+              <div class="col-md-3" data-field="check_payee">
+                {{ form.check_payee.label(class="form-label") }}
+                {{ form.check_payee(class="form-control", placeholder="اسم المستفيد") }}
+              </div>
 
-              <div class="col-md-4" data-field="bank_transfer_ref">
+              <div class="col-md-3" data-field="bank_transfer_ref">
                 {{ form.bank_transfer_ref.label(class="form-label") }}
                 {{ form.bank_transfer_ref(class="form-control", placeholder="مرجع الحوالة") }}
+              </div>
+              <div class="col-md-3" data-field="bank_name">
+                {{ form.bank_name.label(class="form-label") }}
+                {{ form.bank_name(class="form-control", placeholder="اسم البنك") }}
+              </div>
+              <div class="col-md-3" data-field="account_number">
+                {{ form.account_number.label(class="form-label") }}
+                {{ form.account_number(class="form-control", placeholder="رقم الحساب") }}
+              </div>
+              <div class="col-md-3" data-field="account_holder">
+                {{ form.account_holder.label(class="form-label") }}
+                {{ form.account_holder(class="form-control", placeholder="صاحب الحساب") }}
               </div>
 
               <div class="col-md-3" data-field="card_number">
@@ -227,7 +240,7 @@
           <!-- حقول إضافية -->
           <div class="col-12">
             <hr class="my-2">
-            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#optionalSection" aria-expanded="false" aria-controls="optionalSection">
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-toggle="collapse" data-target="#optionalSection" aria-expanded="false" aria-controls="optionalSection">
               <i class="fas fa-sliders-h me-1"></i> حقول اختيارية
             </button>
           </div>
@@ -299,19 +312,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // ✅ دالة لتعطيل/تفعيل الحقول داخل container
-  function setFieldsDisabled(container, disabled) {
-    if (!container) return;
-    const inputs = container.querySelectorAll('input, select, textarea');
-    inputs.forEach(inp => {
-      if (disabled) {
-        inp.setAttribute('disabled', 'disabled');
-        inp.value = ''; // مسح القيمة
-      } else {
-        inp.removeAttribute('disabled');
-      }
-    });
-  }
+    // ✅ دالة لتعطيل/تفعيل الحقول داخل container ومسح القيم
+    function setFieldsDisabled(container, disabled) {
+      if (!container) return;
+      const inputs = container.querySelectorAll('input, select, textarea');
+      inputs.forEach(inp => {
+        if (disabled) {
+          inp.setAttribute('disabled', 'disabled');
+          if (inp.tagName === 'SELECT') {
+            inp.selectedIndex = 0;
+          } else {
+            inp.value = '';
+          }
+        } else {
+          inp.removeAttribute('disabled');
+        }
+      });
+    }
   
   function updateRelatedFields() {
     // Debug: فحص العناصر
@@ -326,12 +343,15 @@ document.addEventListener('DOMContentLoaded', function() {
       stockField: !!stockField
     });
     
-    // ✅ إخفاء وتعطيل كل الحقول أولاً
+    // ✅ إخفاء وتعطيل كل الحقول أولاً ومسح القيم
     [employeeField, periodFields, utilityField, warehouseField, shipmentField, 
      beneficiaryField, stockField].forEach(f => {
       if (f) {
+        const wasVisible = f.style.display !== 'none';
         f.style.display = 'none';
-        setFieldsDisabled(f, true); // ✅ تعطيل الحقول المخفية
+        if (wasVisible) {
+          setFieldsDisabled(f, true);
+        }
       }
     });
     
@@ -357,11 +377,26 @@ document.addEventListener('DOMContentLoaded', function() {
     showIf('stock_adjustment_id', stockField);
     showIf('beneficiary_name', beneficiaryField);
     
-    // إظهار حقول السلف فقط لنوع EMPLOYEE_ADVANCE
+    // إظهار/إخفاء حقول السلف فقط لنوع EMPLOYEE_ADVANCE
     const advanceFields = document.getElementById('advance-fields');
     const selectedType = _types.find(t => t.id === typeId);
-    if (advanceFields && selectedType && selectedType.code === 'EMPLOYEE_ADVANCE') {
-      advanceFields.style.display = 'block';
+    if (advanceFields) {
+      if (selectedType && selectedType.code === 'EMPLOYEE_ADVANCE') {
+        advanceFields.style.display = 'block';
+        const advInputs = advanceFields.querySelectorAll('input, select');
+        advInputs.forEach(inp => inp.removeAttribute('disabled'));
+      } else {
+        advanceFields.style.display = 'none';
+        const advInputs = advanceFields.querySelectorAll('input, select');
+        advInputs.forEach(inp => {
+          inp.setAttribute('disabled', 'disabled');
+          if (inp.tagName === 'SELECT') {
+            inp.selectedIndex = 0;
+          } else {
+            inp.value = '';
+          }
+        });
+      }
     }
   }
   
@@ -391,13 +426,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (method === 'CHEQUE') {
       methodDetails.style.display = 'block';
-      ['check_number', 'check_bank', 'check_due_date'].forEach(f => {
+      ['check_number', 'check_bank', 'check_due_date', 'check_payee'].forEach(f => {
         const el = methodDetails.querySelector(`[data-field="${f}"]`);
         if (el) el.style.display = 'block';
       });
     } else if (method === 'BANK_TRANSFER') {
       methodDetails.style.display = 'block';
-      methodDetails.querySelector('[data-field="bank_transfer_ref"]').style.display = 'block';
+      ['bank_transfer_ref', 'bank_name', 'account_number', 'account_holder'].forEach(f => {
+        const el = methodDetails.querySelector(`[data-field="${f}"]`);
+        if (el) el.style.display = 'block';
+      });
     } else if (method === 'CREDIT_CARD' || method === 'DEBIT_CARD') {
       methodDetails.style.display = 'block';
       ['card_number', 'card_holder'].forEach(f => {

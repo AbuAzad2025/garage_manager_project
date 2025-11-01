@@ -1,0 +1,407 @@
+{% extends 'base.html' %}
+{% block title %}خريطة الموقع - الوحدة السرية{% endblock %}
+{% block page_title %}🗺️ خريطة الموقع{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active"><i class="fas fa-sitemap"></i> خريطة الموقع</li>
+{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/security_responsive.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/security_dark_mode.css') }}">
+<style>
+  .sitemap-tree {
+    list-style: none;
+    padding-right: 0;
+  }
+  
+  .sitemap-tree ul {
+    list-style: none;
+    padding-right: 25px;
+    margin-top: 10px;
+  }
+  
+  .sitemap-tree li {
+    margin: 8px 0;
+    padding: 8px 12px;
+    border-right: 3px solid #667eea;
+    transition: all 0.2s;
+  }
+  
+  .sitemap-tree li:hover {
+    background: #f8f9fa;
+    border-right-width: 5px;
+  }
+  
+  .sitemap-tree a {
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .sitemap-tree a:hover {
+    color: #667eea !important;
+  }
+  
+  .sitemap-tree .badge {
+    font-size: 0.7rem;
+  }
+  
+  .sitemap-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .sitemap-section h4 {
+    color: #667eea;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #667eea;
+  }
+  
+  /* Dark Mode */
+  body.dark-mode .sitemap-tree li:hover {
+    background: #1a2942 !important;
+  }
+  
+  body.dark-mode .sitemap-tree a {
+    color: #e0e0e0 !important;
+  }
+  
+  body.dark-mode .sitemap-section {
+    background: #0f3460 !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <!-- عنوان رئيسي -->
+  <div class="alert border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-sitemap"></i>
+        <strong>خريطة الموقع:</strong>
+        <span class="badge bg-white text-primary ms-2">جميع الروابط في مكان واحد</span>
+      </div>
+      <small class="opacity-75">7 مراكز • 38 تبويب • 121 وظيفة</small>
+    </div>
+  </div>
+  
+  <!-- بحث في الخريطة -->
+  <div class="mb-4">
+    <div class="input-group">
+      <span class="input-group-text bg-primary text-white">
+        <i class="fas fa-search"></i>
+      </span>
+      <input type="text" id="sitemapSearch" class="form-control" 
+             placeholder="🔍 ابحث في خريطة الموقع...">
+    </div>
+  </div>
+  
+  <div class="row">
+    
+    <!-- المراكز الموحدة السبعة -->
+    <div class="col-lg-6">
+      <div class="sitemap-section">
+        <h4><i class="fas fa-th-large"></i> المراكز الموحدة (7 مراكز)</h4>
+        
+        <ul class="sitemap-tree">
+          
+          <!-- Database Manager -->
+          <li>
+            <a href="{{ url_for('security.database_manager') }}">
+              <i class="fas fa-database text-primary"></i>
+              <strong>Database Control Center</strong>
+              <span class="badge bg-primary">11 تبويب</span>
+            </a>
+            <ul>
+              <li><a href="{{ url_for('security.database_manager', tab='browse') }}"><i class="fas fa-search"></i> تصفح الجداول</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='edit') }}"><i class="fas fa-edit"></i> تحرير البيانات</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='schema') }}"><i class="fas fa-sitemap"></i> هيكل الجداول</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='indexes') }}"><i class="fas fa-bolt"></i> إدارة الفهارس</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='logs') }}"><i class="fas fa-file-alt"></i> السجلات</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='sql') }}"><i class="fas fa-code"></i> SQL Console</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='python') }}"><i class="fab fa-python"></i> Python Console</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='maintenance') }}"><i class="fas fa-tools"></i> الصيانة</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='restore') }}"><i class="fas fa-upload"></i> الاستعادة</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='tools') }}"><i class="fas fa-wrench"></i> الأدوات</a></li>
+              <li><a href="{{ url_for('security.database_manager', tab='archive') }}"><i class="fas fa-archive"></i> الأرشيفات</a></li>
+            </ul>
+          </li>
+          
+          <!-- AI Hub -->
+          <li>
+            <a href="{{ url_for('ai.hub') }}">
+              <i class="fas fa-brain text-purple"></i>
+              <strong>AI Control Center</strong>
+              <span class="badge bg-purple">4 تبويبات</span>
+            </a>
+            <ul>
+              <li><a href="{{ url_for('ai.hub', tab='assistant') }}"><i class="fas fa-comments"></i> مساعد ذكي</a></li>
+              <li><a href="{{ url_for('ai.hub', tab='analytics') }}"><i class="fas fa-chart-line"></i> تحليل وأنماط</a></li>
+              <li><a href="{{ url_for('ai.hub', tab='prediction') }}"><i class="fas fa-crystal-ball"></i> تنبؤ</a></li>
+              <li><a href="{{ url_for('ai.hub', tab='training') }}"><i class="fas fa-graduation-cap"></i> تدريب وخريطة</a></li>
+            </ul>
+          </li>
+          
+          <!-- Security Center -->
+          <li>
+            <a href="{{ url_for('security.security_center') }}">
+              <i class="fas fa-shield-alt text-danger"></i>
+              <strong>Security & Monitoring Center</strong>
+              <span class="badge bg-danger">4 تبويبات</span>
+            </a>
+            <ul>
+              <li><a href="{{ url_for('security.security_center', tab='monitoring') }}"><i class="fas fa-tv"></i> مراقبة فورية</a></li>
+              <li><a href="{{ url_for('security.security_center', tab='firewall') }}"><i class="fas fa-shield-alt"></i> جدار الحماية</a></li>
+              <li><a href="{{ url_for('security.security_center', tab='notifications') }}"><i class="fas fa-bell"></i> التنبيهات</a></li>
+              <li><a href="{{ url_for('security.security_center', tab='activity') }}"><i class="fas fa-history"></i> النشاط</a></li>
+            </ul>
+          </li>
+          
+          <!-- Users Center -->
+          <li>
+            <a href="{{ url_for('security.users_center') }}">
+              <i class="fas fa-users-cog text-success"></i>
+              <strong>Users & Permissions Center</strong>
+              <span class="badge bg-success">2 تبويب</span>
+            </a>
+            <ul>
+              <li><a href="{{ url_for('security.users_center', tab='users') }}"><i class="fas fa-users"></i> التحكم بالمستخدمين</a></li>
+              <li><a href="{{ url_for('security.users_center', tab='permissions') }}"><i class="fas fa-key"></i> إدارة الصلاحيات</a></li>
+            </ul>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    <div class="col-lg-6">
+      <div class="sitemap-section">
+        <h4><i class="fas fa-th-large"></i> المراكز الموحدة (تكملة)</h4>
+        
+        <ul class="sitemap-tree">
+          
+          <!-- Settings Center -->
+          <li>
+            <a href="{{ url_for('security.settings_center') }}">
+              <i class="fas fa-cogs text-warning"></i>
+              <strong>Settings & Customization Center</strong>
+              <span class="badge bg-warning text-dark">8 تبويبات</span>
+            </a>
+            <ul>
+              <li><a href="{{ url_for('security.settings_center', tab='system') }}"><i class="fas fa-cog"></i> إعدادات النظام</a></li>
+              <li><a href="{{ url_for('security.settings_center', tab='constants') }}"><i class="fas fa-database"></i> الثوابت</a></li>
+              <li><a href="{{ url_for('security.settings_center', tab='config') }}"><i class="fas fa-sliders-h"></i> تكوين متقدم</a></li>
+              <li><a href="{{ url_for('security.settings_center', tab='branding') }}"><i class="fas fa-tag"></i> العلامة التجارية</a></li>
+              <li><a href="{{ url_for('security.settings_center', tab='theme') }}"><i class="fas fa-palette"></i> المظهر</a></li>
+              <li><a href="{{ url_for('security.settings_center', tab='logos') }}"><i class="fas fa-image"></i> الشعارات</a></li>
+              <li><a href="{{ url_for('security.settings_center', tab='darkmode') }}"><i class="fas fa-moon"></i> الوضع الليلي</a></li>
+              <li><a href="{{ url_for('security.settings_center', tab='branches') }}"><i class="fas fa-code-branch"></i> الفروع</a></li>
+            </ul>
+          </li>
+          
+          <!-- Reports Center -->
+          <li>
+            <a href="{{ url_for('security.reports_center') }}">
+              <i class="fas fa-chart-bar text-info"></i>
+              <strong>Reports & Performance Center</strong>
+              <span class="badge bg-info">4 تبويبات</span>
+            </a>
+            <ul>
+              <li><a href="{{ url_for('security.reports_center', tab='reports') }}"><i class="fas fa-file-alt"></i> التقارير الإدارية</a></li>
+              <li><a href="{{ url_for('security.reports_center', tab='monitoring') }}"><i class="fas fa-chart-area"></i> لوحة المراقبة</a></li>
+              <li><a href="{{ url_for('security.reports_center', tab='performance') }}"><i class="fas fa-tachometer-alt"></i> مراقبة الأداء</a></li>
+              <li><a href="{{ url_for('security.reports_center', tab='grafana') }}"><i class="fas fa-chart-pie"></i> Grafana</a></li>
+            </ul>
+          </li>
+          
+          <!-- Tools Center -->
+          <li>
+            <a href="{{ url_for('security.tools_center') }}">
+              <i class="fas fa-toolbox text-success"></i>
+              <strong>Tools & Integration Center</strong>
+              <span class="badge bg-success">5 تبويبات</span>
+            </a>
+            <ul>
+              <li><a href="{{ url_for('security.tools_center', tab='integrations') }}"><i class="fas fa-plug"></i> التكاملات</a></li>
+              <li><a href="{{ url_for('security.tools_center', tab='invoices') }}"><i class="fas fa-file-invoice"></i> محرر الفواتير</a></li>
+              <li><a href="{{ url_for('security.tools_center', tab='email') }}"><i class="fas fa-envelope"></i> إدارة البريد</a></li>
+              <li><a href="{{ url_for('security.tools_center', tab='cards') }}"><i class="fas fa-credit-card"></i> خزنة الكروت</a></li>
+              <li><a href="{{ url_for('security.tools_center', tab='export') }}"><i class="fas fa-download"></i> تصدير البيانات</a></li>
+            </ul>
+          </li>
+          
+        </ul>
+      </div>
+      
+      <!-- Ledger Control -->
+      <div class="sitemap-section">
+        <h4><i class="fas fa-book"></i> دفتر الأستاذ</h4>
+        <ul class="sitemap-tree">
+          <li>
+            <a href="{{ url_for('ledger_control.index') }}">
+              <i class="fas fa-university text-dark"></i>
+              <strong>Ledger Control</strong>
+              <span class="badge bg-dark">4 تبويبات</span>
+            </a>
+            <ul>
+              <li><a href="{{ url_for('ledger_control.index') }}#tab-accounts"><i class="fas fa-list"></i> الحسابات المحاسبية</a></li>
+              <li><a href="{{ url_for('ledger_control.index') }}#tab-entries"><i class="fas fa-file"></i> القيود المحاسبية</a></li>
+              <li><a href="{{ url_for('ledger_control.index') }}#tab-batches"><i class="fas fa-edit"></i> تحرير القيود</a></li>
+              <li><a href="{{ url_for('ledger_control.index') }}#tab-tools"><i class="fas fa-tools"></i> الأدوات</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </div>
+    
+    <!-- الأدوات المستقلة -->
+    <div class="col-lg-6">
+      <div class="sitemap-section">
+        <h4><i class="fas fa-tools"></i> الأدوات المستقلة</h4>
+        
+        <ul class="sitemap-tree">
+          <li><a href="{{ url_for('security.dashboard') }}"><i class="fas fa-tachometer-alt"></i> لوحة المعلومات</a></li>
+          <li><a href="{{ url_for('security.user_control') }}"><i class="fas fa-user-shield"></i> التحكم بالمستخدمين</a></li>
+          <li><a href="{{ url_for('security.card_vault') }}"><i class="fas fa-credit-card"></i> خزنة الكروت</a></li>
+          <li><a href="{{ url_for('security.emergency_tools') }}"><i class="fas fa-exclamation-triangle text-danger"></i> أدوات الطوارئ</a></li>
+          <li><a href="{{ url_for('security.data_export') }}"><i class="fas fa-download"></i> تصدير البيانات</a></li>
+          <li><a href="{{ url_for('security.system_cleanup') }}"><i class="fas fa-broom"></i> تنظيف النظام</a></li>
+          <li><a href="{{ url_for('security.integrations') }}"><i class="fas fa-plug"></i> التكاملات (مباشر)</a></li>
+          <li><a href="{{ url_for('security.saas_manager') }}"><i class="fas fa-cloud"></i> مدير SaaS</a></li>
+          <li><a href="{{ url_for('security.advanced_check_linking') }}"><i class="fas fa-link"></i> ربط الشيكات المتقدم</a></li>
+          <li><a href="{{ url_for('security.data_quality_center') }}"><i class="fas fa-check-circle"></i> مركز جودة البيانات</a></li>
+        </ul>
+      </div>
+      
+      <!-- الأمان والحظر -->
+      <div class="sitemap-section">
+        <h4><i class="fas fa-shield-alt"></i> الأمان والحظر</h4>
+        
+        <ul class="sitemap-tree">
+          <li><a href="{{ url_for('security.block_ip') }}"><i class="fas fa-ban text-danger"></i> حظر IP</a></li>
+          <li><a href="{{ url_for('security.blocked_ips') }}"><i class="fas fa-list"></i> IPs محظورة</a></li>
+          <li><a href="{{ url_for('security.block_country') }}"><i class="fas fa-globe text-warning"></i> حظر دولة</a></li>
+          <li><a href="{{ url_for('security.blocked_countries') }}"><i class="fas fa-flag"></i> دول محظورة</a></li>
+        </ul>
+      </div>
+    </div>
+    
+    <!-- الإدارة والإعدادات -->
+    <div class="col-lg-6">
+      <div class="sitemap-section">
+        <h4><i class="fas fa-cog"></i> الإدارة والإعدادات</h4>
+        
+        <ul class="sitemap-tree">
+          <li><a href="{{ url_for('security.settings_center') }}"><i class="fas fa-sliders-h"></i> إعدادات النظام</a></li>
+          <li><a href="{{ url_for('security.theme_editor') }}"><i class="fas fa-palette"></i> محرر الثيمات</a></li>
+          <li><a href="{{ url_for('security.logo_manager') }}"><i class="fas fa-image"></i> مدير الشعارات</a></li>
+          <li><a href="{{ url_for('security.permissions_manager') }}"><i class="fas fa-key"></i> مدير الصلاحيات</a></li>
+          <li><a href="{{ url_for('security.email_manager') }}"><i class="fas fa-envelope"></i> مدير البريد</a></li>
+          <li><a href="{{ url_for('security.invoice_designer') }}"><i class="fas fa-file-invoice"></i> مصمم الفواتير</a></li>
+        </ul>
+      </div>
+      
+      <!-- المراقبة والأداء -->
+      <div class="sitemap-section">
+        <h4><i class="fas fa-chart-line"></i> المراقبة والأداء</h4>
+        
+        <ul class="sitemap-tree">
+          <li><a href="{{ url_for('security.live_monitoring') }}"><i class="fas fa-tv"></i> مراقبة فورية</a></li>
+          <li><a href="{{ url_for('security.performance_monitor') }}"><i class="fas fa-tachometer-alt"></i> مراقب الأداء</a></li>
+          <li><a href="{{ url_for('security.monitoring_dashboard') }}"><i class="fas fa-chart-area"></i> لوحة المراقبة</a></li>
+          <li><a href="{{ url_for('security.grafana_setup') }}"><i class="fas fa-chart-pie"></i> إعداد Grafana</a></li>
+          <li><a href="{{ url_for('security.advanced_analytics') }}"><i class="fas fa-chart-bar"></i> تحليلات متقدمة</a></li>
+        </ul>
+      </div>
+      
+      <!-- مساعدة ودعم -->
+      <div class="sitemap-section">
+        <h4><i class="fas fa-question-circle"></i> مساعدة ودعم</h4>
+        
+        <ul class="sitemap-tree">
+          <li><a href="{{ url_for('security.help_page') }}"><i class="fas fa-book-open text-info"></i> مركز المساعدة</a></li>
+          <li><a href="{{ url_for('security.sitemap') }}"><i class="fas fa-sitemap text-primary"></i> خريطة الموقع (أنت هنا)</a></li>
+          <li><a href="{{ url_for('api.docs') }}"><i class="fas fa-code"></i> API Documentation</a></li>
+        </ul>
+      </div>
+    </div>
+    
+  </div>
+  
+  <!-- إحصائيات سريعة -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="alert alert-light border text-center">
+        <h5 class="mb-3"><i class="fas fa-chart-pie"></i> إحصائيات الوحدة السرية</h5>
+        <div class="row">
+          <div class="col-md-3">
+            <div class="p-3 bg-primary text-white rounded">
+              <h3 class="mb-0">7</h3>
+              <small>مراكز موحدة</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="p-3 bg-success text-white rounded">
+              <h3 class="mb-0">38</h3>
+              <small>تبويب</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="p-3 bg-info text-white rounded">
+              <h3 class="mb-0">121</h3>
+              <small>راوتر</small>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="p-3 bg-warning text-dark rounded">
+              <h3 class="mb-0">45</h3>
+              <small>قالب</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// البحث في خريطة الموقع
+document.getElementById('sitemapSearch').addEventListener('input', function() {
+  const query = this.value.toLowerCase();
+  const items = document.querySelectorAll('.sitemap-tree li');
+  
+  items.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    const shouldShow = !query || text.includes(query);
+    item.style.display = shouldShow ? '' : 'none';
+    
+    // إظهار الأقسام الأب إذا كان الابن مطابق
+    if (shouldShow && item.closest('ul')) {
+      let parent = item.parentElement;
+      while (parent) {
+        if (parent.tagName === 'LI') {
+          parent.style.display = '';
+        }
+        parent = parent.parentElement;
+      }
+    }
+  });
+});
+</script>
+{% endblock %}
+

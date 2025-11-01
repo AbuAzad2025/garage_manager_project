@@ -1,0 +1,79 @@
+[
+  {
+    "job_id": "train_1761952567.800495",
+    "model_name": "نموذج إدارة المخزون",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-10-31T23:16:07.800518+00:00",
+    "estimated_completion": null,
+    "error": null
+  },
+  {
+    "job_id": "train_1761952575.239753",
+    "model_name": "نموذج التنبؤ بالمبيعات",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-10-31T23:16:15.239769+00:00",
+    "estimated_completion": null,
+    "error": null
+  },
+  {
+    "job_id": "train_1761952578.561119",
+    "model_name": "نموذج تحليل العملاء",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-10-31T23:16:18.561133+00:00",
+    "estimated_completion": null,
+    "error": null
+  },
+  {
+    "job_id": "train_1761952592.622956",
+    "model_name": "نموذج التنبؤ بالمبيعات",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-10-31T23:16:32.622969+00:00",
+    "estimated_completion": null,
+    "error": null
+  },
+  {
+    "job_id": "train_1761952596.306233",
+    "model_name": "نموذج إدارة المخزون",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-10-31T23:16:36.306273+00:00",
+    "estimated_completion": null,
+    "error": null
+  },
+  {
+    "job_id": "train_1761952598.407617",
+    "model_name": "نموذج تحليل العملاء",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-10-31T23:16:38.407629+00:00",
+    "estimated_completion": null,
+    "error": null
+  },
+  {
+    "job_id": "train_1761975857.962645",
+    "model_name": "نموذج إدارة المخزون",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-11-01T05:44:17.962666+00:00",
+    "estimated_completion": null,
+    "error": null
+  }
+]

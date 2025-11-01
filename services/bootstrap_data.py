@@ -16,44 +16,38 @@ def seed_core_expense_types(db):
     زرع/تحديث أنواع المصاريف الأساسية دائماً عند الإقلاع (idempotent).
     لا يعتمد على ملفات التهجير؛ آمن للتشغيل عدة مرات.
     """
-    from models import ExpenseType  # import داخلية لتجنّب دورات الاستيراد
-
+    from models import ExpenseType
+    
     base_types = [
-        # أنواع تشغيلية عامة
         ("SALARY", "رواتب", {"required": ["employee_id", "period"], "optional": ["description"]}),
-        ("RENT", "إيجار", {"required": ["period"], "optional": ["warehouse_id", "tax_invoice_number", "description"]}),
-        ("UTILITIES", "مرافق (كهرباء/ماء/اتصالات)", {"required": ["period", "utility_account_id"], "optional": ["tax_invoice_number", "description"]}),
-        ("MAINTENANCE", "صيانة", {"required": [], "optional": ["warehouse_id", "stock_adjustment_id", "description"]}),
+        ("EMPLOYEE_ADVANCE", "سلفة موظف", {"required": ["employee_id"], "optional": ["period", "description"]}),
+        ("RENT", "إيجار", {"required": ["warehouse_id"], "optional": ["period", "beneficiary_name", "description"]}),
+        ("UTILITIES", "مرافق", {"required": ["utility_account_id"], "optional": ["period", "description"]}),
+        ("MAINTENANCE", "صيانة", {"required": [], "optional": ["warehouse_id", "beneficiary_name", "description"]}),
         ("FUEL", "وقود", {"required": [], "optional": ["beneficiary_name", "description"]}),
         ("OFFICE", "لوازم مكتبية", {"required": [], "optional": ["beneficiary_name", "description"]}),
-        ("INSURANCE", "تأمين", {"required": ["period"], "optional": ["beneficiary_name", "tax_invoice_number", "description"]}),
-        ("GOV_FEES", "رسوم حكومية/ضرائب", {"required": ["period"], "optional": ["beneficiary_name", "tax_invoice_number", "description"]}),
-        ("TRAVEL", "سفر/مهمات", {"required": ["employee_id", "period"], "optional": ["beneficiary_name", "description"]}),
-        ("TRAINING", "تدريب", {"required": [], "optional": ["period", "beneficiary_name", "description"]}),
-        ("MARKETING", "تسويق/إعلانات", {"required": ["beneficiary_name"], "optional": ["period", "description"]}),
-        ("SOFTWARE", "اشتراكات تقنية/برمجيات", {"required": ["period"], "optional": ["beneficiary_name", "description"]}),
+        ("INSURANCE", "تأمين", {"required": [], "optional": ["beneficiary_name", "description"]}),
+        ("GOV_FEES", "رسوم حكومية", {"required": [], "optional": ["beneficiary_name", "description"]}),
+        ("TRAVEL", "سفر ومهمات", {"required": [], "optional": ["beneficiary_name", "description"]}),
+        ("TRAINING", "تدريب", {"required": [], "optional": ["beneficiary_name", "description"]}),
+        ("MARKETING", "تسويق وإعلانات", {"required": [], "optional": ["beneficiary_name", "description"]}),
+        ("SOFTWARE", "اشتراكات تقنية", {"required": ["period"], "optional": ["beneficiary_name", "description"]}),
         ("BANK_FEES", "رسوم بنكية", {"required": ["beneficiary_name"], "optional": ["description"]}),
-        ("OTHER", "أخرى", {"required": [], "optional": ["beneficiary_name", "description"]}),
-
-        # إضافات مطلوبة
-        ("EMPLOYEE_ADVANCE", "سلفة موظف", {"required": ["employee_id"], "optional": ["period", "description"]}),
         ("HOSPITALITY", "ضيافة", {"required": [], "optional": ["beneficiary_name", "description"]}),
         ("HOME_EXPENSE", "مصاريف بيتية", {"required": [], "optional": ["beneficiary_name", "description"]}),
         ("OWNERS_EXPENSE", "مصاريف المالكين", {"required": [], "optional": ["beneficiary_name", "description"]}),
-        ("ENTERTAINMENT", "مصاريف ترفيهية", {"required": [], "optional": ["beneficiary_name", "description"]}),
-
-        # أنواع مرتبطة بالشحنات (رقم الشحنة إلزامي دائماً)
+        ("ENTERTAINMENT", "ترفيه", {"required": [], "optional": ["beneficiary_name", "description"]}),
         ("SHIP_INSURANCE", "تأمين شحنة", {"required": ["shipment_id"], "optional": ["description"]}),
         ("SHIP_CUSTOMS", "جمارك", {"required": ["shipment_id"], "optional": ["description"]}),
         ("SHIP_IMPORT_TAX", "ضريبة استيراد", {"required": ["shipment_id"], "optional": ["description"]}),
-        ("SHIP_FREIGHT", "شحن (بحري/جوي/بري)", {"required": ["shipment_id"], "optional": ["description"]}),
+        ("SHIP_FREIGHT", "شحن", {"required": ["shipment_id"], "optional": ["description"]}),
         ("SHIP_CLEARANCE", "تخليص جمركي", {"required": ["shipment_id"], "optional": ["description"]}),
-        ("SHIP_HANDLING", "أرضيات/مناولة", {"required": ["shipment_id"], "optional": ["description"]}),
-        ("SHIP_PORT_FEES", "رسوم ميناء/مطار", {"required": ["shipment_id"], "optional": ["description"]}),
+        ("SHIP_HANDLING", "مناولة وأرضيات", {"required": ["shipment_id"], "optional": ["description"]}),
+        ("SHIP_PORT_FEES", "رسوم موانئ", {"required": ["shipment_id"], "optional": ["description"]}),
         ("SHIP_STORAGE", "تخزين مؤقت", {"required": ["shipment_id"], "optional": ["description"]}),
+        ("OTHER", "أخرى", {"required": [], "optional": ["beneficiary_name", "description"]}),
     ]
 
-    # ربط مختصر بحسابات مصروف قياسية (قابل للتعديل لاحقاً)، نخزّنه داخل fields_meta (gl_account_code)
     default_gl_map = {
         "SALARY": "مصروف رواتب وأجور",
         "RENT": "مصروف إيجار",
@@ -84,29 +78,62 @@ def seed_core_expense_types(db):
         "SHIP_STORAGE": "مصروف تخزين مؤقت",
     }
 
-    conn = db.session.bind
-
-    # إنشاء فهرس على code إن لم يكن موجوداً
     try:
-        conn.execute(sa_text("CREATE UNIQUE INDEX IF NOT EXISTS ix_expense_types_code ON expense_types (code)"))
-    except Exception:
-        pass
+        conn = db.session.bind
+        if conn is None:
+            conn = db.session.connection()
+        
+        try:
+            conn.execute(sa_text("CREATE UNIQUE INDEX IF NOT EXISTS ix_expense_types_code ON expense_types (code)"))
+        except Exception:
+            pass
 
-    for code, arabic_name, meta in base_types:
-        # دمج gl_account_code داخل meta بدون كسر البنية
-        meta = dict(meta or {})
-        meta.setdefault("gl_account_code", default_gl_map.get(code))
-        meta_json = _json_dumps(meta)
+        for code, arabic_name, meta in base_types:
+            meta = dict(meta or {})
+            meta.setdefault("gl_account_code", default_gl_map.get(code))
+            meta_json = _json_dumps(meta)
 
-        row = conn.execute(sa_text("SELECT id FROM expense_types WHERE code = :c OR name = :n"), {"c": code, "n": arabic_name}).fetchone()
-        if row:
-            conn.execute(sa_text("UPDATE expense_types SET name=:n, is_active=1, fields_meta=:m, code=:c WHERE id=:id"), {"n": arabic_name, "m": meta_json, "c": code, "id": row[0]})
-        else:
-            conn.execute(sa_text("INSERT INTO expense_types (name, description, is_active, code, fields_meta) VALUES (:n, :d, 1, :c, :m)"), {"n": arabic_name, "d": arabic_name, "c": code, "m": meta_json})
-
-    try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+            row = conn.execute(sa_text("SELECT id FROM expense_types WHERE code = :c OR name = :n"), {"c": code, "n": arabic_name}).fetchone()
+            if row:
+                conn.execute(sa_text("UPDATE expense_types SET name=:n, is_active=1, fields_meta=:m, code=:c WHERE id=:id"), {"n": arabic_name, "m": meta_json, "c": code, "id": row[0]})
+            else:
+                conn.execute(sa_text("INSERT INTO expense_types (name, description, is_active, code, fields_meta) VALUES (:n, :d, 1, :c, :m)"), {"n": arabic_name, "d": arabic_name, "c": code, "m": meta_json})
+        
+        try:
+            db.session.commit()
+        except:
+            db.session.rollback()
+    except Exception as e:
+        from models import ExpenseType
+        for code, arabic_name, meta in base_types:
+            try:
+                meta = dict(meta or {})
+                meta.setdefault("gl_account_code", default_gl_map.get(code))
+                meta_json = _json_dumps(meta)
+                
+                existing = ExpenseType.query.filter((ExpenseType.code == code) | (ExpenseType.name == arabic_name)).first()
+                if existing:
+                    existing.name = arabic_name
+                    existing.fields_meta = meta_json
+                    existing.code = code
+                    existing.is_active = True
+                else:
+                    new_type = ExpenseType(
+                        name=arabic_name,
+                        description=arabic_name,
+                        code=code,
+                        fields_meta=meta_json,
+                        is_active=True
+                    )
+                    db.session.add(new_type)
+            except:
+                pass
+        try:
+            db.session.commit()
+        except:
+            try:
+                db.session.rollback()
+            except:
+                pass
 
 

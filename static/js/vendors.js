@@ -49,7 +49,7 @@
   function openSettlementModal(payload) {
     var modalEl = document.getElementById("settlementModal");
     if (!modalEl) return;
-    var bsModal = (window.bootstrap && window.bootstrap.Modal) ? new bootstrap.Modal(modalEl) : null;
+    // استخدام jQuery للـ modal
 
     var dom = {
       name: document.getElementById("stlName"),
@@ -176,8 +176,7 @@
       }
     };
 
-    if (bsModal) bsModal.show();
-    else modalEl.style.display = "block";
+    $(modalEl).modal('show');
   }
 
   function attachSettleButtons() {
@@ -221,8 +220,6 @@
     wireSimpleSearch("supplierSearch", "suppliersTable", [".supplier-name", ".supplier-phone"]);
     attachSettleButtons();
     bindPrint();
-    document.querySelectorAll("[data-bs-toggle=\"tooltip\"]").forEach(function (el) {
-      if (window.bootstrap && bootstrap.Tooltip) new bootstrap.Tooltip(el);
-    });
+    $("[data-toggle=\"tooltip\"]").tooltip();
   });
 })();

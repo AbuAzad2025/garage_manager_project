@@ -106,6 +106,7 @@
           {% endif %}
         </a>
         {% endif %}
+        {% if service.status.value != 'COMPLETED' %}
         <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-outline-info fw-bold"><i class="fas fa-play"></i> بدء الصيانة</button>
@@ -114,6 +115,12 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-outline-success fw-bold"><i class="fas fa-check"></i> إكمال الصيانة</button>
         </form>
+        {% else %}
+        <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='reopen') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline-warning fw-bold"><i class="fas fa-redo"></i> إعادة للصيانه</button>
+        </form>
+        {% endif %}
         <button id="previewReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-info fw-bold">
           <i class="fas fa-eye"></i> معاينة الإيصال
         </button>
@@ -197,9 +204,10 @@
     </div>
   </div>
 
-  {% if current_user.has_permission('manage_service') %}
+  {% if current_user.has_permission('manage_service') and service.status.value != 'COMPLETED' %}
   <form method="post" action="{{ url_for('service.add_part', rid=service.id) }}" class="border rounded p-3 mb-3" id="form-add-part">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" id="service-currency" value="{{ service.currency or 'ILS' }}">
     <div class="row g-2 align-items-end">
       <div class="col-md-3">
         <label class="form-label">المستودع</label>
@@ -248,6 +256,44 @@
 
   <div class="mb-3">{% include 'service/_tasks_table.html' %}</div>
   <div class="mb-3">{% include 'service/_payments_table.html' %}</div>
+  
+  <!-- خصم إجمالي + ضريبة -->
+  {% if current_user.has_permission('manage_service') and service.status.value in ['PENDING', 'DIAGNOSIS', 'IN_PROGRESS'] %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-gradient-warning text-white">
+      <h5 class="mb-0"><i class="fas fa-tags"></i> خصم إجمالي وضريبة</h5>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('service.update_discount_tax', rid=service.id) }}" id="form-discount-tax">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label fw-bold"><i class="fas fa-tag"></i> خصم إجمالي (₪)</label>
+            <input type="number" class="form-control" name="discount_total" id="discount_total" 
+                   step="0.01" min="0" max="999999" 
+                   value="{{ '%.2f'|format(service.discount_total or 0) }}" 
+                   placeholder="مبلغ الخصم الإجمالي">
+            <small class="form-text text-muted">الخصم على إجمالي الفاتورة</small>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold"><i class="fas fa-receipt"></i> ضريبة %</label>
+            <input type="number" class="form-control" name="tax_rate" id="tax_rate" 
+                   step="0.01" min="0" max="100" 
+                   value="{{ '%.2f'|format(service.tax_rate or 0) }}" 
+                   placeholder="نسبة الضريبة">
+            <small class="form-text text-muted">نسبة الضريبة على الصافي بعد الخصم</small>
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-success fw-bold w-100">
+              <i class="fas fa-save"></i> حفظ التعديلات
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  
   <div class="mb-3">{% include 'service/_summary_card.html' %}</div>
 </div>
 {% endblock %}

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>تقرير معاملات البطاقات</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
   <style>
     body{background:#f8f9fa;font-family:'Tajawal',sans-serif}
@@ -155,7 +155,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h6 class="modal-title">بيانات البطاقة</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2">
@@ -170,13 +170,13 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+        <button class="btn btn-secondary" data-dismiss="modal">إغلاق</button>
       </div>
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 (function(){
   var tokenEl = document.querySelector('meta[name="csrf-token"]');
@@ -202,8 +202,7 @@
           sel('m-amount').textContent = (res.j.amount || 0).toFixed ? res.j.amount.toFixed(2) : res.j.amount;
           sel('m-currency').textContent = res.j.currency || '';
           sel('m-ref').textContent = res.j.payment_ref || '';
-          var m = new bootstrap.Modal(document.getElementById('revealModal'));
-          m.show();
+          $('#revealModal').modal('show');
         })
         .catch(function(){ btn.disabled=false; alert('تعذر الاتصال'); });
     });

@@ -2,10 +2,33 @@
 {% block title %}وحدة الأمان المتقدمة{% endblock %}
 {% block page_title %}🔒 وحدة الأمان المتقدمة{% endblock %}
 
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/security_responsive.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/security_dark_mode.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
   
   {% include 'security/_navigation.html' %}
+  
+  <!-- شريط البحث السريع -->
+  <div class="mb-4">
+    <div class="input-group input-group-lg">
+      <span class="input-group-text bg-primary text-white">
+        <i class="fas fa-search"></i>
+      </span>
+      <input type="text" id="quickSearch" class="form-control form-control-lg" 
+             placeholder="🔍 بحث سريع في الوحدة السرية... (مثال: تكاملات، قاعدة بيانات، مستخدمين، تقارير)"
+             style="font-size: 1.1rem;">
+      <button class="btn btn-outline-secondary" type="button" id="clearSearch" style="display: none;">
+        <i class="fas fa-times"></i> مسح
+      </button>
+    </div>
+    <small class="text-muted d-block mt-1">
+      <i class="fas fa-lightbulb"></i> نصيحة: اكتب أي كلمة للبحث الفوري في جميع المراكز والأدوات
+    </small>
+  </div>
   
   <div class="alert alert-danger border-0 shadow-sm">
     <i class="fas fa-crown"></i>
@@ -15,45 +38,112 @@
   </div>
 
   <div class="alert alert-info border-0 shadow-sm">
-    <i class="fas fa-rocket"></i>
-    <strong>النظام v5.0.0:</strong>
-    <span class="badge bg-success ms-1">40+ وحدة</span>
-    <span class="badge bg-info ms-1">133 API</span>
-    <span class="badge bg-warning text-dark ms-1">89 فهرس</span>
-    <span class="badge bg-danger ms-1">150+ علاقة</span>
-    <br><small class="mt-2 d-block">
-      <strong>هذه الصفحة:</strong> الأمان الأساسي + الإحصائيات + الحظر |
-      <strong>لوحة التحكم النهائية:</strong> 37+ أداة متقدمة
-    </small>
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+      <div>
+        <i class="fas fa-rocket"></i>
+        <strong>النظام v5.0.0:</strong>
+        <span class="badge bg-success ms-1">{{ stats.total_modules }} وحدة</span>
+        <span class="badge bg-info ms-1">{{ stats.total_apis }} API</span>
+        <span class="badge bg-warning text-dark ms-1">{{ stats.total_indexes }} فهرس</span>
+        <span class="badge bg-danger ms-1">{{ stats.total_relations }}+ علاقة</span>
+        <br><small class="mt-2 d-block">
+          <strong>هذه الصفحة:</strong> الأمان الأساسي + الإحصائيات + الحظر |
+          <strong>مركز القيادة الموحد:</strong> 7 مراكز + 41 وظيفة
+        </small>
+      </div>
+      <div>
+        <a href="{{ url_for('security.help_page') }}" class="btn btn-sm btn-info me-1">
+          <i class="fas fa-question-circle"></i> مساعدة
+        </a>
+        <a href="{{ url_for('security.sitemap') }}" class="btn btn-sm btn-outline-light">
+          <i class="fas fa-sitemap"></i> خريطة الموقع
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- سجل التدقيق المرئي -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-history"></i> آخر الإجراءات</h5>
+            <span class="badge bg-white text-primary">آخر 10 إجراءات</span>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="timeline" id="auditTimeline" style="max-height: 200px; overflow-y: auto;">
+            {% if recent %}
+              {% for audit in recent[:10] %}
+              <div class="timeline-item" style="padding: 12px 20px; border-bottom: 1px solid #f0f0f0;">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-circle text-{% if audit.success %}success{% else %}danger{% endif %} mt-1" style="font-size: 0.5rem; margin-left: 10px;"></i>
+                    <div>
+                      <strong>{{ audit.event_type or 'نشاط' }}</strong>
+                      <br><small class="text-muted">
+                        <i class="fas fa-user"></i> {{ audit.username or 'غير معروف' }}
+                        {% if audit.ip_address %} | <i class="fas fa-network-wired"></i> {{ audit.ip_address }}{% endif %}
+                      </small>
+                    </div>
+                  </div>
+                  <small class="text-muted" title="{{ audit.created_at }}">
+                    <i class="fas fa-clock"></i> {{ audit.created_at.strftime('%H:%M') if audit.created_at else 'غير معروف' }}
+                  </small>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="text-center p-4 text-muted">
+                <i class="fas fa-inbox"></i> لا توجد إجراءات حديثة
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- الإحصائيات -->
   <div class="row g-3 mb-4">
     <div class="col-lg-3 col-md-6">
-      <div class="small-box bg-info">
+      <div class="small-box bg-info" data-total-users="{{ stats.total_users }}">
         <div class="inner">
           <h3>{{ stats.total_users }}</h3>
           <p>إجمالي المستخدمين</p>
+          <!-- Mini Chart -->
+          <div style="height: 40px; margin-top: 10px;">
+            <canvas id="usersTrendChart"></canvas>
+          </div>
         </div>
         <div class="icon"><i class="fas fa-users"></i></div>
       </div>
     </div>
     
     <div class="col-lg-3 col-md-6">
-      <div class="small-box bg-success">
+      <div class="small-box bg-success" data-active-users="{{ stats.active_users }}">
         <div class="inner">
           <h3>{{ stats.active_users }}</h3>
           <p>مستخدمين نشطين</p>
+          <!-- Mini Chart -->
+          <div style="height: 40px; margin-top: 10px;">
+            <canvas id="activitySparkline"></canvas>
+          </div>
         </div>
         <div class="icon"><i class="fas fa-user-check"></i></div>
       </div>
     </div>
     
     <div class="col-lg-3 col-md-6">
-      <div class="small-box bg-danger">
+      <div class="small-box bg-danger" data-blocked-users="{{ stats.blocked_users }}">
         <div class="inner">
           <h3>{{ stats.blocked_users }}</h3>
           <p>مستخدمين محظورين</p>
+          <!-- Mini Chart -->
+          <div style="height: 40px; margin-top: 10px;">
+            <canvas id="systemHealthChart"></canvas>
+          </div>
         </div>
         <div class="icon"><i class="fas fa-user-lock"></i></div>
       </div>
@@ -64,165 +154,235 @@
         <div class="inner">
           <h3>{{ stats.failed_logins_24h }}</h3>
           <p>محاولات فاشلة (24 ساعة)</p>
+          <!-- Mini Chart -->
+          <div style="height: 40px; margin-top: 10px;">
+            <canvas id="failedLoginsChart"></canvas>
+          </div>
         </div>
         <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
       </div>
     </div>
   </div>
 
-  <!-- الإجراءات السريعة -->
+  <!-- المراكز الموحدة - 7 مراكز -->
+  <div class="alert border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-crown"></i>
+        <strong>المراكز الموحدة:</strong>
+        <span class="badge bg-white text-primary ms-2">7 مراكز + 41 وظيفة</span>
+      </div>
+      <small class="opacity-75">{{ stats.total_modules }} وحدة • {{ stats.total_apis }} API • {{ stats.total_indexes }} فهرس</small>
+    </div>
+  </div>
+
   <div class="row g-3 mb-4">
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);">
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
         <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-crown fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-              {{ stats.total_users + 37 }}
-            </span>
-          </div>
-          <h5 class="fw-bold">لوحة التحكم النهائية</h5>
-          <p class="small opacity-75">صلاحيات خارقة + 37 أداة متقدمة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.ultimate_control') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-bolt"></i> التحكم النهائي
-            </a>
-            <div class="row text-center small mt-2">
-              <div class="col-4 opacity-75">40 وحدة</div>
-              <div class="col-4 opacity-75">133 API</div>
-              <div class="col-4 opacity-75">89 فهرس</div>
-            </div>
-          </div>
+          <i class="fas fa-database fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">🗄️ Database Control Center</h5>
+          <p class="small opacity-75">11 أداة + أرشيفات</p>
+          <a href="{{ url_for('security.database_manager') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-terminal"></i> فتح المركز
+          </a>
         </div>
       </div>
     </div>
-    
-    <div class="col-lg-3 col-md-6">
+
+    <div class="col-lg-4 col-md-6">
       <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
         <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-robot fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
-              AI
-            </span>
-          </div>
-          <h5 class="fw-bold">AI & Analytics</h5>
-          <p class="small opacity-75">ذكاء اصطناعي + تحليل متقدم</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.ultimate_control') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-brain"></i> الذهاب للتحكم المتقدم
-            </a>
-            <div class="row text-center">
-              <div class="col-4">
-                <small class="opacity-75">مساعد</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">تحليل</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">تدريب</small>
-              </div>
-            </div>
-          </div>
+          <i class="fas fa-brain fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">🤖 AI Control Center</h5>
+          <p class="small opacity-75">4 أدوات + أنماط + خريطة</p>
+          <a href="{{ url_for('ai.hub') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-robot"></i> فتح المركز
+          </a>
         </div>
       </div>
     </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-code fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-info">
-              API
-            </span>
-          </div>
-          <h5 class="fw-bold">API Documentation</h5>
-          <p class="small opacity-75">وثائق API الكاملة + أمثلة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('api.docs') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-book"></i> عرض الوثائق
-            </a>
-            <div class="row text-center">
-              <div class="col-6">
-                <small class="opacity-75">Endpoints</small>
-              </div>
-              <div class="col-6">
-                <small class="opacity-75">Examples</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
+
+    <div class="col-lg-4 col-md-6">
       <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #FF512F 0%, #DD2476 100%);">
         <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-ban fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-              {{ stats.blocked_ips }}
-            </span>
-          </div>
-          <h5 class="fw-bold">Firewall Manager</h5>
-          <p class="small opacity-75">حظر IP + حماية متقدمة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.block_ip') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-shield-alt"></i> إدارة الحظر
-            </a>
-            <div class="row text-center">
-              <div class="col-6">
-                <small class="opacity-75">حظر IP</small>
-              </div>
-              <div class="col-6">
-                <small class="opacity-75">حظر دولة</small>
-              </div>
-            </div>
-          </div>
+          <i class="fas fa-shield-alt fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">🛡️ Security & Monitoring Center</h5>
+          <p class="small opacity-75">4 أدوات أمنية</p>
+          <a href="{{ url_for('security.security_center') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-eye"></i> فتح المركز
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-users-cog fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">👥 Users & Permissions Center</h5>
+          <p class="small opacity-75">إدارة المستخدمين والصلاحيات</p>
+          <a href="{{ url_for('security.users_center') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-user-shield"></i> فتح المركز
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-cogs fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">⚙️ Settings & Customization Center</h5>
+          <p class="small opacity-75">8 أدوات + فروع</p>
+          <a href="{{ url_for('security.settings_center') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-sliders-h"></i> فتح المركز
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-chart-bar fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">📊 Reports & Performance Center</h5>
+          <p class="small opacity-75">تقارير ومراقبة الأداء</p>
+          <a href="{{ url_for('security.reports_center') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-chart-line"></i> فتح المركز
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-tools fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">🔧 Tools & Integration Center</h5>
+          <p class="small opacity-75">أدوات وتكاملات متقدمة</p>
+          <a href="{{ url_for('security.tools_center') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-wrench"></i> فتح المركز
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #396afc 0%, #2948ff 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-book fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">📒 Ledger Control</h5>
+          <p class="small opacity-75">دفتر الأستاذ والحسابات</p>
+          <a href="{{ url_for('ledger_control.index') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-chart-line"></i> فتح الوحدة
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-exclamation-triangle fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">🚨 Emergency Tools</h5>
+          <p class="small opacity-75">أدوات الطوارئ</p>
+          <a href="{{ url_for('security.emergency_tools') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-fire-extinguisher"></i> فتح الأدوات
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- المراكز الجديدة: الإشعارات والضرائب -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-bell fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">📧 Notifications Center</h5>
+          <p class="small opacity-75">Email & SMS Automation + سجل الإشعارات</p>
+          <a href="{{ url_for('security.notifications_center') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-envelope"></i> فتح المركز
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-6 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-file-invoice-dollar fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">💰 Tax Reports Center</h5>
+          <p class="small opacity-75">VAT Tracking + إقرارات ضريبية + تقارير</p>
+          <a href="{{ url_for('security.tax_reports') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-calculator"></i> فتح المركز
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- أدوات سريعة إضافية -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-sitemap text-secondary fa-2x mb-2"></i>
+          <h6 class="fw-bold">خريطة الموقع</h6>
+          <a href="{{ url_for('security.sitemap') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-map"></i> عرض الخريطة
+          </a>
         </div>
       </div>
     </div>
     
     <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-globe fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-              {{ stats.blocked_countries }}
-            </span>
-          </div>
-          <h5 class="fw-bold">حظر الدول</h5>
-          <p class="small opacity-75">حظر دول كاملة + جغرافي</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.block_country') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-flag"></i> إدارة الحظر
-            </a>
-            <div class="row text-center">
-              <div class="col-6">
-                <small class="opacity-75">حظر دولة</small>
-              </div>
-              <div class="col-6">
-                <small class="opacity-75">إلغاء حظر</small>
-              </div>
-            </div>
-          </div>
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-code text-primary fa-2x mb-2"></i>
+          <h6 class="fw-bold">API Documentation</h6>
+          <a href="{{ url_for('api.docs') }}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-book"></i> وثائق API
+          </a>
         </div>
       </div>
     </div>
     
     <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #134E5E 0%, #71B280 100%);">
-        <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-broom fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-              ⚠️
-            </span>
-          </div>
-          <h5 class="fw-bold">تنظيف النظام</h5>
-          <p class="small opacity-75">حذف بيانات + تحسين الأداء</p>
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-ban text-danger fa-2x mb-2"></i>
+          <h6 class="fw-bold">Firewall ({{ stats.blocked_ips }})</h6>
+          <a href="{{ url_for('security.block_ip') }}" class="btn btn-sm btn-outline-danger">
+            <i class="fas fa-shield-alt"></i> حظر IP
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-globe text-warning fa-2x mb-2"></i>
+          <h6 class="fw-bold">حظر دول ({{ stats.blocked_countries }})</h6>
+          <a href="{{ url_for('security.block_country') }}" class="btn btn-sm btn-outline-warning">
+            <i class="fas fa-flag"></i> حظر دولة
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-broom text-success fa-2x mb-2"></i>
+          <h6 class="fw-bold">تنظيف النظام</h6>
           <div class="d-grid gap-2">
             <a href="{{ url_for('security.system_cleanup') }}" class="btn btn-light btn-sm fw-bold">
               <i class="fas fa-trash-alt"></i> تنظيف آمن
@@ -387,5 +547,187 @@
     </div>
     
   </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ═══════════════════════════════════════════════════════════
+// 🔍 شريط البحث السريع - Quick Search
+// ═══════════════════════════════════════════════════════════
+(function() {
+  const searchInput = document.getElementById('quickSearch');
+  const clearBtn = document.getElementById('clearSearch');
+  
+  if (!searchInput) return;
+  
+  // البحث الفوري
+  searchInput.addEventListener('input', function() {
+    const query = this.value.trim().toLowerCase();
+    
+    // إظهار/إخفاء زر المسح
+    clearBtn.style.display = query ? 'block' : 'none';
+    
+    // البحث في جميع البطاقات
+    const cards = document.querySelectorAll('.card, .small-box');
+    let visibleCount = 0;
+    
+    cards.forEach(card => {
+      const text = card.textContent.toLowerCase();
+      const shouldShow = !query || text.includes(query);
+      
+      // إظهار/إخفاء البطاقة
+      const parent = card.closest('.col-lg-3, .col-lg-4, .col-md-6');
+      if (parent) {
+        parent.style.display = shouldShow ? '' : 'none';
+        if (shouldShow) visibleCount++;
+      }
+    });
+    
+    // رسالة "لا توجد نتائج"
+    let noResults = document.getElementById('noSearchResults');
+    if (visibleCount === 0 && query) {
+      if (!noResults) {
+        noResults = document.createElement('div');
+        noResults.id = 'noSearchResults';
+        noResults.className = 'alert alert-warning text-center';
+        noResults.innerHTML = `
+          <i class="fas fa-search"></i> 
+          <strong>لم يتم العثور على نتائج لـ "${query}"</strong>
+          <br><small>جرب كلمات أخرى مثل: تكاملات، قاعدة بيانات، مستخدمين، تقارير</small>
+        `;
+        searchInput.closest('.container-fluid').appendChild(noResults);
+      }
+    } else if (noResults) {
+      noResults.remove();
+    }
+    
+    // إضاءة النص المطابق
+    if (query) {
+      cards.forEach(card => {
+        const parent = card.closest('.col-lg-3, .col-lg-4, .col-md-6');
+        if (parent && parent.style.display !== 'none') {
+          card.classList.add('border-primary', 'border-2');
+        } else {
+          card.classList.remove('border-primary', 'border-2');
+        }
+      });
+    } else {
+      cards.forEach(card => {
+        card.classList.remove('border-primary', 'border-2');
+      });
+    }
+  });
+  
+  // زر مسح البحث
+  clearBtn.addEventListener('click', function() {
+    searchInput.value = '';
+    searchInput.dispatchEvent(new Event('input'));
+    searchInput.focus();
+  });
+  
+  // Shortcut: Ctrl+K للبحث
+  document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'k') {
+      e.preventDefault();
+      searchInput.focus();
+      searchInput.select();
+    }
+  });
+  
+  console.log('✅ شريط البحث السريع جاهز (Ctrl+K)');
+})();
+
+// ═══════════════════════════════════════════════════════════
+// 🎨 Animations سلسة - Smooth Animations
+// ═══════════════════════════════════════════════════════════
+(function() {
+  const style = document.createElement('style');
+  style.textContent = `
+    /* Hover على البطاقات */
+    .card, .small-box {
+      transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
+      z-index: 10;
+    }
+    
+    .small-box:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+    }
+    
+    /* Tooltips */
+    [data-toggle="tooltip"] {
+      cursor: help;
+    }
+    
+    /* Border للبحث */
+    .border-2 {
+      border-width: 2px !important;
+    }
+    
+    /* Animation عند التحميل */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .card, .small-box {
+      animation: fadeInUp 0.5s ease;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  console.log('✅ Animations جاهزة');
+})();
+
+// ═══════════════════════════════════════════════════════════
+// 💡 Tooltips توضيحية
+// ═══════════════════════════════════════════════════════════
+(function() {
+  // إضافة tooltips للبطاقات
+  const tooltips = {
+    'Database Control Center': 'إدارة شاملة لقاعدة البيانات: تصفح، تحرير، SQL، Python، فهارس، صيانة، وأكثر',
+    'AI Control Center': 'مساعد ذكي، تحليل البيانات، كشف الأنماط، تنبؤات، وتدريب النماذج',
+    'Security & Monitoring Center': 'مراقبة فورية، جدار حماية، تنبيهات أمنية، وسجل النشاطات',
+    'Users & Permissions Center': 'إدارة المستخدمين، الصلاحيات، الأدوار، والتحكم الكامل',
+    'Settings & Customization Center': 'إعدادات النظام، الثيمات، الشعارات، العلامة التجارية، والتخصيص',
+    'Reports & Performance Center': 'تقارير إدارية، مراقبة الأداء، Grafana، ولوحات التحكم',
+    'Tools & Integration Center': 'التكاملات، البريد، الفواتير، الكروت، وأدوات متنوعة',
+    'Ledger Control': 'دفتر الأستاذ المحاسبي: الحسابات، القيود، الأرصدة، والتقارير المالية'
+  };
+  
+  document.querySelectorAll('.card h5').forEach(h5 => {
+    const text = h5.textContent.trim();
+    for (const [key, value] of Object.entries(tooltips)) {
+      if (text.includes(key)) {
+        const card = h5.closest('.card');
+        if (card) {
+          card.setAttribute('data-toggle', 'tooltip');
+          card.setAttribute('data-placement', 'top');
+          card.setAttribute('title', value);
+        }
+      }
+    }
+  });
+  
+  // تفعيل Bootstrap tooltips
+  $('[data-toggle="tooltip"]').tooltip();
+  
+  console.log('✅ Tooltips جاهزة');
+})();
+</script>
+
+<!-- تحميل Charts للإحصائيات -->
+<script src="{{ url_for('static', filename='js/security_charts.js') }}"></script>
 {% endblock %}
 

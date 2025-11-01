@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
     el.style.zIndex = 2000;
     el.innerHTML = `
       ${message}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span></button>
     `;
     document.body.appendChild(el);
     setTimeout(() => { if (el) el.remove(); }, 5000);

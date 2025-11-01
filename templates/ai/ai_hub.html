@@ -1,0 +1,916 @@
+{% extends 'base.html' %}
+{% block title %}🤖 مركز الذكاء الاصطناعي{% endblock %}
+{% block page_title %}🤖 AI Control Center{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-success: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  --gradient-danger: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);
+  --gradient-info: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --gradient-warning: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --gradient-dark: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+}
+
+.ai-card {
+  border: none;
+  border-radius: 15px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.ai-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+}
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 50%;
+  transform: translate(30%, -30%);
+}
+
+.gradient-text {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  color: #6c757d;
+  font-weight: 600;
+  padding: 15px 25px;
+  transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.nav-tabs .nav-link.active {
+  color: #667eea;
+  background: white;
+  border-bottom: 3px solid #667eea;
+}
+
+.api-key-input {
+  font-family: 'Courier New', monospace;
+  letter-spacing: 1px;
+}
+
+.training-progress {
+  height: 8px;
+  border-radius: 10px;
+  background: #e9ecef;
+  overflow: hidden;
+}
+
+.training-progress-bar {
+  height: 100%;
+  background: var(--gradient-success);
+  transition: width 0.5s ease;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.notification-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--gradient-danger);
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.model-card {
+  border-left: 4px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.model-card.trained {
+  border-left-color: #38ef7d;
+}
+
+.model-card.training {
+  border-left-color: #f5576c;
+}
+
+.model-card.pending {
+  border-left-color: #6c757d;
+}
+
+.btn-gradient {
+  background: var(--gradient-primary);
+  border: none;
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+  transform: scale(1.05);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+  color: white;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 12px 18px;
+  border-radius: 18px;
+  margin-bottom: 10px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.quick-action-btn {
+  border: 2px dashed #dee2e6;
+  padding: 20px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.quick-action-btn:hover {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.05);
+  transform: translateY(-2px);
+}
+</style>
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active"><i class="fas fa-brain"></i> AI Hub</li>
+{% if active_tab %}
+<li class="breadcrumb-item active">{{ active_tab|title }}</li>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <!-- Header Alert -->
+  <div class="alert ai-card mb-4" style="background: var(--gradient-primary); color: white;">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-brain fa-2x mb-2"></i>
+        <h5 class="mb-1"><strong>AI Control Center - مركز التحكم الذكي</strong></h5>
+        <p class="mb-0 opacity-75">نظام ذكاء اصطناعي متقدم مع قدرات تعلم ذاتي وتدريب تفاعلي</p>
+      </div>
+      <div class="text-end">
+        <div class="badge bg-white text-primary fs-6 mb-2">6 أدوات قوية</div>
+        <div><small class="opacity-75">مساعد • تحليل • تنبؤ • تدريب • خرائط • مفاتيح</small></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="card ai-card shadow-lg">
+    <div class="card-header text-white" style="background: var(--gradient-primary);">
+      <div class="d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-robot"></i> AI Control Panel</h5>
+        <div>
+          <span class="badge bg-white text-primary"><i class="fas fa-circle text-success"></i> نشط</span>
+          <span class="badge bg-white text-primary ms-2" id="liveStatus">🟢 متصل</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="card-body p-0">
+      
+      <!-- Tabs Navigation -->
+      <ul class="nav nav-tabs nav-fill border-0" id="aiTabs" role="tablist">
+        <li class="nav-item position-relative">
+          <a class="nav-link {% if active_tab == 'assistant' or not active_tab %}active{% endif %}" 
+             href="{{ url_for('ai.hub', tab='assistant') }}">
+            <i class="fas fa-comments"></i> مساعد ذكي
+            <span class="notification-badge">3</span>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'analytics' %}active{% endif %}" 
+             href="{{ url_for('ai.hub', tab='analytics') }}">
+            <i class="fas fa-chart-line"></i> تحليلات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'prediction' %}active{% endif %}" 
+             href="{{ url_for('ai.hub', tab='prediction') }}">
+            <i class="fas fa-crystal-ball"></i> تنبؤات
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'training' %}active{% endif %}" 
+             href="{{ url_for('ai.hub', tab='training') }}">
+            <i class="fas fa-graduation-cap"></i> تدريب
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'maps' %}active{% endif %}" 
+             href="{{ url_for('ai.hub', tab='maps') }}">
+            <i class="fas fa-map-marked-alt"></i> خرائط
+          </a>
+        </li>
+        <li class="nav-item position-relative">
+          <a class="nav-link {% if active_tab == 'config' %}active{% endif %}" 
+             href="{{ url_for('ai.hub', tab='config') }}">
+            <i class="fas fa-key"></i> مفاتيح API
+            {% if not api_keys_configured %}
+            <span class="notification-badge">!</span>
+            {% endif %}
+          </a>
+        </li>
+      </ul>
+
+      <!-- Tab Content -->
+      <div class="tab-content p-4" id="aiTabContent">
+        
+        <!-- ==================== TAB 1: ASSISTANT ==================== -->
+        {% if active_tab == 'assistant' or not active_tab %}
+        <div class="container-fluid">
+          <!-- Stats Row -->
+          <div class="row g-3 mb-4">
+            <div class="col-lg-3 col-md-6">
+              <div class="card ai-card stat-card text-white h-100" style="background: var(--gradient-primary);">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="text-white-50 mb-1">إجمالي الاستعلامات</h6>
+                      <h2 class="mb-0 fw-bold">{{ ai_stats.total_queries|default(0) }}</h2>
+                    </div>
+                    <i class="fas fa-question-circle fa-3x opacity-50"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+              <div class="card ai-card stat-card text-white h-100" style="background: var(--gradient-success);">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="text-white-50 mb-1">معدل النجاح</h6>
+                      <h2 class="mb-0 fw-bold">{{ ai_stats.success_rate|default(95) }}%</h2>
+                    </div>
+                    <i class="fas fa-check-circle fa-3x opacity-50"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+              <div class="card ai-card stat-card text-white h-100" style="background: var(--gradient-info);">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="text-white-50 mb-1">متوسط الوقت</h6>
+                      <h2 class="mb-0 fw-bold">{{ ai_stats.avg_response_time|default(0.8) }}s</h2>
+                    </div>
+                    <i class="fas fa-clock fa-3x opacity-50"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6">
+              <div class="card ai-card stat-card text-white h-100" style="background: var(--gradient-warning);">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="text-white-50 mb-1">اليوم</h6>
+                      <h2 class="mb-0 fw-bold">{{ ai_stats.today|default(12) }}</h2>
+                    </div>
+                    <i class="fas fa-calendar-day fa-3x opacity-50"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quick Actions -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-4">
+              <div class="quick-action-btn text-center" onclick="window.location='{{ url_for('ai.assistant') }}'">
+                <i class="fas fa-comments fa-3x text-primary mb-2"></i>
+                <h6 class="mb-0">فتح المحادثة</h6>
+                <small class="text-muted">تحدث مع المساعد الذكي</small>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="quick-action-btn text-center" onclick="window.location='{{ url_for('ai.system_map') }}'">
+                <i class="fas fa-map fa-3x text-success mb-2"></i>
+                <h6 class="mb-0">خريطة النظام</h6>
+                <small class="text-muted">استكشاف كامل</small>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="quick-action-btn text-center" onclick="startQuickTraining()">
+                <i class="fas fa-bolt fa-3x text-warning mb-2"></i>
+                <h6 class="mb-0">تدريب سريع</h6>
+                <small class="text-muted">تحديث المعرفة</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Interactions -->
+          <div class="card ai-card">
+            <div class="card-header bg-light">
+              <h6 class="mb-0"><i class="fas fa-history"></i> آخر التفاعلات</h6>
+            </div>
+            <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+              {% if recent_queries %}
+                {% for q in recent_queries %}
+                <div class="d-flex align-items-start mb-3">
+                  <i class="fas fa-user-circle fa-2x text-muted me-3"></i>
+                  <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between">
+                      <strong>{{ q.question[:50] }}...</strong>
+                      <small class="text-muted">{{ q.timestamp }}</small>
+                    </div>
+                    <small class="text-muted">{{ q.answer[:80] }}...</small>
+                    <div class="mt-1">
+                      <span class="badge bg-{{ 'success' if q.confidence > 80 else 'warning' }}">
+                        ثقة: {{ q.confidence }}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              {% else %}
+                <p class="text-center text-muted">لا توجد تفاعلات سابقة</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+        <!-- ==================== TAB 2: ANALYTICS ==================== -->
+        {% if active_tab == 'analytics' %}
+        <div class="container-fluid">
+          <div class="row g-3 mb-4">
+            <div class="col-lg-6">
+              <div class="card ai-card">
+                <div class="card-header bg-light">
+                  <i class="fas fa-chart-pie"></i> توزيع الاستعلامات
+                </div>
+                <div class="card-body">
+                  <canvas id="queryDistChart" height="200"></canvas>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-lg-6">
+              <div class="card ai-card">
+                <div class="card-header bg-light">
+                  <i class="fas fa-chart-line"></i> الأداء اليومي
+                </div>
+                <div class="card-body">
+                  <canvas id="performanceChart" height="200"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card ai-card">
+            <div class="card-header bg-light">
+              <i class="fas fa-table"></i> إحصائيات تفصيلية
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="table table-hover">
+                  <thead>
+                    <tr>
+                      <th>المقياس</th>
+                      <th>القيمة</th>
+                      <th>التغيير</th>
+                      <th>الحالة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><i class="fas fa-question-circle text-primary"></i> إجمالي الاستعلامات</td>
+                      <td><strong>{{ ai_stats.total_queries|default(0) }}</strong></td>
+                      <td><span class="text-success"><i class="fas fa-arrow-up"></i> +12%</span></td>
+                      <td><span class="badge bg-success">نشط</span></td>
+                    </tr>
+                    <tr>
+                      <td><i class="fas fa-check-circle text-success"></i> معدل النجاح</td>
+                      <td><strong>{{ ai_stats.success_rate|default(95) }}%</strong></td>
+                      <td><span class="text-success"><i class="fas fa-arrow-up"></i> +3%</span></td>
+                      <td><span class="badge bg-success">ممتاز</span></td>
+                    </tr>
+                    <tr>
+                      <td><i class="fas fa-clock text-info"></i> متوسط وقت الاستجابة</td>
+                      <td><strong>{{ ai_stats.avg_response_time|default(0.8) }}s</strong></td>
+                      <td><span class="text-danger"><i class="fas fa-arrow-down"></i> -0.2s</span></td>
+                      <td><span class="badge bg-info">جيد</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+        <!-- ==================== TAB 3: PREDICTION ==================== -->
+        {% if active_tab == 'prediction' %}
+        <div class="container-fluid">
+          <div class="row g-3 mb-4">
+            {% for pred in predictions|default([
+              {'type': 'مبيعات', 'period': 'الشهر القادم', 'value': '+15%', 'confidence': 87},
+              {'type': 'مخزون', 'period': 'الأسبوع القادم', 'value': 'نقص متوقع', 'confidence': 92},
+              {'type': 'إيرادات', 'period': 'الربع القادم', 'value': '₪125,000', 'confidence': 89}
+            ]) %}
+            <div class="col-md-4">
+              <div class="card ai-card h-100 border-{{ 'success' if pred.confidence > 90 else 'warning' if pred.confidence > 80 else 'danger' }}">
+                <div class="card-body">
+                  <h5 class="card-title gradient-text">
+                    <i class="fas fa-chart-line"></i> {{ pred.type }}
+                  </h5>
+                  <p class="card-text">
+                    <strong>الفترة:</strong> {{ pred.period }}<br>
+                    <strong>التوقع:</strong> <span class="text-primary fw-bold fs-4">{{ pred.value }}</span>
+                  </p>
+                  <div class="training-progress mb-2">
+                    <div class="training-progress-bar" style="width: {{ pred.confidence }}%"></div>
+                  </div>
+                  <small class="text-muted">ثقة: {{ pred.confidence }}%</small>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          
+          <div class="text-center">
+            <button class="btn btn-gradient btn-lg" onclick="generatePrediction()">
+              <i class="fas fa-magic"></i> إنشاء تنبؤ جديد
+            </button>
+          </div>
+        </div>
+        {% endif %}
+        
+        <!-- ==================== TAB 4: TRAINING ==================== -->
+        {% if active_tab == 'training' %}
+        <div class="container-fluid">
+          <div class="alert alert-info ai-card mb-4">
+            <i class="fas fa-info-circle"></i>
+            <strong>نظام التدريب المتقدم:</strong> يمكنك تدريب النماذج على بياناتك بضغطة زر. النظام يدعم التدريب التلقائي والتدريب المخصص.
+          </div>
+          
+          <!-- Training Models -->
+          <div class="row g-3 mb-4">
+            {% for model in [
+              {'name': 'نموذج التنبؤ بالمبيعات', 'icon': 'fa-chart-line', 'accuracy': 94.5, 'status': 'trained', 'last_update': 'منذ 3 أيام'},
+              {'name': 'نموذج إدارة المخزون', 'icon': 'fa-boxes', 'accuracy': 87.2, 'status': 'training', 'last_update': 'قيد التدريب الآن'},
+              {'name': 'نموذج تحليل العملاء', 'icon': 'fa-users', 'accuracy': 0, 'status': 'pending', 'last_update': 'لم يتم التدريب'}
+            ] %}
+            <div class="col-lg-4">
+              <div class="card ai-card model-card {{ model.status }}">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                      <i class="fas {{ model.icon }} fa-2x text-primary mb-2"></i>
+                      <h6 class="fw-bold">{{ model.name }}</h6>
+                    </div>
+                    {% if model.status == 'trained' %}
+                    <span class="badge bg-success">مُدرب</span>
+                    {% elif model.status == 'training' %}
+                    <span class="badge bg-warning">قيد التدريب</span>
+                    {% else %}
+                    <span class="badge bg-secondary">غير مُدرب</span>
+                    {% endif %}
+                  </div>
+                  
+                  {% if model.status == 'trained' %}
+                  <div class="mb-2">
+                    <small class="text-muted">دقة النموذج</small>
+                    <div class="training-progress">
+                      <div class="training-progress-bar" style="width: {{ model.accuracy }}%"></div>
+                    </div>
+                    <small class="text-success">{{ model.accuracy }}%</small>
+                  </div>
+                  {% elif model.status == 'training' %}
+                  <div class="mb-2">
+                    <small class="text-muted">التقدم</small>
+                    <div class="training-progress">
+                      <div class="training-progress-bar" style="width: 65%"></div>
+                    </div>
+                    <small class="text-warning">65% - جارٍ التدريب...</small>
+                  </div>
+                  {% endif %}
+                  
+                  <small class="text-muted d-block mb-3">{{ model.last_update }}</small>
+                  
+                  <button class="btn btn-{{ 'primary' if model.status == 'pending' else 'outline-primary' }} btn-sm w-100" 
+                          onclick="trainModel('{{ model.name }}')">
+                    <i class="fas fa-{{ 'play' if model.status == 'pending' else 'sync-alt' }}"></i>
+                    {{ 'بدء التدريب' if model.status == 'pending' else 'إعادة التدريب' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          
+          <!-- Training Settings -->
+          <div class="card ai-card">
+            <div class="card-header bg-light">
+              <i class="fas fa-cogs"></i> إعدادات التدريب
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">نوع التدريب</label>
+                  <select class="form-select">
+                    <option>تدريب سريع (Quick Training)</option>
+                    <option>تدريب عميق (Deep Training)</option>
+                    <option>تدريب مخصص (Custom Training)</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">حجم البيانات</label>
+                  <select class="form-select">
+                    <option>كل البيانات</option>
+                    <option>آخر 30 يوم</option>
+                    <option>آخر 90 يوم</option>
+                    <option>آخر سنة</option>
+                  </select>
+                </div>
+                <div class="col-12">
+                  <button class="btn btn-gradient btn-lg" onclick="startBulkTraining()">
+                    <i class="fas fa-graduation-cap"></i> بدء التدريب الشامل
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+        <!-- ==================== TAB 5: MAPS ==================== -->
+        {% if active_tab == 'maps' %}
+        <div class="container-fluid">
+          <div class="text-center mb-4">
+              <a href="{{ url_for('ai.system_map') }}" class="btn btn-gradient btn-lg" target="_blank">
+              <i class="fas fa-external-link-alt"></i> فتح خريطة النظام الكاملة
+            </a>
+          </div>
+          
+          <div class="row g-3">
+            <div class="col-lg-3 col-md-6">
+              <div class="card ai-card text-center">
+                <div class="card-body">
+                  <i class="fas fa-route fa-3x text-primary mb-3"></i>
+                  <h3 class="mb-0">{{ system_stats.total_routes|default(362) }}</h3>
+                  <p class="text-muted mb-0">مسار</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+              <div class="card ai-card text-center">
+                <div class="card-body">
+                  <i class="fas fa-file-code fa-3x text-success mb-3"></i>
+                  <h3 class="mb-0">{{ system_stats.total_templates|default(150) }}</h3>
+                  <p class="text-muted mb-0">قالب</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+              <div class="card ai-card text-center">
+                <div class="card-body">
+                  <i class="fas fa-database fa-3x text-info mb-3"></i>
+                  <h3 class="mb-0">{{ system_stats.total_models|default(45) }}</h3>
+                  <p class="text-muted mb-0">موديل</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+              <div class="card ai-card text-center">
+                <div class="card-body">
+                  <i class="fas fa-link fa-3x text-warning mb-3"></i>
+                  <h3 class="mb-0">{{ system_stats.total_relationships|default(120) }}</h3>
+                  <p class="text-muted mb-0">علاقة</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+        <!-- ==================== TAB 6: API KEYS CONFIG ==================== -->
+        {% if active_tab == 'config' %}
+        <div class="container-fluid">
+          <div class="alert alert-warning ai-card mb-4">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>تحذير أمني:</strong> المفاتيح مشفرة ومخزنة بأمان. لا تشارك مفاتيحك مع أحد.
+          </div>
+          
+          <!-- API Keys -->
+          <div class="row g-3">
+            {% for api in [
+              {'name': 'Groq API', 'icon': 'fa-bolt', 'color': 'primary', 'model': 'Llama 3.3 70B', 'status': 'active'},
+              {'name': 'OpenAI API', 'icon': 'fa-brain', 'color': 'success', 'model': 'GPT-4', 'status': 'inactive'},
+              {'name': 'Anthropic API', 'icon': 'fa-robot', 'color': 'info', 'model': 'Claude 3', 'status': 'inactive'}
+            ] %}
+            <div class="col-lg-4">
+              <div class="card ai-card">
+                <div class="card-header bg-{{ api.color }} text-white">
+                  <i class="fas {{ api.icon }}"></i> {{ api.name }}
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label class="form-label fw-bold">مفتاح API</label>
+                    <input type="password" class="form-control api-key-input" 
+                           placeholder="sk-..." 
+                           id="{{ api.name|replace(' ', '_') }}_key">
+                    <small class="text-muted">النموذج: {{ api.model }}</small>
+                  </div>
+                  <div class="d-flex gap-2">
+                    <button class="btn btn-{{ api.color }} btn-sm flex-grow-1" 
+                            onclick="saveApiKey('{{ api.name }}')">
+                      <i class="fas fa-save"></i> حفظ
+                    </button>
+                    <button class="btn btn-outline-{{ api.color }} btn-sm" 
+                            onclick="testApiKey('{{ api.name }}')">
+                      <i class="fas fa-vial"></i> اختبار
+                    </button>
+                  </div>
+                  <div class="mt-2">
+                    {% if api.status == 'active' %}
+                    <span class="badge bg-success w-100"><i class="fas fa-check-circle"></i> نشط</span>
+                    {% else %}
+                    <span class="badge bg-secondary w-100"><i class="fas fa-times-circle"></i> غير نشط</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          
+          <!-- Advanced Settings -->
+          <div class="card ai-card mt-4">
+            <div class="card-header bg-light">
+              <i class="fas fa-sliders-h"></i> إعدادات متقدمة
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">النموذج الافتراضي</label>
+                  <select class="form-select">
+                    <option selected>Groq (Llama 3.3 70B)</option>
+                    <option>OpenAI (GPT-4)</option>
+                    <option>Anthropic (Claude 3)</option>
+                    <option>محلي فقط (Local Only)</option>
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">الحد الأقصى للاستجابة</label>
+                  <input type="number" class="form-control" value="4000" min="500" max="8000">
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoFallback" checked>
+                    <label class="form-check-label" for="autoFallback">
+                      <strong>التبديل التلقائي للنموذج المحلي عند الفشل</strong>
+                    </label>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="cacheResponses" checked>
+                    <label class="form-check-label" for="cacheResponses">
+                      <strong>تخزين الردود مؤقتاً (Cache)</strong>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+        
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// CSRF Token
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+// Live Status Indicator
+setInterval(() => {
+  const status = document.getElementById('liveStatus');
+  if (status) {
+    status.innerHTML = '🟢 متصل - ' + new Date().toLocaleTimeString('ar-EG');
+  }
+}, 1000);
+
+// Quick Training
+function startQuickTraining() {
+  if (confirm('هل تريد بدء تدريب سريع للمساعد الذكي؟')) {
+    alert('🎓 جارٍ التدريب السريع...\nهذا قد يستغرق بضع دقائق.');
+    // TODO: Backend call
+  }
+}
+
+// Generate Prediction
+function generatePrediction() {
+  alert('🔮 قريباً: إنشاء تنبؤات مخصصة بناءً على بياناتك!');
+}
+
+// Train Model
+async function trainModel(modelName) {
+  if (!confirm(`هل تريد بدء تدريب: ${modelName}؟`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('{{ url_for("ai.start_training") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        model_name: modelName,
+        training_type: 'quick',
+        data_range: 'all'
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(`✅ ${data.message}\n\nJob ID: ${data.job_id}\nسيتم إشعارك عند الانتهاء.`);
+      // يمكن إضافة polling للحالة
+    } else {
+      alert(`❌ خطأ: ${data.error}`);
+    }
+  } catch (err) {
+    alert(`❌ خطأ: ${err.message}`);
+  }
+}
+
+// Bulk Training
+async function startBulkTraining() {
+  if (!confirm('هل تريد بدء التدريب الشامل لجميع النماذج؟\nهذا قد يستغرق 15-30 دقيقة.')) {
+    return;
+  }
+  
+  alert('🎓 جارٍ التدريب الشامل...\nسيتم إشعارك عند الانتهاء.');
+  
+  // تدريب كل النماذج
+  const models = ['نموذج التنبؤ بالمبيعات', 'نموذج إدارة المخزون', 'نموذج تحليل العملاء'];
+  for (const model of models) {
+    await trainModel(model);
+  }
+}
+
+// API Key Management
+async function saveApiKey(apiName) {
+  const keyInput = document.getElementById(`${apiName.replace(' ', '_')}_key`);
+  const apiKey = keyInput?.value.trim();
+  
+  if (!apiKey) {
+    alert('⚠️ الرجاء إدخال مفتاح API صحيح');
+    return;
+  }
+  
+  try {
+    const response = await fetch('{{ url_for("ai.save_api_key") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        api_name: apiName,
+        api_key: apiKey
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(`✅ ${data.message}`);
+      keyInput.value = '';
+    } else {
+      alert(`❌ خطأ: ${data.error}`);
+    }
+  } catch (err) {
+    alert(`❌ خطأ في الاتصال: ${err.message}`);
+  }
+}
+
+async function testApiKey(apiName) {
+  const btn = event.target;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جارٍ الاختبار...';
+  btn.disabled = true;
+  
+  try {
+    const response = await fetch('{{ url_for("ai.test_api_key_route") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ api_name: apiName })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      alert(`✅ ${data.message}\n\nModel: ${data.model || 'N/A'}\nLatency: ${data.latency || 'N/A'}`);
+    } else {
+      alert(`❌ فشل الاختبار: ${data.error}`);
+    }
+  } catch (err) {
+    alert(`❌ خطأ: ${err.message}`);
+  } finally {
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+  }
+}
+
+// Charts (if analytics tab)
+if (document.getElementById('queryDistChart')) {
+  new Chart(document.getElementById('queryDistChart'), {
+    type: 'pie',
+    data: {
+      labels: ['نجاح', 'فشل', 'معلق'],
+      datasets: [{
+        data: [85, 10, 5],
+        backgroundColor: ['#38ef7d', '#ff6a00', '#f5576c']
+      }]
+    }
+  });
+}
+
+if (document.getElementById('performanceChart')) {
+  new Chart(document.getElementById('performanceChart'), {
+    type: 'line',
+    data: {
+      labels: ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'],
+      datasets: [{
+        label: 'الاستعلامات',
+        data: [12, 19, 15, 25, 22, 30, 28],
+        borderColor: '#667eea',
+        tension: 0.4
+      }]
+    }
+  });
+}
+</script>
+
+{% endblock %}

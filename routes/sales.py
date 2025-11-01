@@ -608,6 +608,25 @@ def create_sale():
             if require_stock and target_status == "CONFIRMED":
                 _deduct_stock(sale)
             _log(sale, "CREATE", None, sale_to_dict(sale))
+            
+            # تسجيل ضريبة VAT تلقائياً
+            if sale.tax_rate and sale.tax_rate > 0:
+                try:
+                    from utils import create_tax_entry
+                    subtotal = float(sale.total_amount or 0) / (1 + float(sale.tax_rate) / 100)
+                    create_tax_entry(
+                        entry_type='OUTPUT_VAT',
+                        transaction_type='SALE',
+                        transaction_id=sale.id,
+                        base_amount=subtotal,
+                        tax_rate=float(sale.tax_rate),
+                        reference=sale.sale_number,
+                        customer_id=sale.customer_id,
+                        currency=sale.currency
+                    )
+                except Exception as e:
+                    current_app.logger.warning(f'⚠️ Tax entry failed: {e}')
+            
             db.session.commit()
             flash("✅ تم إنشاء الفاتورة.", "success")
             return redirect(url_for("sales_bp.sale_detail", id=sale.id))

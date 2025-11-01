@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}قائمة التدفقات النقدية{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+            <h3 class="mb-0">
+                <i class="fas fa-money-bill-wave"></i>
+                قائمة التدفقات النقدية (Cash Flow Statement)
+            </h3>
+            <p class="mb-0 small">من {{ from_date.strftime('%Y-%m-%d') }} إلى {{ to_date.strftime('%Y-%m-%d') }}</p>
+        </div>
+        
+        <div class="card-body">
+            <!-- فلتر التواريخ -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label>من تاريخ:</label>
+                    <input type="date" id="from_date" class="form-control" value="{{ from_date.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-md-4">
+                    <label>إلى تاريخ:</label>
+                    <input type="date" id="to_date" class="form-control" value="{{ to_date.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-md-4">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary d-block w-100" onclick="updateReport()">
+                        <i class="fas fa-sync"></i> تحديث
+                    </button>
+                </div>
+            </div>
+            
+            <table class="table table-bordered">
+                <!-- التدفقات التشغيلية -->
+                <thead class="table-success">
+                    <tr>
+                        <th colspan="2"><h5 class="mb-0">💼 التدفقات التشغيلية</h5></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>تدفقات نقدية واردة (من العملاء)</td>
+                        <td class="text-end text-success fw-bold">+{{ "{:,.2f}".format(operating.inflows) }} ₪</td>
+                    </tr>
+                    <tr>
+                        <td>تدفقات نقدية صادرة (للموردين والمصاريف)</td>
+                        <td class="text-end text-danger fw-bold">-{{ "{:,.2f}".format(operating.outflows) }} ₪</td>
+                    </tr>
+                </tbody>
+                <tfoot class="table-success fw-bold">
+                    <tr>
+                        <td>صافي التدفقات التشغيلية</td>
+                        <td class="text-end {% if operating.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.2f}".format(operating.net) }} ₪
+                        </td>
+                    </tr>
+                </tfoot>
+                
+                <!-- التدفقات الاستثمارية -->
+                <thead class="table-info mt-3">
+                    <tr>
+                        <th colspan="2"><h5 class="mb-0">🏭 التدفقات الاستثمارية</h5></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>تدفقات نقدية واردة (بيع أصول)</td>
+                        <td class="text-end text-success fw-bold">+{{ "{:,.2f}".format(investing.inflows) }} ₪</td>
+                    </tr>
+                    <tr>
+                        <td>تدفقات نقدية صادرة (شراء أصول/معدات)</td>
+                        <td class="text-end text-danger fw-bold">-{{ "{:,.2f}".format(investing.outflows) }} ₪</td>
+                    </tr>
+                </tbody>
+                <tfoot class="table-info fw-bold">
+                    <tr>
+                        <td>صافي التدفقات الاستثمارية</td>
+                        <td class="text-end {% if investing.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.2f}".format(investing.net) }} ₪
+                        </td>
+                    </tr>
+                </tfoot>
+                
+                <!-- التدفقات التمويلية -->
+                <thead class="table-warning mt-3">
+                    <tr>
+                        <th colspan="2"><h5 class="mb-0">🏦 التدفقات التمويلية</h5></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>تدفقات نقدية واردة (قروض/استثمارات)</td>
+                        <td class="text-end text-success fw-bold">+{{ "{:,.2f}".format(financing.inflows) }} ₪</td>
+                    </tr>
+                    <tr>
+                        <td>تدفقات نقدية صادرة (سداد قروض/توزيعات)</td>
+                        <td class="text-end text-danger fw-bold">-{{ "{:,.2f}".format(financing.outflows) }} ₪</td>
+                    </tr>
+                </tbody>
+                <tfoot class="table-warning fw-bold">
+                    <tr>
+                        <td>صافي التدفقات التمويلية</td>
+                        <td class="text-end {% if financing.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.2f}".format(financing.net) }} ₪
+                        </td>
+                    </tr>
+                </tfoot>
+                
+                <!-- صافي التغير في النقدية -->
+                <tfoot class="table-dark fw-bold fs-5">
+                    <tr>
+                        <td>صافي التغير في النقدية</td>
+                        <td class="text-end {% if total_net_cash_flow >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ "{:,.2f}".format(total_net_cash_flow) }} ₪
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <!-- أزرار -->
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <button class="btn btn-success w-100" onclick="exportToExcel()">
+                        <i class="fas fa-file-excel"></i> تصدير Excel
+                    </button>
+                </div>
+                <div class="col-md-6">
+                    <button class="btn btn-info w-100" onclick="window.print()">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+</style>
+
+<script>
+function updateReport() {
+    const fromDate = document.getElementById('from_date').value;
+    const toDate = document.getElementById('to_date').value;
+    window.location.href = `/financial-reports/cash-flow?from_date=${fromDate}&to_date=${toDate}`;
+}
+
+function exportToExcel() {
+    alert('سيتم إضافة وظيفة التصدير قريباً');
+}
+</script>
+{% endblock %}
+

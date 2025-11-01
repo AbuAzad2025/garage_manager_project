@@ -46,7 +46,8 @@ from routes.ledger_control import ledger_control_bp
 from routes.financial_reports import financial_reports_bp
 from routes.accounting_validation import accounting_validation_bp
 from routes.accounting_docs import accounting_docs_bp
-from routes.ledger_ai_assistant import ai_assistant_bp
+# from routes.ledger_ai_assistant import ai_assistant_bp  # تم حذفه - موحد مع AI Hub
+from routes.ai_routes import ai_bp  # 🤖 المساعد الذكي - ملف منفصل
 from routes.barcode_scanner import barcode_scanner_bp
 from routes.currencies import currencies_bp
 from routes.hard_delete import hard_delete_bp
@@ -171,10 +172,13 @@ def create_app(config_object=Config) -> Flask:
     # utils_init_app(app)  # Commented out - function not available in utils package
     
     # زرع أنواع المصاريف الأساسية دائماً عند الإقلاع (بعيداً عن الهجرات)
+    # ملاحظة: هذا فقط لأنواع المصاريف - البذور الأخرى (عملاء، إلخ) تُنفذ يدوياً فقط
     try:
         with app.app_context():
-            from services.bootstrap_data import seed_core_expense_types
-            seed_core_expense_types(db)
+            # تم تعطيل seed_core_expense_types - يعمل تلقائياً بكل تشغيل
+            # from services.bootstrap_data import seed_core_expense_types
+            # seed_core_expense_types(db)
+            pass
     except Exception as _e:
         app.logger.warning(f"Bootstrap expense types skipped: {_e}")
 
@@ -464,7 +468,8 @@ def create_app(config_object=Config) -> Flask:
         hard_delete_bp,
         barcode_scanner_bp,
         ledger_control_bp,
-        ai_assistant_bp,
+        # ai_assistant_bp,  # تم حذفه - موحد مع AI Hub
+        ai_bp,  # 🤖 المساعد الذكي - ملف منفصل
         user_guide_bp,
         other_systems_bp,
         pricing_bp,
@@ -494,15 +499,6 @@ def create_app(config_object=Config) -> Flask:
         },
     )
     
-    @app.after_request
-    def add_cache_headers(response):
-        '''إضافة headers للـ caching للملفات الثابتة'''
-        if 'static' in request.path and not request.path.endswith('.map'):
-            # Cache static files for 1 year
-            response.cache_control.max_age = 31536000
-            response.cache_control.public = True
-        return response
-
     @app.after_request
     def security_headers(response):
         # حماية من XSS
@@ -823,8 +819,64 @@ def create_app(config_object=Config) -> Flask:
     return app
 
 
+def bootstrap_database():
+    """
+    🔧 Bootstrap Database - تهيئة أولية (تُشغل مرة واحدة)
+    
+    - إنشاء الجداول إذا لم تكن موجودة
+    - زرع الإعدادات الافتراضية
+    - لا حذف، لا إعادة تهيئة
+    """
+    from models import db, SystemSettings, NotificationLog, TaxEntry, ExpenseType
+    
+    try:
+        # 1. إنشاء الجداول (idempotent - لا يحذف الموجود)
+        db.create_all()
+        
+        # 2. إضافة أنواع المصاريف الأساسية (إذا لم تكن موجودة)
+        expense_types = [
+            ('SALARY', 'راتب', 'رواتب الموظفين'),
+            ('EMPLOYEE_ADVANCE', 'سلفة', 'سلف الموظفين'),
+        ]
+        
+        for code, name, desc in expense_types:
+            existing = ExpenseType.query.filter_by(code=code).first()
+            if not existing:
+                new_type = ExpenseType(code=code, name=name, description=desc)
+                db.session.add(new_type)
+                current_app.logger.info(f'✅ Created ExpenseType: {code}')
+        
+        # 3. زرع الإعدادات الافتراضية (إذا لم تكن موجودة)
+        default_settings = {
+            'twilio_account_sid': ('', 'Twilio Account SID for SMS/WhatsApp', 'string'),
+            'twilio_auth_token': ('', 'Twilio Auth Token', 'string'),
+            'twilio_phone_number': ('', 'Twilio Phone Number (e.g., +970562150193)', 'string'),
+            'twilio_whatsapp_number': ('whatsapp:+14155238886', 'Twilio WhatsApp Number', 'string'),
+            'inventory_manager_phone': ('', 'رقم هاتف مدير المخزون للإشعارات', 'string'),
+            'inventory_manager_email': ('', 'بريد مدير المخزون للإشعارات', 'string'),
+        }
+        
+        for key, (value, desc, dtype) in default_settings.items():
+            existing = SystemSettings.query.filter_by(key=key).first()
+            if not existing:
+                SystemSettings.set_setting(key, value, desc, dtype, is_public=False)
+                current_app.logger.info(f'✅ Created setting: {key}')
+        
+        db.session.commit()
+        current_app.logger.info('✅ Bootstrap completed successfully')
+        
+    except Exception as e:
+        current_app.logger.error(f'❌ Bootstrap failed: {e}')
+        db.session.rollback()
+
+
 if __name__ == '__main__':
     app = create_app()
+    
+    # Bootstrap على أول تشغيل
+    with app.app_context():
+        bootstrap_database()
+    
     app.run(debug=True, host='0.0.0.0', port=5000)
 else:
     app = create_app()

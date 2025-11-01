@@ -1025,3 +1025,608 @@ def get_advanced_statistics():
     except Exception as e:
         current_app.logger.error(f"❌ خطأ في الإحصائيات: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== مركز التحكم المتقدم - الفترات والعمليات ==========
+
+@ledger_control_bp.route('/operations/fiscal-periods/api', methods=['GET'])
+@owner_only
+def get_fiscal_periods():
+    """API: جلب جميع الفترات المحاسبية"""
+    try:
+        from sqlalchemy import func
+        from datetime import date
+        
+        # حساب الفترات من البيانات الموجودة
+        oldest_batch = db.session.query(func.min(GLBatch.posted_at)).filter(
+            GLBatch.status == 'POSTED'
+        ).scalar()
+        
+        if not oldest_batch:
+            return jsonify({
+                'success': True,
+                'periods': [],
+                'message': 'لا توجد قيود محاسبية بعد'
+            })
+        
+        # إنشاء فترات شهرية تلقائياً
+        start_date = oldest_batch.replace(day=1)
+        end_date = datetime.now()
+        
+        periods = []
+        current = start_date
+        
+        while current <= end_date:
+            # حساب نهاية الشهر
+            if current.month == 12:
+                month_end = date(current.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                month_end = date(current.year, current.month + 1, 1) - timedelta(days=1)
+            
+            # حساب عدد القيود في هذه الفترة
+            batches_count = GLBatch.query.filter(
+                GLBatch.status == 'POSTED',
+                GLBatch.posted_at >= current,
+                GLBatch.posted_at <= month_end
+            ).count()
+            
+            # حساب مجموع المدين والدائن
+            totals = db.session.query(
+                func.sum(GLEntry.debit).label('total_debit'),
+                func.sum(GLEntry.credit).label('total_credit')
+            ).join(GLBatch).filter(
+                GLBatch.status == 'POSTED',
+                GLBatch.posted_at >= current,
+                GLBatch.posted_at <= month_end
+            ).first()
+            
+            periods.append({
+                'period_id': current.strftime('%Y%m'),
+                'start_date': current.isoformat(),
+                'end_date': month_end.isoformat(),
+                'name': current.strftime('%B %Y'),
+                'name_ar': f"{current.strftime('%B')} {current.year}",
+                'is_closed': False,
+                'batches_count': batches_count,
+                'total_debit': float(totals.total_debit or 0),
+                'total_credit': float(totals.total_credit or 0),
+                'is_current': current.month == datetime.now().month and current.year == datetime.now().year
+            })
+            
+            # الانتقال للشهر التالي
+            if current.month == 12:
+                current = date(current.year + 1, 1, 1)
+            else:
+                current = date(current.year, current.month + 1, 1)
+        
+        return jsonify({
+            'success': True,
+            'periods': list(reversed(periods))  # الأحدث أولاً
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"خطأ في جلب الفترات المحاسبية: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/operations/closing-entries/generate', methods=['POST'])
+@owner_only
+def generate_closing_entries():
+    """إنشاء قيود الإقفال التلقائية"""
+    try:
+        from decimal import Decimal
+        from sqlalchemy import func
+        
+        data = request.get_json()
+        period_end = datetime.fromisoformat(data['period_end'])
+        
+        # 1. إقفال حسابات الإيرادات (4xxx)
+        revenues = db.session.query(
+            GLEntry.account,
+            func.sum(GLEntry.credit - GLEntry.debit).label('balance')
+        ).join(GLBatch).filter(
+            GLBatch.status == 'POSTED',
+            GLBatch.posted_at <= period_end,
+            GLEntry.account.like('4%')
+        ).group_by(GLEntry.account).all()
+        
+        # 2. إقفال حسابات المصروفات (5xxx)
+        expenses = db.session.query(
+            GLEntry.account,
+            func.sum(GLEntry.debit - GLEntry.credit).label('balance')
+        ).join(GLBatch).filter(
+            GLBatch.status == 'POSTED',
+            GLBatch.posted_at <= period_end,
+            GLEntry.account.like('5%')
+        ).group_by(GLEntry.account).all()
+        
+        # حساب صافي الدخل
+        total_revenue = sum(float(r.balance) for r in revenues)
+        total_expenses = sum(float(e.balance) for e in expenses)
+        net_income = total_revenue - total_expenses
+        
+        closing_entries = []
+        
+        # قيد إقفال الإيرادات
+        if revenues:
+            closing_entries.append({
+                'type': 'close_revenue',
+                'description': 'إقفال حسابات الإيرادات',
+                'entries': [
+                    {'account': r.account, 'debit': float(r.balance), 'credit': 0} 
+                    for r in revenues
+                ] + [
+                    {'account': '3200_CURRENT_EARNINGS', 'debit': 0, 'credit': total_revenue}
+                ],
+                'total': total_revenue
+            })
+        
+        # قيد إقفال المصروفات
+        if expenses:
+            closing_entries.append({
+                'type': 'close_expenses',
+                'description': 'إقفال حسابات المصروفات',
+                'entries': [
+                    {'account': e.account, 'debit': 0, 'credit': float(e.balance)} 
+                    for e in expenses
+                ] + [
+                    {'account': '3200_CURRENT_EARNINGS', 'debit': total_expenses, 'credit': 0}
+                ],
+                'total': total_expenses
+            })
+        
+        # قيد نقل صافي الدخل للأرباح المحتجزة
+        closing_entries.append({
+            'type': 'transfer_net_income',
+            'description': 'نقل صافي الدخل للأرباح المحتجزة',
+            'entries': [
+                {'account': '3200_CURRENT_EARNINGS', 'debit': net_income if net_income > 0 else 0, 'credit': -net_income if net_income < 0 else 0},
+                {'account': '3100_RETAINED_EARNINGS', 'debit': -net_income if net_income < 0 else 0, 'credit': net_income if net_income > 0 else 0}
+            ],
+            'total': abs(net_income)
+        })
+        
+        return jsonify({
+            'success': True,
+            'period_end': period_end.isoformat(),
+            'net_income': net_income,
+            'closing_entries': closing_entries,
+            'total_revenue': total_revenue,
+            'total_expenses': total_expenses
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"خطأ في إنشاء قيود الإقفال: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/operations/closing-entries/post', methods=['POST'])
+@owner_only
+def post_closing_entries():
+    """ترحيل قيود الإقفال"""
+    try:
+        from decimal import Decimal
+        
+        data = request.get_json()
+        entries = data.get('entries', [])
+        period_end = datetime.fromisoformat(data['period_end'])
+        
+        created_batches = []
+        
+        for entry_group in entries:
+            # إنشاء GLBatch
+            batch = GLBatch(
+                code=f"CLOSING-{entry_group['type']}-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                source_type='CLOSING_ENTRY',
+                purpose=entry_group['description'],
+                memo=f"قيد إقفال - {entry_group['description']}",
+                currency='ILS',
+                status='POSTED',
+                posted_at=period_end
+            )
+            db.session.add(batch)
+            db.session.flush()
+            
+            # إنشاء GLEntries
+            for line in entry_group['entries']:
+                gl_entry = GLEntry(
+                    batch_id=batch.id,
+                    account=line['account'],
+                    debit=Decimal(str(line['debit'])),
+                    credit=Decimal(str(line['credit'])),
+                    ref=f"Closing-{period_end.strftime('%Y%m')}",
+                    currency='ILS'
+                )
+                db.session.add(gl_entry)
+            
+            created_batches.append(batch.id)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم ترحيل {len(created_batches)} قيد إقفال',
+            'batch_ids': created_batches
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"خطأ في ترحيل قيود الإقفال: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/operations/reverse-entry/<int:batch_id>', methods=['POST'])
+@owner_only
+def reverse_entry(batch_id):
+    """🔄 إنشاء قيد عكسي"""
+    try:
+        original_batch = GLBatch.query.get(batch_id)
+        if not original_batch:
+            return jsonify({'success': False, 'error': 'القيد غير موجود'}), 404
+        
+        # التحقق من عدم وجود قيد عكسي سابق
+        existing_reversal = GLBatch.query.filter_by(
+            source_type='REVERSAL',
+            source_id=batch_id
+        ).first()
+        
+        if existing_reversal:
+            return jsonify({
+                'success': False,
+                'error': 'يوجد قيد عكسي لهذا القيد بالفعل',
+                'reversal_batch_id': existing_reversal.id
+            }), 400
+        
+        # إنشاء القيد العكسي
+        reversal_batch = GLBatch(
+            code=f"REV-{original_batch.code}",
+            source_type='REVERSAL',
+            source_id=original_batch.id,
+            purpose=f"عكس: {original_batch.purpose}",
+            memo=f"قيد عكسي للقيد #{batch_id} - {original_batch.memo}",
+            currency=original_batch.currency,
+            status='POSTED',
+            posted_at=datetime.now()
+        )
+        db.session.add(reversal_batch)
+        db.session.flush()
+        
+        # عكس القيود الفرعية (تبديل المدين والدائن)
+        for original_entry in original_batch.entries:
+            reversal_entry = GLEntry(
+                batch_id=reversal_batch.id,
+                account=original_entry.account,
+                debit=original_entry.credit,  # عكس
+                credit=original_entry.debit,  # عكس
+                ref=f"REV-{original_entry.ref}",
+                currency=original_entry.currency
+            )
+            db.session.add(reversal_entry)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم إنشاء القيد العكسي بنجاح',
+            'original_batch_id': batch_id,
+            'reversal_batch_id': reversal_batch.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"خطأ في إنشاء قيد عكسي: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/operations/review-queue', methods=['GET'])
+@owner_only
+def review_queue():
+    """📋 قائمة القيود المعلقة للمراجعة"""
+    try:
+        from sqlalchemy import desc
+        
+        pending_batches = GLBatch.query.filter_by(status='DRAFT').order_by(
+            desc(GLBatch.created_at)
+        ).all()
+        
+        batches_data = []
+        for batch in pending_batches:
+            total_debit = sum(float(e.debit) for e in batch.entries)
+            total_credit = sum(float(e.credit) for e in batch.entries)
+            is_balanced = abs(total_debit - total_credit) < 0.01
+            
+            batches_data.append({
+                'id': batch.id,
+                'code': batch.code,
+                'purpose': batch.purpose,
+                'memo': batch.memo,
+                'created_at': batch.created_at.isoformat() if batch.created_at else None,
+                'total_debit': total_debit,
+                'total_credit': total_credit,
+                'is_balanced': is_balanced,
+                'entries_count': len(batch.entries)
+            })
+        
+        return jsonify({
+            'success': True,
+            'pending_count': len(batches_data),
+            'batches': batches_data
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/operations/approve-batch/<int:batch_id>', methods=['POST'])
+@owner_only
+def approve_batch(batch_id):
+    """✅ الموافقة على قيد وترحيله"""
+    try:
+        batch = GLBatch.query.get(batch_id)
+        if not batch:
+            return jsonify({'success': False, 'error': 'القيد غير موجود'}), 404
+        
+        if batch.status == 'POSTED':
+            return jsonify({'success': False, 'error': 'القيد مرحّل بالفعل'}), 400
+        
+        # التحقق من التوازن
+        total_debit = sum(float(e.debit) for e in batch.entries)
+        total_credit = sum(float(e.credit) for e in batch.entries)
+        
+        if abs(total_debit - total_credit) > 0.01:
+            return jsonify({
+                'success': False,
+                'error': f'القيد غير متوازن: مدين={total_debit}, دائن={total_credit}'
+            }), 400
+        
+        # الموافقة والترحيل
+        batch.status = 'POSTED'
+        batch.posted_at = datetime.now()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'تمت الموافقة على القيد وترحيله بنجاح',
+            'batch_id': batch_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/operations/reject-batch/<int:batch_id>', methods=['POST'])
+@owner_only
+def reject_batch(batch_id):
+    """❌ رفض قيد"""
+    try:
+        data = request.get_json()
+        reason = data.get('reason', 'غير محدد')
+        
+        batch = GLBatch.query.get(batch_id)
+        if not batch:
+            return jsonify({'success': False, 'error': 'القيد غير موجود'}), 404
+        
+        # تحديث الحالة
+        batch.status = 'REJECTED'
+        batch.memo = f"{batch.memo} [مرفوض: {reason}]"
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم رفض القيد',
+            'batch_id': batch_id,
+            'reason': reason
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== تحرير وربط القيود ==========
+
+@ledger_control_bp.route('/operations/batch/<int:batch_id>/link-entity', methods=['POST'])
+@owner_only
+def link_batch_to_entity(batch_id):
+    """🔗 ربط قيد محاسبي بجهة"""
+    try:
+        data = request.get_json()
+        entity_type = data.get('entity_type')  # CUSTOMER, SUPPLIER, PARTNER, EMPLOYEE, BRANCH, USER
+        entity_id = data.get('entity_id')
+        
+        batch = GLBatch.query.get(batch_id)
+        if not batch:
+            return jsonify({'success': False, 'error': 'القيد غير موجود'}), 404
+        
+        # التحقق من صحة الجهة
+        if entity_type and entity_id:
+            entity_model = {
+                'CUSTOMER': Customer,
+                'SUPPLIER': Supplier,
+                'PARTNER': Partner,
+                'EMPLOYEE': lambda: db.session.query(db.select(1)).first()  # مبسط
+            }.get(entity_type)
+            
+            if entity_model and entity_type in ['CUSTOMER', 'SUPPLIER', 'PARTNER']:
+                entity = entity_model.query.get(entity_id)
+                if not entity:
+                    return jsonify({'success': False, 'error': f'الجهة غير موجودة'}), 404
+        
+        # التحديث
+        old_entity_type = batch.entity_type
+        old_entity_id = batch.entity_id
+        
+        batch.entity_type = entity_type
+        batch.entity_id = entity_id if entity_id else None
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'تم ربط القيد بـ {entity_type} #{entity_id}',
+            'batch_id': batch_id,
+            'old_entity': f'{old_entity_type}/{old_entity_id}',
+            'new_entity': f'{entity_type}/{entity_id}'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"خطأ في ربط القيد: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/operations/batch/<int:batch_id>/edit', methods=['GET'])
+@owner_only
+def get_batch_for_edit(batch_id):
+    """📝 جلب بيانات قيد للتحرير"""
+    try:
+        batch = GLBatch.query.get(batch_id)
+        if not batch:
+            return jsonify({'success': False, 'error': 'القيد غير موجود'}), 404
+        
+        # جلب بيانات الجهة المرتبطة
+        entity_name = None
+        if batch.entity_type and batch.entity_id:
+            if batch.entity_type == 'CUSTOMER':
+                entity = Customer.query.get(batch.entity_id)
+                entity_name = entity.name if entity else None
+            elif batch.entity_type == 'SUPPLIER':
+                entity = Supplier.query.get(batch.entity_id)
+                entity_name = entity.name if entity else None
+            elif batch.entity_type == 'PARTNER':
+                entity = Partner.query.get(batch.entity_id)
+                entity_name = entity.name if entity else None
+        
+        return jsonify({
+            'success': True,
+            'batch': {
+                'id': batch.id,
+                'code': batch.code,
+                'source_type': batch.source_type,
+                'source_id': batch.source_id,
+                'purpose': batch.purpose,
+                'memo': batch.memo,
+                'currency': batch.currency,
+                'status': batch.status,
+                'posted_at': batch.posted_at.isoformat() if batch.posted_at else None,
+                'entity_type': batch.entity_type,
+                'entity_id': batch.entity_id,
+                'entity_name': entity_name,
+                'entries': [{
+                    'id': e.id,
+                    'account': e.account,
+                    'debit': float(e.debit or 0),
+                    'credit': float(e.credit or 0),
+                    'ref': e.ref,
+                    'currency': e.currency
+                } for e in batch.entries]
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/operations/batch/<int:batch_id>/update-full', methods=['POST'])
+@owner_only
+def update_batch_full(batch_id):
+    """✏️ تحديث كامل لقيد محاسبي"""
+    try:
+        data = request.get_json()
+        
+        batch = GLBatch.query.get(batch_id)
+        if not batch:
+            return jsonify({'success': False, 'error': 'القيد غير موجود'}), 404
+        
+        # تحديث بيانات القيد
+        if 'purpose' in data:
+            batch.purpose = data['purpose']
+        if 'memo' in data:
+            batch.memo = data['memo']
+        if 'entity_type' in data:
+            batch.entity_type = data['entity_type']
+        if 'entity_id' in data:
+            batch.entity_id = data['entity_id'] if data['entity_id'] else None
+        if 'posted_at' in data and data['posted_at']:
+            batch.posted_at = datetime.fromisoformat(data['posted_at'])
+        
+        # تحديث السطور إذا تم إرسالها
+        if 'entries' in data:
+            # حذف السطور القديمة
+            GLEntry.query.filter_by(batch_id=batch_id).delete()
+            
+            # إضافة السطور الجديدة
+            total_debit = 0
+            total_credit = 0
+            
+            for entry_data in data['entries']:
+                entry = GLEntry(
+                    batch_id=batch_id,
+                    account=entry_data['account'],
+                    debit=entry_data['debit'],
+                    credit=entry_data['credit'],
+                    ref=entry_data.get('ref', ''),
+                    currency=batch.currency
+                )
+                db.session.add(entry)
+                total_debit += entry_data['debit']
+                total_credit += entry_data['credit']
+            
+            # التحقق من التوازن
+            if abs(total_debit - total_credit) > 0.01:
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'error': f'القيد غير متوازن: مدين={total_debit}, دائن={total_credit}'
+                }), 400
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'تم تحديث القيد بنجاح',
+            'batch_id': batch_id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"خطأ في تحديث القيد: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/operations/entities/search', methods=['GET'])
+@owner_only
+def search_entities():
+    """🔍 البحث عن جهات لربطها بالقيود"""
+    try:
+        entity_type = request.args.get('type')  # CUSTOMER, SUPPLIER, PARTNER
+        search_term = request.args.get('q', '')
+        
+        results = []
+        
+        if entity_type == 'CUSTOMER':
+            entities = Customer.query.filter(
+                Customer.name.contains(search_term)
+            ).limit(20).all()
+            results = [{'id': e.id, 'name': e.name, 'type': 'CUSTOMER'} for e in entities]
+        
+        elif entity_type == 'SUPPLIER':
+            entities = Supplier.query.filter(
+                Supplier.name.contains(search_term)
+            ).limit(20).all()
+            results = [{'id': e.id, 'name': e.name, 'type': 'SUPPLIER'} for e in entities]
+        
+        elif entity_type == 'PARTNER':
+            entities = Partner.query.filter(
+                Partner.name.contains(search_term)
+            ).limit(20).all()
+            results = [{'id': e.id, 'name': e.name, 'type': 'PARTNER'} for e in entities]
+        
+        return jsonify({
+            'success': True,
+            'results': results
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

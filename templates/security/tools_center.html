@@ -1,0 +1,245 @@
+{% extends 'base.html' %}
+{% block title %}مركز الأدوات والتكامل{% endblock %}
+{% block page_title %}🔧 مركز الأدوات والتكامل{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active"><i class="fas fa-toolbox"></i> Tools Center</li>
+{% if active_tab %}
+<li class="breadcrumb-item active">{{ active_tab|title }}</li>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert border-0 shadow-sm" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-toolbox"></i>
+        <strong>Tools & Integration Center:</strong>
+        <span class="badge bg-white text-success ms-2">5 أدوات في مكان واحد</span>
+      </div>
+      <small class="opacity-75">تكامل + فواتير + بريد + كروت + تصدير</small>
+    </div>
+  </div>
+
+  <div class="card shadow">
+    <div class="card-header text-white" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+      <h5 class="mb-0"><i class="fas fa-toolbox"></i> Tools & Integration Center</h5>
+    </div>
+    
+    <div class="card-body p-0">
+      
+      <ul class="nav nav-tabs nav-fill" style="border-bottom: 2px solid #dee2e6;">
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'integrations' %}active{% endif %}" 
+             href="{{ url_for('security.tools_center', tab='integrations') }}">
+            <i class="fas fa-plug"></i> التكامل
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'invoices' %}active{% endif %}" 
+             href="{{ url_for('security.tools_center', tab='invoices') }}">
+            <i class="fas fa-file-invoice"></i> الفواتير
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'email' %}active{% endif %}" 
+             href="{{ url_for('security.tools_center', tab='email') }}">
+            <i class="fas fa-envelope"></i> البريد
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'cards' %}active{% endif %}" 
+             href="{{ url_for('security.tools_center', tab='cards') }}">
+            <i class="fas fa-credit-card"></i> الكروت
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'export' %}active{% endif %}" 
+             href="{{ url_for('security.tools_center', tab='export') }}">
+            <i class="fas fa-download"></i> التصدير
+          </a>
+        </li>
+      </ul>
+
+      <div class="tab-content p-4">
+        
+        {% if active_tab == 'integrations' %}
+        <div class="container-fluid">
+          <div class="mb-3">
+            <button class="btn btn-primary me-2" onclick="testIntegration('All')">
+              <i class="fas fa-vial"></i> لوحة الاختبار
+            </button>
+            <button class="btn btn-outline-info" onclick="showWebhookManager()">
+              <i class="fas fa-satellite-dish"></i> Webhook Manager
+            </button>
+          </div>
+          
+          <h4 class="mb-4"><i class="fas fa-plug text-success"></i> إدارة التكاملات</h4>
+          
+          {% if integrations %}
+          <div class="row g-4">
+            <div class="col-lg-6">
+              <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                  <i class="fab fa-stripe"></i> Stripe Payment Gateway
+                </div>
+                <div class="card-body">
+                  <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="stripe_enabled" 
+                           {% if integrations.stripe.enabled %}checked{% endif %}>
+                    <label class="form-check-label fw-bold" for="stripe_enabled">
+                      {% if integrations.stripe.enabled %}
+                        <span class="badge bg-success">مفعّل</span>
+                      {% else %}
+                        <span class="badge bg-secondary">معطّل</span>
+                      {% endif %}
+                    </label>
+                  </div>
+                  <p class="text-muted small">بوابة الدفع الإلكتروني Stripe</p>
+                  <a href="{{ url_for('security.integrations') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-cog"></i> إعدادات
+                  </a>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-lg-6">
+              <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                  <i class="fab fa-paypal"></i> PayPal
+                </div>
+                <div class="card-body">
+                  <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="paypal_enabled" 
+                           {% if integrations.paypal.enabled %}checked{% endif %}>
+                    <label class="form-check-label fw-bold" for="paypal_enabled">
+                      {% if integrations.paypal.enabled %}
+                        <span class="badge bg-success">مفعّل</span>
+                      {% else %}
+                        <span class="badge bg-secondary">معطّل</span>
+                      {% endif %}
+                    </label>
+                  </div>
+                  <p class="text-muted small">الدفع عبر PayPal</p>
+                  <a href="{{ url_for('security.integrations') }}" class="btn btn-sm btn-outline-info">
+                    <i class="fas fa-cog"></i> إعدادات
+                  </a>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-lg-6">
+              <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                  <i class="fas fa-sms"></i> SMS / WhatsApp
+                </div>
+                <div class="card-body">
+                  <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="sms_enabled" 
+                           {% if integrations.sms.enabled %}checked{% endif %}>
+                    <label class="form-check-label fw-bold" for="sms_enabled">
+                      {% if integrations.sms.enabled %}
+                        <span class="badge bg-success">مفعّل</span>
+                      {% else %}
+                        <span class="badge bg-secondary">معطّل</span>
+                      {% endif %}
+                    </label>
+                  </div>
+                  <p class="text-muted small">إرسال رسائل SMS وWhatsApp</p>
+                  <a href="{{ url_for('security.integrations') }}" class="btn btn-sm btn-outline-success">
+                    <i class="fas fa-cog"></i> إعدادات
+                  </a>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-lg-6">
+              <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                  <i class="fas fa-envelope"></i> Email / SMTP
+                </div>
+                <div class="card-body">
+                  <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="email_enabled" 
+                           {% if integrations.email.enabled %}checked{% endif %}>
+                    <label class="form-check-label fw-bold" for="email_enabled">
+                      {% if integrations.email.enabled %}
+                        <span class="badge bg-success">مفعّل</span>
+                      {% else %}
+                        <span class="badge bg-secondary">معطّل</span>
+                      {% endif %}
+                    </label>
+                  </div>
+                  <p class="text-muted small">إرسال بريد إلكتروني</p>
+                  <a href="{{ url_for('security.integrations') }}" class="btn btn-sm btn-outline-warning">
+                    <i class="fas fa-cog"></i> إعدادات
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="alert alert-info mt-4">
+            <i class="fas fa-info-circle"></i>
+            <strong>للإعدادات التفصيلية:</strong> 
+            <a href="{{ url_for('security.integrations') }}" class="alert-link">انتقل إلى صفحة التكاملات الكاملة</a>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'invoices' %}
+        <div class="container-fluid">
+          <h4 class="mb-4"><i class="fas fa-file-invoice text-primary"></i> مصمم الفواتير</h4>
+          <div class="alert alert-warning">
+            <i class="fas fa-tools"></i> قريباً: مصمم الفواتير الاحترافي
+          </div>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'email' %}
+        <div class="container-fluid">
+          <h4 class="mb-4"><i class="fas fa-envelope text-info"></i> إدارة البريد الإلكتروني</h4>
+          
+          <button class="btn btn-primary mb-3" onclick="showEmailTemplatesBuilder()">
+            <i class="fas fa-edit"></i> بناء قوالب البريد
+          </button>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-lightbulb"></i> استخدم بناء القوالب لإنشاء رسائل بريد احترافية مع placeholders ديناميكية
+          </div>
+          
+          <a href="{{ url_for('security.email_manager') }}" class="btn btn-outline-primary">
+            <i class="fas fa-cog"></i> إعدادات SMTP الكاملة
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'cards' %}
+        <div class="container-fluid">
+          <h4 class="mb-4"><i class="fas fa-credit-card text-danger"></i> خزنة الكروت</h4>
+          <div class="alert alert-warning">
+            <i class="fas fa-tools"></i> قريباً: إدارة معلومات الدفع المشفرة
+          </div>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'export' %}
+        <div class="container-fluid">
+          <h4 class="mb-4"><i class="fas fa-download text-success"></i> تصدير البيانات</h4>
+          <div class="alert alert-warning">
+            <i class="fas fa-tools"></i> قريباً: تصدير البيانات بصيغ متعددة
+          </div>
+        </div>
+        {% endif %}
+        
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

@@ -2,199 +2,368 @@
 {% block title %}إيصال صيانة{% endblock %}
 
 {% block head_extra %}
-{% set _size = (request.args.get('s','a4')|lower) %}
-{% set _ori  = (request.args.get('o','portrait')|lower) %}
-{% if _size == 'a5' %}{% set W=148 %}{% set H=210 %}{% else %}{% set W=210 %}{% set H=297 %}{% endif %}
-{% if _ori == 'landscape' %}{% set PW=H %}{% set PH=W %}{% else %}{% set PW=W %}{% set PH=H %}{% endif %}
-{% set MT=12 %}{% set MR=12 %}{% set ML=12 %}{% set footer_h=14 %}
-{% set MB = MT + footer_h %}
-{% set content_w = PW - (ML + MR) %}
-
+{% set STATUS_LABELS = {'PENDING':'معلق','DIAGNOSIS':'تشخيص','IN_PROGRESS':'قيد التنفيذ','COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجل'} %}
 <style>
-  @page { size: {{PW}}mm {{PH}}mm; margin: {{MT}}mm {{MR}}mm {{MB}}mm {{ML}}mm; }
-  @media print { .no-print{display:none!important} }
+@page { 
+  size: A4 portrait; 
+  margin: 15mm 15mm 20mm 15mm;
+}
 
-  html,body{background:#fff;font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;direction:rtl;text-align:right;font-size:13px;line-height:1.5;margin:0;color:#000}
-  #receipt{width:{{content_w}}mm;margin:0 auto;box-sizing:border-box;padding-bottom:{{footer_h}}mm}
+html, body {
+  font-family: "Tahoma", "Arial", sans-serif;
+  direction: rtl;
+  text-align: right;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #000;
+  background: #fff;
+  margin: 0;
+  padding: 0;
+}
 
-  .receipt-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:6px}
-  .brand{display:flex;align-items:center;gap:12px}
-  .brand .logo{height:48px;object-fit:contain}
-  .brand-name{font-weight:800;font-size:16px}
-  .brand-sub{font-size:12px;color:#555}
-  .brand-line{height:3px;background:linear-gradient(90deg,#0d6efd,#20c997);border-radius:6px;margin:6px 0 14px}
+#receipt {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  background: white;
+}
 
-  .box{background:#fff;border:1px solid #e6e6e6;border-radius:10px;padding:12px;page-break-inside:avoid}
-  .pill{display:inline-block;border:1px dashed #d0d7de;border-radius:8px;padding:8px}
+.header {
+  text-align: center;
+  border-bottom: 3px solid #0d6efd;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
 
-  table{width:100%;border-collapse:collapse;table-layout:fixed}
-  thead{display:table-header-group}
-  tfoot{display:table-footer-group}
-  th,td{border:1px solid #d9d9d9;padding:6px 8px;vertical-align:middle}
-  thead th{background:#f3f6fb;border-color:#e6e6e6;font-weight:800;color:#394b6a;white-space:nowrap}
-  .wrap{overflow-wrap:anywhere;white-space:normal}
-  .num{font-variant-numeric:tabular-nums;text-align:end}
+.header h1 {
+  color: #0d6efd;
+  font-size: 24px;
+  margin: 0 0 5px 0;
+  font-weight: bold;
+}
 
-  col.col-type{width:10%}
-  col.col-desc{width:42%}
-  col.col-qty {width:10%}
-  col.col-unit{width:14%}
-  col.col-gro {width:12%}
-  col.col-net {width:12%}
+.header .subtitle {
+  color: #666;
+  font-size: 16px;
+  margin: 5px 0;
+}
 
-  .kv th{width:38mm;background:#f8f9fa;color:#555;font-weight:700;white-space:nowrap}
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
 
-  .totals .rowline{display:flex;justify-content:space-between;align-items:center;margin:.3rem 0}
-  .totals .highlight{color:#16a34a;font-size:1.1rem;font-weight:800}
+.info-box {
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  background: #f8f9fa;
+}
 
-  .sign-row{display:flex;gap:14px;margin-top:18px}
-  .sign{flex:1;text-align:center;border-top:1px solid #bbb;padding-top:10px;min-height:40px}
+.info-box h3 {
+  color: #0d6efd;
+  font-size: 16px;
+  margin: 0 0 10px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #0d6efd;
+}
 
-  .receipt-footer{position:fixed;left:{{ML}}mm;right:{{MR}}mm;bottom:{{MT}}mm;height:{{footer_h}}mm;text-align:center;font-size:11px;border-top:1px solid #777;padding-top:3mm;background:transparent}
+.info-row {
+  display: flex;
+  padding: 5px 0;
+}
 
-  @media print{
-    html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .btn,nav,.navbar,.sidebar,.actions,a.no-print{display:none!important}
-    a[href]:after{content:""!important}
-    tr,.receipt-header,.box{break-inside:avoid;page-break-inside:avoid}
-  }
+.info-row strong {
+  min-width: 100px;
+  color: #555;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 20px 0;
+}
+
+.items-table thead {
+  background: #0d6efd;
+  color: white;
+}
+
+.items-table th {
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: bold;
+  border: 1px solid #0d6efd;
+}
+
+.items-table td {
+  padding: 10px 8px;
+  border: 1px solid #dee2e6;
+  text-align: center;
+}
+
+.items-table tbody tr:nth-child(even) {
+  background: #f8f9fa;
+}
+
+.items-table .num {
+  text-align: left;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.totals-box {
+  max-width: 400px;
+  margin: 20px 0 20px auto;
+  border: 2px solid #0d6efd;
+  border-radius: 8px;
+  padding: 15px;
+  background: #f8f9fa;
+}
+
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 15px;
+}
+
+.totals-row.discount {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.totals-row.final {
+  border-top: 3px double #0d6efd;
+  margin-top: 10px;
+  padding-top: 15px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #0d6efd;
+}
+
+.signatures {
+  display: flex;
+  gap: 40px;
+  margin-top: 50px;
+  padding-top: 20px;
+}
+
+.signature {
+  flex: 1;
+  text-align: center;
+}
+
+.signature-line {
+  border-top: 2px solid #000;
+  margin-bottom: 8px;
+  padding-top: 60px;
+}
+
+.footer {
+  text-align: center;
+  margin-top: 30px;
+  padding-top: 15px;
+  border-top: 2px solid #0d6efd;
+  color: #666;
+  font-size: 13px;
+}
+
+.no-print {
+  text-align: center;
+  margin: 20px 0;
+}
+
+@media print {
+  body { margin: 0; padding: 0; }
+  .no-print { display: none !important; }
+  .btn { display: none !important; }
+  @page { margin: 15mm; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <div id="receipt">
-  <div class="receipt-header">
-    <div class="brand">
-      <img class="logo" src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo">
-      <div>
-        <div class="brand-name">المهندس الفلسطيني للمعدات الثقيلة</div>
-        <div class="brand-sub">إيصال/طلب صيانة</div>
-      </div>
-    </div>
-    <div class="text-muted">
-      رقم الخدمة: <strong>{{ service.service_number or ('SRV-' ~ service.id) }}</strong><br>
-      التاريخ: {{ service.received_at and service.received_at.strftime('%Y-%m-%d') or (service.created_at and service.created_at.strftime('%Y-%m-%d')) or '—' }}
+  <div class="header">
+    <h1>🔧 المهندس الفلسطيني للمعدات الثقيلة</h1>
+    <div class="subtitle">إيصال طلب صيانة</div>
+    <div style="margin-top:10px">
+      <strong>رقم الطلب:</strong> {{ service.service_number or ('SRV-' ~ service.id) }} | 
+      <strong>التاريخ:</strong> {{ service.received_at.strftime('%Y-%m-%d') if service.received_at else '—' }}
     </div>
   </div>
-  <div class="brand-line"></div>
 
-  <div class="box" style="margin-bottom:10px">
-    <table class="kv" style="border-collapse:separate;border-spacing:0">
-      <tr><th>العميل</th><td>{{ service.name or (service.customer.name if service.customer else '—') }}</td></tr>
-      <tr><th>الجوال</th><td>{{ service.phone or (service.customer.phone if service.customer else '—') }}</td></tr>
-      <tr><th>البريد</th><td>{{ service.email or (service.customer.email if service.customer else '—') }}</td></tr>
-      <tr><th>المعدة</th><td>{{ service.vehicle_type.name if service.vehicle_type else '—' }} — {{ service.vehicle_model or '—' }}</td></tr>
-      <tr><th>رقم اللوحة</th><td>{{ service.vehicle_vrn or '—' }}</td></tr>
+  <div class="info-grid">
+    <div class="info-box">
+      <h3>👤 بيانات العميل</h3>
+      <div class="info-row"><strong>الاسم:</strong> {{ service.customer.name if service.customer else '—' }}</div>
+      <div class="info-row"><strong>الجوال:</strong> {{ service.customer.phone if service.customer else '—' }}</div>
+      <div class="info-row"><strong>البريد:</strong> {{ service.customer.email if service.customer else '—' }}</div>
+    </div>
+
+    <div class="info-box">
+      <h3>🚗 بيانات المركبة</h3>
+      <div class="info-row"><strong>النوع:</strong> {{ service.vehicle_type.name if service.vehicle_type else '—' }}</div>
+      <div class="info-row"><strong>الموديل:</strong> {{ service.vehicle_model or '—' }}</div>
+      <div class="info-row"><strong>اللوحة:</strong> {{ service.vehicle_vrn or '—' }}</div>
       {% set st = (service.status.value if service.status and service.status is not string else service.status) %}
-      <tr><th>الحالة</th><td>{{ STATUS_LABELS.get((st or '')|upper, st or '—') }}</td></tr>
-      <tr><th>تاريخ الاستلام</th><td>{{ service.received_at and service.received_at.strftime('%Y-%m-%d') or '—' }}</td></tr>
-    </table>
-  </div>
-
-  <div class="box" style="margin-bottom:10px">
-    <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <div style="flex:1;min-width:260px">
-        <div class="fw-bold" style="margin-bottom:4px">وصف المشكلة:</div>
-        <div class="pill wrap">{{ service.problem_description or '—' }}</div>
-      </div>
-      <div style="flex:1;min-width:260px">
-        <div class="fw-bold" style="margin-bottom:4px">تقرير المهندس:</div>
-        <div class="pill wrap">{{ service.engineer_notes or '—' }}</div>
-      </div>
+      <div class="info-row"><strong>الحالة:</strong> {{ STATUS_LABELS.get((st or '')|upper, st or '—') }}</div>
     </div>
   </div>
 
-  <div class="box">
-    <table>
-      <colgroup>
-        <col class="col-type"><col class="col-desc"><col class="col-qty">
-        <col class="col-unit"><col class="col-gro"><col class="col-net">
-      </colgroup>
-      <thead>
+  {% if service.problem_description or service.engineer_notes %}
+  <div class="info-box" style="margin-bottom:20px">
+    <h3>📋 الوصف والملاحظات</h3>
+    {% if service.problem_description %}
+    <div class="info-row"><strong>المشكلة:</strong> {{ service.problem_description }}</div>
+    {% endif %}
+    {% if service.engineer_notes %}
+    <div class="info-row"><strong>تقرير الفني:</strong> {{ service.engineer_notes }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <h3 style="color:#0d6efd; margin:20px 0 10px 0">📦 تفاصيل الخدمة</h3>
+
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width:10%">النوع</th>
+        <th style="width:40%">الوصف</th>
+        <th style="width:10%">الكمية</th>
+        <th style="width:15%">السعر</th>
+        <th style="width:12%">الخصم</th>
+        <th style="width:13%">الإجمالي</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set ns = namespace(gross_total=0.0, items_discount=0.0, net_total=0.0) %}
+      
+      {% for part in (service.parts or []) %}
+        {% set qty = (part.quantity or 0)|float %}
+        {% set price = (part.unit_price or 0)|float %}
+        {% set disc = (part.discount or 0)|float %}
+        {% set gross = qty * price %}
+        {% set net = gross - disc %}
+        {% set ns.gross_total = ns.gross_total + gross %}
+        {% set ns.items_discount = ns.items_discount + disc %}
+        {% set ns.net_total = ns.net_total + net %}
         <tr>
-          <th>النوع</th>
-          <th>الوصف</th>
-          <th>الكمية</th>
-          <th>سعر الوحدة</th>
-          <th>الإجمالي</th>
-          <th>الصافي</th>
+          <td>قطعة</td>
+          <td style="text-align:right">{{ part.part.name if part.part else '—' }}</td>
+          <td>{{ qty|int }}</td>
+          <td class="num">{{ '%.2f'|format(price) }}</td>
+          <td class="num">{{ '%.2f'|format(disc) if disc > 0 else '—' }}</td>
+          <td class="num"><strong>{{ '%.2f'|format(net) }}</strong></td>
         </tr>
-      </thead>
-      <tbody>
-        {% set ns = namespace(gross_total=0.0, net_total=0.0, tax_total=0.0) %}
-        {% for part in (service.parts or []) %}
-          {% set qty   = (part.quantity or 0)|float %}
-          {% set price = (part.unit_price or 0)|float %}
-          {% set discp = (part.discount or 0)|float %}
-          {% set taxp  = (part.tax_rate or 0)|float %}
-          {% set gross = qty * price %}
-          {% set disc_amt = gross * (discp/100.0) %}
-          {% set net_before_tax = gross - disc_amt %}
-          {% set tax_amt = net_before_tax * (taxp/100.0) %}
-          {% set line_total = net_before_tax + tax_amt %}
-          {% set ns.gross_total = ns.gross_total + gross %}
-          {% set ns.net_total   = ns.net_total + net_before_tax %}
-          {% set ns.tax_total   = ns.tax_total + tax_amt %}
-          <tr>
-            <td style="text-align:center">قطعة</td>
-            <td class="wrap">{{ part.part.name if part.part else ('#' ~ (part.part_id or '')) }}</td>
-            <td class="num">{{ qty|round(2) }}</td>
-            <td class="num">{{ '%.2f'|format(price) }}</td>
-            <td class="num">{{ '%.2f'|format(gross) }}</td>
-            <td class="num">{{ '%.2f'|format(line_total) }}</td>
-          </tr>
-        {% endfor %}
-        {% for task in (service.tasks or []) %}
-          {% set qty   = (task.quantity or 0)|float %}
-          {% set price = (task.unit_price or 0)|float %}
-          {% set discp = (task.discount or 0)|float %}
-          {% set taxp  = (task.tax_rate or 0)|float %}
-          {% set gross = qty * price %}
-          {% set disc_amt = gross * (discp/100.0) %}
-          {% set net_before_tax = gross - disc_amt %}
-          {% set tax_amt = net_before_tax * (taxp/100.0) %}
-          {% set line_total = net_before_tax + tax_amt %}
-          {% set ns.gross_total = ns.gross_total + gross %}
-          {% set ns.net_total   = ns.net_total + net_before_tax %}
-          {% set ns.tax_total   = ns.tax_total + tax_amt %}
-          <tr>
-            <td style="text-align:center">مهمة</td>
-            <td class="wrap">{{ task.description or '—' }}</td>
-            <td class="num">{{ qty|round(2) }}</td>
-            <td class="num">{{ '%.2f'|format(price) }}</td>
-            <td class="num">{{ '%.2f'|format(gross) }}</td>
-            <td class="num">{{ '%.2f'|format(line_total) }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+      {% endfor %}
+      
+      {% for task in (service.tasks or []) %}
+        {% set qty = (task.quantity or 0)|float %}
+        {% set price = (task.unit_price or 0)|float %}
+        {% set disc = (task.discount or 0)|float %}
+        {% set gross = qty * price %}
+        {% set net = gross - disc %}
+        {% set ns.gross_total = ns.gross_total + gross %}
+        {% set ns.items_discount = ns.items_discount + disc %}
+        {% set ns.net_total = ns.net_total + net %}
+        <tr>
+          <td>مهمة</td>
+          <td style="text-align:right">{{ task.description or '—' }}</td>
+          <td>{{ qty|int }}</td>
+          <td class="num">{{ '%.2f'|format(price) }}</td>
+          <td class="num">{{ '%.2f'|format(disc) if disc > 0 else '—' }}</td>
+          <td class="num"><strong>{{ '%.2f'|format(net) }}</strong></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% set global_discount = (service.discount_total or 0)|float %}
+  {% set subtotal_after_all_disc = ns.net_total - global_discount %}
+  {% set tax_rate = (service.tax_rate or 0)|float %}
+  {% set tax_amount = subtotal_after_all_disc * (tax_rate/100.0) %}
+  {% set grand_total = subtotal_after_all_disc + tax_amount %}
+
+  <div class="totals-box">
+    <div class="totals-row">
+      <span>المجموع قبل الخصم:</span>
+      <span class="num">{{ '%.2f'|format(ns.gross_total) }} {{ service.currency or '₪' }}</span>
+    </div>
+    
+    {% if ns.items_discount > 0 %}
+    <div class="totals-row discount">
+      <span>خصم البنود:</span>
+      <span class="num">-{{ '%.2f'|format(ns.items_discount) }} {{ service.currency or '₪' }}</span>
+    </div>
+    {% endif %}
+    
+    {% if global_discount > 0 %}
+    <div class="totals-row discount">
+      <span>خصم إجمالي:</span>
+      <span class="num">-{{ '%.2f'|format(global_discount) }} {{ service.currency or '₪' }}</span>
+    </div>
+    {% endif %}
+    
+    <div class="totals-row">
+      <span>الصافي بعد الخصم:</span>
+      <span class="num">{{ '%.2f'|format(subtotal_after_all_disc) }} {{ service.currency or '₪' }}</span>
+    </div>
+    
+    {% if tax_rate > 0 %}
+    <div class="totals-row">
+      <span>ضريبة ({{ '%.0f'|format(tax_rate) }}%):</span>
+      <span class="num">{{ '%.2f'|format(tax_amount) }} {{ service.currency or '₪' }}</span>
+    </div>
+    {% endif %}
+    
+    <div class="totals-row final">
+      <span>الإجمالي النهائي:</span>
+      <span class="num">{{ '%.2f'|format(grand_total) }} {{ service.currency or '₪' }}</span>
+    </div>
   </div>
 
-  {% set subtotal_before_discount = ns.gross_total %}
-  {% set net_after_discount       = ns.net_total %}
-  {% set tax_amount               = ns.tax_total %}
-  {% set grand_total              = net_after_discount + tax_amount %}
-
-  <div class="box totals" style="margin-top:10px; max-width:340px; margin-inline-start:auto">
-    <div class="rowline"><span>الإجمالي قبل الخصم</span><span class="num">{{ '%.2f'|format(subtotal_before_discount) }} ₪</span></div>
-    <div class="rowline"><span>الصافي بعد الخصم</span><span class="num">{{ '%.2f'|format(net_after_discount) }} ₪</span></div>
-    <div class="rowline"><span>الضريبة المجمعة</span><span class="num">{{ '%.2f'|format(tax_amount) }} ₪</span></div>
-    <hr style="margin:.35rem 0">
-    <div class="rowline"><span class="fw-bold">الإجمالي النهائي</span><span class="highlight num">{{ '%.2f'|format(grand_total) }} ₪</span></div>
+  <div class="signatures">
+    <div class="signature">
+      <div class="signature-line"></div>
+      <strong>توقيع العميل</strong>
+    </div>
+    <div class="signature">
+      <div class="signature-line"></div>
+      <strong>توقيع المسؤول</strong>
+    </div>
   </div>
 
-  <div class="sign-row">
-    <div class="sign">توقيع العميل</div>
-    <div class="sign">توقيع الفني/المسؤول</div>
+  <div class="footer">
+    <p><strong>المهندس الفلسطيني للمعدات الثقيلة</strong></p>
+    <p>رام الله - فلسطين 🇵🇸 | جوال: 0592800646 | واتساب: +970592800646</p>
+    <p>نشكركم على ثقتكم بنا ونتشرف بخدمتكم دائماً</p>
   </div>
 
-  <div class="text-center mt-3 no-print">
-    <button class="btn btn-dark" onclick="window.print()">🖨️ طباعة</button>
-    <a class="btn btn-secondary" href="{{ url_for('service.view_request', rid=service.id) }}">↩️ رجوع</a>
+  <div class="no-print">
+    <button class="btn btn-primary btn-lg" onclick="window.print()" style="padding:12px 30px; font-size:16px; margin:10px">
+      🖨️ طباعة
+    </button>
+    <a class="btn btn-secondary btn-lg" href="{{ url_for('service.view_request', rid=service.id) }}" style="padding:12px 30px; font-size:16px; margin:10px">
+      ↩️ رجوع
+    </a>
   </div>
 </div>
 
-<div class="receipt-footer">
-  مع تحياتنا — نتشرف بخدمتكم — رام الله - فلسطين — جوال: 0592800646 — واتساب: +970592800646
-</div>
+<style>
+@media print {
+  body { 
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .no-print, .btn { display: none !important; }
+  .header { page-break-after: avoid; }
+  .info-grid { page-break-inside: avoid; }
+  .items-table { page-break-inside: avoid; }
+  .totals-box { page-break-inside: avoid; }
+}
+</style>
 {% endblock %}

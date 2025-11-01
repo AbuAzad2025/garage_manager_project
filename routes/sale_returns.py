@@ -117,16 +117,61 @@ def create_return(sale_id=None):
             db.session.add(sale_return)
             db.session.flush()
             
-            # إضافة السطور
+            # التحقق من الكميات المتاحة للإرجاع (منع التكرار)
+            if sale_return.sale_id:
+                from sqlalchemy import func
+                # حساب المرتجع لكل منتج
+                confirmed_returns = (
+                    db.session.query(
+                        SaleReturnLine.product_id,
+                        func.coalesce(func.sum(SaleReturnLine.quantity), 0).label('returned_qty')
+                    )
+                    .join(SaleReturn)
+                    .filter(
+                        SaleReturn.sale_id == sale_return.sale_id,
+                        SaleReturn.status == 'CONFIRMED'
+                    )
+                    .group_by(SaleReturnLine.product_id)
+                    .all()
+                )
+                returned_dict = {int(pid): int(qty) for pid, qty in confirmed_returns}
+                
+                # جلب كميات البيع الأصلية
+                sale = Sale.query.get(sale_return.sale_id)
+                if sale:
+                    sale_dict = {line.product_id: int(line.quantity or 0) for line in sale.lines}
+            
+            # إضافة السطور مع التحقق
             for line_data in form.lines.data:
                 if line_data.get('product_id') and line_data.get('quantity'):
+                    product_id = line_data['product_id']
+                    new_qty = int(line_data['quantity'])
+                    
+                    # التحقق من عدم تجاوز الكمية المتاحة
+                    if sale_return.sale_id and sale:
+                        original_qty = sale_dict.get(product_id, 0)
+                        already_returned = returned_dict.get(product_id, 0)
+                        available = original_qty - already_returned
+                        
+                        if new_qty > available:
+                            db.session.rollback()
+                            product = Product.query.get(product_id)
+                            product_name = product.name if product else f'المنتج #{product_id}'
+                            flash(
+                                f'خطأ: {product_name} - الكمية المطلوبة ({new_qty}) أكبر من المتاح للإرجاع ({available}). '
+                                f'الكمية الأصلية: {original_qty}، المرتجع سابقاً: {already_returned}',
+                                'danger'
+                            )
+                            return redirect(url_for('returns.create_return'))
+                    
                     line = SaleReturnLine(
                         sale_return_id=sale_return.id,
-                        product_id=line_data['product_id'],
+                        product_id=product_id,
                         warehouse_id=line_data.get('warehouse_id') or sale_return.warehouse_id,
-                        quantity=line_data['quantity'],
+                        quantity=new_qty,
                         unit_price=line_data.get('unit_price', 0),
                         condition=line_data.get('condition', 'GOOD') or 'GOOD',
+                        liability_party=line_data.get('liability_party') or None,
                         notes=line_data.get('notes', '').strip() or None
                     )
                     db.session.add(line)

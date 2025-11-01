@@ -79,7 +79,7 @@ function showAlert(type, message, duration = 5000) {
              style="top: 80px; left: 50%; transform: translateX(-50%); z-index: 9999; min-width: 300px; max-width: 600px;" 
              role="alert">
             ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span></button>
         </div>
     `;
     

@@ -19,9 +19,9 @@
         </div>
         <div class="card-body">
           <p>تفعيل وضع الصيانة سيمنع جميع المستخدمين من الوصول للنظام.</p>
-          <form method="POST" action="{{ url_for('security.toggle_maintenance_mode') }}" onsubmit="return confirm('⚠️ هل تريد تبديل وضع الصيانة؟ سيؤثر على جميع المستخدمين!');">
+          <form method="POST" action="{{ url_for('security.toggle_maintenance_mode') }}" id="maintenanceModeForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-warning">
+            <button type="button" class="btn btn-warning" onclick="confirmMaintenanceMode(true, () => document.getElementById('maintenanceModeForm').submit())">
               <i class="fas fa-power-off"></i> تبديل وضع الصيانة
             </button>
           </form>
@@ -36,9 +36,9 @@
         </div>
         <div class="card-body">
           <p>مسح جميع البيانات المؤقتة (Cache) من الذاكرة.</p>
-          <form method="POST" action="{{ url_for('security.clear_system_cache') }}">
+          <form method="POST" action="{{ url_for('security.clear_system_cache') }}" id="clearCacheForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-danger">
+            <button type="button" class="btn btn-danger" onclick="confirmClearCache(() => document.getElementById('clearCacheForm').submit())">
               <i class="fas fa-broom"></i> مسح الكاش
             </button>
           </form>
@@ -53,9 +53,9 @@
         </div>
         <div class="card-body">
           <p>فصل جميع المستخدمين المتصلين فوراً!</p>
-          <form method="POST" action="{{ url_for('security.kill_all_sessions') }}" onsubmit="return confirm('هل أنت متأكد؟ سيتم فصل الجميع!');">
+          <form method="POST" action="{{ url_for('security.kill_all_sessions') }}" id="killSessionsForm">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn btn-danger">
+            <button type="button" class="btn btn-danger" onclick="confirmKillAllSessions(() => document.getElementById('killSessionsForm').submit())">
               <i class="fas fa-power-off"></i> فصل الجميع
             </button>
           </form>

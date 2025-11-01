@@ -652,60 +652,219 @@ def service_reports_report(start_date: date | None, end_date: date | None) -> di
 
 def ar_aging_report(start_date=None, end_date=None):
     from decimal import Decimal
+    from models import convert_amount, SaleReturn, PreOrder, OnlinePreOrder
     
     as_of = _parse_date_like(end_date) or date.today()
-    
-    invoices = db.session.query(Invoice).filter(
-        Invoice.customer_id.isnot(None),
-        Invoice.cancelled_at.is_(None)
-    ).all()
-    
     bucket_keys = ("0-30", "31-60", "61-90", "90+")
-    acc = defaultdict(lambda: {k: Decimal('0.00') for k in bucket_keys} | {"total": Decimal('0.00')})
     
-    for inv in invoices:
-        inv_amt = Decimal(str(inv.total_amount or 0))
-        if inv.currency != "ILS":
-            try:
-                inv_amt = convert_amount(inv_amt, inv.currency, "ILS", inv.invoice_date)
-            except:
-                continue
+    customers = db.session.query(Customer).all()
+    acc = {}
+    
+    for cust in customers:
+        total_receivable = Decimal('0.00')
+        total_paid = Decimal('0.00')
+        oldest_date = None
         
-        payments = db.session.query(Payment).filter(
-            Payment.invoice_id == inv.id,
-            Payment.status == PaymentStatus.COMPLETED.value,
+        sales = db.session.query(Sale).filter(
+            Sale.customer_id == cust.id,
+            Sale.status == 'CONFIRMED'
+        ).all()
+        for s in sales:
+            amt = Decimal(str(s.total_amount or 0))
+            if s.currency == "ILS":
+                total_receivable += amt
+            else:
+                try:
+                    total_receivable += convert_amount(amt, s.currency, "ILS", s.sale_date)
+                except:
+                    pass
+            ref_dt = s.sale_date or s.created_at
+            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+                oldest_date = ref_dt
+        
+        invoices = db.session.query(Invoice).filter(
+            Invoice.customer_id == cust.id,
+            Invoice.cancelled_at.is_(None)
+        ).all()
+        for inv in invoices:
+            amt = Decimal(str(inv.total_amount or 0))
+            if inv.currency == "ILS":
+                total_receivable += amt
+            else:
+                try:
+                    total_receivable += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
+                except:
+                    pass
+            ref_dt = inv.invoice_date or inv.created_at
+            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+                oldest_date = ref_dt
+        
+        services = db.session.query(ServiceRequest).filter(
+            ServiceRequest.customer_id == cust.id
+        ).all()
+        for srv in services:
+            amt = Decimal(str(srv.total_amount or 0))
+            if srv.currency == "ILS":
+                total_receivable += amt
+            else:
+                try:
+                    total_receivable += convert_amount(amt, srv.currency, "ILS", srv.received_at)
+                except:
+                    pass
+            ref_dt = srv.received_at or srv.created_at
+            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+                oldest_date = ref_dt
+        
+        preorders = db.session.query(PreOrder).filter(
+            PreOrder.customer_id == cust.id,
+            PreOrder.status != 'CANCELLED'
+        ).all()
+        for p in preorders:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                total_receivable += amt
+            else:
+                try:
+                    total_receivable += convert_amount(amt, p.currency, "ILS", p.preorder_date)
+                except:
+                    pass
+            ref_dt = p.preorder_date or p.created_at
+            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+                oldest_date = ref_dt
+        
+        online_orders = db.session.query(OnlinePreOrder).filter(
+            OnlinePreOrder.customer_id == cust.id,
+            OnlinePreOrder.payment_status != 'CANCELLED'
+        ).all()
+        for oo in online_orders:
+            amt = Decimal(str(oo.total_amount or 0))
+            if oo.currency == "ILS":
+                total_receivable += amt
+            else:
+                try:
+                    total_receivable += convert_amount(amt, oo.currency, "ILS", oo.created_at)
+                except:
+                    pass
+            ref_dt = oo.created_at
+            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+                oldest_date = ref_dt
+        
+        returns = db.session.query(SaleReturn).filter(
+            SaleReturn.customer_id == cust.id,
+            SaleReturn.status == 'CONFIRMED'
+        ).all()
+        for r in returns:
+            amt = Decimal(str(r.total_amount or 0))
+            if r.currency == "ILS":
+                total_receivable -= amt
+            else:
+                try:
+                    total_receivable -= convert_amount(amt, r.currency, "ILS", r.created_at)
+                except:
+                    pass
+        
+        payments_in_direct = db.session.query(Payment).filter(
+            Payment.customer_id == cust.id,
             Payment.direction == PaymentDirection.IN.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
             cast(Payment.payment_date, Date) <= as_of
         ).all()
         
-        paid_amt = Decimal('0.00')
-        for p in payments:
-            p_amt = Decimal(str(p.total_amount or 0))
-            if p.currency != "ILS":
+        payments_in_from_sales = db.session.query(Payment).join(
+            Sale, Payment.sale_id == Sale.id
+        ).filter(
+            Sale.customer_id == cust.id,
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            cast(Payment.payment_date, Date) <= as_of
+        ).all()
+        
+        payments_in_from_invoices = db.session.query(Payment).join(
+            Invoice, Payment.invoice_id == Invoice.id
+        ).filter(
+            Invoice.customer_id == cust.id,
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            cast(Payment.payment_date, Date) <= as_of
+        ).all()
+        
+        payments_in_from_services = db.session.query(Payment).join(
+            ServiceRequest, Payment.service_id == ServiceRequest.id
+        ).filter(
+            ServiceRequest.customer_id == cust.id,
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            cast(Payment.payment_date, Date) <= as_of
+        ).all()
+        
+        payments_in_from_preorders = db.session.query(Payment).join(
+            PreOrder, Payment.preorder_id == PreOrder.id
+        ).filter(
+            PreOrder.customer_id == cust.id,
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            cast(Payment.payment_date, Date) <= as_of
+        ).all()
+        
+        payments_out_direct = db.session.query(Payment).filter(
+            Payment.customer_id == cust.id,
+            Payment.direction == PaymentDirection.OUT.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            cast(Payment.payment_date, Date) <= as_of
+        ).all()
+        
+        payments_out_from_sales = db.session.query(Payment).join(
+            Sale, Payment.sale_id == Sale.id
+        ).filter(
+            Sale.customer_id == cust.id,
+            Payment.direction == PaymentDirection.OUT.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            cast(Payment.payment_date, Date) <= as_of
+        ).all()
+        
+        seen_payment_ids = set()
+        payments_all = []
+        for p in (payments_in_direct + payments_in_from_sales + payments_in_from_invoices + 
+                 payments_in_from_services + payments_in_from_preorders +
+                 payments_out_direct + payments_out_from_sales):
+            if p.id not in seen_payment_ids:
+                seen_payment_ids.add(p.id)
+                payments_all.append(p)
+        
+        for p in payments_all:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                converted = amt
+            else:
                 try:
-                    p_amt = convert_amount(p_amt, p.currency, "ILS", p.payment_date)
+                    converted = convert_amount(amt, p.currency, "ILS", p.payment_date)
                 except:
                     continue
-            paid_amt += p_amt
+            
+            if p.direction == PaymentDirection.IN.value:
+                total_paid += converted
+            elif p.direction == PaymentDirection.OUT.value:
+                total_paid -= converted
         
-        outstanding = inv_amt - paid_amt
+        outstanding = total_receivable - total_paid
         if outstanding <= 0:
             continue
         
-        cust = db.session.get(Customer, inv.customer_id)
-        if not cust:
-            continue
-        
-        ref_dt = inv.invoice_date or inv.created_at
-        if isinstance(ref_dt, datetime):
-            ref_d = ref_dt.date()
-        elif isinstance(ref_dt, date):
-            ref_d = ref_dt
+        if oldest_date:
+            if isinstance(oldest_date, datetime):
+                ref_d = oldest_date.date()
+            elif isinstance(oldest_date, date):
+                ref_d = oldest_date
+            else:
+                ref_d = as_of
+            days = max((as_of - ref_d).days, 0) if (as_of and ref_d) else 0
         else:
-            ref_d = as_of
+            days = 0
         
-        days = max((as_of - ref_d).days, 0) if (as_of and ref_d) else 0
         b = age_bucket(days)
+        if cust.name not in acc:
+            acc[cust.name] = {k: Decimal('0.00') for k in bucket_keys}
+            acc[cust.name]["total"] = Decimal('0.00')
         acc[cust.name][b] += outstanding
         acc[cust.name]["total"] += outstanding
     
@@ -729,62 +888,102 @@ def ar_aging_report(start_date=None, end_date=None):
 
 def ap_aging_report(start_date=None, end_date=None):
     from decimal import Decimal
+    from models import convert_amount
     
     as_of = _parse_date_like(end_date) or date.today()
-    
-    invoices = db.session.query(Invoice).filter(
-        Invoice.supplier_id.isnot(None),
-        Invoice.cancelled_at.is_(None)
-    ).all()
-    
     bucket_keys = ("0-30", "31-60", "61-90", "90+")
-    acc = defaultdict(lambda: {k: Decimal('0.00') for k in bucket_keys} | {"total": Decimal('0.00')})
     
-    for inv in invoices:
-        inv_amt = Decimal(str(inv.total_amount or 0))
-        if inv.currency != "ILS":
-            try:
-                inv_amt = convert_amount(inv_amt, inv.currency, "ILS", inv.invoice_date)
-            except:
-                continue
+    suppliers = db.session.query(Supplier).all()
+    acc = {}
+    
+    for sup in suppliers:
+        total_payable = Decimal('0.00')
+        total_paid = Decimal('0.00')
+        oldest_date = None
         
-        payments = db.session.query(Payment).filter(
-            Payment.invoice_id == inv.id,
-            Payment.status == PaymentStatus.COMPLETED.value,
+        invoices = db.session.query(Invoice).filter(
+            Invoice.supplier_id == sup.id,
+            Invoice.cancelled_at.is_(None)
+        ).all()
+        for inv in invoices:
+            amt = Decimal(str(inv.total_amount or 0))
+            if inv.currency == "ILS":
+                total_payable += amt
+            else:
+                try:
+                    total_payable += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
+                except:
+                    pass
+            ref_dt = inv.invoice_date or inv.created_at
+            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+                oldest_date = ref_dt
+        
+        payments_out_direct = db.session.query(Payment).filter(
+            Payment.supplier_id == sup.id,
             Payment.direction == PaymentDirection.OUT.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
             cast(Payment.payment_date, Date) <= as_of
         ).all()
         
-        paid_amt = Decimal('0.00')
-        for p in payments:
-            p_amt = Decimal(str(p.total_amount or 0))
-            if p.currency != "ILS":
+        payments_out_from_invoices = db.session.query(Payment).join(
+            Invoice, Payment.invoice_id == Invoice.id
+        ).filter(
+            Invoice.supplier_id == sup.id,
+            Payment.direction == PaymentDirection.OUT.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            cast(Payment.payment_date, Date) <= as_of
+        ).all()
+        
+        payments_in_direct = db.session.query(Payment).filter(
+            Payment.supplier_id == sup.id,
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            cast(Payment.payment_date, Date) <= as_of
+        ).all()
+        
+        seen_payment_ids = set()
+        payments_all = []
+        for p in (payments_out_direct + payments_out_from_invoices + payments_in_direct):
+            if p.id not in seen_payment_ids:
+                seen_payment_ids.add(p.id)
+                payments_all.append(p)
+        
+        for p in payments_all:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency == "ILS":
+                converted = amt
+            else:
                 try:
-                    p_amt = convert_amount(p_amt, p.currency, "ILS", p.payment_date)
+                    converted = convert_amount(amt, p.currency, "ILS", p.payment_date)
                 except:
                     continue
-            paid_amt += p_amt
+            
+            if p.direction == PaymentDirection.OUT.value:
+                total_paid += converted
+            elif p.direction == PaymentDirection.IN.value:
+                total_paid -= converted
         
-        outstanding = inv_amt - paid_amt
+        outstanding = total_payable - total_paid
         if outstanding <= 0:
             continue
         
-        supplier = db.session.get(Supplier, inv.supplier_id)
-        if not supplier:
-            continue
-        
-        ref_dt = inv.invoice_date or inv.created_at
-        if isinstance(ref_dt, datetime):
-            ref_d = ref_dt.date()
-        elif isinstance(ref_dt, date):
-            ref_d = ref_dt
+        if oldest_date:
+            if isinstance(oldest_date, datetime):
+                ref_d = oldest_date.date()
+            elif isinstance(oldest_date, date):
+                ref_d = oldest_date
+            else:
+                ref_d = as_of
+            days = max((as_of - ref_d).days, 0) if (as_of and ref_d) else 0
         else:
-            ref_d = as_of
+            days = 0
         
-        days = max((as_of - ref_d).days, 0) if (as_of and ref_d) else 0
         b = age_bucket(days)
-        acc[supplier.name][b] += outstanding
-        acc[supplier.name]["total"] += outstanding
+        if sup.name not in acc:
+            acc[sup.name] = {k: Decimal('0.00') for k in bucket_keys}
+            acc[sup.name]["total"] = Decimal('0.00')
+        acc[sup.name][b] += outstanding
+        acc[sup.name]["total"] += outstanding
     
     data = []
     for name in sorted(acc.keys()):

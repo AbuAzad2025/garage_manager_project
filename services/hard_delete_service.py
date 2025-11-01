@@ -49,14 +49,12 @@ class HardDeleteService:
     def delete_customer(self, customer_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي للعميل مع العمليات العكسية"""
         try:
-            # 1. جلب العميل
             customer = db.session.get(Customer, customer_id)
             if not customer:
                 return {"success": False, "error": "العميل غير موجود"}
             
             customer_name = customer.name
             
-            # 2. إنشاء سجل الحذف
             deletion_log = self.create_deletion_log(
                 DeletionType.CUSTOMER.value, 
                 customer_id, 
@@ -65,22 +63,18 @@ class HardDeleteService:
                 reason
             )
             
-            # 3. جمع البيانات المرتبطة (بسيط)
             try:
                 related_data = self._collect_customer_related_data(customer_id)
             except Exception as e:
                 related_data = {"customer_data": {}, "related_entities": {}}
             
-            # 4. تنفيذ العمليات العكسية (بسيط)
             try:
                 reversals = self._reverse_customer_operations(customer_id)
             except Exception as e:
                 reversals = {"stock_reversals": [], "accounting_reversals": [], "balance_reversals": []}
             
-            # 5. حذف البيانات
             self._delete_customer_data(customer_id)
             
-            # 6. تسجيل اكتمال الحذف
             deletion_log.mark_completed(
                 deleted_data=related_data.get("customer_data"),
                 related_entities=related_data.get("related_entities"),
@@ -110,13 +104,11 @@ class HardDeleteService:
     def delete_sale(self, sale_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي للبيع مع العمليات العكسية"""
         try:
-            # 1. جلب البيع
             from models import Sale
             sale = db.session.get(Sale, sale_id)
             if not sale:
                 return {"success": False, "error": "البيع غير موجود"}
             
-            # 2. إنشاء سجل الحذف
             deletion_log = self.create_deletion_log(
                 DeletionType.SALE.value, 
                 sale_id, 
@@ -125,16 +117,12 @@ class HardDeleteService:
                 reason
             )
             
-            # 3. جمع البيانات المرتبطة
             related_data = self._collect_sale_related_data(sale_id)
             
-            # 4. تنفيذ العمليات العكسية
             reversals = self._reverse_sale_operations(sale_id)
             
-            # 5. حذف البيانات
             self._delete_sale_data(sale_id)
             
-            # 6. تسجيل اكتمال الحذف
             deletion_log.mark_completed(
                 deleted_data=related_data["sale_data"],
                 related_entities=related_data["related_entities"],
@@ -162,12 +150,10 @@ class HardDeleteService:
     def delete_payment(self, payment_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي للدفعة مع العمليات العكسية"""
         try:
-            # 1. جلب الدفعة
             payment = db.session.get(Payment, payment_id)
             if not payment:
                 return {"success": False, "error": "الدفعة غير موجودة"}
             
-            # 2. إنشاء سجل الحذف
             deletion_log = self.create_deletion_log(
                 DeletionType.PAYMENT.value, 
                 payment_id, 
@@ -176,16 +162,12 @@ class HardDeleteService:
                 reason
             )
             
-            # 3. جمع البيانات المرتبطة
             related_data = self._collect_payment_related_data(payment_id)
             
-            # 4. تنفيذ العمليات العكسية
             reversals = self._reverse_payment_operations(payment_id)
             
-            # 5. حذف البيانات
             self._delete_payment_data(payment_id)
             
-            # 6. تسجيل اكتمال الحذف
             deletion_log.mark_completed(
                 deleted_data=related_data["payment_data"],
                 related_entities=related_data["related_entities"],
@@ -213,14 +195,12 @@ class HardDeleteService:
     def delete_supplier(self, supplier_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي للمورد مع العمليات العكسية"""
         try:
-            # 1. جلب المورد
             supplier = db.session.get(Supplier, supplier_id)
             if not supplier:
                 return {"success": False, "error": "المورد غير موجود"}
             
             supplier_name = supplier.name
             
-            # 2. إنشاء سجل الحذف
             deletion_log = self.create_deletion_log(
                 DeletionType.SUPPLIER.value, 
                 supplier_id, 
@@ -229,22 +209,18 @@ class HardDeleteService:
                 reason
             )
             
-            # 3. جمع البيانات المرتبطة (بسيط)
             try:
                 related_data = self._collect_supplier_related_data(supplier_id)
             except Exception as e:
                 related_data = {"supplier_data": {}, "related_entities": {}}
             
-            # 4. تنفيذ العمليات العكسية (بسيط)
             try:
                 reversals = self._reverse_supplier_operations(supplier_id)
             except Exception as e:
                 reversals = {"stock_reversals": [], "accounting_reversals": [], "balance_reversals": []}
             
-            # 5. حذف البيانات
             self._delete_supplier_data(supplier_id)
             
-            # 6. تسجيل اكتمال الحذف
             deletion_log.mark_completed(
                 deleted_data=related_data.get("supplier_data"),
                 related_entities=related_data.get("related_entities"),
@@ -274,14 +250,12 @@ class HardDeleteService:
     def delete_partner(self, partner_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي للشريك مع العمليات العكسية"""
         try:
-            # 1. جلب الشريك
             partner = db.session.get(Partner, partner_id)
             if not partner:
                 return {"success": False, "error": "الشريك غير موجود"}
             
             partner_name = partner.name
             
-            # 2. إنشاء سجل الحذف
             deletion_log = self.create_deletion_log(
                 DeletionType.PARTNER.value, 
                 partner_id, 
@@ -290,22 +264,18 @@ class HardDeleteService:
                 reason
             )
             
-            # 3. جمع البيانات المرتبطة (بسيط)
             try:
                 related_data = self._collect_partner_related_data(partner_id)
             except Exception as e:
                 related_data = {"partner_data": {}, "related_entities": {}}
             
-            # 4. تنفيذ العمليات العكسية (بسيط)
             try:
                 reversals = self._reverse_partner_operations(partner_id)
             except Exception as e:
                 reversals = {"stock_reversals": [], "accounting_reversals": [], "balance_reversals": []}
             
-            # 5. حذف البيانات
             self._delete_partner_data(partner_id)
             
-            # 6. تسجيل اكتمال الحذف
             deletion_log.mark_completed(
                 deleted_data=related_data.get("partner_data"),
                 related_entities=related_data.get("related_entities"),
@@ -338,7 +308,6 @@ class HardDeleteService:
         if not customer:
             return {}
         
-        # بيانات العميل
         customer_data = {
             "id": customer.id,
             "name": customer.name,
@@ -349,7 +318,6 @@ class HardDeleteService:
             "updated_at": customer.updated_at.isoformat() if customer.updated_at else None
         }
         
-        # المبيعات المرتبطة
         sales = db.session.query(Sale).filter_by(customer_id=customer_id).all()
         sales_data = []
         for sale in sales:
@@ -373,7 +341,6 @@ class HardDeleteService:
                 "lines": sale_lines
             })
         
-        # الدفعات المرتبطة
         payments = db.session.query(Payment).filter_by(customer_id=customer_id).all()
         payments_data = []
         for payment in payments:
@@ -400,7 +367,6 @@ class HardDeleteService:
         if not sale:
             return {}
         
-        # بيانات البيع
         sale_data = {
             "id": sale.id,
             "sale_number": sale.sale_number,
@@ -422,7 +388,6 @@ class HardDeleteService:
         if not payment:
             return {}
         
-        # بيانات الدفعة
         payment_data = {
             "id": payment.id,
             "payment_number": payment.payment_number,
@@ -452,13 +417,11 @@ class HardDeleteService:
             "balance_reversals": []
         }
         
-        # 1. إرجاع المخزون من المبيعات
         sales = db.session.query(Sale).filter_by(customer_id=customer_id).all()
         for sale in sales:
             for line in sale.lines:
                 if line.product_id and line.warehouse_id and line.quantity:
                     try:
-                        # إرجاع الكمية المباعة إلى المخزون
                         stock_level = db.session.query(StockLevel).filter_by(
                             product_id=line.product_id,
                             warehouse_id=line.warehouse_id
@@ -475,7 +438,6 @@ class HardDeleteService:
                                 "new_quantity": float(stock_level.quantity)
                             })
                         else:
-                            # إنشاء StockLevel جديد إذا لم يكن موجود
                             new_stock = StockLevel(
                                 product_id=line.product_id,
                                 warehouse_id=line.warehouse_id,
@@ -491,7 +453,6 @@ class HardDeleteService:
                                 "created_new": True
                             })
                     except Exception as e:
-                        # تسجيل الخطأ ولكن المتابعة
                         reversals["stock_reversals"].append({
                             "product_id": line.product_id,
                             "warehouse_id": line.warehouse_id,
@@ -499,7 +460,6 @@ class HardDeleteService:
                             "error": str(e)
                         })
         
-        # 2. حذف السجلات المحاسبية
         payments = db.session.query(Payment).filter_by(customer_id=customer_id).all()
         if payments:
             gl_batches = db.session.query(GLBatch).filter(
@@ -527,13 +487,11 @@ class HardDeleteService:
             "payments_deleted": []
         }
         
-        # 1. إرجاع المخزون من المبيعات
         sale = db.session.query(Sale).filter_by(id=sale_id).first()
         if sale:
             for line in sale.lines:
                 if line.product_id and line.warehouse_id and line.quantity:
                     try:
-                        # إرجاع الكمية المباعة إلى المخزون
                         stock_level = db.session.query(StockLevel).filter_by(
                             product_id=line.product_id,
                             warehouse_id=line.warehouse_id
@@ -550,7 +508,6 @@ class HardDeleteService:
                                 "new_quantity": float(stock_level.quantity)
                             })
                         else:
-                            # إنشاء StockLevel جديد إذا لم يكن موجود
                             new_stock = StockLevel(
                                 product_id=line.product_id,
                                 warehouse_id=line.warehouse_id,
@@ -566,7 +523,6 @@ class HardDeleteService:
                                 "created_new": True
                             })
                     except Exception as e:
-                        # تسجيل الخطأ ولكن المتابعة
                         reversals["stock_reversals"].append({
                             "product_id": line.product_id,
                             "warehouse_id": line.warehouse_id,
@@ -574,7 +530,6 @@ class HardDeleteService:
                             "error": str(e)
                         })
         
-        # 2. حذف السجلات المحاسبية للبيع نفسه
         gl_batches = db.session.query(GLBatch).filter_by(
             source_type="SALE", 
             source_id=sale_id
@@ -589,12 +544,9 @@ class HardDeleteService:
             })
             db.session.delete(batch)
         
-        # 3. حذف السجلات المحاسبية للدفعات المرتبطة بالبيع
-        # جلب جميع الدفعات المرتبطة بهذا البيع
         related_payments = db.session.query(Payment).filter_by(sale_id=sale_id).all()
         
         for payment in related_payments:
-            # حذف GLBatch لكل دفعة
             payment_gl_batches = db.session.query(GLBatch).filter_by(
                 source_type="PAYMENT",
                 source_id=payment.id
@@ -609,7 +561,6 @@ class HardDeleteService:
                 })
                 db.session.delete(batch)
             
-            # تسجيل الدفعة المحذوفة
             reversals["payments_deleted"].append({
                 "payment_id": payment.id,
                 "payment_number": payment.payment_number,
@@ -626,7 +577,6 @@ class HardDeleteService:
             "balance_reversals": []
         }
         
-        # 1. حذف السجلات المحاسبية
         gl_batches = db.session.query(GLBatch).filter_by(
             source_type="PAYMENT", 
             source_id=payment_id
@@ -646,35 +596,31 @@ class HardDeleteService:
         """حذف بيانات العميل"""
         from models import Sale, SaleLine, SaleReturn, SaleReturnLine, ServiceRequest, Expense
         
-        # 1. جلب جميع المبيعات المرتبطة بالعميل
         sales = db.session.query(Sale).filter_by(customer_id=customer_id).all()
         
         for sale in sales:
-            # حذف بنود البيع
             db.session.query(SaleLine).filter_by(sale_id=sale.id).delete()
             
-            # حذف بنود المرتجعات
             sale_returns = db.session.query(SaleReturn).filter_by(sale_id=sale.id).all()
             for sale_return in sale_returns:
                 db.session.query(SaleReturnLine).filter_by(sale_return_id=sale_return.id).delete()
                 db.session.delete(sale_return)
             
-            # حذف البيع
+            sale._skip_gl_reversal = True
             db.session.delete(sale)
         
-        # 2. حذف الدفعات المرتبطة بالعميل
-        db.session.query(Payment).filter_by(customer_id=customer_id).delete()
+        payments = db.session.query(Payment).filter_by(customer_id=customer_id).all()
+        for payment in payments:
+            payment._skip_gl_reversal = True
+            db.session.delete(payment)
         
-        # 3. حذف المرتجعات المباشرة (بدون بيع)
         sale_returns_direct = db.session.query(SaleReturn).filter_by(customer_id=customer_id, sale_id=None).all()
         for sale_return in sale_returns_direct:
             db.session.query(SaleReturnLine).filter_by(sale_return_id=sale_return.id).delete()
             db.session.delete(sale_return)
         
-        # 4. حذف طلبات الصيانة المرتبطة بالعميل
         service_requests = db.session.query(ServiceRequest).filter_by(customer_id=customer_id).all()
         for service in service_requests:
-            # حذف المهام والقطع المرتبطة بالصيانة
             try:
                 from models import ServiceTask, ServicePart
                 db.session.query(ServiceTask).filter_by(service_id=service.id).delete()
@@ -683,44 +629,46 @@ class HardDeleteService:
                 pass
             db.session.delete(service)
         
-        # 5. حذف النفقات المرتبطة بالعميل
         db.session.query(Expense).filter_by(
             payee_type='CUSTOMER',
             payee_entity_id=customer_id
         ).delete()
         
-        # 6. حذف الحجوزات (إذا كانت موجودة)
         try:
             from models import Preorder
             db.session.query(Preorder).filter_by(customer_id=customer_id).delete()
         except:
             pass
         
-        # 7. حذف العميل
         db.session.query(Customer).filter_by(id=customer_id).delete()
     
     def _delete_sale_data(self, sale_id: int):
         """حذف بيانات البيع"""
         from models import Sale, SaleLine, SaleReturn, SaleReturnLine
         
-        # 1. حذف بنود البيع
         db.session.query(SaleLine).filter_by(sale_id=sale_id).delete()
         
-        # 2. حذف مرتجعات البيع
         sale_returns = db.session.query(SaleReturn).filter_by(sale_id=sale_id).all()
         for sale_return in sale_returns:
             db.session.query(SaleReturnLine).filter_by(sale_return_id=sale_return.id).delete()
             db.session.delete(sale_return)
         
-        # 3. حذف الدفعات المرتبطة بالبيع
-        db.session.query(Payment).filter_by(sale_id=sale_id).delete()
+        payments = db.session.query(Payment).filter_by(sale_id=sale_id).all()
+        for payment in payments:
+            payment._skip_gl_reversal = True
+            db.session.delete(payment)
         
-        # 4. حذف البيع
-        db.session.query(Sale).filter_by(id=sale_id).delete()
+        sale = db.session.get(Sale, sale_id)
+        if sale:
+            sale._skip_gl_reversal = True
+            db.session.delete(sale)
     
     def _delete_payment_data(self, payment_id: int):
         """حذف بيانات الدفعة"""
-        db.session.query(Payment).filter_by(id=payment_id).delete()
+        payment = db.session.get(Payment, payment_id)
+        if payment:
+            payment._skip_gl_reversal = True
+            db.session.delete(payment)
     
     def _collect_expense_related_data(self, expense_id: int) -> Dict[str, Any]:
         """جمع البيانات المرتبطة بالنفقة"""
@@ -729,7 +677,6 @@ class HardDeleteService:
         if not expense:
             return {}
         
-        # بيانات النفقة
         expense_data = {
             "id": expense.id,
             "description": expense.description,
@@ -745,7 +692,6 @@ class HardDeleteService:
             "notes": expense.notes
         }
         
-        # الدفعات المرتبطة
         payments = db.session.query(Payment).filter_by(expense_id=expense_id).all()
         payments_data = []
         for payment in payments:
@@ -772,7 +718,6 @@ class HardDeleteService:
             "balance_reversals": []
         }
         
-        # 1. حذف السجلات المحاسبية
         payments = db.session.query(Payment).filter_by(expense_id=expense_id).all()
         if payments:
             gl_batches = db.session.query(GLBatch).filter(
@@ -793,12 +738,17 @@ class HardDeleteService:
     
     def _delete_expense_data(self, expense_id: int):
         """حذف بيانات النفقة"""
-        # حذف الدفعات
-        db.session.query(Payment).filter_by(expense_id=expense_id).delete()
-        
-        # حذف النفقة
         from models import Expense
-        db.session.query(Expense).filter_by(id=expense_id).delete()
+        
+        payments = db.session.query(Payment).filter_by(expense_id=expense_id).all()
+        for payment in payments:
+            payment._skip_gl_reversal = True
+            db.session.delete(payment)
+        
+        expense = db.session.get(Expense, expense_id)
+        if expense:
+            expense._skip_gl_reversal = True
+            db.session.delete(expense)
     
     def _collect_supplier_related_data(self, supplier_id: int) -> Dict[str, Any]:
         """جمع البيانات المرتبطة بالمورد"""
@@ -806,7 +756,6 @@ class HardDeleteService:
         if not supplier:
             return {}
         
-        # بيانات المورد
         supplier_data = {
             "id": supplier.id,
             "name": supplier.name,
@@ -817,7 +766,6 @@ class HardDeleteService:
             "updated_at": supplier.updated_at.isoformat() if supplier.updated_at else None
         }
         
-        # الشحنات المرتبطة (المشتريات من الموردين)
         shipments = db.session.query(Shipment).filter_by(supplier_id=supplier_id).all()
         purchases_data = []
         for shipment in shipments:
@@ -841,7 +789,6 @@ class HardDeleteService:
                 "items": shipment_items
             })
         
-        # الدفعات المرتبطة
         payments = db.session.query(Payment).filter_by(supplier_id=supplier_id).all()
         payments_data = []
         for payment in payments:
@@ -867,7 +814,6 @@ class HardDeleteService:
         if not partner:
             return {}
         
-        # بيانات الشريك
         partner_data = {
             "id": partner.id,
             "name": partner.name,
@@ -878,7 +824,6 @@ class HardDeleteService:
             "updated_at": partner.updated_at.isoformat() if partner.updated_at else None
         }
         
-        # المبيعات المرتبطة
         sales = db.session.query(Sale).filter_by(customer_id=partner_id).all()
         sales_data = []
         for sale in sales:
@@ -902,7 +847,6 @@ class HardDeleteService:
                 "lines": sale_lines
             })
         
-        # الدفعات المرتبطة
         payments = db.session.query(Payment).filter_by(partner_id=partner_id).all()
         payments_data = []
         for payment in payments:
@@ -930,12 +874,10 @@ class HardDeleteService:
             "balance_reversals": []
         }
         
-        # 1. إرجاع المخزون من الشحنات (المشتريات)
         shipments = db.session.query(Shipment).filter_by(supplier_id=supplier_id).all()
         for shipment in shipments:
             for item in shipment.items:
                 if item.product_id and item.warehouse_id and item.quantity_received:
-                    # سحب الكمية المستلمة من المخزون
                     stock_level = db.session.query(StockLevel).filter_by(
                         product_id=item.product_id,
                         warehouse_id=item.warehouse_id
@@ -952,7 +894,6 @@ class HardDeleteService:
                             "new_quantity": float(stock_level.quantity)
                         })
         
-        # 2. حذف السجلات المحاسبية
         gl_batches = db.session.query(GLBatch).filter(
             GLBatch.source_type == "PAYMENT",
             GLBatch.source_id.in_([p.id for p in db.session.query(Payment).filter_by(supplier_id=supplier_id).all()])
@@ -976,12 +917,10 @@ class HardDeleteService:
             "balance_reversals": []
         }
         
-        # 1. إرجاع المخزون من المبيعات
         sales = db.session.query(Sale).filter_by(customer_id=partner_id).all()
         for sale in sales:
             for line in sale.lines:
                 if line.product_id and line.warehouse_id and line.quantity:
-                    # إرجاع الكمية المباعة إلى المخزون
                     stock_level = db.session.query(StockLevel).filter_by(
                         product_id=line.product_id,
                         warehouse_id=line.warehouse_id
@@ -998,7 +937,6 @@ class HardDeleteService:
                             "new_quantity": float(stock_level.quantity)
                         })
         
-        # 2. حذف السجلات المحاسبية
         payments = db.session.query(Payment).filter_by(partner_id=partner_id).all()
         if payments:
             gl_batches = db.session.query(GLBatch).filter(
@@ -1021,33 +959,29 @@ class HardDeleteService:
         """حذف بيانات المورد"""
         from models import Expense, ProductSupplierLoan, SupplierLoanSettlement
         
-        # جلب المورد
         supplier = db.session.get(Supplier, supplier_id)
         linked_customer_id = supplier.customer_id if supplier else None
         
-        # 1. حذف الشحنات (المشتريات) وبنودها وحصص الشركاء
         try:
             shipments = db.session.query(Shipment).filter_by(supplier_id=supplier_id).all()
             for shipment in shipments:
-                # حذف بنود الشحنة
                 try:
                     db.session.query(ShipmentItem).filter_by(shipment_id=shipment.id).delete()
                 except:
                     pass
-                # حذف حصص الشركاء في الشحنة
                 try:
                     from models import ShipmentPartner
                     db.session.query(ShipmentPartner).filter_by(shipment_id=shipment.id).delete()
                 except:
                     pass
                 try:
+                    shipment._skip_gl_reversal = True
                     db.session.delete(shipment)
                 except:
                     pass
         except:
             pass
         
-        # 2. حذف قروض الموردين للمنتجات والتسويات
         try:
             loans = db.session.query(ProductSupplierLoan).filter_by(supplier_id=supplier_id).all()
             for loan in loans:
@@ -1063,7 +997,6 @@ class HardDeleteService:
         except:
             pass
         
-        # 3. حذف النفقات المرتبطة بالمورد
         try:
             db.session.query(Expense).filter_by(
                 payee_type='SUPPLIER',
@@ -1072,13 +1005,14 @@ class HardDeleteService:
         except:
             pass
         
-        # 4. حذف الدفعات المرتبطة بالمورد
         try:
-            db.session.query(Payment).filter_by(supplier_id=supplier_id).delete()
+            payments = db.session.query(Payment).filter_by(supplier_id=supplier_id).all()
+            for payment in payments:
+                payment._skip_gl_reversal = True
+                db.session.delete(payment)
         except:
             pass
         
-        # 5. حذف الفواتير المرتبطة بالمورد
         try:
             from models import Invoice, InvoiceLine
             invoices = db.session.query(Invoice).filter_by(supplier_id=supplier_id).all()
@@ -1094,17 +1028,14 @@ class HardDeleteService:
         except:
             pass
         
-        # 6. حذف الحجوزات المسبقة للمورد
         try:
             from models import PreOrder
             db.session.query(PreOrder).filter_by(supplier_id=supplier_id).delete()
         except:
             pass
         
-        # 7. حذف العميل المرتبط (إذا موجود)
         if linked_customer_id:
             try:
-                # حذف جميع معاملات العميل المرتبط
                 try:
                     db.session.query(Sale).filter_by(customer_id=linked_customer_id).delete()
                 except:
@@ -1121,16 +1052,13 @@ class HardDeleteService:
                 except:
                     pass
                 
-                # حذف العميل نفسه
                 try:
                     db.session.query(Customer).filter_by(id=linked_customer_id).delete()
                 except:
                     pass
             except Exception as e:
-                # تسجيل الخطأ لكن المتابعة
                 pass
         
-        # 8. فك ارتباط المنتجات بالمورد (بدلاً من حذفها)
         try:
             db.session.query(Product).filter(
                 Product.supplier_local_id == supplier_id
@@ -1145,30 +1073,25 @@ class HardDeleteService:
         except:
             pass
         
-        # 9. حذف المورد (العملية الأخيرة - يجب أن تنجح)
         db.session.query(Supplier).filter_by(id=supplier_id).delete()
     
     def _delete_partner_data(self, partner_id: int):
         """حذف بيانات الشريك"""
         from models import Expense, WarehousePartnerShare, ProductPartner
         
-        # جلب الشريك
         partner = db.session.get(Partner, partner_id)
         linked_customer_id = partner.customer_id if partner else None
         
-        # 1. حذف حصص الشريك في المستودعات والمنتجات
         try:
             db.session.query(WarehousePartnerShare).filter_by(partner_id=partner_id).delete()
         except:
             pass
         
-        # 2. حذف ربط الشريك بالمنتجات
         try:
             db.session.query(ProductPartner).filter_by(partner_id=partner_id).delete()
         except:
             pass
         
-        # 3. حذف المبيعات المرتبطة بالشريك
         try:
             sales = db.session.query(Sale).filter_by(customer_id=partner_id).all()
             for sale in sales:
@@ -1177,20 +1100,19 @@ class HardDeleteService:
                 except:
                     pass
                 try:
+                    sale._skip_gl_reversal = True
                     db.session.delete(sale)
                 except:
                     pass
         except:
             pass
         
-        # 4. حذف الشريك من حصص الشحنات
         try:
             from models import ShipmentPartner
             db.session.query(ShipmentPartner).filter_by(partner_id=partner_id).delete()
         except:
             pass
         
-        # 5. حذف النفقات المرتبطة بالشريك
         try:
             db.session.query(Expense).filter_by(
                 payee_type='PARTNER',
@@ -1199,13 +1121,14 @@ class HardDeleteService:
         except:
             pass
         
-        # 6. حذف الدفعات المرتبطة بالشريك
         try:
-            db.session.query(Payment).filter_by(partner_id=partner_id).delete()
+            payments = db.session.query(Payment).filter_by(partner_id=partner_id).all()
+            for payment in payments:
+                payment._skip_gl_reversal = True
+                db.session.delete(payment)
         except:
             pass
         
-        # 7. حذف الفواتير المرتبطة بالشريك
         try:
             from models import Invoice, InvoiceLine
             invoices = db.session.query(Invoice).filter_by(partner_id=partner_id).all()
@@ -1221,17 +1144,14 @@ class HardDeleteService:
         except:
             pass
         
-        # 8. حذف الحجوزات المسبقة للشريك
         try:
             from models import PreOrder
             db.session.query(PreOrder).filter_by(partner_id=partner_id).delete()
         except:
             pass
         
-        # 9. حذف العميل المرتبط (إذا موجود)
         if linked_customer_id:
             try:
-                # حذف جميع معاملات العميل المرتبط
                 try:
                     db.session.query(Sale).filter_by(customer_id=linked_customer_id).delete()
                 except:
@@ -1248,28 +1168,23 @@ class HardDeleteService:
                 except:
                     pass
                 
-                # حذف العميل نفسه
                 try:
                     db.session.query(Customer).filter_by(id=linked_customer_id).delete()
                 except:
                     pass
             except Exception as e:
-                # تسجيل الخطأ لكن المتابعة
                 pass
         
-        # 10. حذف الشريك
         db.session.query(Partner).filter_by(id=partner_id).delete()
     
     def delete_expense(self, expense_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي للنفقة مع العمليات العكسية"""
         try:
-            # 1. جلب النفقة
             from models import Expense
             expense = db.session.get(Expense, expense_id)
             if not expense:
                 return {"success": False, "error": "النفقة غير موجودة"}
             
-            # 2. إنشاء سجل الحذف
             deletion_log = self.create_deletion_log(
                 DeletionType.EXPENSE.value, 
                 expense_id, 
@@ -1278,16 +1193,12 @@ class HardDeleteService:
                 reason
             )
             
-            # 3. جمع البيانات المرتبطة
             related_data = self._collect_expense_related_data(expense_id)
             
-            # 4. تنفيذ العمليات العكسية
             reversals = self._reverse_expense_operations(expense_id)
             
-            # 5. حذف البيانات
             self._delete_expense_data(expense_id)
             
-            # 6. تسجيل اكتمال الحذف
             deletion_log.mark_completed(
                 deleted_data=related_data["expense_data"],
                 related_entities=related_data["related_entities"],
@@ -1312,12 +1223,10 @@ class HardDeleteService:
     def delete_payment(self, payment_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي للدفعة مع العمليات العكسية"""
         try:
-            # 1. جلب الدفعة
             payment = db.session.get(Payment, payment_id)
             if not payment:
                 return {"success": False, "error": "الدفعة غير موجودة"}
             
-            # 2. إنشاء سجل الحذف
             deletion_log = self.create_deletion_log(
                 DeletionType.PAYMENT.value, 
                 payment_id, 
@@ -1326,16 +1235,12 @@ class HardDeleteService:
                 reason
             )
             
-            # 3. جمع البيانات المرتبطة
             related_data = self._collect_payment_related_data(payment_id)
             
-            # 4. تنفيذ العمليات العكسية
             reversals = self._reverse_payment_operations(payment_id)
             
-            # 5. حذف البيانات
             self._delete_payment_data(payment_id)
             
-            # 6. تسجيل اكتمال الحذف
             deletion_log.mark_completed(
                 deleted_data=related_data["payment_data"],
                 related_entities=related_data["related_entities"],
@@ -1367,7 +1272,6 @@ class HardDeleteService:
             if not deletion_log.can_restore:
                 return {"success": False, "error": "لا يمكن استعادة هذا الحذف"}
             
-            # تنفيذ الاستعادة حسب نوع الحذف
             if deletion_log.deletion_type == DeletionType.CUSTOMER.value:
                 result = self._restore_customer(deletion_log)
             elif deletion_log.deletion_type == DeletionType.SALE.value:
@@ -1376,10 +1280,14 @@ class HardDeleteService:
                 result = self._restore_payment(deletion_log)
             elif deletion_log.deletion_type == DeletionType.EXPENSE.value:
                 result = self._restore_expense(deletion_log)
+            elif deletion_log.deletion_type == DeletionType.SERVICE.value:
+                result = self._restore_service(deletion_log)
             elif deletion_log.deletion_type == 'SUPPLIER':
                 result = self._restore_supplier(deletion_log)
             elif deletion_log.deletion_type == 'PARTNER':
                 result = self._restore_partner(deletion_log)
+            elif deletion_log.deletion_type == 'CHECK':
+                result = self._restore_check(deletion_log)
             else:
                 return {"success": False, "error": f"نوع الحذف {deletion_log.deletion_type} غير مدعوم للاستعادة"}
             
@@ -1401,7 +1309,6 @@ class HardDeleteService:
             if not customer_data:
                 return {"success": False, "error": "بيانات العميل غير متوفرة"}
             
-            # إنشاء العميل
             customer = Customer(
                 id=customer_data["id"],
                 name=customer_data["name"],
@@ -1411,7 +1318,6 @@ class HardDeleteService:
             )
             db.session.add(customer)
             
-            # استعادة المبيعات
             related_entities = deletion_log.related_entities or {}
             sales_data = related_entities.get("sales", [])
             for sale_dict in sales_data:
@@ -1426,7 +1332,6 @@ class HardDeleteService:
                 )
                 db.session.add(sale)
                 
-                # استعادة سطور المبيعات وسحب الكمية من المخزون مرة أخرى
                 for line_dict in sale_dict.get("lines", []):
                     sale_line = SaleLine(
                         id=line_dict["id"],
@@ -1437,7 +1342,6 @@ class HardDeleteService:
                     )
                     db.session.add(sale_line)
                     
-                    # سحب الكمية من المخزون (عكس الإرجاع الذي حدث عند الحذف)
                     if line_dict.get("product_id") and line_dict.get("quantity"):
                         stock_level = db.session.query(StockLevel).filter_by(
                             product_id=line_dict["product_id"]
@@ -1457,7 +1361,6 @@ class HardDeleteService:
             if not sale_data:
                 return {"success": False, "error": "بيانات البيع غير متوفرة"}
             
-            # إنشاء البيع
             sale = Sale(
                 id=sale_data["id"],
                 sale_number=sale_data["sale_number"],
@@ -1469,7 +1372,6 @@ class HardDeleteService:
             )
             db.session.add(sale)
             
-            # استعادة سطور المبيعات
             related_entities = deletion_log.related_entities or {}
             lines_data = related_entities.get("lines", [])
             for line_dict in lines_data:
@@ -1482,7 +1384,6 @@ class HardDeleteService:
                 )
                 db.session.add(sale_line)
                 
-                # سحب الكمية من المخزون (عكس الإرجاع الذي حدث عند الحذف)
                 if line_dict.get("product_id") and line_dict.get("warehouse_id") and line_dict.get("quantity"):
                     stock_level = db.session.query(StockLevel).filter_by(
                         product_id=line_dict["product_id"],
@@ -1503,7 +1404,6 @@ class HardDeleteService:
             if not payment_data:
                 return {"success": False, "error": "بيانات الدفعة غير متوفرة"}
             
-            # إنشاء الدفعة
             payment = Payment(
                 id=payment_data["id"],
                 entity_type=payment_data["entity_type"],
@@ -1528,7 +1428,6 @@ class HardDeleteService:
             if not expense_data:
                 return {"success": False, "error": "بيانات النفقة غير متوفرة"}
             
-            # إنشاء النفقة
             from models import Expense
             expense = Expense(
                 id=expense_data["id"],
@@ -1587,20 +1486,60 @@ class HardDeleteService:
             return {"success": True}
         except Exception as e:
             return {"success": False, "error": f"فشل في استعادة الشريك: {str(e)}"}
+    
+    def _restore_service(self, deletion_log: DeletionLog) -> Dict[str, Any]:
+        """استعادة طلب الصيانة"""
+        try:
+            from models import ServiceRequest
+            
+            data = deletion_log.deleted_data
+            if not data:
+                return {"success": False, "error": "بيانات الصيانة غير متوفرة"}
+            
+            service = ServiceRequest(
+                id=data["id"],
+                service_number=data["service_number"],
+                customer_id=data.get("customer_id"),
+                description=data.get("description"),
+                notes=data.get("notes")
+            )
+            db.session.add(service)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": f"فشل في استعادة الصيانة: {str(e)}"}
+    
+    def _restore_check(self, deletion_log: DeletionLog) -> Dict[str, Any]:
+        """استعادة الشيك"""
+        try:
+            from models import Check
+            
+            data = deletion_log.deleted_data
+            if not data:
+                return {"success": False, "error": "بيانات الشيك غير متوفرة"}
+            
+            check = Check(
+                id=data["id"],
+                check_number=data["check_number"],
+                check_bank=data.get("check_bank"),
+                amount=data.get("amount", 0),
+                currency=data.get("currency", "ILS")
+            )
+            db.session.add(check)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": f"فشل في استعادة الشيك: {str(e)}"}
 
     def delete_check(self, check_id: int, deleted_by: int, reason: str = None) -> Dict[str, Any]:
         """حذف قوي للشيك مع العمليات العكسية"""
         try:
             from models import Check
             
-            # 1. جلب الشيك
             check = db.session.get(Check, check_id)
             if not check:
                 return {"success": False, "error": "الشيك غير موجود"}
             
             check_number = check.check_number
             
-            # 2. إنشاء سجل الحذف
             deletion_log = self.create_deletion_log(
                 deletion_type='CHECK',
                 entity_id=check_id,
@@ -1609,7 +1548,6 @@ class HardDeleteService:
                 reason=reason
             )
             
-            # 3. جمع البيانات
             check_data = {
                 "id": check.id,
                 "check_number": check.check_number,
@@ -1623,10 +1561,8 @@ class HardDeleteService:
                 "notes": check.notes if hasattr(check, 'notes') else None
             }
             
-            # 4. العمليات العكسية: حذف القيود المحاسبية
             accounting_reversals = []
             
-            # البحث عن قيود محاسبية مرتبطة بالشيك
             try:
                 gl_batches = db.session.query(GLBatch).filter(
                     or_(
@@ -1646,10 +1582,9 @@ class HardDeleteService:
             except:
                 pass
             
-            # 5. حذف الشيك
+            check._skip_gl_reversal = True
             db.session.delete(check)
             
-            # 6. تسجيل اكتمال الحذف
             deletion_log.status = DeletionStatus.COMPLETED.value
             deletion_log.deleted_at = datetime.utcnow()
             deletion_log.deleted_data = json.dumps(check_data)
@@ -1678,12 +1613,10 @@ class HardDeleteService:
         try:
             from models import ServiceRequest, ServicePart, ServiceTask
             
-            # البحث عن طلب الصيانة
             service = ServiceRequest.query.get(service_id)
             if not service:
                 return {"success": False, "error": "طلب الصيانة غير موجود"}
             
-            # إنشاء سجل الحذف
             deletion_log = self.create_deletion_log(
                 deletion_type=DeletionType.SERVICE.value,
                 entity_id=service_id,
@@ -1692,7 +1625,6 @@ class HardDeleteService:
                 reason=reason
             )
             
-            # جمع البيانات المرتبطة
             service_data = {
                 "id": service.id,
                 "service_number": service.service_number,
@@ -1714,7 +1646,6 @@ class HardDeleteService:
                 "updated_at": service.updated_at.isoformat() if service.updated_at else None
             }
             
-            # جمع قطع الغيار
             parts_data = []
             for part in service.parts:
                 parts_data.append({
@@ -1728,7 +1659,6 @@ class HardDeleteService:
                     "notes": part.notes
                 })
             
-            # جمع المهام
             tasks_data = []
             for task in service.tasks:
                 tasks_data.append({
@@ -1746,14 +1676,12 @@ class HardDeleteService:
                     "notes": task.notes
                 })
             
-            # حفظ البيانات في سجل الحذف
             deletion_log.rollback_data = json.dumps({
                 "service": service_data,
                 "parts": parts_data,
                 "tasks": tasks_data
             })
             
-            # العمليات العكسية: إرجاع قطع الغيار للمخزون
             stock_reversals = []
             for part in service.parts:
                 if part.product_id and part.warehouse_id and part.quantity:
@@ -1774,7 +1702,6 @@ class HardDeleteService:
                                 "new_quantity": float(stock_level.quantity)
                             })
                         else:
-                            # إنشاء StockLevel جديد
                             new_stock = StockLevel(
                                 product_id=part.product_id,
                                 warehouse_id=part.warehouse_id,
@@ -1797,11 +1724,9 @@ class HardDeleteService:
                             "error": str(e)
                         })
             
-            # حذف السجلات المحاسبية للدفعات المرتبطة بالصيانة
             accounting_reversals = []
             service_payments = db.session.query(Payment).filter_by(service_id=service_id).all()
             for payment in service_payments:
-                # حذف GLBatch لكل دفعة
                 payment_gl_batches = db.session.query(GLBatch).filter_by(
                     source_type="PAYMENT",
                     source_id=payment.id
@@ -1816,17 +1741,17 @@ class HardDeleteService:
                     })
                     db.session.delete(batch)
             
-            # حذف الدفعات
-            db.session.query(Payment).filter_by(service_id=service_id).delete()
+            service_payments = db.session.query(Payment).filter_by(service_id=service_id).all()
+            for payment in service_payments:
+                payment._skip_gl_reversal = True
+                db.session.delete(payment)
             
-            # حذف البيانات المرتبطة
             ServicePart.query.filter_by(service_id=service_id).delete()
             ServiceTask.query.filter_by(service_id=service_id).delete()
             
-            # حذف طلب الصيانة
+            service._skip_gl_reversal = True
             db.session.delete(service)
             
-            # تحديث حالة سجل الحذف مع العمليات العكسية
             deletion_log.status = DeletionStatus.COMPLETED.value
             deletion_log.deleted_at = datetime.utcnow()
             deletion_log.stock_reversals = json.dumps(stock_reversals) if stock_reversals else None
@@ -1856,7 +1781,6 @@ class DeletionConfirmationService:
             if not deletion_log:
                 return {"success": False, "error": "كود التأكيد غير صحيح أو منتهي الصلاحية"}
             
-            # تنفيذ الحذف
             hard_delete_service = HardDeleteService()
             
             if deletion_log.deletion_type == DeletionType.CUSTOMER.value:

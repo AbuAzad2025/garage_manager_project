@@ -23,23 +23,63 @@ checks_bp = Blueprint('checks', __name__, url_prefix='/checks')
 from sqlalchemy import event
 
 @event.listens_for(Check, 'before_delete')
-def _check_before_delete(mapper, connection, target):
+def _check_gl_batch_reverse(mapper, connection, target):
+    """إنشاء قيد عكسي عند حذف الشيك (أصح محاسبياً)"""
     try:
-        # حذف جميع GLBatch المرتبطة بهذا الشيك
-        connection.execute(
-            GLBatch.__table__.delete().where(
-                (GLBatch.source_type == 'check_check') & 
-                (GLBatch.source_id == target.id)
+        if hasattr(target, '_skip_gl_reversal') and target._skip_gl_reversal:
+            from sqlalchemy import text as sa_text
+            connection.execute(
+                sa_text("DELETE FROM gl_batches WHERE source_type = 'CHECK' AND source_id = :cid"),
+                {"cid": target.id}
             )
+            return
+        
+        amount = float(target.amount or 0)
+        if amount <= 0:
+            return
+        
+        from models import fx_rate, GL_ACCOUNTS, PAYMENT_GL_MAP
+        
+        amount_ils = amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.check_date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(amount * float(rate))
+            except:
+                pass
+        
+        bank_account = GL_ACCOUNTS.get("BANK", "1010_BANK")
+        ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
+        
+        check_type = getattr(target, 'check_type', 'RECEIVED')
+        if check_type == 'RECEIVED':
+            entries = [(ar_account, amount_ils, 0), (bank_account, 0, amount_ils)]
+        else:
+            ap_account = GL_ACCOUNTS.get("AP", "2000_AP")
+            entries = [(ap_account, 0, amount_ils), (bank_account, amount_ils, 0)]
+        
+        from models import _gl_upsert_batch_and_entries
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="CHECK_REVERSAL",
+            source_id=target.id,
+            purpose="REVERSAL",
+            currency="ILS",
+            memo=f"عكس قيد - حذف شيك #{target.check_number}",
+            entries=entries,
+            ref=f"REV-CHK-{target.id}",
+            entity_type="OTHER",
+            entity_id=None
         )
     except Exception as e:
-        current_app.logger.error(f"خطأ في حذف القيود المحاسبية للشيك {target.id}: {str(e)}")
+        import sys
+        print(f"⚠️ خطأ في عكس قيد الشيك #{target.id}: {e}", file=sys.stderr)
 
 
 @event.listens_for(Payment, 'before_delete')
 def _payment_check_before_delete(mapper, connection, target):
     try:
-        # إذا كانت دفعة شيك، احذف القيود
         if target.method == PaymentMethod.CHEQUE:
             connection.execute(
                 GLBatch.__table__.delete().where(
@@ -59,7 +99,6 @@ def _glbatch_before_delete(mapper, connection, target):
         source_id = target.source_id
         
         if source_type == 'check_check':
-            # إضافة ملاحظة إلغاء للشيك اليدوي
             connection.execute(
                 Check.__table__.update().where(Check.id == source_id).values(
                     status='CANCELLED',
@@ -67,7 +106,6 @@ def _glbatch_before_delete(mapper, connection, target):
                 )
             )
         elif source_type == 'check_payment':
-            # إضافة ملاحظة إلغاء للدفعة
             connection.execute(
                 Payment.__table__.update().where(Payment.id == source_id).values(
                     notes=Payment.notes + '\n⚠️ تم إلغاء الشيك بسبب حذف القيد المحاسبي'
@@ -81,7 +119,6 @@ def ensure_check_accounts():
     """التأكد من وجود جميع حسابات دفتر الأستاذ المطلوبة"""
     try:
         required_accounts = [
-            # حسابات الأصول
             ('1000_CASH', 'الصندوق', 'ASSET'),
             ('1010_BANK', 'البنك', 'ASSET'),
             ('1020_CARD_CLEARING', 'بطاقات الائتمان', 'ASSET'),
@@ -89,15 +126,12 @@ def ensure_check_accounts():
             ('1150_CHEQUES_RECEIVABLE', 'شيكات تحت التحصيل', 'ASSET'),
             ('1205_INV_EXCHANGE', 'المخزون - تبادل', 'ASSET'),
             
-            # حسابات الخصوم
             ('2000_AP', 'الموردين (ذمم دائنة)', 'LIABILITY'),
             ('2100_VAT_PAYABLE', 'ضريبة القيمة المضافة', 'LIABILITY'),
             ('2150_CHEQUES_PAYABLE', 'شيكات تحت الدفع', 'LIABILITY'),
             
-            # حسابات الإيرادات
             ('4000_SALES', 'المبيعات', 'REVENUE'),
             
-            # حسابات المصروفات
             ('5000_EXPENSES', 'المصروفات العامة', 'EXPENSE'),
             ('5105_COGS_EXCHANGE', 'تكلفة البضاعة المباعة', 'EXPENSE'),
         ]
@@ -146,14 +180,11 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
        - دائن: الموردين (خصم - زيادة)
     """
     try:
-        # التأكد من وجود الحسابات
         ensure_check_accounts()
         
-        # تحديد نوع القيد بناءً على الحالة والاتجاه
         is_incoming = (direction == 'IN')
         amount_decimal = Decimal(str(amount))
         
-        # إنشاء GLBatch
         batch_code = f"CHK-{check_type.upper()}-{check_id}-{uuid.uuid4().hex[:8].upper()}"
         batch = GLBatch(
             code=batch_code,
@@ -168,11 +199,8 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
         
         entries = []
         
-        # القيود حسب الحالة الجديدة
         if new_status == 'CASHED':
             if is_incoming:
-                # شيك وارد تم صرفه
-                # مدين: البنك | دائن: شيكات تحت التحصيل
                 entries.append(GLEntry(
                     batch_id=batch.id,
                     account=GL_ACCOUNTS_CHECKS['BANK'],
@@ -190,8 +218,6 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                     ref=f"صرف شيك وارد من {entity_name}"
                 ))
             else:
-                # شيك صادر تم صرفه
-                # مدين: شيكات تحت الدفع | دائن: البنك
                 entries.append(GLEntry(
                     batch_id=batch.id,
                     account=GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
@@ -211,8 +237,6 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                 
         elif new_status == 'RETURNED' or new_status == 'BOUNCED':
             if is_incoming:
-                # شيك وارد تم إرجاعه
-                # مدين: العملاء | دائن: شيكات تحت التحصيل
                 entries.append(GLEntry(
                     batch_id=batch.id,
                     account=GL_ACCOUNTS_CHECKS['AR'],
@@ -230,8 +254,6 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                     ref=f"إرجاع شيك من {entity_name}"
                 ))
             else:
-                # شيك صادر تم إرجاعه
-                # مدين: شيكات تحت الدفع | دائن: الموردين
                 entries.append(GLEntry(
                     batch_id=batch.id,
                     account=GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
@@ -250,9 +272,7 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                 ))
                 
         elif new_status == 'CANCELLED':
-            # إلغاء/إتلاف الشيك → عكس القيد الأصلي تماماً
             if is_incoming:
-                # إلغاء شيك وارد → إرجاع الدين للعميل
                 entries.append(GLEntry(
                     batch_id=batch.id,
                     account=GL_ACCOUNTS_CHECKS['AR'],
@@ -270,7 +290,6 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                     ref=f"⛔ إلغاء/إتلاف شيك وارد من {entity_name}"
                 ))
             else:
-                # إلغاء شيك صادر → إرجاع الدين للمورد
                 entries.append(GLEntry(
                     batch_id=batch.id,
                     account=GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
@@ -288,7 +307,6 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                     ref=f"⛔ إلغاء/إتلاف شيك صادر إلى {entity_name}"
                 ))
         
-        # إضافة القيود
         for entry in entries:
             db.session.add(entry)
         
@@ -302,7 +320,6 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
         db.session.rollback()
         return None
 
-# حالات الشيك المخصصة
 CHECK_STATUS = {
     'PENDING': {'ar': 'معلق', 'color': 'info', 'icon': 'fa-clock'},
     'CASHED': {'ar': 'تم الصرف', 'color': 'success', 'icon': 'fa-check-circle'},
@@ -314,7 +331,6 @@ CHECK_STATUS = {
     'OVERDUE': {'ar': 'متأخر', 'color': 'danger', 'icon': 'fa-exclamation-triangle'},
 }
 
-# حسابات دفتر الأستاذ للشيكات
 GL_ACCOUNTS_CHECKS = {
     'CHEQUES_RECEIVABLE': '1150_CHEQUES_RECEIVABLE',  # شيكات تحت التحصيل (أصول)
     'CHEQUES_PAYABLE': '2150_CHEQUES_PAYABLE',        # شيكات تحت الدفع (خصوم)
@@ -324,7 +340,6 @@ GL_ACCOUNTS_CHECKS = {
     'AP': '2000_AP',                                   # الموردين (Accounts Payable)
 }
 
-# دورة حياة الشيك (Life Cycle)
 CHECK_LIFECYCLE = {
     'PENDING': ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED'],
     'RETURNED': ['RESUBMITTED', 'CANCELLED'],
@@ -351,7 +366,6 @@ def get_checks():
     المصادر: Payment + Expense + Check (اليدوي)
     """
     try:
-        # الفلاتر من الـ request
         direction = request.args.get('direction')  # 'in' أو 'out' أو 'all'
         status = request.args.get('status')  # 'pending', 'completed', 'overdue', 'all'
         from_date = request.args.get('from_date')
@@ -364,13 +378,11 @@ def get_checks():
         
         current_app.logger.info(f"🔍 get_checks API - بدء الجلب من جميع المصادر...")
         
-        # 1. جلب الشيكات من Payment (إذا لم يتم فلترتها)
         if not source_filter or source_filter in ['all', 'payment']:
             payment_checks = Payment.query.filter(
                 Payment.method == PaymentMethod.CHEQUE.value
             )
             
-            # جلب الدفعات التي تحتوي على splits بطريقة شيك
             from models import PaymentSplit
             payment_with_splits = db.session.query(Payment).join(
                 PaymentSplit, Payment.id == PaymentSplit.payment_id
@@ -378,7 +390,6 @@ def get_checks():
                 PaymentSplit.method == PaymentMethod.CHEQUE.value
             )
             
-            # فلتر حسب الاتجاه
             if direction == 'in':
                 payment_checks = payment_checks.filter(Payment.direction == PaymentDirection.IN.value)
                 payment_with_splits = payment_with_splits.filter(Payment.direction == PaymentDirection.IN.value)
@@ -386,7 +397,6 @@ def get_checks():
                 payment_checks = payment_checks.filter(Payment.direction == PaymentDirection.OUT.value)
                 payment_with_splits = payment_with_splits.filter(Payment.direction == PaymentDirection.OUT.value)
             
-            # فلتر حسب الحالة
             if status == 'pending':
                 payment_checks = payment_checks.filter(Payment.status == PaymentStatus.PENDING.value)
                 payment_with_splits = payment_with_splits.filter(Payment.status == PaymentStatus.PENDING.value)
@@ -407,7 +417,6 @@ def get_checks():
                     )
                 )
             
-            # فلتر حسب التاريخ
             if from_date:
                 try:
                     from_dt = datetime.strptime(from_date, '%Y-%m-%d')
@@ -424,7 +433,6 @@ def get_checks():
                 except:
                     pass
             
-            # معالجة شيكات Payment العادية (method = cheque)
             for payment in payment_checks.all():
                 if not payment.check_due_date:
                     continue
@@ -432,7 +440,6 @@ def get_checks():
                 due_date = payment.check_due_date.date() if isinstance(payment.check_due_date, datetime) else payment.check_due_date
                 days_until_due = (due_date - today).days
                 
-                # تحديد الحالة
                 if payment.status == PaymentStatus.COMPLETED.value:
                     check_status = 'CASHED'
                     status_ar = 'تم الصرف'
@@ -464,10 +471,8 @@ def get_checks():
                     status_ar = 'معلق'
                     badge_color = 'info'
                 
-                # تحديد نوع الشيك
                 is_incoming = payment.direction == PaymentDirection.IN.value
                 
-                # تحديد اسم الجهة والرابط
                 entity_name = ''
                 entity_link = ''
                 entity_type = ''
@@ -484,7 +489,6 @@ def get_checks():
                     entity_link = f'/partners/{payment.partner.id}'
                     entity_type = 'شريك'
                 
-                # تجنب التكرار
                 check_key = f"payment-{payment.id}"
                 if check_key in check_ids:
                     continue
@@ -529,16 +533,12 @@ def get_checks():
             
             current_app.logger.info(f"📊 Payments بدون splits: {len(checks)} شيك حتى الآن")
             
-            # ✅ معالجة الدفعات الجزئية (PaymentSplit) - تم تعطيلها مؤقتاً
-            # السبب: Event listener في models.py ينشئ Check تلقائياً من PaymentSplit
-            # لذلك سنجلب الشيكات من Check table مباشرة بدلاً من PaymentSplit
             # payment_splits = PaymentSplit.query.filter(
             #     PaymentSplit.method == PaymentMethod.CHEQUE
             # ).all()
             
             current_app.logger.info(f"📊 تم تخطي PaymentSplits - سيتم جلبها من Check table")
         
-        # 2. جلب الشيكات من Expense
         if not source_filter or source_filter in ['all', 'expense']:
             expense_checks = Expense.query.filter(
                 Expense.payment_method == 'cheque'
@@ -558,7 +558,6 @@ def get_checks():
                 except:
                     pass
             
-            # معالجة شيكات Expense
             for expense in expense_checks.all():
                 if not expense.check_due_date:
                     continue
@@ -566,7 +565,6 @@ def get_checks():
                 due_date = expense.check_due_date.date() if isinstance(expense.check_due_date, datetime) else expense.check_due_date
                 days_until_due = (due_date - today).days
                 
-                # تحديد الحالة (المصروفات دائماً صادرة)
                 is_paid = expense.is_paid if hasattr(expense, 'is_paid') else False
                 notes_lower = (expense.notes or '').lower()
                 
@@ -599,7 +597,6 @@ def get_checks():
                     status_ar = 'معلق'
                     badge_color = 'info'
                 
-                # تجنب التكرار
                 check_key = f"expense-{expense.id}"
                 if check_key in check_ids:
                     continue
@@ -637,17 +634,14 @@ def get_checks():
                     'receipt_number': expense.tax_invoice_number or ''
                 })
         
-        # 3. جلب الشيكات اليدوية (Independent Checks)
         if not source_filter or source_filter in ['all', 'manual']:
             manual_checks_query = Check.query
             
-            # فلتر حسب الاتجاه
             if direction == 'in':
                 manual_checks_query = manual_checks_query.filter(Check.direction == PaymentDirection.IN.value)
             elif direction == 'out':
                 manual_checks_query = manual_checks_query.filter(Check.direction == PaymentDirection.OUT.value)
             
-            # فلتر حسب الحالة
             if status == 'pending':
                 manual_checks_query = manual_checks_query.filter(Check.status == CheckStatus.PENDING.value)
             elif status == 'completed':
@@ -660,7 +654,6 @@ def get_checks():
                     )
                 )
             
-            # فلتر حسب التاريخ
             if from_date:
                 try:
                     from_dt = datetime.strptime(from_date, '%Y-%m-%d')
@@ -675,15 +668,12 @@ def get_checks():
                 except:
                     pass
             
-            # معالجة الشيكات اليدوية
             for check in manual_checks_query.all():
                 due_date = check.check_due_date.date() if isinstance(check.check_due_date, datetime) else check.check_due_date
                 days_until_due = (due_date - today).days
                 
-                # تحديد الحالة
                 status_info = CHECK_STATUS.get(check.status, {'ar': check.status, 'color': 'secondary'})
                 
-                # ✅ تحديد الجهة باستخدام entity_name property
                 entity_name = check.entity_name  # ✅ استخدام property من Model
                 entity_type_code = check.entity_type  # customer/supplier/partner/None
                 entity_link = ''
@@ -699,13 +689,11 @@ def get_checks():
                     entity_type = 'شريك'
                     entity_link = f'/vendors/partners/{check.entity_id}'
                 else:
-                    # شيك يدوي بدون ربط
                     if check.direction == PaymentDirection.IN.value:
                         entity_type = 'ساحب'
                     else:
                         entity_type = 'مستفيد'
                 
-                # تجنب التكرار
                 check_key = f"check-{check.id}"
                 if check_key in check_ids:
                     continue
@@ -743,7 +731,6 @@ def get_checks():
                     'receipt_number': check.reference_number or ''
                 })
         
-        # ترتيب حسب تاريخ الاستحقاق
         checks.sort(key=lambda x: x['check_due_date'])
         
         return jsonify({
@@ -892,7 +879,6 @@ def get_statistics():
             )
         ).scalar() or 0
         
-        # إجمالي الصادر
         total_outgoing_value = float(outgoing_total or 0) + float(expense_total or 0)
         total_outgoing_overdue = outgoing_overdue + expense_overdue
         total_outgoing_overdue_amount = float(outgoing_overdue_amount or 0) + float(expense_overdue_amount or 0)
@@ -938,7 +924,6 @@ def get_check_lifecycle(check_id, check_type):
         else:
             check = Expense.query.get_or_404(check_id)
         
-        # استخراج جميع التغييرات من الملاحظات
         notes = check.notes or ''
         lifecycle_events = []
         
@@ -949,7 +934,6 @@ def get_check_lifecycle(check_id, check_type):
                     'description': line[line.find(']')+1:].strip()
                 })
         
-        # إضافة الحدث الأولي (الإنشاء)
         lifecycle_events.insert(0, {
             'timestamp': check.created_at.strftime('%Y-%m-%d %H:%M') if hasattr(check, 'created_at') else 'غير محدد',
             'description': f'إنشاء الشيك رقم {check.check_number or "N/A"} - البنك: {check.check_bank or "N/A"} - المبلغ: {check.amount} {getattr(check, "currency", "ILS")}'
@@ -1008,12 +992,10 @@ def update_check_status(check_id):
     تحديث حالة الشيك (من جميع المصادر)
     """
     try:
-        # الحصول على البيانات من JSON
         data = request.get_json() or {}
         new_status = data.get('status')  # CASHED, RETURNED, BOUNCED, CANCELLED, RESUBMITTED
         notes = data.get('notes', '')
         
-        # تحديد نوع الشيك من الـ ID
         check_type = 'check'  # default
         actual_id = check_id
         
@@ -1029,9 +1011,7 @@ def update_check_status(check_id):
                 actual_id = int(check_id.replace('expense-', ''))
                 current_app.logger.info(f"✅ تم التعرف: Expense ID={actual_id}")
             elif check_id.isdigit():
-                # رقم فقط - نحتاج لفحص نوعه
                 actual_id = int(check_id)
-                # نفحص في جميع الجداول
                 if Check.query.get(actual_id):
                     check_type = 'check'
                     current_app.logger.info(f"✅ تم التعرف: Check (Manual) ID={actual_id}")
@@ -1039,17 +1019,14 @@ def update_check_status(check_id):
                     check_type = 'payment'
                     current_app.logger.info(f"✅ تم التعرف: Payment ID={actual_id}")
                 else:
-                    # افتراض أنه شيك يدوي
                     check_type = 'check'
                     current_app.logger.warning(f"⚠️  افتراض Check ID={actual_id}")
             else:
-                # غير معروف
                 current_app.logger.warning(f"⚠️  check_id غير معروف: {check_id}")
                 check_type = 'check'
                 actual_id = int(check_id) if check_id.isdigit() else check_id
         else:
             actual_id = int(check_id)
-            # نفحص النوع
             if Check.query.get(actual_id):
                 check_type = 'check'
             elif Payment.query.get(actual_id):
@@ -1064,7 +1041,6 @@ def update_check_status(check_id):
                 'message': 'بيانات ناقصة'
             }), 400
         
-        # التحقق من الحالة المسموحة
         allowed_statuses = ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED', 'RESUBMITTED', 'ARCHIVED', 'PENDING']
         if new_status not in allowed_statuses:
             return jsonify({
@@ -1074,17 +1050,13 @@ def update_check_status(check_id):
         
         if check_type == 'payment' or check_type == 'split':
             if check_type == 'split':
-                # جلب الدفعة الجزئية
                 split = PaymentSplit.query.get_or_404(actual_id)
                 check = split.payment
             else:
                 check = Payment.query.get_or_404(actual_id)
             
-            # إضافة ملاحظة مفصلة بدون تغيير حالة Payment
-            # حالة Payment تبقى كما هي، ونسجل فقط حالة الشيك في الملاحظات
             timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             
-            # إضافة أيقونة حسب الحالة
             status_icons = {
                 'CASHED': '✅',
                 'RETURNED': '🔄',
@@ -1105,23 +1077,17 @@ def update_check_status(check_id):
             
             check.notes = (check.notes or '') + status_note
             
-            # تحديث حالة Payment فقط للحالات المهمة
             if new_status == 'CASHED':
-                # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
                     check.status = PaymentStatus.COMPLETED
             elif new_status in ['BOUNCED', 'RETURNED']:
-                # ✅ شيك مرفوض/مرتد - تحديث حالة الدفعة إلى FAILED
                 check.status = PaymentStatus.FAILED
             elif new_status == 'RESUBMITTED':
-                # ✅ إعادة تقديم - تحديث حالة الدفعة إلى PENDING
                 check.status = PaymentStatus.PENDING
             elif new_status == 'CANCELLED':
-                # فقط إذا كانت الحالة الحالية PENDING
                 if check.status == PaymentStatus.PENDING:
                     check.status = PaymentStatus.CANCELLED
             
-            # إنشاء قيد محاسبي في دفتر الأستاذ
             try:
                 entity_name = ''
                 if check.customer:
@@ -1147,7 +1113,6 @@ def update_check_status(check_id):
         elif check_type == 'expense':
             check = Expense.query.get_or_404(actual_id)
             
-            # تحديث الملاحظات
             timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
             status_icons = {
                 'CASHED': '✅',
@@ -1167,7 +1132,6 @@ def update_check_status(check_id):
             
             check.notes = (check.notes or '') + status_note
             
-            # إنشاء قيد محاسبي
             try:
                 entity_name = check.supplier.name if check.supplier else ''
                 
@@ -1185,7 +1149,6 @@ def update_check_status(check_id):
                 current_app.logger.error(f"❌ خطأ في إنشاء القيد المحاسبي للنفقة: {str(e)}")
         
         elif check_type == 'check':
-            # شيك يدوي من جدول Check
             manual_check = Check.query.get_or_404(actual_id)
             manual_check.status = new_status
             
@@ -1209,7 +1172,6 @@ def update_check_status(check_id):
             
             manual_check.notes = (manual_check.notes or '') + status_note
             
-            # إنشاء قيد محاسبي للشيكات اليدوية أيضاً
             try:
                 entity_name = ''
                 if manual_check.drawer_name:
@@ -1237,7 +1199,6 @@ def update_check_status(check_id):
                 'message': 'تم تحديث حالة الشيك بنجاح'
             })
         
-        # حفظ التغييرات
         db.session.commit()
         
         return jsonify({
@@ -1270,7 +1231,6 @@ def get_alerts():
         
         alerts = []
         
-        # 🚨 1. الشيكات المتأخرة من جدول Check (الأولوية)
         overdue_manual_checks = Check.query.filter(
             and_(
                 Check.status == CheckStatus.PENDING.value,
@@ -1289,7 +1249,6 @@ def get_alerts():
             else:
                 entity_name = check.drawer_name or check.payee_name or 'غير محدد'
             
-            # ✅ المنطق الصحيح: دفعة OUT → صادر لـ، دفعة IN → وارد من
             is_incoming = check.direction == PaymentDirection.IN.value
             if is_incoming:
                 direction_text = f'وارد من {entity_name}'
@@ -1311,7 +1270,6 @@ def get_alerts():
                 'check_number': check.check_number
             })
         
-        # 2. الشيكات المتأخرة من Payment (للتوافق مع القديم)
         overdue_payment_checks = Payment.query.filter(
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
@@ -1322,7 +1280,6 @@ def get_alerts():
         ).all()
         
         for check in overdue_payment_checks:
-            # تجنب التكرار - إذا موجود في Check table
             if Check.query.filter_by(reference_number=f'PMT-{check.id}').first():
                 continue
             
@@ -1338,7 +1295,6 @@ def get_alerts():
             
             days_overdue = (today - check.check_due_date.date()).days
             
-            # ✅ المنطق الصحيح: دفعة OUT → صادر لـ، دفعة IN → وارد من
             is_incoming = check.direction == PaymentDirection.IN.value
             if is_incoming:
                 direction_text = f'وارد من {entity_name}'
@@ -1359,7 +1315,6 @@ def get_alerts():
                 'link': f'/checks?id={check.id}'
             })
         
-        # 2. الشيكات المستحقة هذا الأسبوع
         due_soon_checks = Payment.query.filter(
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
@@ -1381,7 +1336,6 @@ def get_alerts():
             
             days_until = (check.check_due_date.date() - today).days
             
-            # ✅ المنطق الصحيح: دفعة OUT → صادر لـ، دفعة IN → وارد من
             is_incoming = check.direction == PaymentDirection.IN.value
             if is_incoming:
                 direction_text = f'وارد من {entity_name}'
@@ -1402,7 +1356,6 @@ def get_alerts():
                 'link': f'/checks?id={check.id}'
             })
         
-        # ترتيب: المتأخر أولاً، ثم حسب تاريخ الاستحقاق
         alerts.sort(key=lambda x: (x['type'] != 'overdue', x.get('days', x.get('days_overdue', 0))))
         
         return jsonify({
@@ -1420,9 +1373,6 @@ def get_alerts():
 
 
 
-# ==========================================
-# الشيكات المستقلة (Independent Checks)
-# ==========================================
 
 @checks_bp.route("/new", methods=["GET", "POST"])
 @login_required
@@ -1499,9 +1449,7 @@ def add_check():
             flash(f"حدث خطأ أثناء إضافة الشيك: {str(e)}", "danger")
             return redirect(url_for("checks.add_check"))
     
-    # جلب العملاء النشطين فقط (is_active=True, is_archived=False)
     customers = Customer.query.filter_by(is_active=True, is_archived=False).order_by(Customer.name).all()
-    # جلب الموردين والشركاء (لا يوجد حقل deleted)
     suppliers = Supplier.query.order_by(Supplier.name).all()
     partners = Partner.query.order_by(Partner.name).all()
     
@@ -1560,9 +1508,7 @@ def edit_check(check_id):
             current_app.logger.error(f"Error updating check: {str(e)}")
             flash(f"حدث خطأ أثناء تعديل الشيك: {str(e)}", "danger")
     
-    # جلب العملاء النشطين فقط (is_active=True, is_archived=False)
     customers = Customer.query.filter_by(is_active=True, is_archived=False).order_by(Customer.name).all()
-    # جلب الموردين والشركاء (لا يوجد حقل deleted)
     suppliers = Supplier.query.order_by(Supplier.name).all()
     partners = Partner.query.order_by(Partner.name).all()
     
@@ -1616,23 +1562,19 @@ def reports():
     """صفحة التقارير - من جميع المصادر"""
     today = datetime.utcnow().date()
     
-    # جلب جميع الشيكات من API (جميع المصادر)
     all_checks_response = get_checks()
     all_checks_data = all_checks_response.get_json()
     all_checks = all_checks_data.get('checks', []) if all_checks_data.get('success') else []
     
     current_app.logger.info(f"📊 التقارير - عدد الشيكات: {len(all_checks)}")
     
-    # الشيكات اليدوية فقط
     independent_checks = Check.query.all()
     
-    # إحصائيات حسب الحالة (من جميع المصادر) - بما فيها الحالات من الملاحظات
     stats_by_status = {}
     for check in all_checks:
         status = check.get('status', 'UNKNOWN')
         original_status = status  # للـ logging
         
-        # فحص الملاحظات لاكتشاف الحالة الفعلية
         notes = (check.get('notes', '') or '').lower()
         if 'حالة الشيك: مسحوب' in notes or 'حالة الشيك: تم الصرف' in notes:
             status = 'CASHED'
@@ -1655,10 +1597,8 @@ def reports():
     current_app.logger.info(f"📊 إحصائيات الحالات: {stats_by_status}")
     current_app.logger.info(f"📊 عدد الحالات المختلفة: {len(stats_by_status)}")
     
-    # تحويل إلى list
     stats_by_status = list(stats_by_status.values())
     
-    # إحصائيات حسب الاتجاه (من جميع المصادر)
     stats_by_direction = {'IN': {'direction': 'IN', 'count': 0, 'total_amount': 0},
                           'OUT': {'direction': 'OUT', 'count': 0, 'total_amount': 0}}
     
@@ -1667,10 +1607,8 @@ def reports():
         stats_by_direction[direction]['count'] += 1
         stats_by_direction[direction]['total_amount'] += float(check.get('amount', 0))
     
-    # تحويل إلى list
     stats_by_direction = list(stats_by_direction.values())
     
-    # الشيكات المتأخرة (من جميع المصادر)
     overdue_checks = []
     due_soon_checks = []
     
@@ -1678,7 +1616,6 @@ def reports():
         notes = (c.get('notes', '') or '').lower()
         actual_status = c.get('status', '').upper()
         
-        # فحص الحالة الفعلية
         if 'حالة الشيك: مسحوب' in notes:
             continue  # مسحوب - تخطي
         elif 'حالة الشيك: ملغي' in notes or 'حالة الشيك: مؤرشف' in notes:
@@ -1686,7 +1623,6 @@ def reports():
         elif 'حالة الشيك: مرتجع' in notes:
             continue  # مرتجع - تخطي
         
-        # الآن نفحص إذا كان متأخر أو قريب
         if actual_status == 'OVERDUE':
             overdue_checks.append(c)
         elif actual_status == 'DUE_SOON':

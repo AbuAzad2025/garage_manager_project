@@ -14,17 +14,17 @@
   
   <!-- رأس الصفحة (مخفي عند الطباعة) -->
   <div class="d-flex justify-content-between align-items-center mb-3 no-print">
-    <h3 class="mb-0">
-      <i class="fas fa-file-invoice me-2"></i>
-      كشف حساب الموظف: {{ employee.name }}
-    </h3>
-    <div class="d-flex gap-2">
-      <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-right me-1"></i> رجوع
-      </a>
-      <button class="btn btn-primary btn-print" onclick="window.print()">
-        <i class="fas fa-print me-1"></i> طباعة
-      </button>
+      <h3 class="mb-0">
+        <i class="fas fa-file-invoice mr-2"></i>
+        كشف حساب الموظف: {{ employee.name }}
+      </h3>
+      <div class="d-flex">
+        <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-secondary mr-2">
+          <i class="fas fa-arrow-right mr-1"></i> رجوع
+        </a>
+        <button class="btn btn-primary btn-print" onclick="window.print()">
+          <i class="fas fa-print mr-1"></i> طباعة
+        </button>
     </div>
   </div>
 
@@ -40,10 +40,10 @@
   <!-- معلومات الموظف -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-primary text-white">
-      <i class="fas fa-user me-1"></i> معلومات الموظف
+      <i class="fas fa-user mr-1"></i> معلومات الموظف
     </div>
     <div class="card-body">
-      <div class="row g-3">
+      <div class="row">
         <div class="col-md-3">
           <strong>الاسم:</strong> {{ employee.name }}
         </div>
@@ -61,12 +61,12 @@
   </div>
 
   <!-- ملخص مالي -->
-  <div class="row g-3 mb-4">
+  <div class="row mb-4">
     <div class="col-md-3">
       <div class="card text-center shadow-sm">
         <div class="card-body">
           <h6 class="text-muted">الراتب الأساسي</h6>
-          <h4 class="text-primary">{{ "%.2f"|format(employee.salary or 0) }} ₪</h4>
+          <h4 class="text-dark">{{ "%.2f"|format(employee.salary or 0) }} ₪</h4>
         </div>
       </div>
     </div>
@@ -99,7 +99,7 @@
   <!-- السلف -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-warning text-white">
-      <i class="fas fa-hand-holding-usd me-1"></i> السلف المسحوبة
+      <i class="fas fa-hand-holding-usd mr-1"></i> السلف المسحوبة
     </div>
     <div class="card-body">
       {% if advances %}
@@ -145,7 +145,7 @@
   <!-- الخصومات الشهرية -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-danger text-white">
-      <i class="fas fa-minus-circle me-1"></i> الخصومات الشهرية
+      <i class="fas fa-minus-circle mr-1"></i> الخصومات الشهرية
     </div>
     <div class="card-body">
       {% if deductions %}
@@ -187,8 +187,11 @@
 
   <!-- الرواتب المدفوعة -->
   <div class="card shadow-sm mb-4">
-    <div class="card-header bg-success text-white">
-      <i class="fas fa-money-bill-wave me-1"></i> الرواتب المدفوعة
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+      <span><i class="fas fa-money-bill-wave mr-1"></i> الرواتب المدفوعة</span>
+      <button type="button" class="btn btn-light btn-sm no-print" data-toggle="modal" data-target="#generateSalaryModal">
+        <i class="fas fa-plus-circle mr-1"></i> توليد راتب شهري
+      </button>
     </div>
     <div class="card-body">
       {% if salaries %}
@@ -258,5 +261,351 @@
     <br>
     <small>نظام أزاد لإدارة الكراج - v5.0.0 Enterprise</small>
   </div>
+
+  <div class="modal fade" id="generateSalaryModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title"><i class="fas fa-calculator mr-2"></i>توليد راتب شهري - {{ employee.name }}</h5>
+          <button type="button" class="close text-white" data-dismiss="modal">
+            <span>&times;</span>
+          </button>
+        </div>
+        <form method="post" action="{{ url_for('expenses_bp.generate_salary', emp_id=employee.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="modal-body" style="background: #f8f9fa;">
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-body">
+                <h6 class="text-muted mb-3"><i class="fas fa-calendar text-primary"></i> الفترة</h6>
+                <div class="row">
+                  <div class="col-6">
+                    <label class="font-weight-bold">الشهر</label>
+                    <select name="month" class="form-control form-control-lg" required>
+                      {% for m in range(1, 13) %}
+                      <option value="{{ m }}" {% if m == "now"|format_datetime("%m")|int %}selected{% endif %}>
+                        {% set month_names = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'] %}
+                        {{ month_names[m-1] }}
+                      </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <label class="font-weight-bold">السنة</label>
+                    <select name="year" id="year_select" class="form-control form-control-lg" required>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-body">
+                <h6 class="text-muted mb-3"><i class="fas fa-money-bill-wave text-success"></i> المبالغ</h6>
+                <div class="row">
+                  <div class="col-6 mb-3">
+                    <label class="font-weight-bold">الراتب الأساسي</label>
+                    <input type="number" step="0.01" name="base_salary" id="base_salary" class="form-control form-control-lg" value="{{ employee.salary }}" required>
+                  </div>
+                  <div class="col-6 mb-3">
+                    <label class="font-weight-bold">الخصومات الشهرية</label>
+                    <input type="number" step="0.01" name="monthly_deductions" class="form-control form-control-lg bg-light" value="{{ employee.total_deductions }}" readonly>
+                  </div>
+                  <div class="col-6 mb-3">
+                    <label class="font-weight-bold">التأمينات</label>
+                    <input type="number" step="0.01" name="social_insurance_emp" class="form-control form-control-lg bg-light" value="{{ employee.social_insurance_employee_amount|round(2) }}" readonly>
+                  </div>
+                  <div class="col-6 mb-3">
+                    <label class="font-weight-bold">ضريبة الدخل</label>
+                    <input type="number" step="0.01" name="income_tax" class="form-control form-control-lg bg-light" value="{{ employee.income_tax_amount|round(2) }}" readonly>
+                  </div>
+                </div>
+                <div id="advances_container"></div>
+                <div class="alert alert-success mb-3">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="font-weight-bold">الراتب الصافي:</span>
+                    <span class="h3 mb-0" id="total_net_salary">{{ employee.net_salary_after_all|round(2) }} ₪</span>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="col-6">
+                    <label class="font-weight-bold">المبلغ المدفوع فعلياً</label>
+                    <input type="number" step="0.01" name="actual_payment" id="actual_payment" class="form-control form-control-lg" value="{{ employee.net_salary_after_all|round(2) }}" required>
+                    <small class="text-muted">يمكنك تعديل المبلغ للدفع الجزئي</small>
+                  </div>
+                  <div class="col-6">
+                    <label class="font-weight-bold">النسبة المدفوعة</label>
+                    <div class="input-group">
+                      <input type="text" id="payment_percentage" class="form-control form-control-lg bg-light text-center" readonly value="100">
+                      <div class="input-group-append">
+                        <span class="input-group-text">%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="alert alert-warning mt-3 mb-0" id="remaining_alert" style="display:none;">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <span class="font-weight-bold">المبلغ المتبقي (دين على الشركة):</span>
+                    <span class="h4 mb-0 text-danger" id="remaining_amount">0.00 ₪</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+              <div class="card-body">
+                <h6 class="text-muted mb-3"><i class="fas fa-file-invoice text-info"></i> تفاصيل الدفع</h6>
+                <div class="row">
+                  <div class="col-6 mb-3">
+                    <label class="font-weight-bold">طريقة الدفع</label>
+                    <select name="payment_method" id="payment_method" class="form-control form-control-lg" required>
+                      <option value="CASH">نقداً</option>
+                      <option value="BANK_TRANSFER" selected>تحويل بنكي</option>
+                      <option value="CHECK">شيك</option>
+                      <option value="OTHER">أخرى</option>
+                    </select>
+                  </div>
+                  <div class="col-6 mb-3">
+                    <label class="font-weight-bold">تاريخ الدفع</label>
+                    <input type="date" name="payment_date" class="form-control form-control-lg" value="{{ 'now'|format_datetime('%Y-%m-%d') }}" required>
+                  </div>
+                </div>
+                
+                <div id="payment_details_container"></div>
+                
+                <div class="row">
+                  <div class="col-12">
+                    <label class="font-weight-bold">ملاحظات</label>
+                    <textarea name="notes" class="form-control" rows="3" placeholder="أضف ملاحظات إضافية..."></textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer bg-light">
+            <button type="button" class="btn btn-secondary btn-lg" data-dismiss="modal" id="cancel_btn">
+              <i class="fas fa-times mr-1"></i> إلغاء
+            </button>
+            <button type="submit" class="btn btn-success btn-lg" id="save_salary_btn">
+              <i class="fas fa-check-circle mr-1"></i> توليد وحفظ
+            </button>
+            <button type="button" class="btn btn-success btn-lg d-none" id="loading_btn" disabled>
+              <span class="spinner-border spinner-border-sm mr-2"></span> جاري الحفظ...
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<style>
+  .modal-backdrop { pointer-events: none !important; }
+  #generateSalaryModal .modal-content { border-radius: 15px; overflow: hidden; }
+  #generateSalaryModal .modal-header { border: none; }
+  #generateSalaryModal .modal-footer { border: none; }
+  #generateSalaryModal .card { transition: transform 0.2s; }
+  #generateSalaryModal .form-control:focus { border-color: #28a745; box-shadow: 0 0 0 0.2rem rgba(40,167,69,.25); }
+  .payment-detail-field { animation: fadeIn 0.3s; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+<script>
+$(document).ready(function() {
+  const netSalary = {{ employee.net_salary_after_all|round(2) }};
+  
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  $('#year_select').html(`
+    <option value="${currentYear - 1}">${currentYear - 1}</option>
+    <option value="${currentYear}" selected>${currentYear}</option>
+    <option value="${currentYear + 1}">${currentYear + 1}</option>
+  `);
+  
+  function loadAdvanceInstallments() {
+    const month = $('select[name="month"]').val();
+    const year = $('#year_select').val();
+    
+    if (!month || !year) return;
+    
+    $.ajax({
+      url: `/expenses/employees/{{ employee.id }}/installments-due`,
+      data: { month: month, year: year },
+      success: function(data) {
+        const container = $('#advances_container');
+        if (data.installments && data.installments.length > 0) {
+          let html = '<div class="alert alert-info mt-3 mb-0"><h6 class="mb-2"><i class="fas fa-hand-holding-usd"></i> أقساط السلف المستحقة:</h6><table class="table table-sm mb-0">';
+          html += '<thead><tr><th>القسط</th><th>المبلغ</th><th>تاريخ الاستحقاق</th></tr></thead><tbody>';
+          
+          data.installments.forEach(inst => {
+            html += `<tr><td>${inst.installment_number}/${inst.total_installments}</td><td>${inst.amount} ₪</td><td>${inst.due_date}</td></tr>`;
+          });
+          
+          html += `</tbody></table><div class="mt-2"><strong>إجمالي الأقساط:</strong> <span class="text-danger">${data.total} ₪</span></div></div>`;
+          container.html(html);
+          
+          recalculateNetSalary(data.total);
+        } else {
+          container.empty();
+          recalculateNetSalary(0);
+        }
+      }
+    });
+  }
+  
+  function recalculateNetSalary(installmentsTotal) {
+    const baseSalary = parseFloat($('#base_salary').val()) || 0;
+    const deductions = {{ employee.total_deductions }};
+    const insurance = {{ employee.social_insurance_employee_amount|round(2) }};
+    const tax = {{ employee.income_tax_amount|round(2) }};
+    
+    const netBeforeAdvances = baseSalary - deductions - insurance - tax;
+    const finalNet = netBeforeAdvances - installmentsTotal;
+    
+    $('#total_net_salary').text(finalNet.toFixed(2) + ' ₪');
+    $('#actual_payment').val(finalNet.toFixed(2));
+    $('#actual_payment').trigger('input');
+  }
+  
+  $('select[name="month"], #year_select').on('change', loadAdvanceInstallments);
+  $('#base_salary').on('input', function() {
+    loadAdvanceInstallments();
+  });
+  
+  loadAdvanceInstallments();
+  
+  $('#actual_payment').on('input', function() {
+    const actualPayment = parseFloat($(this).val()) || 0;
+    const percentage = netSalary > 0 ? ((actualPayment / netSalary) * 100).toFixed(1) : 0;
+    const remaining = netSalary - actualPayment;
+    
+    $('#payment_percentage').val(percentage);
+    $('#remaining_amount').text(remaining.toFixed(2) + ' ₪');
+    
+    if (remaining > 0.01) {
+      $('#remaining_alert').slideDown();
+    } else {
+      $('#remaining_alert').slideUp();
+    }
+    
+    if (actualPayment > netSalary) {
+      $(this).addClass('is-invalid');
+      $(this).after('<div class="invalid-feedback d-block">المبلغ المدفوع أكبر من الراتب الصافي!</div>');
+    } else {
+      $(this).removeClass('is-invalid');
+      $(this).next('.invalid-feedback').remove();
+    }
+  });
+  
+  function updatePaymentFields() {
+    const method = $('#payment_method').val();
+    const container = $('#payment_details_container');
+    container.empty();
+    
+    let html = '<div class="row mt-2">';
+    
+    if (method === 'CHECK') {
+      html += `
+        <div class="col-6 mb-3 payment-detail-field">
+          <label class="font-weight-bold"><i class="fas fa-hashtag text-primary"></i> رقم الشيك</label>
+          <input type="text" name="check_number" class="form-control form-control-lg" placeholder="رقم الشيك" required>
+        </div>
+        <div class="col-6 mb-3 payment-detail-field">
+          <label class="font-weight-bold"><i class="fas fa-university text-primary"></i> البنك</label>
+          <input type="text" name="check_bank" class="form-control form-control-lg" placeholder="اسم البنك" required>
+        </div>
+        <div class="col-6 mb-3 payment-detail-field">
+          <label class="font-weight-bold"><i class="fas fa-calendar-day text-primary"></i> تاريخ الاستحقاق</label>
+          <input type="date" name="check_due_date" class="form-control form-control-lg" value="{{ 'now'|format_datetime('%Y-%m-%d') }}" required>
+        </div>
+        <div class="col-6 mb-3 payment-detail-field">
+          <label class="font-weight-bold"><i class="fas fa-user text-primary"></i> المستفيد</label>
+          <input type="text" name="check_payee" class="form-control form-control-lg" value="{{ employee.name }}" required>
+        </div>
+      `;
+    } else if (method === 'BANK_TRANSFER') {
+      html += `
+        <div class="col-6 mb-3 payment-detail-field">
+          <label class="font-weight-bold"><i class="fas fa-university text-success"></i> البنك</label>
+          <input type="text" name="bank_name" class="form-control form-control-lg" placeholder="اسم البنك">
+        </div>
+        <div class="col-6 mb-3 payment-detail-field">
+          <label class="font-weight-bold"><i class="fas fa-hashtag text-success"></i> رقم المعاملة</label>
+          <input type="text" name="transfer_reference" class="form-control form-control-lg" placeholder="رقم التحويل">
+        </div>
+        <div class="col-6 mb-3 payment-detail-field">
+          <label class="font-weight-bold"><i class="fas fa-credit-card text-success"></i> رقم الحساب</label>
+          <input type="text" name="account_number" class="form-control form-control-lg" placeholder="رقم حساب الموظف">
+        </div>
+        <div class="col-6 mb-3 payment-detail-field">
+          <label class="font-weight-bold"><i class="fas fa-user text-success"></i> صاحب الحساب</label>
+          <input type="text" name="account_holder" class="form-control form-control-lg" value="{{ employee.name }}">
+        </div>
+      `;
+    } else if (method === 'CASH') {
+      html += `
+        <div class="col-12 mb-3 payment-detail-field">
+          <div class="alert alert-warning mb-0">
+            <i class="fas fa-exclamation-triangle"></i> <strong>دفع نقدي</strong> - تأكد من الحصول على إيصال استلام موقع من الموظف
+          </div>
+        </div>
+      `;
+    } else if (method === 'OTHER') {
+      html += `
+        <div class="col-12 mb-3 payment-detail-field">
+          <label class="font-weight-bold"><i class="fas fa-info-circle text-info"></i> تفاصيل الدفع</label>
+          <textarea name="payment_details" class="form-control" rows="2" placeholder="أضف تفاصيل طريقة الدفع..."></textarea>
+        </div>
+      `;
+    }
+    
+    html += '</div>';
+    container.html(html);
+  }
+  
+  $('#payment_method').on('change', updatePaymentFields);
+  updatePaymentFields();
+  
+  $('#generateSalaryModal form').on('submit', function(e) {
+    const actualPayment = parseFloat($('#actual_payment').val()) || 0;
+    if (actualPayment > netSalary) {
+      e.preventDefault();
+      alert('المبلغ المدفوع لا يمكن أن يكون أكبر من الراتب الصافي!');
+      return false;
+    }
+    
+    const method = $('#payment_method').val();
+    if (method === 'CHECK') {
+      const checkNumber = $('input[name="check_number"]').val();
+      const checkBank = $('input[name="check_bank"]').val();
+      if (!checkNumber || !checkBank) {
+        e.preventDefault();
+        alert('يرجى إدخال رقم الشيك والبنك!');
+        return false;
+      }
+    }
+    
+    $('#save_salary_btn').addClass('d-none');
+    $('#loading_btn').removeClass('d-none');
+    $('#cancel_btn').prop('disabled', true);
+    
+    $('input, select, textarea, button').not('#loading_btn').prop('disabled', true);
+  });
+  
+  const urlParams = new URLSearchParams(window.location.search);
+  const receiptId = urlParams.get('receipt_id');
+  
+  if (receiptId) {
+    setTimeout(function() {
+      const receiptUrl = '/expenses/salary-receipt/' + receiptId;
+      window.open(receiptUrl, '_blank');
+      
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }, 800);
+  }
+});
+</script>
 {% endblock %}
 

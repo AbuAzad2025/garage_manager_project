@@ -11,10 +11,17 @@
     <i class="fas fa-info-circle"></i>
     <strong>إعدادات موحدة:</strong> جميع إعدادات النظام في مكان واحد (عامة + متقدمة + ثوابت)
     <div class="mt-2">
-      <span class="badge bg-success">40+ وحدة</span>
-      <span class="badge bg-info">133 API</span>
-      <span class="badge bg-warning text-dark">89 فهرس</span>
-      <span class="badge bg-danger">150+ علاقة</span>
+      {% if stats %}
+      <span class="badge bg-success">{{ stats.total_modules }} وحدة</span>
+      <span class="badge bg-info">{{ stats.total_apis }} API</span>
+      <span class="badge bg-warning text-dark">{{ stats.total_indexes }} فهرس</span>
+      <span class="badge bg-danger">{{ stats.total_relations }}+ علاقة</span>
+      {% else %}
+      <span class="badge bg-success">🔄 وحدة</span>
+      <span class="badge bg-info">🔄 API</span>
+      <span class="badge bg-warning text-dark">🔄 فهرس</span>
+      <span class="badge bg-danger">🔄 علاقة</span>
+      {% endif %}
     </div>
   </div>
 
@@ -47,13 +54,23 @@
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link {% if active_tab == 'constants' %}active{% endif %}" 
-                  id="constants-tab" 
+          <button class="nav-link {% if active_tab == 'company' %}active{% endif %}" 
+                  id="company-tab" 
                   data-toggle="tab" 
-                  data-target="#constants" 
+                  data-target="#company" 
                   type="button" 
                   role="tab">
-            <i class="fas fa-building"></i> ثوابت الشركة
+            <i class="fas fa-building"></i> بيانات الشركة
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'business' %}active{% endif %}" 
+                  id="business-tab" 
+                  data-toggle="tab" 
+                  data-target="#business" 
+                  type="button" 
+                  role="tab">
+            <i class="fas fa-briefcase"></i> ثوابت الأعمال
           </button>
         </li>
       </ul>
@@ -239,9 +256,9 @@
           </form>
         </div>
         
-        <!-- التبويب 3: ثوابت الشركة -->
-        <div class="tab-pane fade {% if active_tab == 'constants' %}show active{% endif %}" 
-             id="constants" 
+        <!-- التبويب 3: بيانات الشركة -->
+        <div class="tab-pane fade {% if active_tab == 'company' or active_tab == 'constants' %}show active{% endif %}" 
+             id="company" 
              role="tabpanel">
           
           <div class="alert alert-warning">
@@ -250,48 +267,48 @@
           
           <form method="POST">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="active_tab" value="constants">
+            <input type="hidden" name="active_tab" value="company">
             
             <div class="row">
               <div class="col-md-6">
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-building"></i> <strong>اسم الشركة</strong></label>
-                  <input type="text" name="company_name" class="form-control form-control-lg" value="{{ data.constants.COMPANY_NAME }}" placeholder="Azad Garage">
+                  <input type="text" name="company_name" class="form-control form-control-lg" value="{{ data.company.COMPANY_NAME }}" placeholder="Azad Garage">
                 </div>
               </div>
               
               <div class="col-md-6">
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-envelope"></i> <strong>البريد الإلكتروني</strong></label>
-                  <input type="email" name="company_email" class="form-control form-control-lg" value="{{ data.constants.COMPANY_EMAIL }}" placeholder="info@azad-garage.ps">
+                  <input type="email" name="company_email" class="form-control form-control-lg" value="{{ data.company.COMPANY_EMAIL }}" placeholder="info@azad-garage.ps">
                 </div>
               </div>
               
               <div class="col-md-12">
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-map-marker-alt"></i> <strong>العنوان</strong></label>
-                  <input type="text" name="company_address" class="form-control" value="{{ data.constants.COMPANY_ADDRESS }}" placeholder="رام الله، فلسطين">
+                  <input type="text" name="company_address" class="form-control" value="{{ data.company.COMPANY_ADDRESS }}" placeholder="رام الله، فلسطين">
                 </div>
               </div>
               
               <div class="col-md-4">
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-phone"></i> <strong>رقم الهاتف</strong></label>
-                  <input type="text" name="company_phone" class="form-control" value="{{ data.constants.COMPANY_PHONE }}" placeholder="+970-XXX-XXXX">
+                  <input type="text" name="company_phone" class="form-control" value="{{ data.company.COMPANY_PHONE }}" placeholder="+970-XXX-XXXX">
                 </div>
               </div>
               
               <div class="col-md-4">
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-file-invoice"></i> <strong>الرقم الضريبي</strong></label>
-                  <input type="text" name="tax_number" class="form-control" value="{{ data.constants.TAX_NUMBER }}" placeholder="123456789">
+                  <input type="text" name="tax_number" class="form-control" value="{{ data.company.TAX_NUMBER }}" placeholder="123456789">
                 </div>
               </div>
               
               <div class="col-md-4">
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-dollar-sign"></i> <strong>رمز العملة</strong></label>
-                  <input type="text" name="currency_symbol" class="form-control" value="{{ data.constants.CURRENCY_SYMBOL }}" placeholder="₪">
+                  <input type="text" name="currency_symbol" class="form-control" value="{{ data.company.CURRENCY_SYMBOL }}" placeholder="₪">
                 </div>
               </div>
               
@@ -299,13 +316,13 @@
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-globe"></i> <strong>المنطقة الزمنية</strong></label>
                   <select name="timezone" class="form-select">
-                    <option value="UTC" {% if data.constants.TIMEZONE == 'UTC' %}selected{% endif %}>UTC (عالمي)</option>
-                    <option value="Asia/Jerusalem" {% if data.constants.TIMEZONE == 'Asia/Jerusalem' %}selected{% endif %}>القدس (فلسطين)</option>
-                    <option value="Asia/Damascus" {% if data.constants.TIMEZONE == 'Asia/Damascus' %}selected{% endif %}>دمشق (سوريا)</option>
-                    <option value="Asia/Amman" {% if data.constants.TIMEZONE == 'Asia/Amman' %}selected{% endif %}>عمان (الأردن)</option>
-                    <option value="Asia/Riyadh" {% if data.constants.TIMEZONE == 'Asia/Riyadh' %}selected{% endif %}>الرياض (السعودية)</option>
-                    <option value="Asia/Dubai" {% if data.constants.TIMEZONE == 'Asia/Dubai' %}selected{% endif %}>دبي (الإمارات)</option>
-                    <option value="Africa/Cairo" {% if data.constants.TIMEZONE == 'Africa/Cairo' %}selected{% endif %}>القاهرة (مصر)</option>
+                    <option value="UTC" {% if data.company.TIMEZONE == 'UTC' %}selected{% endif %}>UTC (عالمي)</option>
+                    <option value="Asia/Jerusalem" {% if data.company.TIMEZONE == 'Asia/Jerusalem' %}selected{% endif %}>القدس (فلسطين)</option>
+                    <option value="Asia/Damascus" {% if data.company.TIMEZONE == 'Asia/Damascus' %}selected{% endif %}>دمشق (سوريا)</option>
+                    <option value="Asia/Amman" {% if data.company.TIMEZONE == 'Asia/Amman' %}selected{% endif %}>عمان (الأردن)</option>
+                    <option value="Asia/Riyadh" {% if data.company.TIMEZONE == 'Asia/Riyadh' %}selected{% endif %}>الرياض (السعودية)</option>
+                    <option value="Asia/Dubai" {% if data.company.TIMEZONE == 'Asia/Dubai' %}selected{% endif %}>دبي (الإمارات)</option>
+                    <option value="Africa/Cairo" {% if data.company.TIMEZONE == 'Africa/Cairo' %}selected{% endif %}>القاهرة (مصر)</option>
                   </select>
                 </div>
               </div>
@@ -314,9 +331,9 @@
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-calendar"></i> <strong>صيغة التاريخ</strong></label>
                   <select name="date_format" class="form-select">
-                    <option value="%Y-%m-%d" {% if data.constants.DATE_FORMAT == '%Y-%m-%d' %}selected{% endif %}>YYYY-MM-DD (2025-10-16)</option>
-                    <option value="%d/%m/%Y" {% if data.constants.DATE_FORMAT == '%d/%m/%Y' %}selected{% endif %}>DD/MM/YYYY (16/10/2025)</option>
-                    <option value="%m/%d/%Y" {% if data.constants.DATE_FORMAT == '%m/%d/%Y' %}selected{% endif %}>MM/DD/YYYY (10/16/2025)</option>
+                    <option value="%Y-%m-%d" {% if data.company.DATE_FORMAT == '%Y-%m-%d' %}selected{% endif %}>YYYY-MM-DD (2025-10-16)</option>
+                    <option value="%d/%m/%Y" {% if data.company.DATE_FORMAT == '%d/%m/%Y' %}selected{% endif %}>DD/MM/YYYY (16/10/2025)</option>
+                    <option value="%m/%d/%Y" {% if data.company.DATE_FORMAT == '%m/%d/%Y' %}selected{% endif %}>MM/DD/YYYY (10/16/2025)</option>
                   </select>
                 </div>
               </div>
@@ -325,16 +342,409 @@
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-clock"></i> <strong>صيغة الوقت</strong></label>
                   <select name="time_format" class="form-select">
-                    <option value="%H:%M:%S" {% if data.constants.TIME_FORMAT == '%H:%M:%S' %}selected{% endif %}>24 ساعة (23:45:30)</option>
-                    <option value="%I:%M:%S %p" {% if data.constants.TIME_FORMAT == '%I:%M:%S %p' %}selected{% endif %}>12 ساعة (11:45:30 PM)</option>
+                    <option value="%H:%M:%S" {% if data.company.TIME_FORMAT == '%H:%M:%S' %}selected{% endif %}>24 ساعة (23:45:30)</option>
+                    <option value="%I:%M:%S %p" {% if data.company.TIME_FORMAT == '%I:%M:%S %p' %}selected{% endif %}>12 ساعة (11:45:30 PM)</option>
                   </select>
                 </div>
               </div>
             </div>
             
             <div class="d-grid gap-2">
-              <button type="submit" class="btn btn-secondary btn-lg">
-                <i class="fas fa-save"></i> حفظ ثوابت الشركة
+              <button type="submit" class="btn btn-warning btn-lg">
+                <i class="fas fa-save"></i> حفظ بيانات الشركة
+              </button>
+            </div>
+          </form>
+        </div>
+        
+        <!-- التبويب 4: ثوابت الأعمال -->
+        <div class="tab-pane fade {% if active_tab == 'business' %}show active{% endif %}" 
+             id="business" 
+             role="tabpanel">
+          
+          <div class="alert alert-primary border-0 shadow-sm">
+            <i class="fas fa-briefcase"></i> <strong>ثوابت الأعمال:</strong> قواعد العمل والحسابات التلقائية
+            <br><small class="text-muted">هذه الثوابت تُستخدم في الوحدات المالية والمحاسبية</small>
+          </div>
+          
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="active_tab" value="business">
+            
+            <!-- Accordion للثوابت -->
+            <div class="accordion" id="businessConstantsAccordion">
+              
+              <!-- 1. Tax Settings -->
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTax">
+                  <button class="accordion-button" type="button" data-toggle="collapse" data-target="#collapseTax" aria-expanded="true" aria-controls="collapseTax">
+                    💰 ثوابت الضرائب (Tax Settings)
+                  </button>
+                </h2>
+                <div id="collapseTax" class="accordion-collapse collapse show" data-parent="#businessConstantsAccordion">
+                  <div class="accordion-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>نسبة VAT الافتراضية (%)</strong></label>
+                          <input type="number" name="default_vat_rate" class="form-control" 
+                                 value="{{ data.business.default_vat_rate }}" step="0.01" min="0" max="100">
+                          <small class="text-muted">الافتراضي: 16.0% (فلسطين)</small>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <div class="form-check form-switch mt-4">
+                            <input class="form-check-input" type="checkbox" name="vat_enabled" id="vat_enabled" 
+                                   {% if data.business.vat_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="vat_enabled">
+                              <strong>تفعيل ضريبة القيمة المضافة (VAT)</strong>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>ضريبة دخل الشركات (%)</strong></label>
+                          <input type="number" name="income_tax_rate" class="form-control" 
+                                 value="{{ data.business.income_tax_rate }}" step="0.01" min="0" max="100">
+                          <small class="text-muted">الافتراضي: 15.0%</small>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>الخصم من المنبع (%)</strong></label>
+                          <input type="number" name="withholding_tax_rate" class="form-control" 
+                                 value="{{ data.business.withholding_tax_rate }}" step="0.01" min="0" max="100">
+                          <small class="text-muted">الافتراضي: 5.0%</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 2. Payroll Settings -->
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingPayroll">
+                  <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#collapsePayroll" aria-expanded="false" aria-controls="collapsePayroll">
+                    👥 ثوابت الرواتب (Payroll Settings)
+                  </button>
+                </h2>
+                <div id="collapsePayroll" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
+                  <div class="accordion-body">
+                    <div class="row">
+                      <div class="col-md-12">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="social_insurance_enabled" id="social_insurance_enabled" 
+                                   {% if data.business.social_insurance_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="social_insurance_enabled">
+                              <strong>تفعيل التأمينات الاجتماعية</strong>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>نسبة التأمين - الشركة (%)</strong></label>
+                          <input type="number" name="social_insurance_company" class="form-control" 
+                                 value="{{ data.business.social_insurance_company }}" step="0.1" min="0" max="100">
+                          <small class="text-muted">الافتراضي: 7.5%</small>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>نسبة التأمين - الموظف (%)</strong></label>
+                          <input type="number" name="social_insurance_employee" class="form-control" 
+                                 value="{{ data.business.social_insurance_employee }}" step="0.1" min="0" max="100">
+                          <small class="text-muted">الافتراضي: 7.0%</small>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>معدل العمل الإضافي (×)</strong></label>
+                          <input type="number" name="overtime_rate_normal" class="form-control" 
+                                 value="{{ data.business.overtime_rate_normal }}" step="0.1" min="1" max="5">
+                          <small class="text-muted">الافتراضي: 1.5× (وقت عادي)</small>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>ساعات العمل اليومية</strong></label>
+                          <input type="number" name="working_hours_per_day" class="form-control" 
+                                 value="{{ data.business.working_hours_per_day }}" min="1" max="24">
+                          <small class="text-muted">الافتراضي: 8 ساعات</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 3. Fixed Assets Settings -->
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingAssets">
+                  <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#collapseAssets" aria-expanded="false" aria-controls="collapseAssets">
+                    🏢 ثوابت الأصول الثابتة (Fixed Assets)
+                  </button>
+                </h2>
+                <div id="collapseAssets" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
+                  <div class="accordion-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="asset_auto_depreciation" id="asset_auto_depreciation" 
+                                   {% if data.business.asset_auto_depreciation %}checked{% endif %}>
+                            <label class="form-check-label" for="asset_auto_depreciation">
+                              <strong>استهلاك تلقائي شهري</strong><br>
+                              <small class="text-muted">حساب الاستهلاك تلقائياً كل شهر</small>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>حد مبلغ الأصول</strong></label>
+                          <input type="number" name="asset_threshold_amount" class="form-control" 
+                                 value="{{ data.business.asset_threshold_amount }}" step="10" min="0">
+                          <small class="text-muted">أقل من هذا المبلغ = مصروف مباشر (افتراضي: 500)</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 4. Accounting Settings -->
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingAccounting">
+                  <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#collapseAccounting" aria-expanded="false" aria-controls="collapseAccounting">
+                    📊 ثوابت المحاسبة (Accounting Settings)
+                  </button>
+                </h2>
+                <div id="collapseAccounting" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
+                  <div class="accordion-body">
+                    <div class="row">
+                      <div class="col-md-4">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="cost_centers_enabled" id="cost_centers_enabled" 
+                                   {% if data.business.cost_centers_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="cost_centers_enabled">
+                              <strong>تفعيل مراكز التكلفة</strong>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-4">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="budgeting_enabled" id="budgeting_enabled" 
+                                   {% if data.business.budgeting_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="budgeting_enabled">
+                              <strong>تفعيل الموازنات التقديرية</strong>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-4">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>بداية السنة المالية (شهر)</strong></label>
+                          <select name="fiscal_year_start_month" class="form-select">
+                            {% for m in range(1, 13) %}
+                            <option value="{{ m }}" {% if data.business.fiscal_year_start_month == m %}selected{% endif %}>
+                              {{ m }} - {% if m == 1 %}يناير{% elif m == 2 %}فبراير{% elif m == 3 %}مارس{% elif m == 4 %}أبريل{% elif m == 5 %}مايو{% elif m == 6 %}يونيو{% elif m == 7 %}يوليو{% elif m == 8 %}أغسطس{% elif m == 9 %}سبتمبر{% elif m == 10 %}أكتوبر{% elif m == 11 %}نوفمبر{% else %}ديسمبر{% endif %}
+                            </option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 5. Notification Settings -->
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingNotifications">
+                  <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#collapseNotifications" aria-expanded="false" aria-controls="collapseNotifications">
+                    📧 ثوابت الإشعارات (Notification Settings)
+                  </button>
+                </h2>
+                <div id="collapseNotifications" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
+                  <div class="accordion-body">
+                    <div class="alert alert-info">
+                      <i class="fas fa-info-circle"></i> <small>إعدادات SMTP موجودة في config.py - هذه فقط للتفعيل والقواعد</small>
+                    </div>
+                    
+                    <div class="row">
+                      <div class="col-md-4">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="notify_on_service_complete" id="notify_service" 
+                                   {% if data.business.notify_on_service_complete %}checked{% endif %}>
+                            <label class="form-check-label" for="notify_service">
+                              <strong>إشعار اكتمال الصيانة</strong><br>
+                              <small class="text-muted">إرسال Email/SMS تلقائي</small>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-4">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="notify_on_payment_due" id="notify_payment" 
+                                   {% if data.business.notify_on_payment_due %}checked{% endif %}>
+                            <label class="form-check-label" for="notify_payment">
+                              <strong>إشعار استحقاق الدفعات</strong><br>
+                              <small class="text-muted">تذكير تلقائي</small>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-4">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="notify_on_low_stock" id="notify_stock" 
+                                   {% if data.business.notify_on_low_stock %}checked{% endif %}>
+                            <label class="form-check-label" for="notify_stock">
+                              <strong>تنبيه انخفاض المخزون</strong><br>
+                              <small class="text-muted">تنبيه تلقائي عند انخفاض المخزون</small>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>التذكير قبل استحقاق الدفعة (أيام)</strong></label>
+                          <input type="number" name="payment_reminder_days" class="form-control" 
+                                 value="{{ data.business.payment_reminder_days }}" min="0" max="30">
+                          <small class="text-muted">الافتراضي: 3 أيام</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 6. Business Rules -->
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingRules">
+                  <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#collapseRules" aria-expanded="false" aria-controls="collapseRules">
+                    ⚙️ قواعد العمل (Business Rules)
+                  </button>
+                </h2>
+                <div id="collapseRules" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
+                  <div class="accordion-body">
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="allow_negative_stock" id="allow_negative" 
+                                   {% if data.business.allow_negative_stock %}checked{% endif %}>
+                            <label class="form-check-label" for="allow_negative">
+                              <strong>السماح بالمخزون السالب</strong><br>
+                              <small class="text-danger">⚠️ غير موصى به!</small>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="credit_limit_check" id="credit_check" 
+                                   {% if data.business.credit_limit_check %}checked{% endif %}>
+                            <label class="form-check-label" for="credit_check">
+                              <strong>فحص حد الائتمان</strong><br>
+                              <small class="text-muted">منع البيع عند تجاوز حد الائتمان</small>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>طلب موافقة للمبيعات أعلى من</strong></label>
+                          <input type="number" name="require_approval_for_sales_above" class="form-control" 
+                                 value="{{ data.business.require_approval_for_sales_above }}" step="100" min="0">
+                          <small class="text-muted">الافتراضي: 10,000</small>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>الحد الأقصى للخصم (%)</strong></label>
+                          <input type="number" name="discount_max_percent" class="form-control" 
+                                 value="{{ data.business.discount_max_percent }}" min="0" max="100">
+                          <small class="text-muted">الافتراضي: 50%</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 7. Multi-Tenancy Settings -->
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="headingTenancy">
+                  <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#collapseTenancy" aria-expanded="false" aria-controls="collapseTenancy">
+                    🏢 ثوابت SaaS (Multi-Tenancy Settings)
+                  </button>
+                </h2>
+                <div id="collapseTenancy" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
+                  <div class="accordion-body">
+                    <div class="alert alert-warning">
+                      <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> تفعيل Multi-Tenancy يحتاج migration للقاعدة!
+                    </div>
+                    
+                    <div class="row">
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="multi_tenancy_enabled" id="multi_tenancy" 
+                                   {% if data.business.multi_tenancy_enabled %}checked{% endif %}>
+                            <label class="form-check-label" for="multi_tenancy">
+                              <strong>تفعيل تعدد المستأجرين (SaaS Mode)</strong><br>
+                              <small class="text-muted">كل ورشة بيانات منفصلة</small>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div class="col-md-6">
+                        <div class="mb-3">
+                          <label class="form-label"><strong>مدة الفترة التجريبية (أيام)</strong></label>
+                          <input type="number" name="trial_period_days" class="form-control" 
+                                 value="{{ data.business.trial_period_days }}" min="0" max="365">
+                          <small class="text-muted">الافتراضي: 30 يوم</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+            
+            <div class="d-grid gap-2 mt-4">
+              <button type="submit" class="btn btn-success btn-lg">
+                <i class="fas fa-save"></i> حفظ ثوابت الأعمال (22 ثابت)
               </button>
             </div>
           </form>
@@ -353,7 +763,7 @@
 // حفظ التبويب النشط في localStorage
 document.querySelectorAll('#settingsTabs button').forEach(tab => {
   tab.addEventListener('shown.bs.tab', function (event) {
-    const tabId = (event.target.getAttribute('data-bs-target') || event.target.getAttribute('data-target') || '').replace('#', '');
+    const tabId = (event.target.getAttribute('data-target') || event.target.getAttribute('data-target') || '').replace('#', '');
     localStorage.setItem('settingsActiveTab', tabId);
   });
 });
@@ -364,7 +774,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (savedTab && !{{ 'true' if active_tab else 'false' }}) {
     const tabTrigger = document.querySelector(`#settingsTabs button[data-target="#${savedTab}"]`);
     if (tabTrigger) {
-      bootstrap.Tab.getInstance(tabTrigger)?.show() || new bootstrap.Tab(tabTrigger).show();
+      $(tabTrigger).tab('show');
     }
   }
 });

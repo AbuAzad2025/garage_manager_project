@@ -40,7 +40,7 @@ def index():
 @financial_reports_bp.route('/income-statement')
 @owner_only
 def income_statement():
-    """قائمة الدخل (P&L Statement)"""
+    """قائمة الدخل (P&L Statement) - يدعم HTML وJSON"""
     try:
         # معاملات التاريخ
         start_date = request.args.get('start_date')
@@ -107,58 +107,82 @@ def income_statement():
         total_taxes = float(taxes_query)
         net_profit = operating_profit - total_taxes
         
-        # تفاصيل الإيرادات
+        # تفاصيل الإيرادات مع أسماء الحسابات
         revenue_details = db.session.query(
             GLEntry.account,
+            Account.name,
             func.sum(GLEntry.credit).label('amount')
-        ).join(GLBatch).filter(
+        ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at >= start_date,
             GLBatch.posted_at <= end_date,
             GLEntry.account.like('4%')
-        ).group_by(GLEntry.account).all()
+        ).group_by(GLEntry.account, Account.name).all()
         
-        # تفاصيل المصروفات
+        # تفاصيل المصروفات مع أسماء الحسابات
         expense_details = db.session.query(
             GLEntry.account,
+            Account.name,
             func.sum(GLEntry.debit).label('amount')
-        ).join(GLBatch).filter(
+        ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at >= start_date,
             GLBatch.posted_at <= end_date,
             GLEntry.account.like('5%')
-        ).group_by(GLEntry.account).all()
+        ).group_by(GLEntry.account, Account.name).all()
         
-        return jsonify({
-            'success': True,
-            'report_type': 'income_statement',
-            'period': {
-                'start_date': start_date.isoformat(),
-                'end_date': end_date.isoformat()
-            },
-            'summary': {
-                'total_revenue': total_revenue,
-                'total_cogs': total_cogs,
-                'gross_profit': gross_profit,
-                'operating_expenses': operating_expenses,
-                'operating_profit': operating_profit,
-                'total_taxes': total_taxes,
-                'net_profit': net_profit
-            },
-            'details': {
-                'revenue': [{'account': r.account, 'amount': float(r.amount)} for r in revenue_details],
-                'expenses': [{'account': e.account, 'amount': float(e.amount)} for e in expense_details]
-            }
-        })
+        data = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'total_revenue': total_revenue,
+            'total_cogs': total_cogs,
+            'gross_profit': gross_profit,
+            'operating_expenses': operating_expenses,
+            'operating_profit': operating_profit,
+            'total_taxes': total_taxes,
+            'net_profit': net_profit,
+            'is_profit': net_profit >= 0,
+            'revenue_details': revenue_details,
+            'expense_details': expense_details
+        }
+        
+        # إذا طلب JSON
+        if request.args.get('format') == 'json' or request.headers.get('Accept') == 'application/json':
+            return jsonify({
+                'success': True,
+                'report_type': 'income_statement',
+                'period': {
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat()
+                },
+                'summary': {
+                    'total_revenue': total_revenue,
+                    'total_cogs': total_cogs,
+                    'gross_profit': gross_profit,
+                    'operating_expenses': operating_expenses,
+                    'operating_profit': operating_profit,
+                    'total_taxes': total_taxes,
+                    'net_profit': net_profit
+                },
+                'details': {
+                    'revenue': [{'account': r.account, 'name': r.name, 'amount': float(r.amount)} for r in revenue_details],
+                    'expenses': [{'account': e.account, 'name': e.name, 'amount': float(e.amount)} for e in expense_details]
+                }
+            })
+        
+        # إرجاع HTML template
+        return render_template('reports/financial/income_statement.html', **data)
         
     except Exception as e:
         current_app.logger.error(f"خطأ في قائمة الدخل: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        if request.args.get('format') == 'json':
+            return jsonify({'success': False, 'error': str(e)}), 500
+        return render_template('errors/500.html', error=str(e)), 500
 
 @financial_reports_bp.route('/balance-sheet')
 @owner_only
 def balance_sheet():
-    """الميزانية العمومية (Balance Sheet)"""
+    """الميزانية العمومية (Balance Sheet) - يدعم HTML وJSON"""
     try:
         # تاريخ الميزانية
         balance_date = request.args.get('date')
@@ -203,51 +227,74 @@ def balance_sheet():
             GLEntry.account.like('3%')  # حقوق الملكية
         ).scalar() or 0
         
-        # تفاصيل الأصول
+        # تفاصيل الأصول مع أسماء
         assets_details = db.session.query(
             GLEntry.account,
+            Account.name,
             func.sum(GLEntry.debit - GLEntry.credit).label('balance')
-        ).join(GLBatch).filter(
+        ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at <= balance_date,
             GLEntry.account.like('1%')
-        ).group_by(GLEntry.account).all()
+        ).group_by(GLEntry.account, Account.name).having(func.sum(GLEntry.debit - GLEntry.credit) != 0).all()
         
-        # تفاصيل الخصوم وحقوق الملكية
+        # تفاصيل الخصوم وحقوق الملكية مع أسماء
         liabilities_equity_details = db.session.query(
             GLEntry.account,
+            Account.name,
             func.sum(GLEntry.credit - GLEntry.debit).label('balance')
-        ).join(GLBatch).filter(
+        ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at <= balance_date,
             or_(GLEntry.account.like('2%'), GLEntry.account.like('3%'))
-        ).group_by(GLEntry.account).all()
+        ).group_by(GLEntry.account, Account.name).having(func.sum(GLEntry.credit - GLEntry.debit) != 0).all()
         
         total_assets = float(current_assets) + float(fixed_assets)
         total_liabilities_equity = float(current_liabilities) + float(equity)
+        is_balanced = abs(total_assets - total_liabilities_equity) < 0.01
         
-        return jsonify({
-            'success': True,
-            'report_type': 'balance_sheet',
-            'balance_date': balance_date.isoformat(),
-            'summary': {
-                'current_assets': float(current_assets),
-                'fixed_assets': float(fixed_assets),
-                'total_assets': total_assets,
-                'current_liabilities': float(current_liabilities),
-                'equity': float(equity),
-                'total_liabilities_equity': total_liabilities_equity,
-                'is_balanced': abs(total_assets - total_liabilities_equity) < 0.01
-            },
-            'details': {
-                'assets': [{'account': a.account, 'balance': float(a.balance)} for a in assets_details],
-                'liabilities_equity': [{'account': l.account, 'balance': float(l.balance)} for l in liabilities_equity_details]
-            }
-        })
+        data = {
+            'balance_date': balance_date,
+            'current_assets': float(current_assets),
+            'fixed_assets': float(fixed_assets),
+            'total_assets': total_assets,
+            'current_liabilities': float(current_liabilities),
+            'equity': float(equity),
+            'total_liabilities_equity': total_liabilities_equity,
+            'is_balanced': is_balanced,
+            'assets_details': assets_details,
+            'liabilities_equity_details': liabilities_equity_details
+        }
+        
+        # إذا طلب JSON
+        if request.args.get('format') == 'json' or request.headers.get('Accept') == 'application/json':
+            return jsonify({
+                'success': True,
+                'report_type': 'balance_sheet',
+                'balance_date': balance_date.isoformat(),
+                'summary': {
+                    'current_assets': float(current_assets),
+                    'fixed_assets': float(fixed_assets),
+                    'total_assets': total_assets,
+                    'current_liabilities': float(current_liabilities),
+                    'equity': float(equity),
+                    'total_liabilities_equity': total_liabilities_equity,
+                    'is_balanced': is_balanced
+                },
+                'details': {
+                    'assets': [{'account': a.account, 'name': a.name, 'balance': float(a.balance)} for a in assets_details],
+                    'liabilities_equity': [{'account': l.account, 'name': l.name, 'balance': float(l.balance)} for l in liabilities_equity_details]
+                }
+            })
+        
+        # إرجاع HTML template
+        return render_template('reports/financial/balance_sheet.html', **data)
         
     except Exception as e:
         current_app.logger.error(f"خطأ في الميزانية العمومية: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        if request.args.get('format') == 'json':
+            return jsonify({'success': False, 'error': str(e)}), 500
+        return render_template('errors/500.html', error=str(e)), 500
 
 @financial_reports_bp.route('/cash-flow')
 @owner_only
@@ -521,4 +568,354 @@ def validation_report():
         
     except Exception as e:
         current_app.logger.error(f"خطأ في تقرير التحقق: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== تبويبات جديدة ==========
+
+@financial_reports_bp.route('/trial-balance')
+@owner_only
+def trial_balance():
+    """📊 ميزان المراجعة (Trial Balance)"""
+    try:
+        as_of_date = request.args.get('date')
+        if not as_of_date:
+            as_of_date = date.today()
+        else:
+            as_of_date = datetime.fromisoformat(as_of_date).date()
+        
+        # جلب جميع الحسابات مع أرصدتها
+        accounts_balance = db.session.query(
+            GLEntry.account,
+            Account.name,
+            Account.type,
+            func.sum(GLEntry.debit).label('total_debit'),
+            func.sum(GLEntry.credit).label('total_credit')
+        ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
+            GLBatch.status == 'POSTED',
+            GLBatch.posted_at <= as_of_date
+        ).group_by(GLEntry.account, Account.name, Account.type).all()
+        
+        trial_balance_data = []
+        total_debits = 0
+        total_credits = 0
+        
+        for acc in accounts_balance:
+            debit = float(acc.total_debit or 0)
+            credit = float(acc.total_credit or 0)
+            net = debit - credit
+            
+            trial_balance_data.append({
+                'account': acc.account,
+                'name': acc.name,
+                'type': acc.type,
+                'debit': debit,
+                'credit': credit,
+                'net': net,
+                'side': 'DR' if net > 0 else 'CR'
+            })
+            
+            total_debits += debit
+            total_credits += credit
+        
+        is_balanced = abs(total_debits - total_credits) < 0.01
+        
+        data = {
+            'as_of_date': as_of_date,
+            'trial_balance_data': trial_balance_data,
+            'total_debits': total_debits,
+            'total_credits': total_credits,
+            'is_balanced': is_balanced
+        }
+        
+        # إذا طلب JSON
+        if request.args.get('format') == 'json' or request.headers.get('Accept') == 'application/json':
+            return jsonify({
+                'success': True,
+                'report_type': 'trial_balance',
+                'as_of_date': as_of_date.isoformat(),
+                'rows': trial_balance_data,
+                'totals': {
+                    'debit': total_debits,
+                    'credit': total_credits,
+                    'is_balanced': is_balanced
+                }
+            })
+        
+        return render_template('reports/financial/trial_balance.html', **data)
+        
+    except Exception as e:
+        current_app.logger.error(f"خطأ في ميزان المراجعة: {str(e)}")
+        if request.args.get('format') == 'json':
+            return jsonify({'success': False, 'error': str(e)}), 500
+        return render_template('errors/500.html', error=str(e)), 500
+
+
+@financial_reports_bp.route('/aging-report')
+@owner_only
+def aging_report():
+    """📊 تقرير الذمم المعمرة (AR/AP Aging Report)"""
+    try:
+        report_type = request.args.get('type', 'ar')  # ar=receivables, ap=payables
+        today = date.today()
+        
+        aging_data = []
+        
+        if report_type == 'ar':
+            # ذمم العملاء
+            customers = Customer.query.all()
+            for customer in customers:
+                balance = float(customer.balance or 0)
+                if balance < -0.01:  # عليه دين
+                    # حساب عمر أقدم معاملة
+                    oldest_sale = Sale.query.filter_by(customer_id=customer.id, status='CONFIRMED').order_by(Sale.sale_date).first()
+                    age_days = 0
+                    if oldest_sale and oldest_sale.sale_date:
+                        sale_date = oldest_sale.sale_date if isinstance(oldest_sale.sale_date, date) else oldest_sale.sale_date.date()
+                        age_days = (today - sale_date).days
+                    
+                    # تصنيف حسب العمر
+                    if age_days <= 30:
+                        category = '0-30'
+                    elif age_days <= 60:
+                        category = '31-60'
+                    elif age_days <= 90:
+                        category = '61-90'
+                    else:
+                        category = '>90'
+                    
+                    aging_data.append({
+                        'id': customer.id,
+                        'name': customer.name,
+                        'balance': abs(balance),
+                        'age_days': age_days,
+                        'category': category,
+                        'phone': customer.phone or ''
+                    })
+        else:
+            # ذمم الموردين
+            suppliers = Supplier.query.all()
+            for supplier in suppliers:
+                balance = float(supplier.balance or 0)
+                if balance > 0.01:  # له علينا
+                    aging_data.append({
+                        'id': supplier.id,
+                        'name': supplier.name,
+                        'balance': balance,
+                        'age_days': 0,  # يمكن تحسينه
+                        'category': '0-30'
+                    })
+        
+        # تجميع حسب الفئة
+        aging_summary = {
+            '0-30': sum(item['balance'] for item in aging_data if item['category'] == '0-30'),
+            '31-60': sum(item['balance'] for item in aging_data if item['category'] == '31-60'),
+            '61-90': sum(item['balance'] for item in aging_data if item['category'] == '61-90'),
+            '>90': sum(item['balance'] for item in aging_data if item['category'] == '>90')
+        }
+        
+        return jsonify({
+            'success': True,
+            'report_type': 'aging_report',
+            'aging_type': report_type,
+            'as_of_date': today.isoformat(),
+            'summary': aging_summary,
+            'total': sum(aging_summary.values()),
+            'details': aging_data
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"خطأ في تقرير الذمم المعمرة: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@financial_reports_bp.route('/profit-trends')
+@owner_only
+def profit_trends():
+    """📈 اتجاهات الربحية - مقارنة شهرية"""
+    try:
+        months = int(request.args.get('months', 6))  # آخر 6 أشهر افتراضياً
+        today = date.today()
+        
+        monthly_data = []
+        for i in range(months):
+            # حساب بداية ونهاية الشهر
+            target_date = today - timedelta(days=30 * i)
+            month_start = target_date.replace(day=1)
+            if target_date.month == 12:
+                month_end = date(target_date.year + 1, 1, 1) - timedelta(days=1)
+            else:
+                month_end = date(target_date.year, target_date.month + 1, 1) - timedelta(days=1)
+            
+            # حساب الإيرادات
+            revenue = db.session.query(
+                func.sum(GLEntry.credit)
+            ).join(GLBatch).filter(
+                GLBatch.status == 'POSTED',
+                GLBatch.posted_at >= month_start,
+                GLBatch.posted_at <= month_end,
+                GLEntry.account.like('4%')
+            ).scalar() or 0
+            
+            # حساب المصروفات
+            expenses = db.session.query(
+                func.sum(GLEntry.debit)
+            ).join(GLBatch).filter(
+                GLBatch.status == 'POSTED',
+                GLBatch.posted_at >= month_start,
+                GLBatch.posted_at <= month_end,
+                GLEntry.account.like('5%')
+            ).scalar() or 0
+            
+            profit = float(revenue) - float(expenses)
+            
+            monthly_data.append({
+                'month': month_start.strftime('%Y-%m'),
+                'month_name': month_start.strftime('%B %Y'),
+                'revenue': float(revenue),
+                'expenses': float(expenses),
+                'profit': profit,
+                'margin': (profit / float(revenue) * 100) if float(revenue) > 0 else 0
+            })
+        
+        return jsonify({
+            'success': True,
+            'report_type': 'profit_trends',
+            'months': months,
+            'data': list(reversed(monthly_data))  # من الأقدم للأحدث
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"خطأ في اتجاهات الربحية: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@financial_reports_bp.route('/expense-breakdown')
+@owner_only
+def expense_breakdown():
+    """📊 تحليل المصروفات حسب النوع"""
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            today = date.today()
+            start_date = today.replace(day=1)
+            end_date = today
+        else:
+            start_date = datetime.fromisoformat(start_date).date()
+            end_date = datetime.fromisoformat(end_date).date()
+        
+        # تحليل المصروفات حسب الحساب
+        expense_breakdown = db.session.query(
+            GLEntry.account,
+            Account.name,
+            func.sum(GLEntry.debit).label('amount')
+        ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
+            GLBatch.status == 'POSTED',
+            GLBatch.posted_at >= start_date,
+            GLBatch.posted_at <= end_date,
+            GLEntry.account.like('5%')
+        ).group_by(GLEntry.account, Account.name).order_by(func.sum(GLEntry.debit).desc()).all()
+        
+        total_expenses = sum(float(exp.amount) for exp in expense_breakdown)
+        
+        breakdown_data = [{
+            'account': exp.account,
+            'name': exp.name,
+            'amount': float(exp.amount),
+            'percentage': (float(exp.amount) / total_expenses * 100) if total_expenses > 0 else 0
+        } for exp in expense_breakdown]
+        
+        return jsonify({
+            'success': True,
+            'report_type': 'expense_breakdown',
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat()
+            },
+            'total_expenses': total_expenses,
+            'breakdown': breakdown_data
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"خطأ في تحليل المصروفات: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@financial_reports_bp.route('/revenue-by-source')
+@owner_only
+def revenue_by_source():
+    """📊 تحليل مصادر الإيرادات"""
+    try:
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not start_date or not end_date:
+            today = date.today()
+            start_date = today.replace(day=1)
+            end_date = today
+        else:
+            start_date = datetime.fromisoformat(start_date).date()
+            end_date = datetime.fromisoformat(end_date).date()
+        
+        # إيرادات المبيعات
+        sales_revenue = db.session.query(
+            func.sum(GLEntry.credit)
+        ).join(GLBatch).filter(
+            GLBatch.status == 'POSTED',
+            GLBatch.posted_at >= start_date,
+            GLBatch.posted_at <= end_date,
+            GLEntry.account == '4000_SALES'
+        ).scalar() or 0
+        
+        # إيرادات الخدمات
+        service_revenue = db.session.query(
+            func.sum(GLEntry.credit)
+        ).join(GLBatch).filter(
+            GLBatch.status == 'POSTED',
+            GLBatch.posted_at >= start_date,
+            GLBatch.posted_at <= end_date,
+            GLEntry.account == '4100_SERVICE_REVENUE'
+        ).scalar() or 0
+        
+        # إيرادات أخرى
+        other_revenue = db.session.query(
+            func.sum(GLEntry.credit)
+        ).join(GLBatch).filter(
+            GLBatch.status == 'POSTED',
+            GLBatch.posted_at >= start_date,
+            GLBatch.posted_at <= end_date,
+            GLEntry.account.like('4%'),
+            GLEntry.account.notin_(['4000_SALES', '4100_SERVICE_REVENUE'])
+        ).scalar() or 0
+        
+        total_revenue = float(sales_revenue) + float(service_revenue) + float(other_revenue)
+        
+        return jsonify({
+            'success': True,
+            'report_type': 'revenue_by_source',
+            'period': {
+                'start_date': start_date.isoformat(),
+                'end_date': end_date.isoformat()
+            },
+            'total_revenue': total_revenue,
+            'breakdown': {
+                'sales': {
+                    'amount': float(sales_revenue),
+                    'percentage': (float(sales_revenue) / total_revenue * 100) if total_revenue > 0 else 0
+                },
+                'services': {
+                    'amount': float(service_revenue),
+                    'percentage': (float(service_revenue) / total_revenue * 100) if total_revenue > 0 else 0
+                },
+                'other': {
+                    'amount': float(other_revenue),
+                    'percentage': (float(other_revenue) / total_revenue * 100) if total_revenue > 0 else 0
+                }
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"خطأ في تحليل مصادر الإيرادات: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500

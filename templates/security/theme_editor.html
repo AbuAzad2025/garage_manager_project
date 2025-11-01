@@ -245,7 +245,7 @@
 // حفظ التبويب النشط
 document.querySelectorAll('#editorTabs button').forEach(tab => {
   tab.addEventListener('shown.bs.tab', function (event) {
-    const tabId = (event.target.getAttribute('data-bs-target') || event.target.getAttribute('data-target') || '').replace('#', '');
+    const tabId = (event.target.getAttribute('data-target') || '').replace('#', '');
     localStorage.setItem('editorActiveTab', tabId);
   });
 });
@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (savedTab && !{{ 'true' if active_tab else 'false' }}) {
     const tabTrigger = document.querySelector(`#editorTabs button[data-target="#${savedTab}"]`);
     if (tabTrigger) {
-      bootstrap.Tab.getInstance(tabTrigger)?.show() || new bootstrap.Tab(tabTrigger).show();
+      $(tabTrigger).tab('show');
     }
   }
 });

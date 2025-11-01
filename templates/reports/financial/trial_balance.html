@@ -1,0 +1,132 @@
+{% extends 'base.html' %}
+
+{% block title %}ميزان المراجعة{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+            <h3 class="mb-0">
+                <i class="fas fa-balance-scale-right"></i>
+                ميزان المراجعة (Trial Balance)
+            </h3>
+            <p class="mb-0 small">كما في {{ as_of_date.strftime('%Y-%m-%d') }}</p>
+        </div>
+        
+        <div class="card-body">
+            <!-- فلتر التاريخ -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label>كما في تاريخ:</label>
+                    <input type="date" id="as_of_date" class="form-control" value="{{ as_of_date.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-md-6">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary d-block w-100" onclick="updateReport()">
+                        <i class="fas fa-sync"></i> تحديث
+                    </button>
+                </div>
+            </div>
+            
+            <!-- حالة التوازن -->
+            {% if is_balanced %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <strong>الميزان متوازن ✓</strong> - إجمالي المدين = إجمالي الدائن
+            </div>
+            {% else %}
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>الميزان غير متوازن ⚠</strong> - يوجد فرق بين المدين والدائن
+            </div>
+            {% endif %}
+            
+            <!-- جدول الحسابات -->
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>الحساب</th>
+                            <th>الاسم</th>
+                            <th>النوع</th>
+                            <th class="text-end">المدين</th>
+                            <th class="text-end">الدائن</th>
+                            <th class="text-end">الرصيد الصافي</th>
+                            <th class="text-center">الجانب</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in trial_balance_data %}
+                        <tr>
+                            <td><code>{{ row.account }}</code></td>
+                            <td>{{ row.name }}</td>
+                            <td>
+                                <span class="badge bg-secondary">{{ row.type }}</span>
+                            </td>
+                            <td class="text-end">{{ "{:,.2f}".format(row.debit) }} ₪</td>
+                            <td class="text-end">{{ "{:,.2f}".format(row.credit) }} ₪</td>
+                            <td class="text-end fw-bold">{{ "{:,.2f}".format(row.net|abs) }} ₪</td>
+                            <td class="text-center">
+                                {% if row.side == 'DR' %}
+                                <span class="badge bg-danger">مدين</span>
+                                {% else %}
+                                <span class="badge bg-success">دائن</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-dark fw-bold fs-5">
+                        <tr>
+                            <td colspan="3" class="text-end">الإجمالي</td>
+                            <td class="text-end">{{ "{:,.2f}".format(total_debits) }} ₪</td>
+                            <td class="text-end">{{ "{:,.2f}".format(total_credits) }} ₪</td>
+                            <td colspan="2" class="text-center">
+                                {% if is_balanced %}
+                                <span class="badge bg-success fs-6">✓ متوازن</span>
+                                {% else %}
+                                <span class="badge bg-danger fs-6">✗ غير متوازن</span>
+                                <br>
+                                <small>الفرق: {{ "{:,.2f}".format((total_debits - total_credits)|abs) }} ₪</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <!-- أزرار الإجراءات -->
+            <div class="mt-4 text-center">
+                <button class="btn btn-success" onclick="window.print()">
+                    <i class="fas fa-print"></i> طباعة
+                </button>
+                <a href="/reports/financial" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> رجوع
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .form-control, .alert {
+        display: none !important;
+    }
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+</style>
+
+<script>
+function updateReport() {
+    const date = document.getElementById('as_of_date').value;
+    if (date) {
+        window.location.href = `/reports/financial/trial-balance?date=${date}`;
+    }
+}
+</script>
+{% endblock %}
+

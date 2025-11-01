@@ -730,13 +730,8 @@
   loadDraft();
   startAutoSave();
   
-  // ===== جديد: Tooltips (إذا كان Bootstrap Tooltip موجود) =====
-  if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"], .info-tooltip'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-      return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-  }
+  // ===== جديد: Tooltips =====
+  $('[data-toggle="tooltip"], .info-tooltip').tooltip();
 
   // ===== جديد: Confirmation عند المغادرة مع تعديلات غير محفوظة =====
   let formChanged = false;

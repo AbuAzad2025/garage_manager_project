@@ -319,7 +319,7 @@
       </div>
     </div>
     <div class="row">
-      <div class="col-md-3">
+      <div class="col-md-4">
         <div class="form-group">
           <label class="form-label required">المنتج</label>
           <select name="lines-__INDEX__-product_id" class="form-control product-select" data-index="__INDEX__" required>
@@ -346,13 +346,28 @@
       <div class="col-md-2">
         <div class="form-group">
           <label class="form-label required">الحالة</label>
-          <select name="lines-__INDEX__-condition" class="form-control condition-select" data-index="__INDEX__">
+          <select name="lines-__INDEX__-condition" class="form-control condition-select" data-index="__INDEX__" onchange="toggleLiability(__INDEX__)">
             <option value="GOOD" selected>✅ سليم</option>
             <option value="DAMAGED">❌ تالف</option>
             <option value="FOR_REPAIR">🔧 للصيانة</option>
             <option value="UNUSABLE">🚫 غير قابل</option>
           </select>
           <small class="text-info"><i class="fas fa-shield-alt"></i> حالة المنتج</small>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="form-group">
+          <label class="form-label">المسؤول (تالف فقط)</label>
+          <select name="lines-__INDEX__-liability_party" class="form-control liability-select" data-index="__INDEX__" style="display:none;">
+            <option value="">- لا يوجد -</option>
+            <option value="COMPANY">🏢 الشركة</option>
+            <option value="SUPPLIER">🏭 المورد</option>
+            <option value="PARTNER">🤝 الشريك</option>
+            <option value="CUSTOMER">👤 العميل</option>
+          </select>
+          <small class="text-warning" style="display:none;" data-liability-hint="__INDEX__">
+            <i class="fas fa-exclamation-triangle"></i> من يتحمل الخسارة؟
+          </small>
         </div>
       </div>
       <div class="col-md-1">
@@ -363,9 +378,9 @@
           <small class="text-danger"><i class="fas fa-exclamation-circle"></i> إجباري</small>
         </div>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-1">
         <div class="form-group">
-          <label class="form-label required">سعر الوحدة</label>
+          <label class="form-label required">السعر</label>
           <input type="number" name="lines-__INDEX__-unit_price" class="form-control price-input" 
                  data-index="__INDEX__" min="0" step="0.01" value="0" required>
           <small class="text-danger"><i class="fas fa-exclamation-circle"></i> إجباري</small>
@@ -416,23 +431,29 @@ function addLine(data = {}) {
   container.appendChild(div.firstElementChild);
   
   // تعبئة البيانات إذا وجدت
+  const currentIndex = lineIndex;
+  
   if (data.product_id) {
-    document.querySelector(`select[name="lines-${lineIndex}-product_id"]`).value = data.product_id;
+    document.querySelector(`select[name="lines-${currentIndex}-product_id"]`).value = data.product_id;
   }
   if (data.warehouse_id) {
-    document.querySelector(`select[name="lines-${lineIndex}-warehouse_id"]`).value = data.warehouse_id;
+    document.querySelector(`select[name="lines-${currentIndex}-warehouse_id"]`).value = data.warehouse_id;
   }
   if (data.condition) {
-    document.querySelector(`select[name="lines-${lineIndex}-condition"]`).value = data.condition;
+    document.querySelector(`select[name="lines-${currentIndex}-condition"]`).value = data.condition;
+    toggleLiability(currentIndex);  // تفعيل حقل المسؤول إذا لزم
+  }
+  if (data.liability_party) {
+    document.querySelector(`select[name="lines-${currentIndex}-liability_party"]`).value = data.liability_party;
   }
   if (data.quantity) {
-    document.querySelector(`input[name="lines-${lineIndex}-quantity"]`).value = data.quantity;
+    document.querySelector(`input[name="lines-${currentIndex}-quantity"]`).value = data.quantity;
   }
   if (data.unit_price) {
-    document.querySelector(`input[name="lines-${lineIndex}-unit_price"]`).value = data.unit_price;
+    document.querySelector(`input[name="lines-${currentIndex}-unit_price"]`).value = data.unit_price;
   }
   if (data.notes) {
-    document.querySelector(`input[name="lines-${lineIndex}-notes"]`).value = data.notes;
+    document.querySelector(`input[name="lines-${currentIndex}-notes"]`).value = data.notes;
   }
   
   lineIndex++;
@@ -582,6 +603,27 @@ document.getElementById('customer_id').addEventListener('change', function() {
     })
     .catch(console.error);
 });
+
+// إظهار/إخفاء حقل المسؤول حسب الحالة
+function toggleLiability(index) {
+  const conditionSelect = document.querySelector(`select[name="lines-${index}-condition"]`);
+  const liabilitySelect = document.querySelector(`select[name="lines-${index}-liability_party"]`);
+  const liabilityHint = document.querySelector(`small[data-liability-hint="${index}"]`);
+  
+  if (!conditionSelect || !liabilitySelect) return;
+  
+  const condition = conditionSelect.value;
+  
+  // إظهار فقط للتالف وغير القابل للاستخدام
+  if (condition === 'DAMAGED' || condition === 'UNUSABLE') {
+    liabilitySelect.style.display = 'block';
+    if (liabilityHint) liabilityHint.style.display = 'block';
+  } else {
+    liabilitySelect.style.display = 'none';
+    liabilitySelect.value = '';  // إفراغ القيمة
+    if (liabilityHint) liabilityHint.style.display = 'none';
+  }
+}
 
 // إضافة سطر واحد عند التحميل إذا لم توجد سطور
 document.addEventListener('DOMContentLoaded', function() {

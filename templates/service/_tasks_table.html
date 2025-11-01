@@ -16,7 +16,7 @@
             <th><i class="fas fa-hashtag"></i> الكمية</th>
             <th><i class="fas fa-dollar-sign"></i> سعر الوحدة</th>
             <th><i class="fas fa-calculator"></i> الإجمالي</th>
-            {% if current_user.has_permission('manage_service') %}
+            {% if current_user.has_permission('manage_service') and service.status.value != 'COMPLETED' %}
             <th style="width:80px"><i class="fas fa-cogs"></i> إجراء</th>
             {% endif %}
           </tr>
@@ -49,7 +49,7 @@
               <td class="text-end">
                 <strong class="text-success">{{ '%.2f'|format(line) }} ₪</strong>
               </td>
-              {% if current_user.has_permission('manage_service') %}
+              {% if current_user.has_permission('manage_service') and service.status.value != 'COMPLETED' %}
               <td>
                 <form method="post" action="{{ url_for('service.delete_task', tid=task.id) }}" class="d-inline">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -86,7 +86,7 @@
   </div>
 </div>
 
-{% if current_user.has_permission('manage_service') %}
+{% if current_user.has_permission('manage_service') and service.status.value != 'COMPLETED' %}
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-gradient-info text-white">
     <h5 class="mb-0"><i class="fas fa-plus"></i> إضافة مهمة جديدة</h5>

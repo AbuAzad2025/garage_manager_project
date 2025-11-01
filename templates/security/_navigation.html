@@ -1,6 +1,15 @@
+<!-- Breadcrumbs - مسار التنقل -->
+<nav aria-label="breadcrumb" class="mb-2">
+  <ol class="breadcrumb bg-light p-2 rounded">
+    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('security.index') }}"><i class="fas fa-shield-alt"></i> الوحدة السرية</a></li>
+    {% block breadcrumb_items %}{% endblock %}
+  </ol>
+</nav>
+
 <!-- أزرار التنقل للأمان - Owner فقط -->
-<div class="mb-3 d-flex justify-content-between align-items-center">
-  <div>
+<div class="mb-3 d-flex justify-content-between align-items-center flex-wrap">
+  <div class="mb-2 mb-md-0">
     <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary btn-sm">
       <i class="fas fa-home"></i> الرئيسية
     </a>
@@ -8,14 +17,26 @@
       <i class="fas fa-shield-alt"></i> الأمان
     </a>
     <a href="{{ url_for('security.ultimate_control') }}" class="btn btn-danger btn-sm">
-      <i class="fas fa-crown"></i> التحكم النهائي
+      <i class="fas fa-rocket"></i> مركز القيادة
+    </a>
+    <a href="{{ url_for('security.help_page') }}" class="btn btn-info btn-sm">
+      <i class="fas fa-question-circle"></i> مساعدة
+    </a>
+    <a href="{{ url_for('security.sitemap') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-sitemap"></i> خريطة
     </a>
   </div>
   <div>
     <span class="badge bg-success">v5.0</span>
-    <span class="badge bg-info">40 وحدة</span>
-    <span class="badge bg-warning text-dark">133 API</span>
-    <span class="badge bg-danger">89 فهرس</span>
+    {% if stats %}
+    <span class="badge bg-info">{{ stats.total_modules }} وحدة</span>
+    <span class="badge bg-warning text-dark">{{ stats.total_apis }} API</span>
+    <span class="badge bg-danger">{{ stats.total_indexes }} فهرس</span>
+    {% else %}
+    <span class="badge bg-info">🔄 وحدة</span>
+    <span class="badge bg-warning text-dark">🔄 API</span>
+    <span class="badge bg-danger">🔄 فهرس</span>
+    {% endif %}
   </div>
 </div>
 

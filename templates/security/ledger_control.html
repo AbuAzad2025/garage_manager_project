@@ -36,6 +36,16 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="#tab-operations">
+                                <i class="fas fa-cogs me-1"></i>مركز التحكم
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#tab-editor">
+                                <i class="fas fa-edit me-1"></i>محرر القيود
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="#tab-tools">
                                 <i class="fas fa-tools me-1"></i>الأدوات
                             </a>
@@ -47,9 +57,14 @@
                         <div id="tab-accounts" style="display: block;">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="mb-0">الحسابات المحاسبية <span class="badge bg-primary" id="accountsCount">0</span></h5>
-                                <button class="btn btn-success" onclick="showAddAccountModal()">
-                                    <i class="fas fa-plus me-1"></i>إضافة حساب جديد
-                                </button>
+                                <div>
+                                    <button class="btn btn-info me-2" onclick="showAccountsTree()">
+                                        <i class="fas fa-sitemap"></i> عرض الشجرة
+                                    </button>
+                                    <button class="btn btn-success" onclick="showAddAccountModal()">
+                                        <i class="fas fa-plus me-1"></i>إضافة حساب جديد
+                                    </button>
+                                </div>
                             </div>
                             <div style="height: 600px; overflow-y: auto; border: 2px solid #dee2e6; border-radius: 5px; padding: 10px; background: white;">
                                 <table class="table table-striped table-hover table-bordered" id="accountsTable">
@@ -107,9 +122,243 @@
                             </div>
                         </div>
 
-                        <!-- Tab 4: الأدوات -->
+                        <!-- Tab 4: مركز التحكم -->
+                        <div id="tab-operations" style="display: none;">
+                            <h5 class="mb-3"><i class="fas fa-cogs me-2"></i>مركز التحكم المتقدم</h5>
+                            
+                            <!-- الأقسام الفرعية -->
+                            <ul class="nav nav-tabs mb-3" role="tablist">
+                                <li class="nav-item">
+                                    <button class="nav-link active" data-toggle="tab" data-target="#ops-periods">
+                                        <i class="fas fa-calendar-alt"></i> الفترات المحاسبية
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" data-toggle="tab" data-target="#ops-closing">
+                                        <i class="fas fa-lock"></i> قيود الإقفال
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" data-toggle="tab" data-target="#ops-approval">
+                                        <i class="fas fa-check-circle"></i> الموافقات
+                                    </button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link" data-toggle="tab" data-target="#ops-reverse">
+                                        <i class="fas fa-undo"></i> القيود العكسية
+                                    </button>
+                                </li>
+                            </ul>
+                            
+                            <div class="tab-content">
+                                <!-- الفترات المحاسبية -->
+                                <div class="tab-pane fade show active" id="ops-periods">
+                                    <div id="fiscal-periods-list">
+                                        <div class="text-center py-5">
+                                            <div class="spinner-border text-primary"></div>
+                                            <p class="mt-2">جارٍ تحميل الفترات...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- قيود الإقفال -->
+                                <div class="tab-pane fade" id="ops-closing">
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle"></i>
+                                        <strong>قيود الإقفال:</strong> يتم إنشاؤها تلقائياً لإقفال حسابات الإيرادات والمصروفات
+                                    </div>
+                                    
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <label>تاريخ نهاية الفترة:</label>
+                                                    <input type="date" id="closing-date" class="form-control">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label>&nbsp;</label>
+                                                    <button class="btn btn-primary d-block w-100" onclick="generateClosingEntries()">
+                                                        <i class="fas fa-calculator"></i> حساب قيود الإقفال
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="closing-results" style="display:none;" class="mt-3"></div>
+                                </div>
+                                
+                                <!-- الموافقات -->
+                                <div class="tab-pane fade" id="ops-approval">
+                                    <h6>القيود المعلقة للمراجعة</h6>
+                                    <div id="pending-batches-list">
+                                        <div class="text-center py-5">
+                                            <div class="spinner-border text-primary"></div>
+                                            <p class="mt-2">جارٍ تحميل القيود المعلقة...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- القيود العكسية -->
+                                <div class="tab-pane fade" id="ops-reverse">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6><i class="fas fa-undo"></i> إنشاء قيد عكسي</h6>
+                                            <p>لتصحيح الأخطاء، أدخل رقم القيد المراد عكسه:</p>
+                                            <div class="input-group">
+                                                <input type="number" id="reverse-batch-id" class="form-control" placeholder="رقم القيد">
+                                                <button class="btn btn-warning" onclick="reverseBatch()">
+                                                    <i class="fas fa-undo"></i> إنشاء قيد عكسي
+                                                </button>
+                                            </div>
+                                            <div id="reverse-result" class="mt-3"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 5: محرر القيود -->
+                        <div id="tab-editor" style="display: none;">
+                            <h5 class="mb-3"><i class="fas fa-edit me-2"></i>محرر القيود المحاسبية</h5>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <!-- قائمة القيود -->
+                                    <div class="card">
+                                        <div class="card-header bg-primary text-white">
+                                            <h6 class="mb-0">اختر قيداً للتحرير</h6>
+                                        </div>
+                                        <div class="card-body p-2" style="max-height: 600px; overflow-y: auto;">
+                                            <input type="text" id="batch-search" class="form-control mb-2" placeholder="بحث...">
+                                            <div id="batches-list-editor">
+                                                <div class="text-center py-3">
+                                                    <div class="spinner-border spinner-border-sm"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-8">
+                                    <!-- نموذج التحرير -->
+                                    <div id="editor-form" style="display:none;">
+                                        <div class="card">
+                                            <div class="card-header bg-success text-white">
+                                                <h6 class="mb-0">تحرير القيد: <span id="edit-batch-code"></span></h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <!-- معلومات أساسية -->
+                                                <div class="row mb-3">
+                                                    <div class="col-md-6">
+                                                        <label>الغرض:</label>
+                                                        <input type="text" id="edit-purpose" class="form-control">
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label>التاريخ:</label>
+                                                        <input type="datetime-local" id="edit-posted-at" class="form-control">
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <label>ملاحظات:</label>
+                                                    <textarea id="edit-memo" class="form-control" rows="2"></textarea>
+                                                </div>
+                                                
+                                                <!-- ربط الجهة -->
+                                                <div class="card mb-3 border-warning">
+                                                    <div class="card-header bg-warning">
+                                                        <h6 class="mb-0">🔗 ربط القيد بجهة</h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-4">
+                                                                <label>نوع الجهة:</label>
+                                                                <select id="edit-entity-type" class="form-control" onchange="loadEntityOptions()">
+                                                                    <option value="">-- اختر --</option>
+                                                                    <option value="CUSTOMER">عميل</option>
+                                                                    <option value="SUPPLIER">مورد</option>
+                                                                    <option value="PARTNER">شريك</option>
+                                                                    <option value="EMPLOYEE">موظف</option>
+                                                                    <option value="BRANCH">فرع</option>
+                                                                    <option value="USER">مستخدم</option>
+                                                                    <option value="OTHER">أخرى</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label>الجهة:</label>
+                                                                <input type="text" id="entity-search" class="form-control" placeholder="ابحث عن الجهة..." oninput="searchEntity()">
+                                                                <div id="entity-results" class="list-group mt-1" style="max-height: 200px; overflow-y: auto; display:none;"></div>
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label>&nbsp;</label>
+                                                                <button class="btn btn-warning d-block w-100" onclick="linkCurrentEntity()">
+                                                                    <i class="fas fa-link"></i> ربط
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div id="current-entity-display" class="mt-2"></div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- السطور -->
+                                                <h6>السطور المحاسبية:</h6>
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm table-bordered">
+                                                        <thead class="table-dark">
+                                                            <tr>
+                                                                <th>الحساب</th>
+                                                                <th>مدين</th>
+                                                                <th>دائن</th>
+                                                                <th>المرجع</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody id="edit-entries-table">
+                                                        </tbody>
+                                                        <tfoot class="fw-bold">
+                                                            <tr>
+                                                                <td>الإجمالي</td>
+                                                                <td id="edit-total-debit">0.00</td>
+                                                                <td id="edit-total-credit">0.00</td>
+                                                                <td></td>
+                                                            </tr>
+                                                        </tfoot>
+                                                    </table>
+                                                </div>
+                                                
+                                                <!-- الأزرار -->
+                                                <div class="mt-3 text-end">
+                                                    <button class="btn btn-secondary" onclick="cancelEdit()">
+                                                        <i class="fas fa-times"></i> إلغاء
+                                                    </button>
+                                                    <button class="btn btn-success" onclick="saveBatch()">
+                                                        <i class="fas fa-save"></i> حفظ التعديلات
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="editor-placeholder" class="text-center text-muted py-5">
+                                        <i class="fas fa-hand-pointer fa-3x mb-3"></i>
+                                        <p>اختر قيداً من القائمة للبدء بالتحرير</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 6: الأدوات -->
                         <div id="tab-tools" style="display: none;">
                             <h5 class="mb-3">أدوات دفتر الأستاذ المتقدمة</h5>
+                            
+                            <div class="mb-3">
+                                <button class="btn btn-primary me-2" onclick="generateFinancialStatements()">
+                                    <i class="fas fa-file-invoice-dollar"></i> القوائم المالية
+                                </button>
+                                <button class="btn btn-outline-info" onclick="alert('Trial Balance قيد التطوير')">
+                                    <i class="fas fa-balance-scale"></i> ميزان المراجعة
+                                </button>
+                            </div>
                             
                             <div class="row">
                                 <!-- أدوات النسخ والفحص -->
@@ -185,7 +434,7 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="fas fa-plus me-2"></i>إضافة حساب جديد</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
                 <form id="addAccountForm">
@@ -217,7 +466,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
                 <button type="button" class="btn btn-success" onclick="saveNewAccount()">
                     <i class="fas fa-save me-1"></i>حفظ
                 </button>
@@ -232,7 +481,7 @@
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="fas fa-edit me-2"></i>تعديل حساب</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
                 <form id="editAccountForm">
@@ -264,7 +513,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
                 <button type="button" class="btn btn-primary" onclick="saveEditAccount()">
                     <i class="fas fa-save me-1"></i>حفظ التغييرات
                 </button>
@@ -508,9 +757,8 @@ function editBatch(id) {
 
 // إدارة الحسابات
 function showAddAccountModal() {
-    var modal = new bootstrap.Modal(document.getElementById('addAccountModal'));
     document.getElementById('addAccountForm').reset();
-    modal.show();
+    $('#addAccountModal').modal('show');
 }
 
 function saveNewAccount() {
@@ -533,7 +781,7 @@ function saveNewAccount() {
     .then(function(result) {
         if (result.success) {
             alert('✅ تم إضافة الحساب بنجاح');
-            bootstrap.Modal.getInstance(document.getElementById('addAccountModal')).hide();
+            $('#addAccountModal').modal('hide');
             loadAccounts();
         } else {
             alert('❌ فشل: ' + result.error);
@@ -549,8 +797,7 @@ function showEditAccountModal(id, code, name, type, isActive) {
     document.getElementById('edit_type').value = type;
     document.getElementById('edit_is_active').checked = isActive;
     
-    var modal = new bootstrap.Modal(document.getElementById('editAccountModal'));
-    modal.show();
+    $('#editAccountModal').modal('show');
 }
 
 function saveEditAccount() {
@@ -572,7 +819,7 @@ function saveEditAccount() {
     .then(function(result) {
         if (result.success) {
             alert('✅ تم تحديث الحساب بنجاح');
-            bootstrap.Modal.getInstance(document.getElementById('editAccountModal')).hide();
+            $('#editAccountModal').modal('hide');
             loadAccounts();
         } else {
             alert('❌ فشل: ' + result.error);
@@ -673,6 +920,8 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('tab-accounts').style.display = 'block';
     document.getElementById('tab-entries').style.display = 'none';
     document.getElementById('tab-batches').style.display = 'none';
+    document.getElementById('tab-operations').style.display = 'none';
+    document.getElementById('tab-editor').style.display = 'none';
     document.getElementById('tab-tools').style.display = 'none';
     
     // تحميل أول تاب فوراً
@@ -703,6 +952,8 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('tab-accounts').style.display = 'none';
             document.getElementById('tab-entries').style.display = 'none';
             document.getElementById('tab-batches').style.display = 'none';
+            document.getElementById('tab-operations').style.display = 'none';
+            document.getElementById('tab-editor').style.display = 'none';
             document.getElementById('tab-tools').style.display = 'none';
             
             // إظهار التاب المطلوب
@@ -720,11 +971,587 @@ document.addEventListener('DOMContentLoaded', function() {
                 loadEntries();
             } else if (target === '#tab-batches') {
                 loadBatches();
+            } else if (target === '#tab-operations') {
+                loadFiscalPeriods();
+            } else if (target === '#tab-editor') {
+                loadBatchesForEditor();
             }
         });
     });
     
     console.log('✅ Event listeners attached');
 });
+
+// ========== وظائف مركز التحكم المتقدم ==========
+
+// تحميل الفترات المحاسبية
+async function loadFiscalPeriods() {
+    try {
+        const response = await fetch('/security/ledger-control/operations/fiscal-periods/api');
+        const data = await response.json();
+        
+        if (data.success) {
+            const html = data.periods.map(p => `
+                <div class="period-item ${p.is_closed ? 'period-closed' : ''} ${p.is_current ? 'period-current' : ''}" style="border: 1px solid #dee2e6; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                    <div class="row align-items-center">
+                        <div class="col-md-3">
+                            <h6>${p.name_ar}</h6>
+                            <small class="text-muted">${p.start_date} إلى ${p.end_date}</small>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <strong>${p.batches_count}</strong> قيد
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <small>مدين: ${p.total_debit.toLocaleString()} ₪</small><br>
+                            <small>دائن: ${p.total_credit.toLocaleString()} ₪</small>
+                        </div>
+                        <div class="col-md-2 text-center">
+                            <span class="badge ${p.is_closed ? 'bg-danger' : 'bg-success'}">
+                                ${p.is_closed ? '🔒 مقفل' : '🔓 مفتوح'}
+                            </span>
+                        </div>
+                        <div class="col-md-3 text-end">
+                            ${p.is_current ? '<span class="badge bg-info">الفترة الحالية</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('fiscal-periods-list').innerHTML = html || '<p class="text-center text-muted">لا توجد فترات</p>';
+        }
+    } catch (error) {
+        document.getElementById('fiscal-periods-list').innerHTML = `
+            <div class="alert alert-danger">خطأ في تحميل الفترات: ${error.message}</div>
+        `;
+    }
+}
+
+// حساب قيود الإقفال
+async function generateClosingEntries() {
+    const date = document.getElementById('closing-date').value;
+    if (!date) {
+        alert('يرجى اختيار تاريخ الإقفال');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/security/ledger-control/operations/closing-entries/generate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({period_end: date})
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const html = `
+                <div class="alert alert-success">
+                    <h6>نتائج الحساب:</h6>
+                    <p>إجمالي الإيرادات: ${data.total_revenue.toLocaleString()} ₪</p>
+                    <p>إجمالي المصروفات: ${data.total_expenses.toLocaleString()} ₪</p>
+                    <p><strong>صافي الدخل: ${data.net_income.toLocaleString()} ₪</strong></p>
+                </div>
+                
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <h6>قيود الإقفال المقترحة:</h6>
+                        ${data.closing_entries.map((entry, idx) => `
+                            <div class="mb-3">
+                                <strong>${entry.description}</strong>
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>الحساب</th>
+                                            <th class="text-end">مدين</th>
+                                            <th class="text-end">دائن</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${entry.entries.map(e => `
+                                            <tr>
+                                                <td><code>${e.account}</code></td>
+                                                <td class="text-end">${e.debit.toLocaleString()} ₪</td>
+                                                <td class="text-end">${e.credit.toLocaleString()} ₪</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `).join('')}
+                        
+                        <button class="btn btn-success w-100 mt-3" onclick='postClosingEntries("${date}", ${JSON.stringify(data.closing_entries)})'>
+                            <i class="fas fa-check"></i> ترحيل قيود الإقفال
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('closing-results').innerHTML = html;
+            document.getElementById('closing-results').style.display = 'block';
+        } else {
+            alert('خطأ: ' + data.error);
+        }
+    } catch (error) {
+        alert('خطأ: ' + error.message);
+    }
+}
+
+// ترحيل قيود الإقفال
+async function postClosingEntries(date, entries) {
+    if (!confirm('هل أنت متأكد من ترحيل قيود الإقفال؟')) return;
+    
+    try {
+        const response = await fetch('/security/ledger-control/operations/closing-entries/post', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({period_end: date, entries: entries})
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            document.getElementById('closing-results').style.display = 'none';
+            loadFiscalPeriods();
+        } else {
+            alert('خطأ: ' + data.error);
+        }
+    } catch (error) {
+        alert('خطأ: ' + error.message);
+    }
+}
+
+// تحميل القيود المعلقة
+async function loadPendingBatches() {
+    try {
+        const response = await fetch('/security/ledger-control/operations/review-queue');
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.pending_count === 0) {
+                document.getElementById('pending-batches-list').innerHTML = '<p class="text-center text-muted">لا توجد قيود معلقة</p>';
+                return;
+            }
+            
+            const html = data.batches.map(b => `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <h6>${b.code} - ${b.purpose}</h6>
+                                <small>${b.memo}</small>
+                                <br>
+                                <span class="badge ${b.is_balanced ? 'bg-success' : 'bg-danger'}">
+                                    ${b.is_balanced ? '✓ متوازن' : '✗ غير متوازن'}
+                                </span>
+                                <span class="badge bg-secondary">${b.entries_count} سطور</span>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button class="btn btn-success btn-sm" onclick="approveBatch(${b.id})">
+                                    <i class="fas fa-check"></i> موافقة
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="rejectBatch(${b.id})">
+                                    <i class="fas fa-times"></i> رفض
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('pending-batches-list').innerHTML = html;
+        }
+    } catch (error) {
+        document.getElementById('pending-batches-list').innerHTML = `
+            <div class="alert alert-danger">خطأ: ${error.message}</div>
+        `;
+    }
+}
+
+// موافقة على قيد
+async function approveBatch(batchId) {
+    if (!confirm('هل أنت متأكد من الموافقة على هذا القيد؟')) return;
+    
+    try {
+        const response = await fetch(`/security/ledger-control/operations/approve-batch/${batchId}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            loadPendingBatches();
+        } else {
+            alert('خطأ: ' + data.error);
+        }
+    } catch (error) {
+        alert('خطأ: ' + error.message);
+    }
+}
+
+// رفض قيد
+async function rejectBatch(batchId) {
+    const reason = prompt('سبب الرفض:');
+    if (!reason) return;
+    
+    try {
+        const response = await fetch(`/security/ledger-control/operations/reject-batch/${batchId}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({reason: reason})
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            loadPendingBatches();
+        } else {
+            alert('خطأ: ' + data.error);
+        }
+    } catch (error) {
+        alert('خطأ: ' + error.message);
+    }
+}
+
+// عكس قيد
+async function reverseBatch() {
+    const batchId = document.getElementById('reverse-batch-id').value;
+    if (!batchId) {
+        alert('يرجى إدخال رقم القيد');
+        return;
+    }
+    
+    if (!confirm(`هل أنت متأكد من إنشاء قيد عكسي للقيد رقم ${batchId}؟`)) return;
+    
+    try {
+        const response = await fetch(`/security/ledger-control/operations/reverse-entry/${batchId}`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('reverse-result').innerHTML = `
+                <div class="alert alert-success">
+                    ${data.message}<br>
+                    <strong>رقم القيد العكسي:</strong> ${data.reversal_batch_id}
+                </div>
+            `;
+            document.getElementById('reverse-batch-id').value = '';
+        } else {
+            document.getElementById('reverse-result').innerHTML = `
+                <div class="alert alert-danger">خطأ: ${data.error}</div>
+            `;
+        }
+    } catch (error) {
+        document.getElementById('reverse-result').innerHTML = `
+            <div class="alert alert-danger">خطأ: ${error.message}</div>
+        `;
+    }
+}
+
+// التابات
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM loaded - initializing ledger-control');
+    
+    // إخفاء كل التابات ما عدا الأول
+    document.getElementById('tab-accounts').style.display = 'block';
+    document.getElementById('tab-entries').style.display = 'none';
+    document.getElementById('tab-batches').style.display = 'none';
+    document.getElementById('tab-operations').style.display = 'none';
+    document.getElementById('tab-tools').style.display = 'none';
+
+    
+    // تحميل أول تاب فوراً
+    console.log('⏳ Loading first tab (accounts)...');
+    setTimeout(function() {
+        loadAccounts();
+    }, 100);
+    
+    // تفعيل التابات الرئيسية
+    var tabs = document.querySelectorAll('#controlTabs .nav-link');
+    console.log('📑 Found ' + tabs.length + ' tabs');
+    
+    tabs.forEach(function(tab) {
+        console.log('🔗 Attaching event to tab:', tab.getAttribute('href'));
+        
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            var target = this.getAttribute('href');
+            console.log('📍 Tab clicked:', target);
+            
+            // إزالة active من كل التابات
+            document.querySelectorAll('#controlTabs .nav-link').forEach(function(link) {
+                link.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // إخفاء كل التابات
+            document.getElementById('tab-accounts').style.display = 'none';
+            document.getElementById('tab-entries').style.display = 'none';
+            document.getElementById('tab-batches').style.display = 'none';
+            document.getElementById('tab-operations').style.display = 'none';
+            document.getElementById('tab-tools').style.display = 'none';
+            
+            // إظهار التاب المطلوب
+            var targetId = target.replace('#', '');
+            var activePane = document.getElementById(targetId);
+            if (activePane) {
+                activePane.style.display = 'block';
+                console.log('✅ Showing pane:', target);
+            }
+            
+            // تحميل البيانات
+            if (target === '#tab-accounts') {
+                loadAccounts();
+            } else if (target === '#tab-entries') {
+                loadEntries();
+            } else if (target === '#tab-batches') {
+                loadBatches();
+            } else if (target === '#tab-operations') {
+                loadFiscalPeriods();
+            }
+        });
+    });
+    
+    // تحميل القيود المعلقة عند النقر على تبويب الموافقات
+    const approvalTab = document.querySelector('[data-target="#ops-approval"]');
+    if (approvalTab) {
+        approvalTab.addEventListener('click', function() {
+            setTimeout(() => loadPendingBatches(), 100);
+        });
+    }
+    
+    console.log('✅ Event listeners attached');
+});
+
+// ========== محرر القيود المتقدم ==========
+
+let currentBatchId = null;
+let currentEntityId = null;
+let currentEntityType = null;
+
+// تحميل القيود للمحرر
+async function loadBatchesForEditor() {
+    try {
+        const response = await fetch('/security/ledger-control/batches/all');
+        const data = await response.json();
+        
+        if (data.success) {
+            const html = data.batches.map(b => `
+                <div class="card mb-2 batch-item" style="cursor:pointer;" onclick="editBatch(${b.id})">
+                    <div class="card-body p-2">
+                        <small><strong>${b.code}</strong></small><br>
+                        <small class="text-muted">${b.purpose || 'N/A'}</small><br>
+                        <span class="badge badge-sm ${b.entity_type ? 'bg-success' : 'bg-warning'}">
+                            ${b.entity_type ? b.entity_type : 'غير مربوط'}
+                        </span>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('batches-list-editor').innerHTML = html;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// فتح قيد للتحرير
+async function editBatch(batchId) {
+    try {
+        const response = await fetch(`/security/ledger-control/operations/batch/${batchId}/edit`);
+        const data = await response.json();
+        
+        if (data.success) {
+            currentBatchId = batchId;
+            const batch = data.batch;
+            
+            // ملء البيانات
+            document.getElementById('edit-batch-code').textContent = batch.code;
+            document.getElementById('edit-purpose').value = batch.purpose || '';
+            document.getElementById('edit-memo').value = batch.memo || '';
+            document.getElementById('edit-entity-type').value = batch.entity_type || '';
+            
+            if (batch.posted_at) {
+                const dt = new Date(batch.posted_at);
+                document.getElementById('edit-posted-at').value = dt.toISOString().slice(0, 16);
+            }
+            
+            // عرض الجهة الحالية
+            if (batch.entity_name) {
+                document.getElementById('current-entity-display').innerHTML = `
+                    <div class="alert alert-info">
+                        <strong>مربوط بـ:</strong> ${batch.entity_type} - ${batch.entity_name} (ID: ${batch.entity_id})
+                    </div>
+                `;
+                currentEntityId = batch.entity_id;
+                currentEntityType = batch.entity_type;
+            } else {
+                document.getElementById('current-entity-display').innerHTML = `
+                    <div class="alert alert-warning">
+                        <strong>غير مربوط بجهة</strong>
+                    </div>
+                `;
+                currentEntityId = null;
+                currentEntityType = null;
+            }
+            
+            // عرض السطور
+            let totalDebit = 0;
+            let totalCredit = 0;
+            
+            const entriesHtml = batch.entries.map(e => {
+                totalDebit += e.debit;
+                totalCredit += e.credit;
+                return `
+                    <tr>
+                        <td><code>${e.account}</code></td>
+                        <td class="text-end">${e.debit.toFixed(2)}</td>
+                        <td class="text-end">${e.credit.toFixed(2)}</td>
+                        <td><small>${e.ref || ''}</small></td>
+                    </tr>
+                `;
+            }).join('');
+            
+            document.getElementById('edit-entries-table').innerHTML = entriesHtml;
+            document.getElementById('edit-total-debit').textContent = totalDebit.toFixed(2);
+            document.getElementById('edit-total-credit').textContent = totalCredit.toFixed(2);
+            
+            // إظهار النموذج
+            document.getElementById('editor-placeholder').style.display = 'none';
+            document.getElementById('editor-form').style.display = 'block';
+        }
+    } catch (error) {
+        alert('خطأ: ' + error.message);
+    }
+}
+
+// البحث عن جهات
+let searchTimeout;
+async function searchEntity() {
+    clearTimeout(searchTimeout);
+    
+    const entityType = document.getElementById('edit-entity-type').value;
+    const searchTerm = document.getElementById('entity-search').value;
+    
+    if (!entityType || searchTerm.length < 2) {
+        document.getElementById('entity-results').style.display = 'none';
+        return;
+    }
+    
+    searchTimeout = setTimeout(async () => {
+        try {
+            const response = await fetch(`/security/ledger-control/operations/entities/search?type=${entityType}&q=${searchTerm}`);
+            const data = await response.json();
+            
+            if (data.success && data.results.length > 0) {
+                const html = data.results.map(e => `
+                    <a href="#" class="list-group-item list-group-item-action" onclick="selectEntity(${e.id}, '${e.name}', '${e.type}'); return false;">
+                        ${e.name} <small class="text-muted">(${e.type})</small>
+                    </a>
+                `).join('');
+                
+                document.getElementById('entity-results').innerHTML = html;
+                document.getElementById('entity-results').style.display = 'block';
+            } else {
+                document.getElementById('entity-results').style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    }, 300);
+}
+
+// اختيار جهة من نتائج البحث
+function selectEntity(entityId, entityName, entityType) {
+    currentEntityId = entityId;
+    currentEntityType = entityType;
+    
+    document.getElementById('entity-search').value = entityName;
+    document.getElementById('entity-results').style.display = 'none';
+    
+    document.getElementById('current-entity-display').innerHTML = `
+        <div class="alert alert-success">
+            <strong>محدد:</strong> ${entityType} - ${entityName} (ID: ${entityId})
+        </div>
+    `;
+}
+
+// ربط الجهة بالقيد
+async function linkCurrentEntity() {
+    if (!currentBatchId) {
+        alert('لم يتم اختيار قيد');
+        return;
+    }
+    
+    if (!currentEntityType || !currentEntityId) {
+        alert('يرجى اختيار جهة');
+        return;
+    }
+    
+    if (!confirm(`ربط القيد بـ ${currentEntityType} #${currentEntityId}?`)) return;
+    
+    try {
+        const response = await fetch(`/security/ledger-control/operations/batch/${currentBatchId}/link-entity`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                entity_type: currentEntityType,
+                entity_id: currentEntityId
+            })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            loadBatchesForEditor();
+        } else {
+            alert('خطأ: ' + data.error);
+        }
+    } catch (error) {
+        alert('خطأ: ' + error.message);
+    }
+}
+
+// حفظ التعديلات
+async function saveBatch() {
+    if (!currentBatchId) return;
+    
+    if (!confirm('حفظ التعديلات؟')) return;
+    
+    try {
+        const response = await fetch(`/security/ledger-control/operations/batch/${currentBatchId}/update-full`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                purpose: document.getElementById('edit-purpose').value,
+                memo: document.getElementById('edit-memo').value,
+                entity_type: document.getElementById('edit-entity-type').value,
+                entity_id: currentEntityId,
+                posted_at: document.getElementById('edit-posted-at').value
+            })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(data.message);
+            cancelEdit();
+            loadBatchesForEditor();
+        } else {
+            alert('خطأ: ' + data.error);
+        }
+    } catch (error) {
+        alert('خطأ: ' + error.message);
+    }
+}
+
+// إلغاء التحرير
+function cancelEdit() {
+    document.getElementById('editor-form').style.display = 'none';
+    document.getElementById('editor-placeholder').style.display = 'block';
+    currentBatchId = null;
+    currentEntityId = null;
+    currentEntityType = null;
+}
+
 </script>
 {% endblock %}
+

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}قائمة الدخل{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+            <h3 class="mb-0">
+                <i class="fas fa-chart-line"></i>
+                قائمة الدخل (Income Statement / P&L)
+            </h3>
+            <p class="mb-0 small">من {{ from_date.strftime('%Y-%m-%d') }} إلى {{ to_date.strftime('%Y-%m-%d') }}</p>
+        </div>
+        
+        <div class="card-body">
+            <!-- فلتر التواريخ -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <label>من تاريخ:</label>
+                    <input type="date" id="from_date" class="form-control" value="{{ from_date.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-md-4">
+                    <label>إلى تاريخ:</label>
+                    <input type="date" id="to_date" class="form-control" value="{{ to_date.strftime('%Y-%m-%d') }}">
+                </div>
+                <div class="col-md-4">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-primary d-block w-100" onclick="updateReport()">
+                        <i class="fas fa-sync"></i> تحديث
+                    </button>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <table class="table table-bordered">
+                        <!-- الإيرادات -->
+                        <thead class="table-success">
+                            <tr>
+                                <th colspan="2"><h5 class="mb-0">📈 الإيرادات</h5></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rev in revenues %}
+                            <tr>
+                                <td>{{ rev.name }} <small class="text-muted">({{ rev.account }})</small></td>
+                                <td class="text-end fw-bold">{{ "{:,.2f}".format(rev.amount) }} ₪</td>
+                            </tr>
+                            {% endfor %}
+                            {% if not revenues %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">لا توجد إيرادات في الفترة المحددة</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                        <tfoot class="table-success fw-bold">
+                            <tr>
+                                <td>إجمالي الإيرادات</td>
+                                <td class="text-end">{{ "{:,.2f}".format(total_revenue) }} ₪</td>
+                            </tr>
+                        </tfoot>
+                        
+                        <!-- المصاريف -->
+                        <thead class="table-danger mt-3">
+                            <tr>
+                                <th colspan="2"><h5 class="mb-0">📉 المصاريف</h5></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for exp in expenses %}
+                            <tr>
+                                <td>{{ exp.name }} <small class="text-muted">({{ exp.account }})</small></td>
+                                <td class="text-end fw-bold">{{ "{:,.2f}".format(exp.amount) }} ₪</td>
+                            </tr>
+                            {% endfor %}
+                            {% if not expenses %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">لا توجد مصاريف في الفترة المحددة</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                        <tfoot class="table-danger fw-bold">
+                            <tr>
+                                <td>إجمالي المصاريف</td>
+                                <td class="text-end">{{ "{:,.2f}".format(total_expenses) }} ₪</td>
+                            </tr>
+                        </tfoot>
+                        
+                        <!-- صافي الربح/الخسارة -->
+                        <tfoot class="{% if is_profit %}table-primary{% else %}table-warning{% endif %} fw-bold fs-5">
+                            <tr>
+                                <td>
+                                    {% if is_profit %}
+                                    🎉 صافي الربح
+                                    {% else %}
+                                    ⚠️ صافي الخسارة
+                                    {% endif %}
+                                </td>
+                                <td class="text-end {% if is_profit %}text-success{% else %}text-danger{% endif %}">
+                                    {{ "{:,.2f}".format(net_income|abs) }} ₪
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    
+                    <!-- أزرار الإجراءات -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-success w-100" onclick="exportToExcel()">
+                                <i class="fas fa-file-excel"></i> تصدير Excel
+                            </button>
+                        </div>
+                        <div class="col-md-6">
+                            <button class="btn btn-outline-info w-100" onclick="window.print()">
+                                <i class="fas fa-print"></i> طباعة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+</style>
+
+<script>
+function updateReport() {
+    const fromDate = document.getElementById('from_date').value;
+    const toDate = document.getElementById('to_date').value;
+    window.location.href = `/financial-reports/income-statement?from_date=${fromDate}&to_date=${toDate}`;
+}
+
+function exportToExcel() {
+    alert('سيتم إضافة وظيفة التصدير قريباً');
+}
+</script>
+{% endblock %}
+

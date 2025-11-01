@@ -13,9 +13,11 @@
 {% endfor %}
 
 {% set subtotal = ns.parts_total + ns.tasks_total %}
+{% set discount_total = (service.discount_total or 0)|float %}
+{% set subtotal_after_discount = (subtotal - discount_total) if (subtotal - discount_total) > 0 else 0 %}
 {% set tax_rate = (service.tax_rate or 0)|float %}
-{% set tax_amount = ns.net_sub * (tax_rate/100.0) %}
-{% set total_amount = ns.net_sub + tax_amount %}
+{% set tax_amount = subtotal_after_discount * (tax_rate/100.0) %}
+{% set total_amount = subtotal_after_discount + tax_amount %}
 
 <div class="card border-0 shadow-lg mb-4">
   <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
@@ -51,14 +53,22 @@
     <div class="row g-2">
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center p-2">
-          <span><i class="fas fa-receipt text-info"></i> الإجمالي قبل الضريبة:</span>
+          <span><i class="fas fa-receipt text-info"></i> الإجمالي قبل الخصم:</span>
           <span class="fw-bold">{{ '%.2f'|format(subtotal) }} ₪</span>
         </div>
       </div>
+      {% if discount_total > 0 %}
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center p-2 bg-warning bg-opacity-10 rounded">
+          <span><i class="fas fa-tag text-danger"></i> <strong>خصم إجمالي:</strong></span>
+          <span class="fw-bold text-danger">-{{ '%.2f'|format(discount_total) }} ₪</span>
+        </div>
+      </div>
+      {% endif %}
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center p-2">
-          <span><i class="fas fa-percent text-secondary"></i> صافي قبل الضريبة:</span>
-          <span class="fw-bold text-primary">{{ '%.2f'|format(ns.net_sub) }} ₪</span>
+          <span><i class="fas fa-percent text-secondary"></i> الصافي بعد الخصم:</span>
+          <span class="fw-bold text-primary">{{ '%.2f'|format(subtotal_after_discount) }} ₪</span>
         </div>
       </div>
       <div class="col-12">

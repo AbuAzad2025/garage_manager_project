@@ -70,7 +70,7 @@
     
     {% if current_user.is_authenticated and (shop_is_super_admin or (current_user.role and current_user.role.name in ['manager', 'مدير'])) %}
     <li class="nav-item">
-      <a class="nav-link" href="{{ url_for('security.ai_assistant') }}" title="المساعد الذكي - يفهم كل شيء في النظام">
+        <a class="nav-link" href="{{ url_for('ai.assistant') }}" title="المساعد الذكي - يفهم كل شيء في النظام">
         <i class="fas fa-robot"></i> المساعد الذكي
       </a>
     </li>

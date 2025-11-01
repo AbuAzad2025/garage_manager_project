@@ -1,0 +1,16 @@
+{
+  "generated_at": "2025-10-11T19:08:13.277369+00:00",
+  "policy_version": "1.0.0",
+  "interactions_analysis": {
+    "total": 27,
+    "analyzed": 27,
+    "avg_confidence": 31.3,
+    "weak_count": 19,
+    "weak_areas": [],
+    "quality_score": "يحتاج تحسين"
+  },
+  "system_health": "needs_improvement",
+  "recommendations": [
+    "تحسين جودة البيانات المرسلة للـ AI"
+  ]
+}

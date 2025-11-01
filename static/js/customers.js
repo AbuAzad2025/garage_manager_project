@@ -224,9 +224,11 @@
         form.dispatchEvent(new CustomEvent("customer:created", { detail: { id, text }, bubbles: true }));
         const m = form.closest(".modal");
         if (m) {
-          if (window.jQuery && typeof window.jQuery(m).modal === "function") window.jQuery(m).modal("hide");
-          else if (window.bootstrap) (bootstrap.Modal.getInstance(m) || new bootstrap.Modal(m)).hide();
-          else m.classList.remove("show");
+          if (window.jQuery && typeof window.jQuery(m).modal === "function") {
+            window.jQuery(m).modal("hide");
+          } else {
+            m.classList.remove("show");
+          }
         }
         const rt = form.querySelector('input[name="return_to"]')?.value || "";
         if (rt) window.location.href = rt;

@@ -115,7 +115,7 @@
         </div>
       </div>
       <div class="col-md-4 text-end">
-        <button class="btn btn-light btn-lg shadow-sm" data-bs-toggle="modal" data-bs-target="#helpModal">
+        <button class="btn btn-light btn-lg shadow-sm" data-toggle="modal" data-target="#helpModal">
           <i class="fas fa-book-open"></i> دليل الاستخدام الكامل
         </button>
       </div>
@@ -125,7 +125,7 @@
   <div class="row g-3 mb-4">
     <div class="col-lg-3 col-md-6">
       <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;" 
-           data-bs-toggle="tooltip" data-bs-placement="top" title="جميع الأشخاص المشتركين في خدمتك (نشط + تجريبي + منتهي + ملغي)">
+           data-toggle="tooltip" data-placement="top" title="جميع الأشخاص المشتركين في خدمتك (نشط + تجريبي + منتهي + ملغي)">
         <i class="fas fa-users fa-2x mb-2"></i>
         <h3 class="mb-0">{{ stats.total_subscribers }}</h3>
         <small>إجمالي المشتركين</small>
@@ -133,7 +133,7 @@
     </div>
     <div class="col-lg-3 col-md-6">
       <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;"
-           data-bs-toggle="tooltip" data-bs-placement="top" title="المشتركين النشطين اللي يدفعون حالياً">
+           data-toggle="tooltip" data-placement="top" title="المشتركين النشطين اللي يدفعون حالياً">
         <i class="fas fa-check-circle fa-2x mb-2"></i>
         <h3 class="mb-0">{{ stats.active_subscribers }}</h3>
         <small>مشتركين نشطين</small>
@@ -141,7 +141,7 @@
     </div>
     <div class="col-lg-3 col-md-6">
       <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;"
-           data-bs-toggle="tooltip" data-bs-placement="top" title="الدخل الشهري المتوقع من جميع الاشتراكات النشطة (MRR = Monthly Recurring Revenue)">
+           data-toggle="tooltip" data-placement="top" title="الدخل الشهري المتوقع من جميع الاشتراكات النشطة (MRR = Monthly Recurring Revenue)">
         <i class="fas fa-dollar-sign fa-2x mb-2"></i>
         <h3 class="mb-0">{{ stats.monthly_revenue }}</h3>
         <small>الإيرادات الشهرية</small>
@@ -149,7 +149,7 @@
     </div>
     <div class="col-lg-3 col-md-6">
       <div class="saas-card shadow-sm p-3" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white;"
-           data-bs-toggle="tooltip" data-bs-placement="top" title="المشتركين في فترة التجربة المجانية">
+           data-toggle="tooltip" data-placement="top" title="المشتركين في فترة التجربة المجانية">
         <i class="fas fa-clock fa-2x mb-2"></i>
         <h3 class="mb-0">{{ stats.trial_users }}</h3>
         <small>تجريبي</small>
@@ -159,27 +159,27 @@
 
   <ul class="nav nav-pills nav-fill mb-4" id="saasTabsList" role="tablist">
     <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="plans-tab" data-bs-toggle="tab" data-bs-target="#plans" type="button" role="tab">
+      <button class="nav-link active" id="plans-tab" data-toggle="tab" data-target="#plans" type="button" role="tab">
         <i class="fas fa-box me-1"></i> الباقات
       </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="subscribers-tab" data-bs-toggle="tab" data-bs-target="#subscribers" type="button" role="tab">
+      <button class="nav-link" id="subscribers-tab" data-toggle="tab" data-target="#subscribers" type="button" role="tab">
         <i class="fas fa-users me-1"></i> المشتركين ({{ subscriptions|length }})
       </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="billing-tab" data-bs-toggle="tab" data-bs-target="#billing" type="button" role="tab">
+      <button class="nav-link" id="billing-tab" data-toggle="tab" data-target="#billing" type="button" role="tab">
         <i class="fas fa-file-invoice-dollar me-1"></i> الفواتير ({{ invoices|length }})
       </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="analytics-tab" data-bs-toggle="tab" data-bs-target="#analytics" type="button" role="tab">
+      <button class="nav-link" id="analytics-tab" data-toggle="tab" data-target="#analytics" type="button" role="tab">
         <i class="fas fa-chart-line me-1"></i> التحليلات
       </button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">
+      <button class="nav-link" id="settings-tab" data-toggle="tab" data-target="#settings" type="button" role="tab">
         <i class="fas fa-cog me-1"></i> الإعدادات
       </button>
     </li>
@@ -190,7 +190,7 @@
     <div id="plans" class="tab-pane fade show active" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <h5><i class="fas fa-layer-group me-2"></i>باقات الاشتراك ({{ plans|length }})</h5>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newPlanModal">
+        <button class="btn btn-primary" data-toggle="modal" data-target="#newPlanModal">
           <i class="fas fa-plus me-1"></i> باقة جديدة
         </button>
       </div>
@@ -273,7 +273,7 @@
         <div class="btn-group">
           <button class="btn btn-sm btn-outline-primary"><i class="fas fa-filter"></i> فلترة</button>
           <button class="btn btn-sm btn-outline-success"><i class="fas fa-download"></i> تصدير</button>
-          <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#newSubscriberModal">
+          <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#newSubscriberModal">
             <i class="fas fa-plus me-1"></i> مشترك جديد
           </button>
         </div>
@@ -349,7 +349,7 @@
                       <i class="fas fa-users fa-3x mb-3 d-block opacity-50"></i>
                       <h5>لا يوجد مشتركين حالياً</h5>
                       <p>ابدأ بإضافة أول مشترك</p>
-                      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newSubscriberModal">
+                      <button class="btn btn-primary" data-toggle="modal" data-target="#newSubscriberModal">
                         <i class="fas fa-plus me-1"></i> إضافة مشترك
                       </button>
                     </td>
@@ -694,7 +694,7 @@
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title"><i class="fas fa-plus me-2"></i>باقة جديدة</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
         <form id="newPlanForm">
@@ -753,7 +753,7 @@ API Access
         </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
         <button type="button" class="btn btn-primary" onclick="savePlan()">
           <i class="fas fa-save me-1"></i> حفظ
         </button>
@@ -768,7 +768,7 @@ API Access
     <div class="modal-content">
       <div class="modal-header bg-warning text-dark">
         <h5 class="modal-title"><i class="fas fa-edit me-2"></i>تعديل باقة</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
         <form id="editPlanForm">
@@ -827,7 +827,7 @@ API Access
         </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
         <button type="button" class="btn btn-warning" onclick="saveEditedPlan()">
           <i class="fas fa-save me-1"></i> حفظ التعديلات
         </button>
@@ -842,7 +842,7 @@ API Access
     <div class="modal-content">
       <div class="modal-header bg-success text-white">
         <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>مشترك جديد</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
         <form id="newSubscriberForm">
@@ -875,7 +875,7 @@ API Access
         </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
         <button type="button" class="btn btn-success" onclick="saveSubscriber()">
           <i class="fas fa-save me-1"></i> حفظ
         </button>
@@ -890,7 +890,7 @@ API Access
     <div class="modal-content">
       <div class="modal-header bg-info text-white">
         <h5 class="modal-title"><i class="fas fa-file-invoice me-2"></i>فاتورة جديدة</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
         <form id="newInvoiceForm">
@@ -923,7 +923,7 @@ API Access
         </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
         <button type="button" class="btn btn-info" onclick="saveNewInvoice()">
           <i class="fas fa-save me-1"></i> إنشاء
         </button>
@@ -936,20 +936,11 @@ API Access
 {% block scripts %}
 {{ super() }}
 <script>
-function csrfToken(){
-  const meta = document.querySelector('meta[name="csrf-token"]');
-  if (meta?.content) return meta.content;
-  const input = document.querySelector('input[name="csrf_token"]');
-  if (input?.value) return input.value;
-  const cookie = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
-  return cookie ? decodeURIComponent(cookie[1]) : null;
-}
-
 function notify(message, type = 'info') {
   const alert = document.createElement('div');
   alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
   alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-  alert.innerHTML = `<strong>${message}</strong><button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+  alert.innerHTML = `<strong>${message}</strong><button type="button" class="close" data-dismiss="alert"></button>`;
   document.body.appendChild(alert);
   setTimeout(() => alert.remove(), 5000);
 }
@@ -1046,10 +1037,10 @@ window.editPlan = function(planId) {
   document.getElementById('edit_features').value = plan.features || '';
   document.getElementById('edit_is_popular').checked = plan.is_popular;
   
-  // فتح الـ Modal بطريقة بسيطة
+  // فتح الـ Modal بدون backdrop
   const modalEl = document.getElementById('editPlanModal');
-  const modal = new bootstrap.Modal(modalEl, {backdrop: 'static'});
-  modal.show();
+  $(modalEl).modal({backdrop: false});
+  $(modalEl).modal('show');
 }
 
 window.saveEditedPlan = async function() {
@@ -1248,8 +1239,8 @@ window.createInvoice = function() {
     return;
   }
   
-  const bsModal = new bootstrap.Modal(modal, {backdrop: 'static'});
-  bsModal.show();
+  $(modal).modal({backdrop: false});
+  $(modal).modal('show');
 }
 
 window.saveNewInvoice = async function() {
@@ -1337,10 +1328,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   
   // تفعيل tooltips
-  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-    return new bootstrap.Tooltip(tooltipTriggerEl);
-  });
+  $('[data-toggle="tooltip"]').tooltip();
   
   // رسم Charts
   initCharts();
@@ -1427,7 +1415,7 @@ function initCharts() {
         <h4 class="modal-title">
           <i class="fas fa-book-open"></i> دليل SaaS Manager - صديقك في إدارة الاشتراكات
         </h4>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
         
@@ -1495,11 +1483,11 @@ function initCharts() {
           <!-- الخطوة 1 -->
           <div class="accordion-item">
             <h2 class="accordion-header">
-              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#step1">
+              <button class="accordion-button" type="button" data-toggle="collapse" data-target="#step1">
                 <strong>الخطوة 1:</strong> إنشاء الباقات
               </button>
             </h2>
-            <div id="step1" class="accordion-collapse collapse show" data-bs-parent="#guideAccordion">
+            <div id="step1" class="accordion-collapse collapse show" data-parent="#guideAccordion">
               <div class="accordion-body">
                 <ol class="mb-3">
                   <li>اضغط زر <span class="badge bg-primary">باقة جديدة</span></li>
@@ -1523,11 +1511,11 @@ function initCharts() {
           <!-- الخطوة 2 -->
           <div class="accordion-item">
             <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step2">
+              <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#step2">
                 <strong>الخطوة 2:</strong> إضافة مشترك
               </button>
             </h2>
-            <div id="step2" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+            <div id="step2" class="accordion-collapse collapse" data-parent="#guideAccordion">
               <div class="accordion-body">
                 <ol class="mb-3">
                   <li>اذهب لتبويب <span class="badge bg-primary">المشتركين</span></li>
@@ -1547,11 +1535,11 @@ function initCharts() {
           <!-- الخطوة 3 -->
           <div class="accordion-item">
             <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step3">
+              <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#step3">
                 <strong>الخطوة 3:</strong> إدارة الفواتير
               </button>
             </h2>
-            <div id="step3" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+            <div id="step3" class="accordion-collapse collapse" data-parent="#guideAccordion">
               <div class="accordion-body">
                 <h6>تأكيد الدفع:</h6>
                 <ol class="mb-3">
@@ -1574,11 +1562,11 @@ function initCharts() {
           <!-- الخطوة 4 -->
           <div class="accordion-item">
             <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step4">
+              <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#step4">
                 <strong>الخطوة 4:</strong> عمليات متقدمة
               </button>
             </h2>
-            <div id="step4" class="accordion-collapse collapse" data-bs-parent="#guideAccordion">
+            <div id="step4" class="accordion-collapse collapse" data-parent="#guideAccordion">
               <div class="accordion-body">
                 <h6>تجديد اشتراك:</h6>
                 <p class="small">يضيف 30 يوم للاشتراك تلقائياً</p>
@@ -1651,7 +1639,7 @@ function initCharts() {
         <a href="/static/SAAS_COMPLETE_GUIDE.md" class="btn btn-primary" download>
           <i class="fas fa-download"></i> تحميل الدليل الكامل
         </a>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إغلاق</button>
       </div>
     </div>
   </div>

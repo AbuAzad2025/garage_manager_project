@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% block title %}الملخص المالي{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-gradient-primary text-white">
+            <h3 class="mb-0">
+                <i class="fas fa-tachometer-alt"></i>
+                الملخص المالي - Dashboard
+            </h3>
+        </div>
+        
+        <div class="card-body">
+            <!-- بطاقات المؤشرات الرئيسية -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card stat-card bg-success text-white">
+                        <div class="card-body">
+                            <h6>💰 النقدية</h6>
+                            <h3>{{ "{:,.0f}".format(cash_balance) }} ₪</h3>
+                            <small>الصندوق + البنك</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card stat-card bg-primary text-white">
+                        <div class="card-body">
+                            <h6>📥 ذمم العملاء</h6>
+                            <h3>{{ "{:,.0f}".format(ar_balance) }} ₪</h3>
+                            <small>ما لنا على العملاء</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card stat-card bg-danger text-white">
+                        <div class="card-body">
+                            <h6>📤 ذمم الموردين</h6>
+                            <h3>{{ "{:,.0f}".format(ap_balance) }} ₪</h3>
+                            <small>ما علينا للموردين</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card stat-card bg-dark text-white">
+                        <div class="card-body">
+                            <h6>🏦 صافي القيمة</h6>
+                            <h3>{{ "{:,.0f}".format(net_worth) }} ₪</h3>
+                            <small>الأصول - الخصوم</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- الأداء (آخر 30 يوم) -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">📊 الأداء المالي (آخر 30 يوم)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <h6 class="text-success">الإيرادات</h6>
+                                <h4 class="text-success">{{ "{:,.0f}".format(revenue_30d) }} ₪</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <h6 class="text-danger">المصاريف</h6>
+                                <h4 class="text-danger">{{ "{:,.0f}".format(expenses_30d) }} ₪</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded bg-{% if profit_30d >= 0 %}success{% else %}danger{% endif %} text-white">
+                                <h6>صافي {% if profit_30d >= 0 %}الربح{% else %}الخسارة{% endif %}</h6>
+                                <h4>{{ "{:,.0f}".format(profit_30d|abs) }} ₪</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- روابط سريعة للتقارير -->
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <a href="/financial-reports/income-statement" class="btn btn-outline-success btn-lg w-100">
+                        <i class="fas fa-chart-line"></i><br>
+                        قائمة الدخل
+                    </a>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <a href="/financial-reports/balance-sheet" class="btn btn-outline-primary btn-lg w-100">
+                        <i class="fas fa-balance-scale"></i><br>
+                        الميزانية العمومية
+                    </a>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <a href="/financial-reports/cash-flow" class="btn btn-outline-info btn-lg w-100">
+                        <i class="fas fa-money-bill-wave"></i><br>
+                        التدفقات النقدية
+                    </a>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <a href="/financial-reports/aging-report?type=ar" class="btn btn-outline-warning btn-lg w-100">
+                        <i class="fas fa-clock"></i><br>
+                        ذمم العملاء المعمرة
+                    </a>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <a href="/financial-reports/aging-report?type=ap" class="btn btn-outline-danger btn-lg w-100">
+                        <i class="fas fa-clock"></i><br>
+                        ذمم الموردين المعمرة
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}
+

@@ -916,11 +916,19 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
                 # تجاهلها في الحساب حتى يتم تسعيرها
                 continue
         
-        value_ils = qty * unit_cost
+        value = qty * unit_cost
         
-        # ⚠️ ملاحظة: ExchangeTransaction.unit_cost مُفترض أنه بـ ILS
-        # إذا كانت هناك عملات أخرى، استخدم:
-        # value_ils = _convert_to_ils(value, transaction_currency, tx.created_at)
+        # ✅ تحويل العملة إذا كانت غير ILS
+        # جلب عملة المنتج
+        product_currency = getattr(prod, 'currency', 'ILS') if prod else 'ILS'
+        
+        if product_currency != 'ILS':
+            try:
+                value_ils = _convert_to_ils(value, product_currency, tx.created_at)
+            except Exception:
+                value_ils = value  # إذا فشل التحويل، نستخدم القيمة الأصلية
+        else:
+            value_ils = value
         
         total_ils += value_ils
         
@@ -950,6 +958,7 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
             Product.sku,
             StockLevel.quantity,
             Product.purchase_price,
+            Product.currency,
             StockLevel.created_at
         ).join(
             StockLevel, StockLevel.product_id == Product.id
@@ -962,6 +971,7 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
         for stock in stocks:
             qty = Decimal(str(stock.quantity or 0))
             unit_cost = Decimal(str(stock.purchase_price or 0))
+            product_currency = stock.currency or 'ILS'
             
             if unit_cost == 0:
                 unpriced_items.append({
@@ -975,7 +985,17 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
                 })
                 continue
             
-            value_ils = qty * unit_cost
+            value = qty * unit_cost
+            
+            # ✅ تحويل العملة إذا كانت غير ILS
+            if product_currency != 'ILS':
+                try:
+                    value_ils = _convert_to_ils(value, product_currency, stock.created_at)
+                except Exception:
+                    value_ils = value
+            else:
+                value_ils = value
+            
             total_ils += value_ils
             
             items.append({
@@ -1169,11 +1189,10 @@ def _get_payments_to_supplier(supplier_id: int, supplier, date_from: datetime, d
                     "source": "customer"
                 })
         
-        # 3. الدفعات المرتبطة بمبيعات للعميل (entity_type = SALE)
+        # 3. الدفعات المرتبطة بمبيعات للعميل
         sale_payments = db.session.query(Payment).join(
             Sale, Sale.id == Payment.sale_id
         ).filter(
-            Payment.entity_type == PaymentEntityType.SALE,
             Sale.customer_id == supplier.customer_id,
             Payment.direction == PaymentDirection.OUT,
             Payment.status == PaymentStatus.COMPLETED,
@@ -1197,6 +1216,96 @@ def _get_payments_to_supplier(supplier_id: int, supplier, date_from: datetime, d
                     "amount_ils": float(amount_ils),
                     "notes": payment.notes,
                     "source": "sale"
+                })
+        
+        # 4. الدفعات المرتبطة بفواتير للعميل
+        from models import Invoice
+        invoice_payments = db.session.query(Payment).join(
+            Invoice, Invoice.id == Payment.invoice_id
+        ).filter(
+            Invoice.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in invoice_payments:
+            if not any(item['payment_id'] == payment.id for item in items):
+                amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+                total_ils += amount_ils
+                
+                items.append({
+                    "payment_id": payment.id,
+                    "payment_number": payment.payment_number,
+                    "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                    "method": payment.method,
+                    "check_number": payment.check_number,
+                    "amount": float(payment.total_amount or 0),
+                    "currency": payment.currency,
+                    "amount_ils": float(amount_ils),
+                    "notes": payment.notes,
+                    "source": "invoice"
+                })
+        
+        # 5. الدفعات المرتبطة بخدمات للعميل
+        from models import ServiceRequest
+        service_payments = db.session.query(Payment).join(
+            ServiceRequest, ServiceRequest.id == Payment.service_id
+        ).filter(
+            ServiceRequest.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in service_payments:
+            if not any(item['payment_id'] == payment.id for item in items):
+                amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+                total_ils += amount_ils
+                
+                items.append({
+                    "payment_id": payment.id,
+                    "payment_number": payment.payment_number,
+                    "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                    "method": payment.method,
+                    "check_number": payment.check_number,
+                    "amount": float(payment.total_amount or 0),
+                    "currency": payment.currency,
+                    "amount_ils": float(amount_ils),
+                    "notes": payment.notes,
+                    "source": "service"
+                })
+        
+        # 6. الدفعات المرتبطة بحجوزات مسبقة للعميل
+        from models import PreOrder
+        preorder_payments = db.session.query(Payment).join(
+            PreOrder, PreOrder.id == Payment.preorder_id
+        ).filter(
+            PreOrder.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in preorder_payments:
+            if not any(item['payment_id'] == payment.id for item in items):
+                amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+                total_ils += amount_ils
+                
+                items.append({
+                    "payment_id": payment.id,
+                    "payment_number": payment.payment_number,
+                    "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                    "method": payment.method,
+                    "check_number": payment.check_number,
+                    "amount": float(payment.total_amount or 0),
+                    "currency": payment.currency,
+                    "amount_ils": float(amount_ils),
+                    "notes": payment.notes,
+                    "source": "preorder"
                 })
     
     # ترتيب حسب التاريخ
@@ -1277,11 +1386,10 @@ def _get_payments_from_supplier(supplier_id: int, supplier, date_from: datetime,
                     "source": "customer"
                 })
         
-        # 3. الدفعات المرتبطة بمبيعات للعميل (entity_type = SALE)
+        # 3. الدفعات المرتبطة بمبيعات للعميل
         sale_payments = db.session.query(Payment).join(
             Sale, Sale.id == Payment.sale_id
         ).filter(
-            Payment.entity_type == PaymentEntityType.SALE,
             Sale.customer_id == supplier.customer_id,
             Payment.direction == PaymentDirection.IN,
             Payment.status == PaymentStatus.COMPLETED,
@@ -1305,6 +1413,96 @@ def _get_payments_from_supplier(supplier_id: int, supplier, date_from: datetime,
                     "amount_ils": float(amount_ils),
                     "notes": payment.notes,
                     "source": "sale"
+                })
+        
+        # 4. الدفعات المرتبطة بفواتير للعميل
+        from models import Invoice
+        invoice_payments = db.session.query(Payment).join(
+            Invoice, Invoice.id == Payment.invoice_id
+        ).filter(
+            Invoice.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in invoice_payments:
+            if not any(item['payment_id'] == payment.id for item in items):
+                amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+                total_ils += amount_ils
+                
+                items.append({
+                    "payment_id": payment.id,
+                    "payment_number": payment.payment_number,
+                    "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                    "method": payment.method,
+                    "check_number": payment.check_number,
+                    "amount": float(payment.total_amount or 0),
+                    "currency": payment.currency,
+                    "amount_ils": float(amount_ils),
+                    "notes": payment.notes,
+                    "source": "invoice"
+                })
+        
+        # 5. الدفعات المرتبطة بخدمات للعميل
+        from models import ServiceRequest
+        service_payments = db.session.query(Payment).join(
+            ServiceRequest, ServiceRequest.id == Payment.service_id
+        ).filter(
+            ServiceRequest.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in service_payments:
+            if not any(item['payment_id'] == payment.id for item in items):
+                amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+                total_ils += amount_ils
+                
+                items.append({
+                    "payment_id": payment.id,
+                    "payment_number": payment.payment_number,
+                    "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                    "method": payment.method,
+                    "check_number": payment.check_number,
+                    "amount": float(payment.total_amount or 0),
+                    "currency": payment.currency,
+                    "amount_ils": float(amount_ils),
+                    "notes": payment.notes,
+                    "source": "service"
+                })
+        
+        # 5. الدفعات المرتبطة بحجوزات مسبقة للعميل
+        from models import PreOrder
+        preorder_payments = db.session.query(Payment).join(
+            PreOrder, PreOrder.id == Payment.preorder_id
+        ).filter(
+            PreOrder.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status == PaymentStatus.COMPLETED,
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        for payment in preorder_payments:
+            if not any(item['payment_id'] == payment.id for item in items):
+                amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+                total_ils += amount_ils
+                
+                items.append({
+                    "payment_id": payment.id,
+                    "payment_number": payment.payment_number,
+                    "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                    "method": payment.method,
+                    "check_number": payment.check_number,
+                    "amount": float(payment.total_amount or 0),
+                    "currency": payment.currency,
+                    "amount_ils": float(amount_ils),
+                    "notes": payment.notes,
+                    "source": "preorder"
                 })
     
     # ترتيب حسب التاريخ

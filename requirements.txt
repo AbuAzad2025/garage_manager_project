@@ -23,8 +23,9 @@ cachelib==0.9.0
 cairocffi==1.7.1
 celery==5.3.4
 certifi==2025.8.3
-cffi==1.17.1
+cffi==2.0.0
 charset-normalizer==3.4.3
+cryptography==46.0.3
 click==8.2.1
 click-didyoumean==0.3.1
 click-plugins==1.1.1.2
@@ -129,7 +130,7 @@ SQLAlchemy==2.0.44
 threadpoolctl==3.6.0
 tinycss2==1.4.0
 tqdm==4.67.1
-twilio==9.8.3
+twilio==9.8.3  # SMS/WhatsApp notifications (✅ مُفعل في النظام)
 typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2025.2
@@ -150,3 +151,25 @@ xlsxwriter==3.2.5
 yarl==1.20.1
 zopfli==0.2.3.post1
 zstandard==0.25.0
+
+# ==================== Professional Integrations ====================
+# Optional: Install only what you need
+
+# Thermal Printer
+# python-escpos>=3.0
+
+# Payment Gateways
+# stripe>=5.4.0
+# paypalrestsdk>=1.13.1
+
+# Cloud Storage
+# boto3>=1.26.0
+
+# OBD-II Car Diagnostics
+# obd>=0.7.1
+
+# Serial Devices (scales, displays, cash drawers)
+# pyserial>=3.5
+
+# Label Printer (Zebra)
+# zebra>=0.5.0

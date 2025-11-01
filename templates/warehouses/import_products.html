@@ -125,22 +125,22 @@
 <!-- Tabs للتنظيم -->
 <ul class="nav nav-tabs mb-4" id="importTabs" role="tablist">
   <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-target="#upload-panel" type="button">
+    <button class="nav-link active" id="upload-tab" data-toggle="tab" data-target="#upload-panel" type="button">
       <i class="fas fa-upload me-1"></i> رفع الملف
     </button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="template-tab" data-bs-toggle="tab" data-target="#template-panel" type="button">
+    <button class="nav-link" id="template-tab" data-toggle="tab" data-target="#template-panel" type="button">
       <i class="fas fa-download me-1"></i> تحميل قالب
     </button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="guide-tab" data-bs-toggle="tab" data-target="#guide-panel" type="button">
+    <button class="nav-link" id="guide-tab" data-toggle="tab" data-target="#guide-panel" type="button">
       <i class="fas fa-book me-1"></i> دليل الحقول
     </button>
   </li>
   <li class="nav-item" role="presentation">
-    <button class="nav-link" id="examples-tab" data-bs-toggle="tab" data-target="#examples-panel" type="button">
+    <button class="nav-link" id="examples-tab" data-toggle="tab" data-target="#examples-panel" type="button">
       <i class="fas fa-lightbulb me-1"></i> أمثلة
     </button>
   </li>
@@ -522,7 +522,7 @@
           <!-- مثال 1: CSV بسيط -->
           <div class="accordion-item">
             <h2 class="accordion-header">
-              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-target="#example1">
+              <button class="accordion-button" type="button" data-toggle="collapse" data-target="#example1">
                 <i class="fas fa-file-csv text-success me-2"></i>
                 مثال 1: ملف CSV بسيط (الحد الأدنى)
               </button>
@@ -540,7 +540,7 @@
           <!-- مثال 2: CSV كامل -->
           <div class="accordion-item">
             <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-target="#example2">
+              <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#example2">
                 <i class="fas fa-file-excel text-primary me-2"></i>
                 مثال 2: ملف كامل مع كل التفاصيل
               </button>
@@ -558,7 +558,7 @@
           <!-- مثال 3: أخطاء شائعة -->
           <div class="accordion-item">
             <h2 class="accordion-header">
-              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-target="#example3">
+              <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#example3">
                 <i class="fas fa-exclamation-triangle text-danger me-2"></i>
                 أخطاء شائعة وكيفية تجنبها
               </button>
@@ -643,7 +643,7 @@
     alertDiv.style.zIndex = '9999';
     alertDiv.innerHTML = `
       ${message}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      <button type="button" class="close" data-dismiss="alert"></button>
     `;
     document.body.appendChild(alertDiv);
     setTimeout(() => alertDiv.remove(), 5000);
@@ -846,10 +846,10 @@
   }
 
   // ========== Tabs Navigation (دعم Bootstrap 4 و 5) ==========
-  document.querySelectorAll('[data-bs-toggle="tab"], [data-toggle="tab"]').forEach(tab => {
+  document.querySelectorAll('[data-toggle="tab"], [data-toggle="tab"]').forEach(tab => {
     tab.addEventListener('click', function(e) {
       e.preventDefault();
-      const target = this.getAttribute('data-target') || this.getAttribute('data-bs-target');
+      const target = this.getAttribute('data-target') || this.getAttribute('data-target');
       
       // إخفاء كل الـ panels
       document.querySelectorAll('.tab-pane').forEach(pane => {
@@ -871,10 +871,10 @@
   });
 
   // ========== Accordion (دعم Bootstrap 4 و 5) ==========
-  document.querySelectorAll('[data-bs-toggle="collapse"], [data-toggle="collapse"]').forEach(btn => {
+  document.querySelectorAll('[data-toggle="collapse"], [data-toggle="collapse"]').forEach(btn => {
     btn.addEventListener('click', function(e) {
       e.preventDefault();
-      const target = this.getAttribute('data-target') || this.getAttribute('data-bs-target');
+      const target = this.getAttribute('data-target') || this.getAttribute('data-target');
       const targetEl = document.querySelector(target);
       
       if (targetEl) {

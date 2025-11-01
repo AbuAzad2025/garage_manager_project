@@ -1,0 +1,640 @@
+{% extends 'base.html' %}
+{% block title %}مركز المساعدة - الوحدة السرية{% endblock %}
+{% block page_title %}❓ مركز المساعدة{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/security_responsive.css') }}">
+<style>
+  .help-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+    border-left: 4px solid #667eea;
+  }
+  
+  .help-section h4 {
+    color: #667eea;
+    margin-bottom: 1rem;
+  }
+  
+  .feature-list {
+    list-style: none;
+    padding-left: 0;
+  }
+  
+  .feature-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+  }
+  
+  .feature-list li:last-child {
+    border-bottom: none;
+  }
+  
+  .feature-list i {
+    width: 25px;
+    color: #667eea;
+  }
+  
+  .shortcut-key {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: #343a40;
+    color: white;
+    border-radius: 0.25rem;
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+  
+  .video-tutorial {
+    aspect-ratio: 16/9;
+    background: #000;
+    border-radius: 0.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <!-- عنوان رئيسي -->
+  <div class="alert border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-question-circle"></i>
+        <strong>مركز المساعدة:</strong>
+        <span class="badge bg-white text-primary ms-2">دليل شامل للوحدة السرية</span>
+      </div>
+      <small class="opacity-75">7 مراكز • 38 تبويب • 121 وظيفة</small>
+    </div>
+  </div>
+  
+  <!-- بحث في المساعدة -->
+  <div class="mb-4">
+    <div class="input-group">
+      <span class="input-group-text bg-primary text-white">
+        <i class="fas fa-search"></i>
+      </span>
+      <input type="text" id="helpSearch" class="form-control" 
+             placeholder="🔍 ابحث في المساعدة... (مثال: كيف أضيف تكامل؟)">
+    </div>
+  </div>
+  
+  <!-- محتوى المساعدة -->
+  <div class="row">
+    <div class="col-lg-3">
+      <!-- Sidebar للتنقل -->
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-list"></i> المحتويات</h5>
+        </div>
+        <div class="list-group list-group-flush">
+          <a href="#overview" class="list-group-item list-group-item-action">نظرة عامة</a>
+          <a href="#getting-started" class="list-group-item list-group-item-action">البدء السريع</a>
+          <a href="#centers" class="list-group-item list-group-item-action">المراكز الموحدة</a>
+          <a href="#shortcuts" class="list-group-item list-group-item-action">اختصارات لوحة المفاتيح</a>
+          <a href="#faq" class="list-group-item list-group-item-action">الأسئلة الشائعة</a>
+          <a href="#troubleshooting" class="list-group-item list-group-item-action">حل المشاكل</a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-9">
+      
+      <!-- نظرة عامة -->
+      <div class="help-section" id="overview">
+        <h4><i class="fas fa-info-circle"></i> نظرة عامة</h4>
+        <p>
+          <strong>الوحدة السرية</strong> هي مركز التحكم الكامل للنظام، مخصصة للمالك (__OWNER__) فقط.
+          تحتوي على 7 مراكز موحدة + أدوات إضافية لإدارة كل جوانب النظام.
+        </p>
+        
+        <div class="row g-3 mt-3">
+          <div class="col-md-4">
+            <div class="card text-center border-primary">
+              <div class="card-body">
+                <h2 class="text-primary mb-0">7</h2>
+                <small>مراكز موحدة</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card text-center border-success">
+              <div class="card-body">
+                <h2 class="text-success mb-0">38</h2>
+                <small>تبويب</small>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card text-center border-info">
+              <div class="card-body">
+                <h2 class="text-info mb-0">121</h2>
+                <small>وظيفة</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- البدء السريع -->
+      <div class="help-section" id="getting-started">
+        <h4><i class="fas fa-rocket"></i> البدء السريع</h4>
+        
+        <h6 class="mt-3 mb-2"><strong>الوصول للوحدة السرية:</strong></h6>
+        <ol>
+          <li>تأكد أنك مسجل دخول بحساب <strong>Owner</strong></li>
+          <li>ستجد في القائمة الجانبية: <span class="badge bg-warning">👑 اللوحة السرية</span></li>
+          <li>أو اذهب مباشرة إلى: <code>/security/</code></li>
+        </ol>
+        
+        <h6 class="mt-3 mb-2"><strong>البحث السريع:</strong></h6>
+        <ul>
+          <li>استخدم شريط البحث في الأعلى</li>
+          <li>اختصار لوحة المفاتيح: <span class="shortcut-key">Ctrl+K</span></li>
+          <li>اكتب أي كلمة للبحث الفوري</li>
+        </ul>
+      </div>
+      
+      <!-- المراكز الموحدة -->
+      <div class="help-section" id="centers">
+        <h4><i class="fas fa-th-large"></i> المراكز الموحدة السبعة</h4>
+        
+        <!-- Database Control Center -->
+        <div class="card mb-3">
+          <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-database"></i> Database Control Center</h5>
+          </div>
+          <div class="card-body">
+            <p><strong>الرابط:</strong> <code>/security/database-manager</code></p>
+            <p><strong>الوصف:</strong> إدارة شاملة لقاعدة البيانات من مكان واحد</p>
+            <p><strong>التبويبات (11):</strong></p>
+            <ul class="feature-list">
+              <li><i class="fas fa-search"></i> <strong>تصفح:</strong> عرض جميع الجداول والبيانات</li>
+              <li><i class="fas fa-edit"></i> <strong>تحرير:</strong> تعديل البيانات مباشرة</li>
+              <li><i class="fas fa-sitemap"></i> <strong>هيكل:</strong> عرض بنية الجداول والأعمدة</li>
+              <li><i class="fas fa-bolt"></i> <strong>فهارس:</strong> إدارة الفهارس (115+ فهرس)</li>
+              <li><i class="fas fa-file-alt"></i> <strong>سجلات:</strong> 6 أنواع لوجات (Audit, Error, Security, etc.)</li>
+              <li><i class="fas fa-code"></i> <strong>SQL:</strong> تنفيذ استعلامات SQL مخصصة</li>
+              <li><i class="fab fa-python"></i> <strong>Python:</strong> تشغيل أكواد Python</li>
+              <li><i class="fas fa-tools"></i> <strong>صيانة:</strong> VACUUM, ANALYZE, تحسين الأداء</li>
+              <li><i class="fas fa-upload"></i> <strong>استعادة:</strong> استعادة نسخ احتياطية</li>
+              <li><i class="fas fa-wrench"></i> <strong>أدوات:</strong> Decrypt, Error Tracker</li>
+              <li><i class="fas fa-archive"></i> <strong>أرشيفات:</strong> البيانات المحذوفة والأرشيف</li>
+            </ul>
+          </div>
+        </div>
+        
+        <!-- AI Control Center -->
+        <div class="card mb-3">
+          <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <h5 class="mb-0"><i class="fas fa-brain"></i> AI Control Center</h5>
+          </div>
+          <div class="card-body">
+            <p><strong>الرابط:</strong> <code>/security/ai-hub</code></p>
+            <p><strong>الوصف:</strong> مركز الذكاء الاصطناعي والتحليل المتقدم</p>
+            <p><strong>التبويبات (4):</strong></p>
+            <ul class="feature-list">
+              <li><i class="fas fa-comments"></i> <strong>مساعد ذكي:</strong> اسأل أي سؤال عن النظام</li>
+              <li><i class="fas fa-chart-line"></i> <strong>تحليل:</strong> تحليل البيانات وكشف الأنماط</li>
+              <li><i class="fas fa-crystal-ball"></i> <strong>تنبؤ:</strong> توقعات المبيعات والإيرادات</li>
+              <li><i class="fas fa-graduation-cap"></i> <strong>تدريب:</strong> تدريب النماذج وخريطة النظام</li>
+            </ul>
+          </div>
+        </div>
+        
+        <!-- Security & Monitoring Center -->
+        <div class="card mb-3">
+          <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Security & Monitoring Center</h5>
+          </div>
+          <div class="card-body">
+            <p><strong>الرابط:</strong> <code>/security/security-center</code></p>
+            <p><strong>الوصف:</strong> مراقبة الأمان والحماية</p>
+            <p><strong>التبويبات (4):</strong></p>
+            <ul class="feature-list">
+              <li><i class="fas fa-tv"></i> <strong>مراقبة:</strong> مراقبة فورية للنظام</li>
+              <li><i class="fas fa-shield-alt"></i> <strong>جدار حماية:</strong> حظر IPs ودول</li>
+              <li><i class="fas fa-bell"></i> <strong>تنبيهات:</strong> إشعارات أمنية</li>
+              <li><i class="fas fa-history"></i> <strong>النشاط:</strong> سجل النشاطات</li>
+            </ul>
+          </div>
+        </div>
+        
+        <!-- Users & Permissions Center -->
+        <div class="card mb-3">
+          <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-users-cog"></i> Users & Permissions Center</h5>
+          </div>
+          <div class="card-body">
+            <p><strong>الرابط:</strong> <code>/security/users-center</code></p>
+            <p><strong>الوصف:</strong> إدارة المستخدمين والصلاحيات</p>
+            <p><strong>التبويبات (2):</strong></p>
+            <ul class="feature-list">
+              <li><i class="fas fa-users"></i> <strong>المستخدمين:</strong> إضافة، تعديل، حذف، انتحال شخصية</li>
+              <li><i class="fas fa-key"></i> <strong>الصلاحيات:</strong> إدارة الأدوار والصلاحيات</li>
+            </ul>
+          </div>
+        </div>
+        
+        <!-- Settings & Customization Center -->
+        <div class="card mb-3">
+          <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-cogs"></i> Settings & Customization Center</h5>
+          </div>
+          <div class="card-body">
+            <p><strong>الرابط:</strong> <code>/security/settings-center</code></p>
+            <p><strong>الوصف:</strong> إعدادات وتخصيص النظام</p>
+            <p><strong>التبويبات (8):</strong></p>
+            <ul class="feature-list">
+              <li><i class="fas fa-cog"></i> <strong>إعدادات النظام:</strong> تكوين عام</li>
+              <li><i class="fas fa-database"></i> <strong>الثوابت:</strong> القيم الثابتة</li>
+              <li><i class="fas fa-sliders-h"></i> <strong>تكوين متقدم:</strong> إعدادات تقنية</li>
+              <li><i class="fas fa-tag"></i> <strong>العلامة التجارية:</strong> الشعار والاسم</li>
+              <li><i class="fas fa-palette"></i> <strong>الثيمات:</strong> تخصيص الألوان</li>
+              <li><i class="fas fa-image"></i> <strong>الشعارات:</strong> إدارة اللوجوهات</li>
+              <li><i class="fas fa-moon"></i> <strong>الوضع الليلي:</strong> Dark Mode</li>
+              <li><i class="fas fa-code-branch"></i> <strong>الفروع:</strong> إدارة الفروع والمواقع</li>
+            </ul>
+          </div>
+        </div>
+        
+        <!-- Reports & Performance Center -->
+        <div class="card mb-3">
+          <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Reports & Performance Center</h5>
+          </div>
+          <div class="card-body">
+            <p><strong>الرابط:</strong> <code>/security/reports-center</code></p>
+            <p><strong>الوصف:</strong> تقارير ومراقبة الأداء</p>
+            <p><strong>التبويبات (4):</strong></p>
+            <ul class="feature-list">
+              <li><i class="fas fa-file-alt"></i> <strong>التقارير:</strong> تقارير إدارية شاملة</li>
+              <li><i class="fas fa-chart-area"></i> <strong>لوحة المراقبة:</strong> مراقبة شاملة</li>
+              <li><i class="fas fa-tachometer-alt"></i> <strong>الأداء:</strong> مراقبة أداء النظام</li>
+              <li><i class="fas fa-chart-pie"></i> <strong>Grafana:</strong> تكامل Grafana + Prometheus</li>
+            </ul>
+          </div>
+        </div>
+        
+        <!-- Tools & Integration Center -->
+        <div class="card mb-3">
+          <div class="card-header text-white" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+            <h5 class="mb-0"><i class="fas fa-toolbox"></i> Tools & Integration Center</h5>
+          </div>
+          <div class="card-body">
+            <p><strong>الرابط:</strong> <code>/security/tools-center</code></p>
+            <p><strong>الوصف:</strong> أدوات وتكاملات متنوعة</p>
+            <p><strong>التبويبات (5):</strong></p>
+            <ul class="feature-list">
+              <li><i class="fas fa-plug"></i> <strong>التكامل:</strong> Stripe, PayPal, SMS, Email</li>
+              <li><i class="fas fa-file-invoice"></i> <strong>الفواتير:</strong> تصميم الفواتير</li>
+              <li><i class="fas fa-envelope"></i> <strong>البريد:</strong> إعدادات SMTP</li>
+              <li><i class="fas fa-credit-card"></i> <strong>الكروت:</strong> خزنة بطاقات الدفع</li>
+              <li><i class="fas fa-download"></i> <strong>التصدير:</strong> تصدير البيانات</li>
+            </ul>
+          </div>
+        </div>
+        
+        <!-- Ledger Control -->
+        <div class="card mb-3">
+          <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-book"></i> Ledger Control</h5>
+          </div>
+          <div class="card-body">
+            <p><strong>الرابط:</strong> <code>/security/ledger-control/</code></p>
+            <p><strong>الوصف:</strong> دفتر الأستاذ المحاسبي (Blueprint منفصل)</p>
+            <p><strong>التبويبات (4):</strong></p>
+            <ul class="feature-list">
+              <li><i class="fas fa-list"></i> <strong>الحسابات:</strong> إدارة الحسابات المحاسبية (97 حساب)</li>
+              <li><i class="fas fa-file"></i> <strong>القيود:</strong> القيود المحاسبية</li>
+              <li><i class="fas fa-edit"></i> <strong>تحرير:</strong> تحرير القيود</li>
+              <li><i class="fas fa-tools"></i> <strong>الأدوات:</strong> أدوات محاسبية</li>
+            </ul>
+          </div>
+        </div>
+        
+      </div>
+      
+      <!-- اختصارات لوحة المفاتيح -->
+      <div class="help-section" id="shortcuts">
+        <h4><i class="fas fa-keyboard"></i> اختصارات لوحة المفاتيح</h4>
+        
+        <div class="table-responsive">
+          <table class="table table-bordered">
+            <thead class="table-dark">
+              <tr>
+                <th>الاختصار</th>
+                <th>الوظيفة</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+K</span></td>
+                <td>فتح شريط البحث السريع</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+?</span></td>
+                <td>إظهار قائمة الاختصارات الكاملة</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+D</span></td>
+                <td>فتح Database Manager</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+A</span></td>
+                <td>فتح AI Hub</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+S</span></td>
+                <td>فتح Security Center</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+U</span></td>
+                <td>فتح Users Center</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+T</span></td>
+                <td>فتح Tools Center</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+R</span></td>
+                <td>فتح Reports Center</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+G</span></td>
+                <td>فتح Settings Center</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+L</span></td>
+                <td>فتح Ledger Control</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+H</span></td>
+                <td>فتح صفحة المساعدة</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Ctrl+Shift+I</span></td>
+                <td>فتح التكاملات (Integrations)</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">Esc</span></td>
+                <td>إغلاق النوافذ المنبثقة</td>
+              </tr>
+              <tr>
+                <td><span class="shortcut-key">F5</span></td>
+                <td>تحديث الصفحة</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- الأسئلة الشائعة -->
+      <div class="help-section" id="faq">
+        <h4><i class="fas fa-question-circle"></i> الأسئلة الشائعة</h4>
+        
+        <div class="accordion" id="faqAccordion">
+          
+          <!-- سؤال 1 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button" type="button" data-toggle="collapse" data-target="#faq1">
+                <i class="fas fa-question-circle text-primary me-2"></i>
+                كيف أصل للتكاملات (Integrations)؟
+              </button>
+            </h2>
+            <div id="faq1" class="accordion-collapse collapse show" data-parent="#faqAccordion">
+              <div class="accordion-body">
+                <strong>3 طرق:</strong>
+                <ol>
+                  <li>الصفحة الرئيسية → Tools Center → تبويب "التكامل"</li>
+                  <li>مباشرة: <code>/security/tools-center?tab=integrations</code></li>
+                  <li>أسرع طريقة: <code>/security/integrations</code></li>
+                </ol>
+              </div>
+            </div>
+          </div>
+          
+          <!-- سؤال 2 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#faq2">
+                <i class="fas fa-question-circle text-primary me-2"></i>
+                لماذا لا أرى رابط "اللوحة السرية" في القائمة؟
+              </button>
+            </h2>
+            <div id="faq2" class="accordion-collapse collapse" data-parent="#faqAccordion">
+              <div class="accordion-body">
+                <strong>السبب:</strong> يظهر فقط للمستخدمين بدور <code>Owner</code><br>
+                <strong>الحل:</strong>
+                <ol>
+                  <li>تحقق من دورك في صفحة المستخدمين</li>
+                  <li>يجب أن يكون Role = <code>Owner</code> (بالضبط)</li>
+                  <li>أو استخدم الأمر: <code>flask user-assign-role your_username Owner</code></li>
+                </ol>
+              </div>
+            </div>
+          </div>
+          
+          <!-- سؤال 3 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#faq3">
+                <i class="fas fa-question-circle text-primary me-2"></i>
+                ما الفرق بين الوحدة السرية والـ Super Admin؟
+              </button>
+            </h2>
+            <div id="faq3" class="accordion-collapse collapse" data-parent="#faqAccordion">
+              <div class="accordion-body">
+                <table class="table table-sm">
+                  <tr>
+                    <th>الميزة</th>
+                    <th>Super Admin</th>
+                    <th>Owner (الوحدة السرية)</th>
+                  </tr>
+                  <tr>
+                    <td>إدارة المستخدمين</td>
+                    <td>✅</td>
+                    <td>✅ + انتحال شخصية</td>
+                  </tr>
+                  <tr>
+                    <td>قاعدة البيانات</td>
+                    <td>❌</td>
+                    <td>✅ تحكم كامل</td>
+                  </tr>
+                  <tr>
+                    <td>SQL/Python Console</td>
+                    <td>❌</td>
+                    <td>✅</td>
+                  </tr>
+                  <tr>
+                    <td>التكاملات</td>
+                    <td>❌</td>
+                    <td>✅</td>
+                  </tr>
+                  <tr>
+                    <td>أدوات الطوارئ</td>
+                    <td>❌</td>
+                    <td>✅</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <!-- سؤال 4 -->
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#faq4">
+                <i class="fas fa-question-circle text-primary me-2"></i>
+                كيف أستعيد نسخة احتياطية؟
+              </button>
+            </h2>
+            <div id="faq4" class="accordion-collapse collapse" data-parent="#faqAccordion">
+              <div class="accordion-body">
+                <ol>
+                  <li>اذهب إلى: <code>Database Manager</code></li>
+                  <li>اختر تبويب <strong>"استعادة"</strong></li>
+                  <li>اختر النسخة الاحتياطية</li>
+                  <li>اضغط "استعادة" (سيتطلب تأكيد مزدوج)</li>
+                </ol>
+                <div class="alert alert-warning">
+                  ⚠️ تحذير: ستستبدل البيانات الحالية بالكامل!
+                </div>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+      
+      <!-- حل المشاكل -->
+      <div class="help-section" id="troubleshooting">
+        <h4><i class="fas fa-wrench"></i> حل المشاكل الشائعة</h4>
+        
+        <div class="card mb-3 border-warning">
+          <div class="card-body">
+            <h6><i class="fas fa-exclamation-triangle text-warning"></i> المشكلة: الصفحة بطيئة</h6>
+            <p><strong>الحل:</strong></p>
+            <ul>
+              <li>الإحصائيات الآن مع cache (5 دقائق) - يجب أن تكون أسرع</li>
+              <li>إذا لا تزال بطيئة، امسح الكاش من: Emergency Tools → مسح الكاش</li>
+              <li>تحقق من حجم قاعدة البيانات (إذا > 500MB، قد تحتاج VACUUM)</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="card mb-3 border-danger">
+          <div class="card-body">
+            <h6><i class="fas fa-ban text-danger"></i> المشكلة: لا أستطيع الوصول</h6>
+            <p><strong>الحل:</strong></p>
+            <ul>
+              <li>تأكد أنك Owner (ليس Super Admin)</li>
+              <li>شغّل: <code>flask user-assign-role your_username Owner</code></li>
+              <li>سجّل خروج ودخول مرة أخرى</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div class="card mb-3 border-info">
+          <div class="card-body">
+            <h6><i class="fas fa-database text-info"></i> المشكلة: خطأ في قاعدة البيانات</h6>
+            <p><strong>الحل:</strong></p>
+            <ul>
+              <li>اذهب إلى: Database Manager → Maintenance</li>
+              <li>شغّل VACUUM ثم ANALYZE</li>
+              <li>إذا استمر الخطأ، استعد نسخة احتياطية</li>
+            </ul>
+          </div>
+        </div>
+        
+      </div>
+      
+      <!-- روابط مفيدة -->
+      <div class="help-section">
+        <h4><i class="fas fa-link"></i> روابط سريعة مفيدة</h4>
+        
+        <div class="row g-2">
+          <div class="col-md-6">
+            <a href="{{ url_for('security.database_manager') }}" class="btn btn-outline-primary w-100">
+              <i class="fas fa-database"></i> Database Manager
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="{{ url_for('ai.hub') }}" class="btn btn-outline-primary w-100">
+              <i class="fas fa-brain"></i> AI Hub
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="{{ url_for('security.tools_center', tab='integrations') }}" class="btn btn-outline-success w-100">
+              <i class="fas fa-plug"></i> التكاملات
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="{{ url_for('security.user_control') }}" class="btn btn-outline-info w-100">
+              <i class="fas fa-users"></i> التحكم بالمستخدمين
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="{{ url_for('security.emergency_tools') }}" class="btn btn-outline-danger w-100">
+              <i class="fas fa-exclamation-triangle"></i> أدوات الطوارئ
+            </a>
+          </div>
+          <div class="col-md-6">
+            <a href="{{ url_for('ledger_control.index') }}" class="btn btn-outline-dark w-100">
+              <i class="fas fa-book"></i> دفتر الأستاذ
+            </a>
+          </div>
+          <div class="col-md-12">
+            <a href="{{ url_for('security.sitemap') }}" class="btn btn-outline-secondary w-100">
+              <i class="fas fa-sitemap"></i> خريطة الموقع الكاملة
+            </a>
+          </div>
+        </div>
+      </div>
+      
+      <!-- معلومات الاتصال -->
+      <div class="alert alert-light border">
+        <h6><i class="fas fa-headset"></i> هل تحتاج مساعدة إضافية؟</h6>
+        <p class="mb-0">
+          للدعم الفني، تواصل مع: 
+          <a href="mailto:support@example.com">support@example.com</a>
+        </p>
+      </div>
+      
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// البحث في المساعدة
+document.getElementById('helpSearch').addEventListener('input', function() {
+  const query = this.value.toLowerCase();
+  const sections = document.querySelectorAll('.help-section, .card');
+  
+  sections.forEach(section => {
+    const text = section.textContent.toLowerCase();
+    section.style.display = text.includes(query) || !query ? '' : 'none';
+  });
+});
+
+// Smooth scroll للروابط
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+</script>
+{% endblock %}
+

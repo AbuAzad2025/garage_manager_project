@@ -13,12 +13,7 @@
     },
 
     initTooltips() {
-      if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-toggle="tooltip"], [title]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-          return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-      } else if (typeof $ !== 'undefined' && $.fn.tooltip) {
+      if (typeof $ !== 'undefined' && $.fn.tooltip) {
         $('[data-toggle="tooltip"], [title]').tooltip();
       }
     },

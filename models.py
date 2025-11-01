@@ -706,9 +706,109 @@ class SystemSettings(db.Model):
         setting.data_type = data_type
         setting.is_public = is_public
         setting.updated_at = datetime.now(timezone.utc)
-        
         db.session.commit()
         return setting
+
+
+class NotificationLog(db.Model):
+    """سجل الإشعارات - Email & SMS"""
+    __tablename__ = "notification_logs"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.String(20), nullable=False, index=True)  # email, sms, whatsapp
+    recipient = db.Column(db.String(255), nullable=False, index=True)
+    subject = db.Column(db.String(500))
+    content = db.Column(db.Text)
+    status = db.Column(db.String(20), nullable=False, default='pending', index=True)  # pending, sent, failed, delivered
+    provider_id = db.Column(db.String(100))  # Twilio SID, etc
+    error_message = db.Column(db.Text)
+    extra_data = db.Column(db.Text)  # JSON: {invoice_id, customer_id, etc} - renamed from metadata (reserved)
+    sent_at = db.Column(db.DateTime, index=True)
+    delivered_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    
+    # Relations (optional)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id', ondelete='SET NULL'), index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), index=True)
+    
+    customer = db.relationship('Customer', backref='notifications')
+    user = db.relationship('User', backref='notifications_sent')
+    
+    def __repr__(self):
+        return f'<NotificationLog {self.type} to {self.recipient} - {self.status}>'
+    
+    @property
+    def data(self):
+        """Parse extra_data JSON"""
+        if self.extra_data:
+            try:
+                return json.loads(self.extra_data)
+            except:
+                return {}
+        return {}
+    
+    @data.setter
+    def data(self, value):
+        """Set extra_data as JSON"""
+        if value:
+            self.extra_data = json.dumps(value, ensure_ascii=False)
+        else:
+            self.extra_data = None
+
+
+class TaxEntry(db.Model):
+    """سجلات الضرائب - VAT Tracking"""
+    __tablename__ = "tax_entries"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    entry_type = db.Column(db.String(20), nullable=False, index=True)  # INPUT_VAT, OUTPUT_VAT, INCOME_TAX, WITHHOLDING
+    transaction_type = db.Column(db.String(50), nullable=False, index=True)  # SALE, PURCHASE, SERVICE, PAYMENT
+    transaction_id = db.Column(db.Integer, index=True)  # ID of Sale, Purchase, etc
+    transaction_reference = db.Column(db.String(50), index=True)
+    
+    # Tax details
+    tax_rate = db.Column(db.Numeric(5, 2), nullable=False)  # 16.00 for 16%
+    base_amount = db.Column(db.Numeric(12, 2), nullable=False)  # المبلغ الأساسي
+    tax_amount = db.Column(db.Numeric(12, 2), nullable=False)  # مبلغ الضريبة
+    total_amount = db.Column(db.Numeric(12, 2), nullable=False)  # الإجمالي
+    currency = db.Column(db.String(3), default='ILS')
+    
+    # Accounting integration
+    debit_account = db.Column(db.String(20))  # رقم الحساب المدين
+    credit_account = db.Column(db.String(20))  # رقم الحساب الدائن
+    gl_entry_id = db.Column(db.Integer)  # ربط مع GeneralLedgerEntry
+    
+    # Period tracking
+    fiscal_year = db.Column(db.Integer, index=True)
+    fiscal_month = db.Column(db.Integer, index=True)
+    tax_period = db.Column(db.String(7), index=True)  # YYYY-MM
+    
+    # Status
+    is_reconciled = db.Column(db.Boolean, default=False, index=True)
+    is_filed = db.Column(db.Boolean, default=False, index=True)  # هل تم تقديمها في إقرار؟
+    filing_reference = db.Column(db.String(100))  # رقم الإقرار
+    
+    # Relations
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id', ondelete='SET NULL'), index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id', ondelete='SET NULL'), index=True)
+    
+    # Metadata
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'))
+    
+    customer = db.relationship('Customer', backref='tax_entries')
+    supplier = db.relationship('Supplier', backref='tax_entries')
+    creator = db.relationship('User', backref='tax_entries_created')
+    
+    __table_args__ = (
+        Index('idx_tax_period_type', 'tax_period', 'entry_type'),
+        Index('idx_tax_transaction', 'transaction_type', 'transaction_id'),
+    )
+    
+    def __repr__(self):
+        return f'<TaxEntry {self.entry_type} {self.tax_amount} {self.currency}>'
+
 
 class Currency(db.Model):
     __tablename__ = "currencies"
@@ -1887,6 +1987,22 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                     except:
                         pass  # تجاهل إذا فشل التحويل
             
+            # ✅ المرتجعات المؤكدة (تخفض من الدين)
+            returns = session.query(SaleReturn).filter(
+                SaleReturn.customer_id == self.id,
+                SaleReturn.status == 'CONFIRMED'
+            ).all()
+            returns_total = Decimal('0.00')
+            for r in returns:
+                amt = Decimal(str(r.total_amount or 0))
+                if r.currency == "ILS":
+                    returns_total += amt
+                else:
+                    try:
+                        returns_total += convert_amount(amt, r.currency, "ILS", r.created_at)
+                    except:
+                        pass
+            
             # ✅ الفواتير (كل الفواتير غير الملغاة) - جلب كل سجل وتحويله
             invoices = session.query(Invoice).filter(
                 Invoice.customer_id == self.id,
@@ -1903,13 +2019,12 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                     except:
                         pass
             
-            # ✅ الخدمات - جلب كل سجل وتحويله
             services = session.query(ServiceRequest).filter(
                 ServiceRequest.customer_id == self.id
             ).all()
             services_total = Decimal('0.00')
             for srv in services:
-                amt = Decimal(str(srv.total_cost or 0))
+                amt = Decimal(str(srv.total_amount or 0))
                 if srv.currency == "ILS":
                     services_total += amt
                 else:
@@ -1950,12 +2065,59 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                     except:
                         pass
             
-            # ✅ الدفعات الواردة - جلب كل سجل وتحويله
-            payments_in_all = session.query(Payment).filter(
+            # ✅ الدفعات الواردة - جلب من جميع المصادر المرتبطة بالعميل
+            # 1. الدفعات المباشرة المرتبطة بالعميل
+            payments_in_direct = session.query(Payment).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'IN',
                 Payment.status.in_(['COMPLETED', 'PENDING'])
             ).all()
+            
+            # 2. الدفعات المرتبطة بمبيعات العميل
+            payments_in_from_sales = session.query(Payment).join(
+                Sale, Payment.sale_id == Sale.id
+            ).filter(
+                Sale.customer_id == self.id,
+                Payment.direction == 'IN',
+                Payment.status.in_(['COMPLETED', 'PENDING'])
+            ).all()
+            
+            # 3. الدفعات المرتبطة بفواتير العميل
+            payments_in_from_invoices = session.query(Payment).join(
+                Invoice, Payment.invoice_id == Invoice.id
+            ).filter(
+                Invoice.customer_id == self.id,
+                Payment.direction == 'IN',
+                Payment.status.in_(['COMPLETED', 'PENDING'])
+            ).all()
+            
+            # 4. الدفعات المرتبطة بخدمات العميل
+            payments_in_from_services = session.query(Payment).join(
+                ServiceRequest, Payment.service_id == ServiceRequest.id
+            ).filter(
+                ServiceRequest.customer_id == self.id,
+                Payment.direction == 'IN',
+                Payment.status.in_(['COMPLETED', 'PENDING'])
+            ).all()
+            
+            # 5. الدفعات المرتبطة بحجوزات العميل المسبقة
+            payments_in_from_preorders = session.query(Payment).join(
+                PreOrder, Payment.preorder_id == PreOrder.id
+            ).filter(
+                PreOrder.customer_id == self.id,
+                Payment.direction == 'IN',
+                Payment.status.in_(['COMPLETED', 'PENDING'])
+            ).all()
+            
+            # دمج جميع الدفعات وإزالة التكرار
+            seen_payment_ids = set()
+            payments_in_all = []
+            for p in (payments_in_direct + payments_in_from_sales + payments_in_from_invoices + 
+                     payments_in_from_services + payments_in_from_preorders):
+                if p.id not in seen_payment_ids:
+                    seen_payment_ids.add(p.id)
+                    payments_in_all.append(p)
+            
             payments_in = Decimal('0.00')
             for p in payments_in_all:
                 amt = Decimal(str(p.total_amount or 0))
@@ -1967,12 +2129,59 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                     except:
                         pass
             
-            # ✅ الدفعات الصادرة - جلب كل سجل وتحويله
-            payments_out_all = session.query(Payment).filter(
+            # ✅ الدفعات الصادرة - جلب من جميع المصادر المرتبطة بالعميل
+            # 1. الدفعات المباشرة المرتبطة بالعميل
+            payments_out_direct = session.query(Payment).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'OUT',
                 Payment.status.in_(['COMPLETED', 'PENDING'])
             ).all()
+            
+            # 2. الدفعات المرتبطة بمبيعات العميل
+            payments_out_from_sales = session.query(Payment).join(
+                Sale, Payment.sale_id == Sale.id
+            ).filter(
+                Sale.customer_id == self.id,
+                Payment.direction == 'OUT',
+                Payment.status.in_(['COMPLETED', 'PENDING'])
+            ).all()
+            
+            # 3. الدفعات المرتبطة بفواتير العميل
+            payments_out_from_invoices = session.query(Payment).join(
+                Invoice, Payment.invoice_id == Invoice.id
+            ).filter(
+                Invoice.customer_id == self.id,
+                Payment.direction == 'OUT',
+                Payment.status.in_(['COMPLETED', 'PENDING'])
+            ).all()
+            
+            # 4. الدفعات المرتبطة بخدمات العميل
+            payments_out_from_services = session.query(Payment).join(
+                ServiceRequest, Payment.service_id == ServiceRequest.id
+            ).filter(
+                ServiceRequest.customer_id == self.id,
+                Payment.direction == 'OUT',
+                Payment.status.in_(['COMPLETED', 'PENDING'])
+            ).all()
+            
+            # 5. الدفعات المرتبطة بحجوزات العميل المسبقة
+            payments_out_from_preorders = session.query(Payment).join(
+                PreOrder, Payment.preorder_id == PreOrder.id
+            ).filter(
+                PreOrder.customer_id == self.id,
+                Payment.direction == 'OUT',
+                Payment.status.in_(['COMPLETED', 'PENDING'])
+            ).all()
+            
+            # دمج جميع الدفعات وإزالة التكرار
+            seen_payment_ids_out = set()
+            payments_out_all = []
+            for p in (payments_out_direct + payments_out_from_sales + payments_out_from_invoices + 
+                     payments_out_from_services + payments_out_from_preorders):
+                if p.id not in seen_payment_ids_out:
+                    seen_payment_ids_out.add(p.id)
+                    payments_out_all.append(p)
+            
             payments_out = Decimal('0.00')
             for p in payments_out_all:
                 amt = Decimal(str(p.total_amount or 0))
@@ -1993,8 +2202,8 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             debit = Decimal('0.00')
             if ob < 0:  # رصيد افتتاحي سالب = عليه لنا
                 debit += abs(ob)
-            # المبيعات والفواتير والخدمات والحجوزات والطلبات الأونلاين
-            debit += sales_total + invoices_total + services_total + preorders_total + online_orders_total
+            # المبيعات والفواتير والخدمات والحجوزات والطلبات الأونلاين (ناقص المرتجعات)
+            debit += sales_total + invoices_total + services_total + preorders_total + online_orders_total - returns_total
             
             # الدائن (Credit): ما له علينا
             credit = Decimal('0.00')
@@ -3216,27 +3425,93 @@ def update_partner_balance(partner_id: int, connection=None):
         ).all()
     services_to_total = sum(_to_ils(srv.total_amount, srv.currency, srv.received_at) for srv in services_to_partner)
     
-    payments_out = db.session.query(Payment).filter(
+    # ✅ الدفعات الصادرة (OUT) - جلب من جميع المصادر
+    payments_out_direct = db.session.query(Payment).filter(
         Payment.partner_id == partner_id,
         Payment.direction == PaymentDirection.OUT,
         Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
     ).all()
-    paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out)
     
-    payments_in = db.session.query(Payment).filter(
+    payments_out_all = list(payments_out_direct)
+    
+    if partner.customer_id:
+        # الدفعات المرتبطة بالعميل المرتبط بالشريك
+        payments_out_from_customer = db.session.query(Payment).filter(
+            Payment.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # الدفعات المرتبطة بمبيعات للعميل
+        payments_out_from_sales = db.session.query(Payment).join(
+            Sale, Payment.sale_id == Sale.id
+        ).filter(
+            Sale.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # الدفعات المرتبطة بخدمات للعميل
+        payments_out_from_services = db.session.query(Payment).join(
+            ServiceRequest, Payment.service_id == ServiceRequest.id
+        ).filter(
+            ServiceRequest.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # دمج وإزالة التكرار
+        seen_ids = set(p.id for p in payments_out_all)
+        for p in payments_out_from_customer + payments_out_from_sales + payments_out_from_services:
+            if p.id not in seen_ids:
+                seen_ids.add(p.id)
+                payments_out_all.append(p)
+    
+    paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out_all)
+    
+    # ✅ الدفعات الواردة (IN) - جلب من جميع المصادر
+    payments_in_direct = db.session.query(Payment).filter(
         Payment.partner_id == partner_id,
         Payment.direction == PaymentDirection.IN,
         Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
     ).all()
-    received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in)
+    
+    payments_in_all = list(payments_in_direct)
     
     if partner.customer_id:
-        cust_payments_in = db.session.query(Payment).filter(
+        # الدفعات المرتبطة بالعميل المرتبط بالشريك
+        payments_in_from_customer = db.session.query(Payment).filter(
             Payment.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.IN,
             Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
         ).all()
-        received_in += sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in cust_payments_in)
+        
+        # الدفعات المرتبطة بمبيعات للعميل
+        payments_in_from_sales = db.session.query(Payment).join(
+            Sale, Payment.sale_id == Sale.id
+        ).filter(
+            Sale.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # الدفعات المرتبطة بخدمات للعميل
+        payments_in_from_services = db.session.query(Payment).join(
+            ServiceRequest, Payment.service_id == ServiceRequest.id
+        ).filter(
+            ServiceRequest.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # دمج وإزالة التكرار
+        seen_ids = set(p.id for p in payments_in_all)
+        for p in payments_in_from_customer + payments_in_from_sales + payments_in_from_services:
+            if p.id not in seen_ids:
+                seen_ids.add(p.id)
+                payments_in_all.append(p)
+    
+    received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in_all)
     
     balance = ob + sales_share_total + inventory_total - sales_to_total - services_to_total - paid_out + received_in
     
@@ -3301,27 +3576,111 @@ def update_supplier_balance(supplier_id: int, connection=None):
         ).all()
     preorders_total = sum(_to_ils(po.total_amount, po.currency, po.preorder_date) for po in preorders_to_sup)
     
-    payments_out = db.session.query(Payment).filter(
+    # ✅ الدفعات الصادرة (OUT) - جلب من جميع المصادر
+    payments_out_direct = db.session.query(Payment).filter(
         Payment.supplier_id == supplier_id,
         Payment.direction == PaymentDirection.OUT,
         Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
     ).all()
-    paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out)
     
-    payments_in = db.session.query(Payment).filter(
+    payments_out_all = list(payments_out_direct)
+    
+    if supplier.customer_id:
+        # الدفعات المرتبطة بالعميل المرتبط بالمورد
+        payments_out_from_customer = db.session.query(Payment).filter(
+            Payment.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # الدفعات المرتبطة بمبيعات للعميل
+        payments_out_from_sales = db.session.query(Payment).join(
+            Sale, Payment.sale_id == Sale.id
+        ).filter(
+            Sale.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # الدفعات المرتبطة بخدمات للعميل
+        payments_out_from_services = db.session.query(Payment).join(
+            ServiceRequest, Payment.service_id == ServiceRequest.id
+        ).filter(
+            ServiceRequest.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # الدفعات المرتبطة بحجوزات للعميل
+        payments_out_from_preorders = db.session.query(Payment).join(
+            PreOrder, Payment.preorder_id == PreOrder.id
+        ).filter(
+            PreOrder.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # دمج وإزالة التكرار
+        seen_ids = set(p.id for p in payments_out_all)
+        for p in payments_out_from_customer + payments_out_from_sales + payments_out_from_services + payments_out_from_preorders:
+            if p.id not in seen_ids:
+                seen_ids.add(p.id)
+                payments_out_all.append(p)
+    
+    paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out_all)
+    
+    # ✅ الدفعات الواردة (IN) - جلب من جميع المصادر
+    payments_in_direct = db.session.query(Payment).filter(
         Payment.supplier_id == supplier_id,
         Payment.direction == PaymentDirection.IN,
         Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
     ).all()
-    received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in)
+    
+    payments_in_all = list(payments_in_direct)
     
     if supplier.customer_id:
-        cust_payments_in = db.session.query(Payment).filter(
+        # الدفعات المرتبطة بالعميل المرتبط بالمورد
+        payments_in_from_customer = db.session.query(Payment).filter(
             Payment.customer_id == supplier.customer_id,
             Payment.direction == PaymentDirection.IN,
             Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
         ).all()
-        received_in += sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in cust_payments_in)
+        
+        # الدفعات المرتبطة بمبيعات للعميل
+        payments_in_from_sales = db.session.query(Payment).join(
+            Sale, Payment.sale_id == Sale.id
+        ).filter(
+            Sale.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # الدفعات المرتبطة بخدمات للعميل
+        payments_in_from_services = db.session.query(Payment).join(
+            ServiceRequest, Payment.service_id == ServiceRequest.id
+        ).filter(
+            ServiceRequest.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # الدفعات المرتبطة بحجوزات للعميل
+        payments_in_from_preorders = db.session.query(Payment).join(
+            PreOrder, Payment.preorder_id == PreOrder.id
+        ).filter(
+            PreOrder.customer_id == supplier.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+        ).all()
+        
+        # دمج وإزالة التكرار
+        seen_ids = set(p.id for p in payments_in_all)
+        for p in payments_in_from_customer + payments_in_from_sales + payments_in_from_services + payments_in_from_preorders:
+            if p.id not in seen_ids:
+                seen_ids.add(p.id)
+                payments_in_all.append(p)
+    
+    received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in_all)
     
     returns = db.session.query(ExchangeTransaction).filter(
         ExchangeTransaction.supplier_id == supplier_id,
@@ -3578,6 +3937,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
     branch = relationship('Branch', back_populates='employees', foreign_keys=[branch_id])
     site = relationship('Site', back_populates='employees', foreign_keys=[site_id])
     deductions = relationship('EmployeeDeduction', back_populates='employee', cascade="all, delete-orphan")
+    advances = relationship('EmployeeAdvance', back_populates='employee', cascade="all, delete-orphan")
     advance_installments = relationship('EmployeeAdvanceInstallment', back_populates='employee', cascade="all, delete-orphan")
 
     __table_args__ = ()
@@ -3701,6 +4061,75 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
     def net_salary(self):
         """الراتب الصافي = الراتب الأساسي - الخصومات"""
         return float(self.salary or 0) - self.total_deductions
+    
+    @property
+    def social_insurance_employee_amount(self):
+        """مبلغ التأمينات - حصة الموظف (من الثوابت)"""
+        try:
+            from utils import get_social_insurance_rates
+            rates = get_social_insurance_rates()
+            if not rates['enabled']:
+                return 0.0
+            return float(self.salary or 0) * (rates['employee_rate'] / 100)
+        except:
+            return 0.0
+    
+    @property
+    def social_insurance_company_amount(self):
+        """مبلغ التأمينات - حصة الشركة (من الثوابت)"""
+        try:
+            from utils import get_social_insurance_rates
+            rates = get_social_insurance_rates()
+            if not rates['enabled']:
+                return 0.0
+            return float(self.salary or 0) * (rates['company_rate'] / 100)
+        except:
+            return 0.0
+    
+    @property
+    def income_tax_amount(self):
+        """ضريبة الدخل على الراتب (تقريبية - 5% حتى 75k، ثم 10%...)"""
+        try:
+            salary_annual = float(self.salary or 0) * 12
+            
+            # فلسطين: معفى حتى 75,000 سنوياً
+            if salary_annual <= 75000:
+                return salary_annual * 0.05 / 12
+            elif salary_annual <= 150000:
+                return ((75000 * 0.05) + ((salary_annual - 75000) * 0.10)) / 12
+            elif salary_annual <= 300000:
+                return ((75000 * 0.05) + (75000 * 0.10) + ((salary_annual - 150000) * 0.15)) / 12
+            else:
+                return ((75000 * 0.05) + (75000 * 0.10) + (150000 * 0.15) + ((salary_annual - 300000) * 0.20)) / 12
+        except:
+            return 0.0
+    
+    @property
+    def eosb_amount(self):
+        """مكافأة نهاية الخدمة (EOSB) - راتب شهر عن كل سنة"""
+        try:
+            from datetime import date
+            if not self.hire_date:
+                return 0.0
+            years_of_service = (date.today() - self.hire_date).days / 365.25
+            return float(self.salary or 0) * years_of_service
+        except:
+            return 0.0
+    
+    @property
+    def total_company_cost(self):
+        """التكلفة الكلية على الشركة = الراتب + التأمينات"""
+        return float(self.salary or 0) + self.social_insurance_company_amount
+    
+    @property
+    def net_salary_after_all(self):
+        """الراتب الصافي بعد كل الاستقطاعات (خصومات + تأمينات + ضرائب)"""
+        return (
+            float(self.salary or 0) 
+            - self.total_deductions 
+            - self.social_insurance_employee_amount 
+            - self.income_tax_amount
+        )
 
     def __repr__(self):
         return f"<Employee {self.name}>"
@@ -3728,6 +4157,29 @@ class EmployeeDeduction(db.Model, TimestampMixin, AuditMixin):
         return f"<EmployeeDeduction {self.deduction_type} {self.amount}>"
 
 
+class EmployeeAdvance(db.Model, TimestampMixin, AuditMixin):
+    """سلف الموظفين"""
+    __tablename__ = "employee_advances"
+
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    currency = db.Column(db.String(10), default="ILS", nullable=False)
+    advance_date = db.Column(db.Date, nullable=False, index=True)
+    reason = db.Column(db.Text)
+    total_installments = db.Column(db.Integer, nullable=False, default=1)
+    installments_paid = db.Column(db.Integer, nullable=False, default=0)
+    fully_paid = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    notes = db.Column(db.Text)
+    expense_id = db.Column(db.Integer, db.ForeignKey('expenses.id'), nullable=True, index=True)
+
+    employee = relationship('Employee', back_populates='advances')
+    expense = relationship('Expense')
+
+    def __repr__(self):
+        return f"<EmployeeAdvance {self.amount} for {self.employee.name if self.employee else 'N/A'}>"
+
+
 class EmployeeAdvanceInstallment(db.Model, TimestampMixin, AuditMixin):
     """أقساط سداد السلف من الرواتب"""
     __tablename__ = "employee_advance_installments"
@@ -3741,15 +4193,13 @@ class EmployeeAdvanceInstallment(db.Model, TimestampMixin, AuditMixin):
     currency = db.Column(db.String(10), default="ILS", nullable=False)
     due_date = db.Column(db.Date, nullable=False, index=True)
     paid = db.Column(db.Boolean, default=False, nullable=False, index=True)
-    paid_date = db.Column(db.Date, nullable=True)
-    salary_expense_id = db.Column(db.Integer, db.ForeignKey('expenses.id'), nullable=True, index=True)  # الراتب الذي خُصم منه
-
+    paid_date = db.Column(db.Date, nullable=True, index=True)
+    paid_in_salary_expense_id = db.Column(db.Integer, db.ForeignKey('expenses.id'), nullable=True, index=True)
+    
+    # Relations
     employee = relationship('Employee', back_populates='advance_installments')
     advance_expense = relationship('Expense', foreign_keys=[advance_expense_id])
-    salary_expense = relationship('Expense', foreign_keys=[salary_expense_id])
-
-    def __repr__(self):
-        return f"<AdvanceInstallment {self.installment_number}/{self.total_installments}>"
+    salary_expense = relationship('Expense', foreign_keys=[paid_in_salary_expense_id])
 
 
 class EquipmentType(db.Model, TimestampMixin):
@@ -4005,6 +4455,7 @@ class Site(db.Model, TimestampMixin, AuditMixin):
     code = db.Column(db.String(32), nullable=False, index=True)
     is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), index=True)
     address = db.Column(db.String(200))
+    city = db.Column(db.String(100))
     geo_lat = db.Column(db.Numeric(10, 6))
     geo_lng = db.Column(db.Numeric(10, 6))
     manager_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)
@@ -4025,6 +4476,27 @@ class Site(db.Model, TimestampMixin, AuditMixin):
 
     def __repr__(self):
         return f"<Site {self.code}@{self.branch_id}>"
+
+
+class UserBranch(db.Model, TimestampMixin):
+    """ربط المستخدمين بالفروع (Many-to-Many)"""
+    __tablename__ = "user_branches"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False, index=True)
+    is_primary = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    can_manage = db.Column(db.Boolean, nullable=False, default=False)
+
+    user = db.relationship('User', backref='user_branches')
+    branch = db.relationship('Branch', backref='user_branches')
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'branch_id', name='uq_user_branch'),
+    )
+
+    def __repr__(self):
+        return f"<UserBranch user={self.user_id} branch={self.branch_id}>"
 
 
 class Warehouse(db.Model, TimestampMixin, AuditMixin):
@@ -4667,16 +5139,37 @@ def _preorder_before_update(mapper, connection, target):
 def _preorder_gl_batch_upsert(mapper, connection, target: "PreOrder"):
     """إنشاء/تحديث GLBatch للحجز المسبق تلقائياً - قيد مزدوج احترافي"""
     
-    # إذا الحجز ملغى، حذف أي GLBatch موجود
+    # إذا الحجز ملغى، عكس القيد بدلاً من حذفه
     if target.cancelled_at:
         try:
-            connection.execute(
-                sa_text("""
-                    DELETE FROM gl_batches
-                    WHERE source_type = 'PREORDER' AND source_id = :sid
-                """),
-                {"sid": target.id}
-            )
+            amount = float(target.total_amount or 0)
+            if amount > 0:
+                amount_ils = amount
+                if target.currency and target.currency != 'ILS':
+                    try:
+                        rate = fx_rate(target.currency, 'ILS', target.preorder_date or datetime.utcnow(), raise_on_missing=False)
+                        if rate and rate > 0:
+                            amount_ils = float(amount * float(rate))
+                    except:
+                        pass
+                
+                ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+                revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
+                
+                entries = [(revenue_account, amount_ils, 0), (ar_account, 0, amount_ils)]
+                
+                _gl_upsert_batch_and_entries(
+                    connection,
+                    source_type="PREORDER_REVERSAL",
+                    source_id=target.id,
+                    purpose="REVERSAL",
+                    currency="ILS",
+                    memo=f"عكس قيد - إلغاء حجز #{target.id}",
+                    entries=entries,
+                    ref=f"REV-PRE-{target.id}",
+                    entity_type="CUSTOMER",
+                    entity_id=target.customer_id
+                )
         except:
             pass
         return
@@ -5221,21 +5714,55 @@ def _sale_gl_batch_upsert(mapper, connection, target: "Sale"):
         print(f"⚠️ خطأ في إنشاء GLBatch للبيع #{target.id}: {e}", file=sys.stderr)
 
 
-@event.listens_for(Sale, "after_delete")
-def _sale_gl_batch_delete(mapper, connection, target: "Sale"):
-    """حذف GLBatch للبيع عند الحذف"""
+@event.listens_for(Sale, "before_delete")
+def _sale_gl_batch_reverse(mapper, connection, target: "Sale"):
+    """إنشاء قيد عكسي عند حذف البيع (أصح محاسبياً)"""
     try:
-        # حذف جميع GLBatch المرتبطة بالبيع
-        connection.execute(
-            sa_text("""
-                DELETE FROM gl_batches
-                WHERE source_type = 'SALE' AND source_id = :sid
-            """),
-            {"sid": target.id}
+        if hasattr(target, '_skip_gl_reversal') and target._skip_gl_reversal:
+            return
+        if target.status != SaleStatus.CONFIRMED.value:
+            return
+        
+        from models import fx_rate
+        
+        total_amount = float(target.total_amount or 0)
+        if total_amount <= 0:
+            return
+        
+        amount_ils = total_amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.sale_date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(total_amount * float(rate))
+            except:
+                pass
+        
+        ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+        revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
+        
+        entries = [
+            (revenue_account, amount_ils, 0),
+            (ar_account, 0, amount_ils),
+        ]
+        
+        memo = f"عكس قيد - حذف مبيعة #{target.id}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="SALE_REVERSAL",
+            source_id=target.id,
+            purpose="REVERSAL",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=f"REV-SALE-{target.id}",
+            entity_type="CUSTOMER",
+            entity_id=target.customer_id
         )
     except Exception as e:
         import sys
-        print(f"⚠️ خطأ في حذف GLBatch للبيع #{target.id}: {e}", file=sys.stderr)
+        print(f"⚠️ خطأ في عكس قيد البيع #{target.id}: {e}", file=sys.stderr)
 
 
 class SaleLine(db.Model, TimestampMixin):
@@ -5424,6 +5951,15 @@ class SaleReturnLine(db.Model):
         default="GOOD",
         index=True
     )
+    
+    # الجهة المسؤولة عن الخسارة (للتالف فقط)
+    # COMPANY = الشركة، SUPPLIER = المورد، PARTNER = الشريك، CUSTOMER = العميل
+    liability_party = db.Column(
+        sa_str_enum(["COMPANY", "SUPPLIER", "PARTNER", "CUSTOMER", "NONE"], name="return_liability_party"),
+        nullable=True,
+        default=None,
+        index=True
+    )
 
     sale_return = db.relationship("SaleReturn", back_populates="lines")
     product = db.relationship("Product")
@@ -5441,11 +5977,64 @@ def _srl_after_insert(mapper, connection, t: "SaleReturnLine"):
     # الحالات الأخرى (DAMAGED, FOR_REPAIR, UNUSABLE) تُسجّل لكن لا تُعاد للمخزون
     if t.warehouse_id and (t.condition or 'GOOD') == 'GOOD':
         _apply_stock_delta(connection, t.product_id, t.warehouse_id, +int(t.quantity or 0))
+    
+    # حساب الإجمالي
     if t.sale_return_id:
         total = connection.execute(
             select(func.coalesce(func.sum(SaleReturnLine.quantity * SaleReturnLine.unit_price), 0)).where(SaleReturnLine.sale_return_id == t.sale_return_id)
         ).scalar_one() or 0
         connection.execute(update(SaleReturn).where(SaleReturn.id == t.sale_return_id).values(total_amount=q(total)))
+    
+    # 🔥 المنتجات التالفة: تخصم من الجهة المسؤولة فقط
+    # المنتجات السليمة: لا تأثير (البيع طبيعي والإرجاع طبيعي)
+    condition = (t.condition or 'GOOD').upper()
+    liability = (t.liability_party or '').upper()
+    
+    if condition in ('DAMAGED', 'UNUSABLE') and liability:  # التالف وفيه جهة مسؤولة
+        try:
+            # جلب معلومات المنتج
+            product_row = connection.execute(
+                select(Product.id, Product.cost_price, Product.supplier_id).where(Product.id == t.product_id)
+            ).first()
+            
+            if product_row:
+                cost_price = float(product_row.cost_price or 0)
+                supplier_id = product_row.supplier_id
+                damaged_value = cost_price * int(t.quantity or 0)
+                
+                if damaged_value <= 0:
+                    return  # لا قيمة للخصم
+                
+                # خصم حسب الجهة المسؤولة
+                if liability == 'SUPPLIER' and supplier_id:
+                    # المورد مسؤول (ضمان، عيب مصنعي)
+                    connection.execute(
+                        sa_text("UPDATE suppliers SET balance = balance - :amount WHERE id = :sid"),
+                        {"amount": damaged_value, "sid": supplier_id}
+                    )
+                
+                elif liability == 'PARTNER' and t.warehouse_id:
+                    # الشريك مسؤول (سوء تخزين، إهمال)
+                    wh_row = connection.execute(
+                        select(Warehouse.partner_id).where(Warehouse.id == t.warehouse_id)
+                    ).first()
+                    
+                    if wh_row and wh_row.partner_id:
+                        connection.execute(
+                            sa_text("UPDATE partners SET balance = balance - :amount WHERE id = :pid"),
+                            {"amount": damaged_value, "pid": wh_row.partner_id}
+                        )
+                
+                elif liability == 'CUSTOMER':
+                    # العميل مسؤول (سوء استخدام) - لا نخفض دينه، يدفع التعويض
+                    # يمكن إضافة قيد إضافي أو فاتورة تعويض هنا
+                    pass
+                
+                # COMPANY أو None = الشركة تتحمل (لا نحتاج action)
+                
+        except Exception as e:
+            import sys
+            print(f"⚠️ خطأ في حساب خسارة المنتج التالف: {e}", file=sys.stderr)
 
 @event.listens_for(SaleReturnLine, "after_delete")
 def _srl_after_delete(mapper, connection, t: "SaleReturnLine"):
@@ -5742,16 +6331,44 @@ def _inv_touch_totals(mapper, connection, target: "Invoice"):
 def _invoice_gl_batch_upsert(mapper, connection, target: "Invoice"):
     """إنشاء/تحديث GLBatch للفاتورة تلقائياً - قيد مزدوج احترافي"""
     
-    # إذا الفاتورة ملغاة، حذف أي GLBatch موجود
+    # إذا الفاتورة ملغاة، عكس القيد بدلاً من حذفه
     if target.cancelled_at:
         try:
-            connection.execute(
-                sa_text("""
-                    DELETE FROM gl_batches
-                    WHERE source_type = 'INVOICE' AND source_id = :sid
-                """),
-                {"sid": target.id}
-            )
+            amount = float(target.total_amount or 0)
+            if amount > 0:
+                amount_ils = amount
+                if target.currency and target.currency != 'ILS':
+                    try:
+                        rate = fx_rate(target.currency, 'ILS', target.invoice_date or datetime.utcnow(), raise_on_missing=False)
+                        if rate and rate > 0:
+                            amount_ils = float(amount * float(rate))
+                    except:
+                        pass
+                
+                entity_type = "CUSTOMER" if target.customer_id else ("SUPPLIER" if target.supplier_id else "PARTNER")
+                entity_id = target.customer_id or target.supplier_id or target.partner_id
+                
+                if entity_type == "CUSTOMER":
+                    ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+                    revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
+                    entries = [(revenue_account, amount_ils, 0), (ar_account, 0, amount_ils)]
+                else:
+                    ap_account = GL_ACCOUNTS.get("AP", "2000_AP")
+                    purchase_account = GL_ACCOUNTS.get("PURCHASES", "5100_PURCHASES")
+                    entries = [(ap_account, amount_ils, 0), (purchase_account, 0, amount_ils)]
+                
+                _gl_upsert_batch_and_entries(
+                    connection,
+                    source_type="INVOICE_REVERSAL",
+                    source_id=target.id,
+                    purpose="REVERSAL",
+                    currency="ILS",
+                    memo=f"عكس قيد - إلغاء فاتورة #{target.id}",
+                    entries=entries,
+                    ref=f"REV-INV-{target.id}",
+                    entity_type=entity_type,
+                    entity_id=entity_id
+                )
         except:
             pass
         return
@@ -5981,7 +6598,7 @@ def _psl_before_update(mapper, connection, target: 'ProductSupplierLoan'):
     target.partner_share_quantity = int(target.partner_share_quantity or 0)
     target.partner_share_value = Decimal(str(target.partner_share_value or 0))
 
-class Payment(db.Model):
+class Payment(db.Model, TimestampMixin):
     __tablename__ = "payments"
 
     id = Column(Integer, primary_key=True)
@@ -6259,16 +6876,51 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
     # COMPLETED → قيد: بنك/صندوق ↔ AR (للنقد) أو تحديث الشيك (للشيك)
     # BOUNCED/FAILED → حذف القيد (إلغاء)
     
-    # إذا الدفعة ملغاة أو مرفوضة، حذف أي GLBatch موجود
+    # إذا الدفعة ملغاة أو مرفوضة، عكس القيد بدلاً من حذفه
     if target.status in [PaymentStatus.FAILED.value, PaymentStatus.CANCELLED.value]:
         try:
-            connection.execute(
-                sa_text("""
-                    DELETE FROM gl_batches
-                    WHERE source_type = 'PAYMENT' AND source_id = :sid
-                """),
-                {"sid": target.id}
-            )
+            amount = float(target.total_amount or 0)
+            if amount > 0:
+                amount_ils = amount
+                if target.currency and target.currency != 'ILS':
+                    try:
+                        rate = fx_rate(target.currency, 'ILS', target.payment_date or datetime.utcnow(), raise_on_missing=False)
+                        if rate and rate > 0:
+                            amount_ils = float(amount * float(rate))
+                    except:
+                        pass
+                
+                payment_method = (target.payment_method or 'CASH').upper()
+                cash_account = GL_ACCOUNTS.get(PAYMENT_GL_MAP.get(payment_method, 'CASH'), "1000_CASH")
+                
+                direction = target.direction
+                entity_type = target.entity_type or 'OTHER'
+                
+                if direction == PaymentDirection.IN.value:
+                    if entity_type == 'CUSTOMER':
+                        ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+                        entries = [(ar_account, amount_ils, 0), (cash_account, 0, amount_ils)]
+                    else:
+                        entries = [(cash_account, 0, amount_ils), (ar_account, amount_ils, 0)]
+                else:
+                    if entity_type == 'SUPPLIER':
+                        ap_account = GL_ACCOUNTS.get("AP", "2000_AP")
+                        entries = [(ap_account, 0, amount_ils), (cash_account, amount_ils, 0)]
+                    else:
+                        entries = [(cash_account, 0, amount_ils), (ap_account, amount_ils, 0)]
+                
+                _gl_upsert_batch_and_entries(
+                    connection,
+                    source_type="PAYMENT_CANCELLATION",
+                    source_id=target.id,
+                    purpose="REVERSAL",
+                    currency="ILS",
+                    memo=f"عكس قيد - إلغاء دفعة #{target.id}",
+                    entries=entries,
+                    ref=f"REV-CANCEL-PAY-{target.id}",
+                    entity_type=entity_type,
+                    entity_id=target.customer_id or target.supplier_id or target.partner_id
+                )
         except:
             pass
         return
@@ -6370,21 +7022,66 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
         print(f"⚠️ خطأ في إنشاء GLBatch للدفعة #{target.id}: {e}", file=sys.stderr)
 
 
-@event.listens_for(Payment, "after_delete")
-def _payment_gl_batch_delete(mapper, connection, target: "Payment"):
-    """حذف GLBatch للدفعة عند الحذف"""
+@event.listens_for(Payment, "before_delete")
+def _payment_gl_batch_reverse(mapper, connection, target: "Payment"):
+    """إنشاء قيد عكسي عند حذف الدفعة (أصح محاسبياً)"""
     try:
-        # حذف جميع GLBatch المرتبطة بالدفعة
-        connection.execute(
-            sa_text("""
-                DELETE FROM gl_batches
-                WHERE source_type = 'PAYMENT' AND source_id = :sid
-            """),
-            {"sid": target.id}
+        if hasattr(target, '_skip_gl_reversal') and target._skip_gl_reversal:
+            return
+        if target.status != PaymentStatus.COMPLETED.value:
+            return
+        
+        from models import fx_rate
+        
+        amount = float(target.total_amount or 0)
+        if amount <= 0:
+            return
+        
+        amount_ils = amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.payment_date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(amount * float(rate))
+            except:
+                pass
+        
+        payment_method = (target.payment_method or 'CASH').upper()
+        cash_account = GL_ACCOUNTS.get(PAYMENT_GL_MAP.get(payment_method, 'CASH'), "1000_CASH")
+        
+        direction = target.direction
+        entity_type = target.entity_type or 'OTHER'
+        
+        if direction == PaymentDirection.IN.value:
+            if entity_type == 'CUSTOMER':
+                ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+                entries = [(ar_account, amount_ils, 0), (cash_account, 0, amount_ils)]
+            else:
+                entries = [(cash_account, 0, amount_ils), (ar_account, amount_ils, 0)]
+        else:
+            if entity_type == 'SUPPLIER':
+                ap_account = GL_ACCOUNTS.get("AP", "2000_AP")
+                entries = [(ap_account, 0, amount_ils), (cash_account, amount_ils, 0)]
+            else:
+                entries = [(cash_account, 0, amount_ils), (ap_account, amount_ils, 0)]
+        
+        memo = f"عكس قيد - حذف دفعة #{target.id}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="PAYMENT_REVERSAL",
+            source_id=target.id,
+            purpose="REVERSAL",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=f"REV-PAY-{target.id}",
+            entity_type=entity_type,
+            entity_id=target.customer_id or target.supplier_id or target.partner_id
         )
     except Exception as e:
         import sys
-        print(f"⚠️ خطأ في حذف GLBatch للدفعة #{target.id}: {e}", file=sys.stderr)
+        print(f"⚠️ خطأ في عكس قيد الدفعة #{target.id}: {e}", file=sys.stderr)
 
 
 @event.listens_for(Payment, "after_insert", propagate=True)
@@ -7495,6 +8192,54 @@ def _shipment_status_toggle(target, value, oldvalue, initiator):
     elif old == "ARRIVED" and new != "ARRIVED":
         target._revert_arrival_stock()
 
+@event.listens_for(Shipment, "before_delete")
+def _shipment_gl_batch_reverse(mapper, connection, target: "Shipment"):
+    """إنشاء قيد عكسي عند حذف الشحنة (أصح محاسبياً)"""
+    try:
+        if hasattr(target, '_skip_gl_reversal') and target._skip_gl_reversal:
+            return
+        if target.status != ShipmentStatus.ARRIVED.value or not target.destination_id:
+            return
+        
+        from models import fx_rate
+        
+        total_cost = float(target.total_cost or 0)
+        if total_cost <= 0:
+            return
+        
+        amount_ils = total_cost
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(total_cost * float(rate))
+            except:
+                pass
+        
+        inventory_account = GL_ACCOUNTS.get("INV", "1300_INVENTORY")
+        offset_account = GL_ACCOUNTS.get("AP", "2000_AP")
+        
+        entries = [
+            (offset_account, amount_ils, 0),
+            (inventory_account, 0, amount_ils),
+        ]
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="SHIPMENT_REVERSAL",
+            source_id=target.id,
+            purpose="REVERSAL",
+            currency="ILS",
+            memo=f"عكس قيد - حذف شحنة #{target.id}",
+            entries=entries,
+            ref=f"REV-SHIP-{target.id}",
+            entity_type="SUPPLIER",
+            entity_id=target.supplier_id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في عكس قيد الشحنة #{target.id}: {e}", file=sys.stderr)
+
 @event.listens_for(Shipment, "after_update")
 def _gl_on_shipment_arrived(mapper, connection, target: "Shipment"):
     try:
@@ -7696,6 +8441,14 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
                 "refunded_total": "المبلغ المسترد"
             }
             raise ValueError(f"{field_names.get(key, key)} لا يمكن أن يكون سالباً")
+        
+        if key == "discount_total" and d > 0:
+            parts_sum = sum((_D(p.line_total or 0) for p in (getattr(self, 'parts', None) or [])), _D(0))
+            tasks_sum = sum((_D(t.line_total or 0) for t in (getattr(self, 'tasks', None) or [])), _D(0))
+            invoice_total = parts_sum + tasks_sum
+            if d > invoice_total and invoice_total > 0:
+                raise ValueError(f"الخصم الإجمالي ({d}) لا يمكن أن يتجاوز إجمالي الفاتورة ({invoice_total})")
+        
         return int(d) if key in ("estimated_duration", "actual_duration", "warranty_days") else _Q2(d)
 
     @hybrid_property
@@ -7822,9 +8575,9 @@ def _calc_parts_sum(service_id: int) -> Decimal:
     for q, u, d in rows:
         qd = _D(q)
         ud = _D(u)
-        dd = _D(d) / Decimal("100")
+        dd = _D(d)
         gross = qd * ud
-        taxable = gross * (Decimal("1") - dd)
+        taxable = gross - dd
         total += taxable
     return _Q2(total)
 
@@ -7836,9 +8589,9 @@ def _calc_tasks_sum(service_id: int) -> Decimal:
     for q, u, d in rows:
         qd = _D(q)
         ud = _D(u)
-        dd = _D(d) / Decimal("100")
+        dd = _D(d)
         gross = qd * ud
-        taxable = gross * (Decimal("1") - dd)
+        taxable = gross - dd
         total += taxable
     return _Q2(total)
 
@@ -7916,46 +8669,35 @@ def _set_completed_at_on_status_change(target, value, oldvalue, initiator):
 @event.listens_for(ServiceRequest, "after_insert")
 @event.listens_for(ServiceRequest, "after_update")
 def _service_gl_batch_upsert(mapper, connection, target: "ServiceRequest"):
-    """إنشاء/تحديث GLBatch للصيانة تلقائياً - قيد مزدوج احترافي"""
-    
-    # إذا الصيانة لها فاتورة منفصلة، لا ننشئ قيد (الفاتورة ستنشئه)
     if target.invoice:
         return
-    
-    # التحقق من وجود مبلغ
-    amount = float(target.total_cost or 0)
+    amount = float(target.total_amount or 0)
     if amount <= 0:
         return
-    
     try:
         from models import fx_rate
-        
-        # تحويل العملة للشيقل
         amount_ils = amount
         if target.currency and target.currency != 'ILS':
             try:
-                rate = fx_rate(target.currency, 'ILS', target.received_at or datetime.utcnow(), raise_on_missing=False)
-                if rate and rate > 0:
-                    amount_ils = float(amount * float(rate))
+                if target.fx_rate_used and target.fx_rate_used > 0:
+                    amount_ils = float(amount * float(target.fx_rate_used))
+                else:
+                    rate = fx_rate(target.currency, 'ILS', target.received_at or datetime.utcnow(), raise_on_missing=False)
+                    if rate and rate > 0:
+                        amount_ils = float(amount * float(rate))
             except:
                 pass
-        
-        # القيد المحاسبي للصيانة:
-        # مدين: حساب العملاء (AR)
-        # دائن: حساب إيرادات الخدمات (SERVICE_REVENUE)
         entries = [
-            (GL_ACCOUNTS.get("AR", "1100_AR"), amount_ils, 0),  # مدين: حساب العملاء
-            (GL_ACCOUNTS.get("SERVICE_REV", "4100_SERVICE_REVENUE"), 0, amount_ils),  # دائن: إيرادات الخدمات
+            (GL_ACCOUNTS.get("AR", "1100_AR"), amount_ils, 0),
+            (GL_ACCOUNTS.get("SERVICE_REV", "4100_SERVICE_REVENUE"), 0, amount_ils),
         ]
-        
         memo = f"صيانة - {target.service_number or target.id}"
-        
         _gl_upsert_batch_and_entries(
             connection,
             source_type="SERVICE",
             source_id=target.id,
             purpose="SERVICE",
-            currency="ILS",
+            currency=target.currency,
             memo=memo,
             entries=entries,
             ref=target.service_number or f"SRV-{target.id}",
@@ -7965,6 +8707,53 @@ def _service_gl_batch_upsert(mapper, connection, target: "ServiceRequest"):
     except Exception as e:
         import sys
         print(f"⚠️ خطأ في إنشاء GLBatch للصيانة #{target.id}: {e}", file=sys.stderr)
+
+@event.listens_for(ServiceRequest, "before_delete")
+def _service_gl_batch_reverse(mapper, connection, target: "ServiceRequest"):
+    try:
+        if hasattr(target, '_skip_gl_reversal') and target._skip_gl_reversal:
+            return
+        if target.invoice:
+            return
+        
+        from models import fx_rate
+        
+        total_amount = float(target.total_amount or 0)
+        if total_amount <= 0:
+            return
+        
+        amount_ils = total_amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.received_at or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(total_amount * float(rate))
+            except:
+                pass
+        
+        ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+        revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
+        
+        entries = [
+            (revenue_account, amount_ils, 0),
+            (ar_account, 0, amount_ils),
+        ]
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="SERVICE_REVERSAL",
+            source_id=target.id,
+            purpose="REVERSAL",
+            currency="ILS",
+            memo=f"عكس قيد - حذف صيانة #{target.id}",
+            entries=entries,
+            ref=f"REV-SRV-{target.id}",
+            entity_type="CUSTOMER",
+            entity_id=target.customer_id
+        )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في عكس قيد الصيانة #{target.id}: {e}", file=sys.stderr)
 
 @event.listens_for(ServiceRequest, "after_update")
 def _gl_on_service_complete(mapper, connection, target: "ServiceRequest"):
@@ -8013,7 +8802,7 @@ class ServicePart(db.Model, TimestampMixin):
     warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=False, index=True)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
-    discount = db.Column(db.Numeric(12, 2), default=0)  # مبلغ الخصم (وليس نسبة)
+    discount = db.Column(db.Numeric(12, 2), default=0)
     tax_rate = db.Column(db.Numeric(5, 2), default=0)
     note = db.Column(db.String(200))
     notes = db.Column(db.Text)
@@ -8028,7 +8817,8 @@ class ServicePart(db.Model, TimestampMixin):
     __table_args__ = (
         db.CheckConstraint('quantity > 0', name='chk_service_part_qty_positive'),
         db.CheckConstraint('unit_price >= 0', name='chk_service_part_price_non_negative'),
-        db.CheckConstraint('discount >= 0', name='chk_service_part_discount_positive'),  # مبلغ موجب
+        db.CheckConstraint('discount >= 0', name='chk_service_part_discount_positive'),
+        db.CheckConstraint('discount <= quantity * unit_price', name='chk_service_part_discount_max'),
         db.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_service_part_tax_range'),
         db.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_service_part_share_range'),
         db.UniqueConstraint('service_id', 'part_id', 'warehouse_id', name='uq_service_part_unique'),
@@ -8064,7 +8854,7 @@ class ServicePart(db.Model, TimestampMixin):
 
     @hybrid_property
     def discount_amount(self):
-        return _Q2(_D(self.discount or 0))  # الخصم مباشرة (مبلغ وليس نسبة)
+        return _Q2(_D(self.discount or 0))
 
     @hybrid_property
     def taxable_amount(self):
@@ -8119,7 +8909,7 @@ class ServiceTask(db.Model, TimestampMixin):
     description = db.Column(db.String(200), nullable=False)
     quantity = db.Column(db.Integer, default=1)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
-    discount = db.Column(db.Numeric(12, 2), default=0)  # مبلغ الخصم (وليس نسبة)
+    discount = db.Column(db.Numeric(12, 2), default=0)
     tax_rate = db.Column(db.Numeric(5, 2), default=0)
     note = db.Column(db.String(200))
 
@@ -8129,7 +8919,8 @@ class ServiceTask(db.Model, TimestampMixin):
     __table_args__ = (
         db.CheckConstraint('quantity > 0', name='chk_service_task_qty_positive'),
         db.CheckConstraint('unit_price >= 0', name='chk_service_task_price_non_negative'),
-        db.CheckConstraint('discount >= 0', name='chk_service_task_discount_positive'),  # مبلغ موجب
+        db.CheckConstraint('discount >= 0', name='chk_service_task_discount_positive'),
+        db.CheckConstraint('discount <= quantity * unit_price', name='chk_service_task_discount_max'),
         db.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_service_task_tax_range'),
         db.CheckConstraint('share_percentage >= 0 AND share_percentage <= 100', name='chk_service_task_share_range'),
         db.Index('ix_service_task_service', 'service_id'),
@@ -8164,7 +8955,7 @@ class ServiceTask(db.Model, TimestampMixin):
 
     @hybrid_property
     def discount_amount(self):
-        return _Q2(_D(self.discount or 0))  # الخصم مباشرة (مبلغ وليس نسبة)
+        return _Q2(_D(self.discount or 0))
 
     @hybrid_property
     def taxable_amount(self):
@@ -8505,16 +9296,37 @@ def _op_before_update(mapper, connection, target: 'OnlinePreOrder'):
 def _online_preorder_gl_batch_upsert(mapper, connection, target: "OnlinePreOrder"):
     """إنشاء/تحديث GLBatch للطلب الأونلاين تلقائياً"""
     
-    # إذا الطلب ملغى، حذف أي GLBatch موجود
+    # إذا الطلب ملغى، عكس القيد بدلاً من حذفه
     if target.payment_status == 'CANCELLED':
         try:
-            connection.execute(
-                sa_text("""
-                    DELETE FROM gl_batches
-                    WHERE source_type = 'ONLINE_ORDER' AND source_id = :sid
-                """),
-                {"sid": target.id}
-            )
+            amount = float(target.total_amount or 0)
+            if amount > 0:
+                amount_ils = amount
+                if target.currency and target.currency != 'ILS':
+                    try:
+                        rate = fx_rate(target.currency, 'ILS', target.created_at or datetime.utcnow(), raise_on_missing=False)
+                        if rate and rate > 0:
+                            amount_ils = float(amount * float(rate))
+                    except:
+                        pass
+                
+                ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+                revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
+                
+                entries = [(revenue_account, amount_ils, 0), (ar_account, 0, amount_ils)]
+                
+                _gl_upsert_batch_and_entries(
+                    connection,
+                    source_type="ONLINE_ORDER_REVERSAL",
+                    source_id=target.id,
+                    purpose="REVERSAL",
+                    currency="ILS",
+                    memo=f"عكس قيد - إلغاء طلب أونلاين #{target.id}",
+                    entries=entries,
+                    ref=f"REV-ONL-{target.id}",
+                    entity_type="CUSTOMER",
+                    entity_id=target.customer_id
+                )
         except:
             pass
         return
@@ -9143,8 +9955,12 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     check_number = db.Column(db.String(100))
     check_bank = db.Column(db.String(100))
     check_due_date = db.Column(db.Date)
+    check_payee = db.Column(db.String(200))
 
     bank_transfer_ref = db.Column(db.String(100))
+    bank_name = db.Column(db.String(100))
+    account_number = db.Column(db.String(100))
+    account_holder = db.Column(db.String(200))
 
     card_number = db.Column(db.String(8))
     card_holder = db.Column(db.String(120))
@@ -9217,7 +10033,11 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
         "payee_name",
         "check_number",
         "check_bank",
+        "check_payee",
         "bank_transfer_ref",
+        "bank_name",
+        "account_number",
+        "account_holder",
         "card_number",
         "card_holder",
         "card_expiry",
@@ -9456,20 +10276,60 @@ def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
         print(f"⚠️ خطأ في إنشاء GLBatch للمصروف #{target.id}: {e}", file=sys.stderr)
 
 
-@event.listens_for(Expense, "after_delete")
-def _expense_gl_batch_delete(mapper, connection, target: "Expense"):
-    """حذف GLBatch للمصروف عند الحذف"""
+@event.listens_for(Expense, "before_delete")
+def _expense_gl_batch_reverse(mapper, connection, target: "Expense"):
+    """إنشاء قيد عكسي عند حذف المصروف (أصح محاسبياً)"""
     try:
-        connection.execute(
-            sa_text("""
-                DELETE FROM gl_batches
-                WHERE source_type = 'EXPENSE' AND source_id = :sid
-            """),
-            {"sid": target.id}
+        from models import fx_rate
+        
+        amount = float(target.amount or 0)
+        if amount <= 0:
+            return
+        
+        amount_ils = amount
+        if target.currency and target.currency != 'ILS':
+            try:
+                rate = fx_rate(target.currency, 'ILS', target.date or datetime.utcnow(), raise_on_missing=False)
+                if rate and rate > 0:
+                    amount_ils = float(amount * float(rate))
+            except:
+                pass
+        
+        expense_account = GL_ACCOUNTS.get("EXP", "5000_EXPENSES")
+        try:
+            etype_row = connection.execute(
+                select(ExpenseType.fields_meta).where(ExpenseType.id == target.type_id)
+            ).scalar()
+            if etype_row and isinstance(etype_row, dict):
+                expense_account = etype_row.get("gl_account_code") or expense_account
+        except:
+            pass
+        
+        payment_method = (target.payment_method or 'cash').upper()
+        cash_account = GL_ACCOUNTS.get(PAYMENT_GL_MAP.get(payment_method, 'CASH'), "1000_CASH")
+        
+        entries = [
+            (cash_account, amount_ils, 0),
+            (expense_account, 0, amount_ils),
+        ]
+        
+        memo = f"عكس قيد - حذف مصروف #{target.id} - {target.description or target.payee_name or ''}"
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="EXPENSE_REVERSAL",
+            source_id=target.id,
+            purpose="REVERSAL",
+            currency="ILS",
+            memo=memo,
+            entries=entries,
+            ref=f"REV-EXP-{target.id}",
+            entity_type=target.payee_type,
+            entity_id=target.payee_entity_id
         )
     except Exception as e:
         import sys
-        print(f"⚠️ خطأ في حذف GLBatch للمصروف #{target.id}: {e}", file=sys.stderr)
+        print(f"⚠️ خطأ في عكس قيد المصروف #{target.id}: {e}", file=sys.stderr)
 
 
 @event.listens_for(PreOrder, "before_insert")
@@ -10077,6 +10937,15 @@ class GLEntry(db.Model, TimestampMixin):
         return f"<GLEntry {self.account} D:{self.debit} C:{self.credit}>"
 
 
+PAYMENT_GL_MAP = {
+    "CASH": "CASH",
+    "CHEQUE": "BANK",
+    "BANK": "BANK",
+    "CARD": "CARD",
+    "ONLINE": "BANK",
+    "OTHER": "CASH",
+}
+
 GL_ACCOUNTS = {
     "AR": "1100_AR",
     "REV": "4000_SALES",
@@ -10154,12 +11023,14 @@ def _gl_upsert_batch_and_entries(
     )
 
     batch_code = f"{source_type}-{source_id}-{purpose}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+    posted_at = datetime.now(timezone.utc)
+    
     cur = connection.execute(
         sa_text("""
             INSERT INTO gl_batches
                 (code, source_type, source_id, purpose, memo, posted_at, currency, entity_type, entity_id, status, created_at, updated_at)
             VALUES
-                (:code, :st, :sid, :p, :memo, NULL, :cur, :etype, :eid, 'DRAFT', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                (:code, :st, :sid, :p, :memo, :posted_at, :cur, :etype, :eid, 'POSTED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             RETURNING id
         """),
         {
@@ -10168,6 +11039,7 @@ def _gl_upsert_batch_and_entries(
             "sid": source_id,
             "p": purpose,
             "memo": memo or "",
+            "posted_at": posted_at,
             "cur": (currency or "ILS").upper(),
             "etype": entity_type,
             "eid": entity_id,

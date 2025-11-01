@@ -1111,8 +1111,7 @@ function showProductFiltersModal(product) {
     
     // إظهار Modal
     const modal = document.getElementById('productFiltersModal');
-    const modalInstance = new bootstrap.Modal(modal);
-    modalInstance.show();
+    $(modal).modal('show');
 }
 
 // تأكيد تحديث المنتج
@@ -1167,10 +1166,7 @@ function setupConfirmButton() {
     
     // إخفاء Modal
     const modal = document.getElementById('productFiltersModal');
-    const modalInstance = bootstrap.Modal.getInstance(modal);
-    if (modalInstance) {
-        modalInstance.hide();
-    }
+    $(modal).modal('hide');
     
     // إعادة تعيين المتغيرات
     currentProductData = null;

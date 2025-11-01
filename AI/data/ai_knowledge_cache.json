@@ -1,0 +1,8265 @@
+{
+  "models": {
+    "SystemSettings": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "key",
+        "value",
+        "description",
+        "data_type",
+        "is_public",
+        "created_at",
+        "updated_at"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "Currency": {
+      "type": "db_model",
+      "columns": [
+        "code",
+        "name",
+        "symbol",
+        "decimals",
+        "is_active"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "DeletionLog": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "deletion_type",
+        "entity_id",
+        "entity_name",
+        "status",
+        "created_at",
+        "updated_at",
+        "deleted_by",
+        "deletion_reason",
+        "confirmation_code",
+        "deleted_data",
+        "related_entities",
+        "stock_reversals",
+        "accounting_reversals",
+        "balance_reversals",
+        "restored_at",
+        "restored_by",
+        "restoration_notes"
+      ],
+      "relationships": [
+        "User",
+        "User"
+      ],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "ExchangeRate": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "base_code",
+        "quote_code",
+        "rate",
+        "valid_from",
+        "source",
+        "is_active",
+        "created_at",
+        "updated_at"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "AuthAudit": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "user_id",
+        "event",
+        "success",
+        "ip",
+        "user_agent",
+        "note",
+        "meta",
+        "created_at"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "ProductPartnerShare": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [
+        "Partner",
+        "Warehouse",
+        "Product"
+      ],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "ProductPartner": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "product_id",
+        "partner_id",
+        "share_percent",
+        "share_amount",
+        "notes"
+      ],
+      "relationships": [
+        "Product",
+        "Partner"
+      ],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "SaleReturnLine": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "sale_return_id",
+        "product_id",
+        "warehouse_id",
+        "quantity",
+        "unit_price",
+        "notes"
+      ],
+      "relationships": [
+        "SaleReturn",
+        "Product",
+        "Warehouse"
+      ],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "InvoiceLine": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "invoice_id",
+        "description",
+        "quantity",
+        "unit_price",
+        "tax_rate",
+        "discount",
+        "product_id"
+      ],
+      "relationships": [
+        "Invoice",
+        "Product"
+      ],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "Payment": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "PaymentSplit": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "ShipmentItem": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "shipment_id",
+        "product_id",
+        "warehouse_id",
+        "quantity",
+        "unit_cost",
+        "declared_value",
+        "landed_extra_share",
+        "landed_unit_cost",
+        "notes"
+      ],
+      "relationships": [
+        "Shipment",
+        "Product",
+        "Warehouse"
+      ],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "OnlineCartItem": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "cart_id",
+        "product_id",
+        "quantity",
+        "price",
+        "added_at"
+      ],
+      "relationships": [
+        "OnlineCart",
+        "Product"
+      ],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "OnlinePreOrderItem": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "order_id",
+        "product_id",
+        "quantity",
+        "price"
+      ],
+      "relationships": [
+        "OnlinePreOrder",
+        "Product"
+      ],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "StockAdjustmentItem": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "adjustment_id",
+        "product_id",
+        "warehouse_id",
+        "quantity",
+        "unit_cost",
+        "notes"
+      ],
+      "relationships": [
+        "StockAdjustment",
+        "Product",
+        "Warehouse"
+      ],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "PaymentMethod": {
+      "type": "enum",
+      "values": [
+        "CASH",
+        "BANK",
+        "CARD",
+        "CHEQUE",
+        "ONLINE"
+      ],
+      "file": "models.py"
+    },
+    "PaymentStatus": {
+      "type": "enum",
+      "values": [
+        "PENDING",
+        "COMPLETED",
+        "FAILED",
+        "REFUNDED",
+        "CANCELLED"
+      ],
+      "file": "models.py"
+    },
+    "PaymentDirection": {
+      "type": "enum",
+      "values": [
+        "IN",
+        "OUT"
+      ],
+      "file": "models.py"
+    },
+    "InvoiceStatus": {
+      "type": "enum",
+      "values": [
+        "UNPAID",
+        "PARTIAL",
+        "PAID",
+        "CANCELLED",
+        "REFUNDED"
+      ],
+      "file": "models.py"
+    },
+    "PaymentProgress": {
+      "type": "enum",
+      "values": [
+        "PENDING",
+        "PARTIAL",
+        "PAID",
+        "REFUNDED"
+      ],
+      "file": "models.py"
+    },
+    "SaleStatus": {
+      "type": "enum",
+      "values": [
+        "DRAFT",
+        "CONFIRMED",
+        "COMPLETED",
+        "CANCELLED",
+        "REFUNDED"
+      ],
+      "file": "models.py"
+    },
+    "ServiceStatus": {
+      "type": "enum",
+      "values": [
+        "PENDING",
+        "DIAGNOSIS",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED",
+        "ON_HOLD"
+      ],
+      "file": "models.py"
+    },
+    "ServicePriority": {
+      "type": "enum",
+      "values": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "URGENT"
+      ],
+      "file": "models.py"
+    },
+    "TransferDirection": {
+      "type": "enum",
+      "values": [
+        "IN",
+        "OUT",
+        "ADJUSTMENT"
+      ],
+      "file": "models.py"
+    },
+    "PreOrderStatus": {
+      "type": "enum",
+      "values": [
+        "PENDING",
+        "CONFIRMED",
+        "FULFILLED",
+        "CANCELLED"
+      ],
+      "file": "models.py"
+    },
+    "WarehouseType": {
+      "type": "enum",
+      "values": [
+        "MAIN",
+        "PARTNER",
+        "INVENTORY",
+        "EXCHANGE",
+        "ONLINE"
+      ],
+      "file": "models.py"
+    },
+    "PaymentEntityType": {
+      "type": "enum",
+      "values": [
+        "CUSTOMER",
+        "SUPPLIER",
+        "PARTNER",
+        "SHIPMENT",
+        "EXPENSE",
+        "LOAN",
+        "SALE",
+        "INVOICE",
+        "PREORDER",
+        "SERVICE"
+      ],
+      "file": "models.py"
+    },
+    "InvoiceSource": {
+      "type": "enum",
+      "values": [
+        "MANUAL",
+        "SALE",
+        "SERVICE",
+        "PREORDER",
+        "SUPPLIER",
+        "PARTNER",
+        "ONLINE"
+      ],
+      "file": "models.py"
+    },
+    "PartnerSettlementStatus": {
+      "type": "enum",
+      "values": [
+        "DRAFT",
+        "CONFIRMED",
+        "CANCELLED"
+      ],
+      "file": "models.py"
+    },
+    "SupplierSettlementStatus": {
+      "type": "enum",
+      "values": [
+        "DRAFT",
+        "CONFIRMED",
+        "CANCELLED"
+      ],
+      "file": "models.py"
+    },
+    "SupplierSettlementMode": {
+      "type": "enum",
+      "values": [
+        "ON_RECEIPT",
+        "ON_CONSUME"
+      ],
+      "file": "models.py"
+    },
+    "ProductCondition": {
+      "type": "enum",
+      "values": [
+        "NEW",
+        "USED",
+        "REFURBISHED"
+      ],
+      "file": "models.py"
+    },
+    "ShipmentStatus": {
+      "type": "enum",
+      "values": [
+        "DRAFT",
+        "PENDING",
+        "IN_TRANSIT",
+        "IN_CUSTOMS",
+        "ARRIVED",
+        "DELIVERED",
+        "CANCELLED",
+        "RETURNED"
+      ],
+      "file": "models.py"
+    },
+    "ShipmentPriority": {
+      "type": "enum",
+      "values": [
+        "LOW",
+        "NORMAL",
+        "HIGH",
+        "URGENT"
+      ],
+      "file": "models.py"
+    },
+    "DeliveryMethod": {
+      "type": "enum",
+      "values": [
+        "STANDARD",
+        "EXPRESS",
+        "OVERNIGHT",
+        "SAME_DAY",
+        "PICKUP"
+      ],
+      "file": "models.py"
+    },
+    "AccountType": {
+      "type": "enum",
+      "values": [
+        "ASSET",
+        "LIABILITY",
+        "EQUITY",
+        "REVENUE",
+        "EXPENSE"
+      ],
+      "file": "models.py"
+    },
+    "DeletionType": {
+      "type": "enum",
+      "values": [
+        "CUSTOMER",
+        "SUPPLIER",
+        "PARTNER",
+        "SALE",
+        "INVOICE",
+        "PAYMENT",
+        "PURCHASE",
+        "EXPENSE"
+      ],
+      "file": "models.py"
+    },
+    "DeletionStatus": {
+      "type": "enum",
+      "values": [
+        "PENDING",
+        "COMPLETED",
+        "FAILED",
+        "RESTORED"
+      ],
+      "file": "models.py"
+    },
+    "AuthEvent": {
+      "type": "enum",
+      "values": [
+        "LOGIN_SUCCESS",
+        "LOGIN_FAIL",
+        "PASSWORD_SET",
+        "PASSWORD_CHANGE",
+        "USER_ACTIVATE",
+        "USER_DEACTIVATE",
+        "ROLE_CHANGE",
+        "PERM_GRANT",
+        "PERM_REVOKE"
+      ],
+      "file": "models.py"
+    },
+    "User": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "username",
+        "email",
+        "password_hash",
+        "role_id",
+        "is_active",
+        "is_system_account",
+        "last_login",
+        "last_seen",
+        "last_login_ip",
+        "login_count",
+        "avatar_url",
+        "notes_text"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "Permission": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "name",
+        "code",
+        "description",
+        "name_ar",
+        "module",
+        "is_protected",
+        "aliases"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": true
+    },
+    "Role": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "name",
+        "description",
+        "is_default"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": true
+    },
+    "Customer": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "Supplier": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "name",
+        "is_local",
+        "identity_number",
+        "contact",
+        "phone",
+        "email",
+        "address",
+        "notes",
+        "balance",
+        "payment_terms",
+        "currency",
+        "customer_id",
+        "is_archived",
+        "archived_at",
+        "archived_by",
+        "archive_reason"
+      ],
+      "relationships": [
+        "Customer",
+        "Payment",
+        "Invoice",
+        "PreOrder",
+        "Warehouse",
+        "SupplierLoanSettlement",
+        "User"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "SupplierSettlement": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "code",
+        "supplier_id",
+        "from_date",
+        "to_date",
+        "currency",
+        "status",
+        "mode",
+        "notes",
+        "total_gross",
+        "total_due"
+      ],
+      "relationships": [
+        "Supplier",
+        "SupplierSettlementLine"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "SupplierSettlementLine": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "settlement_id",
+        "source_type",
+        "source_id",
+        "description",
+        "product_id",
+        "quantity",
+        "unit_price",
+        "gross_amount",
+        "needs_pricing",
+        "cost_source"
+      ],
+      "relationships": [
+        "SupplierSettlement",
+        "Product"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "SupplierLoanSettlement": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "loan_id",
+        "supplier_id",
+        "settled_price",
+        "settlement_date",
+        "notes"
+      ],
+      "relationships": [
+        "ProductSupplierLoan",
+        "Supplier",
+        "Payment"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "Partner": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "name",
+        "contact_info",
+        "identity_number",
+        "phone_number",
+        "email",
+        "address",
+        "balance",
+        "share_percentage",
+        "currency",
+        "notes",
+        "customer_id",
+        "is_archived",
+        "archived_at",
+        "archived_by",
+        "archive_reason"
+      ],
+      "relationships": [
+        "Customer",
+        "Warehouse",
+        "Payment",
+        "PreOrder",
+        "Invoice",
+        "ShipmentPartner",
+        "User",
+        "WarehousePartnerShare",
+        "WarehousePartnerShare",
+        "ProductPartnerShare",
+        "ProductPartner",
+        "ServicePart",
+        "ServiceTask",
+        "Expense"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "PartnerSettlement": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "code",
+        "partner_id",
+        "from_date",
+        "to_date",
+        "currency",
+        "status",
+        "notes",
+        "total_gross",
+        "total_share",
+        "total_costs",
+        "total_due"
+      ],
+      "relationships": [
+        "Partner",
+        "PartnerSettlementLine"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "PartnerSettlementLine": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "settlement_id",
+        "source_type",
+        "source_id",
+        "description",
+        "product_id",
+        "warehouse_id",
+        "quantity",
+        "unit_price",
+        "gross_amount",
+        "share_percent",
+        "share_amount"
+      ],
+      "relationships": [
+        "PartnerSettlement",
+        "Product",
+        "Warehouse"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "Employee": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "name",
+        "position",
+        "phone",
+        "email",
+        "bank_name",
+        "account_number",
+        "notes",
+        "currency"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "EquipmentType": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "name",
+        "model_number",
+        "chassis_number",
+        "notes",
+        "category"
+      ],
+      "relationships": [
+        "Product",
+        "ServiceRequest"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "ProductCategory": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "name",
+        "parent_id",
+        "description",
+        "image_url"
+      ],
+      "relationships": [
+        "ProductCategory",
+        "Product"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "Product": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "Warehouse": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "name",
+        "warehouse_type",
+        "location",
+        "is_active",
+        "parent_id",
+        "supplier_id",
+        "partner_id",
+        "share_percent",
+        "capacity",
+        "current_occupancy",
+        "notes",
+        "online_slug",
+        "online_is_default"
+      ],
+      "relationships": [
+        "Warehouse",
+        "Supplier",
+        "Partner",
+        "StockLevel",
+        "Transfer",
+        "Transfer",
+        "SaleLine",
+        "ServicePart",
+        "ExchangeTransaction",
+        "ShipmentItem",
+        "Shipment",
+        "PreOrder",
+        "WarehousePartnerShare",
+        "Expense",
+        "StockAdjustment"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "StockLevel": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "product_id",
+        "warehouse_id",
+        "quantity",
+        "reserved_quantity",
+        "min_stock",
+        "max_stock"
+      ],
+      "relationships": [
+        "Product",
+        "Warehouse"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "ImportRun": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "warehouse_id",
+        "user_id",
+        "filename",
+        "file_sha256",
+        "dry_run",
+        "inserted",
+        "updated",
+        "skipped",
+        "errors",
+        "duration_ms",
+        "report_path",
+        "notes",
+        "meta"
+      ],
+      "relationships": [
+        "Warehouse",
+        "User"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "Transfer": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "reference",
+        "product_id",
+        "source_id",
+        "destination_id",
+        "quantity",
+        "direction",
+        "transfer_date",
+        "notes",
+        "user_id"
+      ],
+      "relationships": [
+        "Product",
+        "Warehouse",
+        "Warehouse",
+        "User"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "ExchangeTransaction": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "product_id",
+        "warehouse_id",
+        "supplier_id",
+        "partner_id",
+        "quantity",
+        "direction",
+        "unit_cost",
+        "is_priced",
+        "notes"
+      ],
+      "relationships": [
+        "Product",
+        "Warehouse",
+        "Supplier",
+        "Partner",
+        "GLBatch"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "WarehousePartnerShare": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "partner_id",
+        "warehouse_id",
+        "product_id",
+        "share_percentage",
+        "share_amount",
+        "notes"
+      ],
+      "relationships": [
+        "Partner",
+        "Warehouse",
+        "Product"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "PreOrder": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "reference",
+        "preorder_date",
+        "expected_date",
+        "customer_id",
+        "supplier_id",
+        "partner_id",
+        "product_id",
+        "warehouse_id",
+        "quantity",
+        "prepaid_amount",
+        "tax_rate",
+        "status",
+        "notes",
+        "payment_method",
+        "currency",
+        "refunded_total",
+        "refund_of_id",
+        "idempotency_key",
+        "cancelled_at",
+        "cancelled_by",
+        "cancel_reason"
+      ],
+      "relationships": [
+        "Customer",
+        "Supplier",
+        "Partner",
+        "Product",
+        "Warehouse",
+        "User",
+        "PreOrder",
+        "Payment",
+        "Sale",
+        "Invoice"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "Sale": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "sale_number",
+        "sale_date",
+        "customer_id",
+        "seller_id",
+        "preorder_id",
+        "tax_rate",
+        "discount_total",
+        "notes",
+        "status",
+        "payment_status",
+        "currency",
+        "shipping_address",
+        "billing_address",
+        "shipping_cost",
+        "total_amount",
+        "total_paid",
+        "balance_due",
+        "refunded_total",
+        "refund_of_id",
+        "idempotency_key",
+        "cancelled_at",
+        "cancelled_by",
+        "cancel_reason",
+        "is_archived",
+        "archived_at",
+        "archived_by",
+        "archive_reason"
+      ],
+      "relationships": [
+        "Customer",
+        "User",
+        "User",
+        "User",
+        "PreOrder",
+        "Sale",
+        "SaleLine",
+        "Payment",
+        "Invoice",
+        "Shipment",
+        "GLBatch"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "SaleLine": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "sale_id",
+        "product_id",
+        "warehouse_id",
+        "quantity",
+        "unit_price",
+        "discount_rate",
+        "tax_rate",
+        "note"
+      ],
+      "relationships": [
+        "Sale",
+        "Product",
+        "Warehouse"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "SaleReturn": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "sale_id",
+        "customer_id",
+        "warehouse_id",
+        "reason",
+        "status",
+        "notes",
+        "total_amount",
+        "currency",
+        "credit_note_id"
+      ],
+      "relationships": [
+        "Sale",
+        "Customer",
+        "Warehouse",
+        "Invoice",
+        "SaleReturnLine"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "Invoice": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "ProductSupplierLoan": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "product_id",
+        "supplier_id",
+        "loan_value",
+        "deferred_price",
+        "is_settled",
+        "partner_share_quantity",
+        "partner_share_value",
+        "notes"
+      ],
+      "relationships": [
+        "Product",
+        "Supplier",
+        "SupplierLoanSettlement"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "Shipment": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "number",
+        "shipment_number",
+        "date",
+        "shipment_date",
+        "expected_arrival",
+        "actual_arrival",
+        "delivered_date",
+        "origin",
+        "destination",
+        "destination_id",
+        "status",
+        "value_before",
+        "shipping_cost",
+        "customs",
+        "vat",
+        "insurance",
+        "total_cost",
+        "carrier",
+        "tracking_number",
+        "notes",
+        "currency",
+        "sale_id",
+        "weight",
+        "dimensions",
+        "package_count",
+        "priority",
+        "delivery_method",
+        "delivery_instructions",
+        "customs_declaration",
+        "customs_cleared_date",
+        "delivery_attempts",
+        "last_delivery_attempt",
+        "return_reason",
+        "is_archived",
+        "archived_at",
+        "archived_by",
+        "archive_reason"
+      ],
+      "relationships": [
+        "ShipmentItem",
+        "ShipmentPartner",
+        "Payment",
+        "Sale",
+        "Warehouse",
+        "Expense",
+        "User"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "ShipmentPartner": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "shipment_id",
+        "partner_id",
+        "identity_number",
+        "phone_number",
+        "address",
+        "unit_price_before_tax",
+        "expiry_date",
+        "share_percentage",
+        "share_amount",
+        "notes"
+      ],
+      "relationships": [
+        "Partner",
+        "Shipment"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "ServiceRequest": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "service_number",
+        "customer_id",
+        "mechanic_id",
+        "vehicle_type_id",
+        "status",
+        "priority",
+        "vehicle_vrn",
+        "vehicle_model",
+        "chassis_number",
+        "engineer_notes",
+        "description",
+        "estimated_duration",
+        "actual_duration",
+        "estimated_cost",
+        "total_cost",
+        "start_time",
+        "end_time",
+        "problem_description",
+        "diagnosis",
+        "resolution",
+        "notes",
+        "received_at",
+        "started_at",
+        "expected_delivery",
+        "completed_at",
+        "currency",
+        "tax_rate",
+        "discount_total",
+        "parts_total",
+        "labor_total",
+        "total_amount",
+        "consume_stock",
+        "warranty_days",
+        "refunded_total",
+        "refund_of_id",
+        "idempotency_key",
+        "cancelled_at",
+        "cancelled_by",
+        "cancel_reason",
+        "is_archived",
+        "archived_at",
+        "archived_by",
+        "archive_reason"
+      ],
+      "relationships": [
+        "Customer",
+        "User",
+        "User",
+        "User",
+        "EquipmentType",
+        "Invoice",
+        "Payment",
+        "ServicePart",
+        "ServiceTask",
+        "GLBatch",
+        "ServiceRequest"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "ServicePart": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "service_id",
+        "part_id",
+        "warehouse_id",
+        "quantity",
+        "unit_price",
+        "discount",
+        "tax_rate",
+        "note",
+        "notes",
+        "partner_id",
+        "share_percentage"
+      ],
+      "relationships": [
+        "ServiceRequest",
+        "Product",
+        "Warehouse",
+        "Partner"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "ServiceTask": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "service_id",
+        "partner_id",
+        "share_percentage",
+        "description",
+        "quantity",
+        "unit_price",
+        "discount",
+        "tax_rate",
+        "note"
+      ],
+      "relationships": [
+        "ServiceRequest",
+        "Partner"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "OnlineCart": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "cart_id",
+        "customer_id",
+        "session_id",
+        "status",
+        "expires_at"
+      ],
+      "relationships": [
+        "Customer",
+        "OnlineCartItem"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "OnlinePreOrder": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "order_number",
+        "customer_id",
+        "cart_id",
+        "warehouse_id",
+        "prepaid_amount",
+        "total_amount",
+        "expected_fulfillment",
+        "actual_fulfillment",
+        "status",
+        "payment_status",
+        "payment_method",
+        "notes",
+        "shipping_address",
+        "billing_address"
+      ],
+      "relationships": [
+        "Warehouse",
+        "Customer",
+        "OnlineCart",
+        "OnlinePreOrderItem",
+        "OnlinePayment"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "OnlinePayment": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "payment_ref",
+        "order_id",
+        "amount",
+        "currency",
+        "method",
+        "gateway",
+        "status",
+        "transaction_data",
+        "processed_at",
+        "card_last4",
+        "card_encrypted",
+        "card_expiry",
+        "cardholder_name",
+        "card_brand",
+        "card_fingerprint",
+        "payment_id",
+        "idempotency_key"
+      ],
+      "relationships": [
+        "OnlinePreOrder"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "UtilityAccount": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "utility_type",
+        "provider",
+        "account_no",
+        "meter_no",
+        "alias",
+        "is_active"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "StockAdjustment": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "date",
+        "warehouse_id",
+        "reason",
+        "notes",
+        "total_cost"
+      ],
+      "relationships": [
+        "Warehouse",
+        "StockAdjustmentItem",
+        "Expense"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "ExpenseType": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "name",
+        "description",
+        "is_active"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "Expense": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "date",
+        "amount",
+        "currency",
+        "type_id",
+        "employee_id",
+        "warehouse_id",
+        "partner_id",
+        "shipment_id",
+        "utility_account_id",
+        "stock_adjustment_id",
+        "payee_type",
+        "payee_entity_id",
+        "payee_name",
+        "beneficiary_name",
+        "paid_to",
+        "period_start",
+        "period_end",
+        "payment_method",
+        "payment_details",
+        "description",
+        "notes",
+        "tax_invoice_number",
+        "check_number",
+        "check_bank",
+        "check_due_date",
+        "bank_transfer_ref",
+        "card_number",
+        "card_holder",
+        "card_expiry",
+        "online_gateway",
+        "online_ref",
+        "is_archived",
+        "archived_at",
+        "archived_by",
+        "archive_reason"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "AuditLog": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "model_name",
+        "record_id",
+        "customer_id",
+        "user_id",
+        "action",
+        "old_data",
+        "new_data",
+        "ip_address",
+        "user_agent"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "Note": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "content",
+        "author_id",
+        "entity_type",
+        "entity_id",
+        "is_pinned",
+        "priority",
+        "target_type",
+        "target_ids",
+        "notification_type",
+        "notification_date",
+        "is_sent"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "Account": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "code",
+        "name",
+        "type",
+        "is_active"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "GLBatch": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "code",
+        "source_type",
+        "source_id",
+        "purpose",
+        "memo",
+        "posted_at",
+        "currency",
+        "entity_type",
+        "entity_id",
+        "status"
+      ],
+      "relationships": [
+        "GLEntry"
+      ],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "GLEntry": {
+      "type": "db_model",
+      "columns": [
+        "id",
+        "batch_id",
+        "account",
+        "debit",
+        "credit",
+        "currency",
+        "ref"
+      ],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "ProductRating": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "ProductRatingHelpful": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "CustomerLoyalty": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    },
+    "CustomerLoyaltyPoints": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": false
+    },
+    "Archive": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": false,
+      "has_audit": false
+    },
+    "CheckStatus": {
+      "type": "enum",
+      "values": [
+        "PENDING",
+        "CASHED",
+        "RETURNED",
+        "BOUNCED",
+        "RESUBMITTED",
+        "CANCELLED",
+        "OVERDUE"
+      ],
+      "file": "models.py"
+    },
+    "Check": {
+      "type": "db_model",
+      "columns": [],
+      "relationships": [],
+      "file": "models.py",
+      "has_timestamp": true,
+      "has_audit": true
+    }
+  },
+  "enums": {},
+  "routes": {
+    "auth": {
+      "file": "routes\\auth.py",
+      "routes": [
+        [
+          "/login",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/logout",
+          "\"POST\""
+        ],
+        [
+          "/register/customer",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/customer_password_reset_request",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/customer_password_reset/<token>",
+          "\"GET\", \"POST\""
+        ]
+      ]
+    },
+    "checks": {
+      "file": "routes\\checks.py",
+      "routes": [
+        [
+          "/api/update-status/<check_id>",
+          "'POST'"
+        ],
+        [
+          "/new",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/edit/<int:check_id>",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/delete/<int:check_id>",
+          "\"POST\""
+        ]
+      ]
+    },
+    "customers": {
+      "file": "routes\\customers.py",
+      "routes": [
+        [
+          "/<int:id>/delete",
+          "\"POST\""
+        ],
+        [
+          "/archive/<int:customer_id>",
+          "\"POST\""
+        ],
+        [
+          "/restore/<int:customer_id>",
+          "'POST'"
+        ]
+      ]
+    },
+    "hard_delete": {
+      "file": "routes\\hard_delete.py",
+      "routes": [
+        [
+          "/customer/<int:customer_id>",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/restore/<int:deletion_id>",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/api/delete-customer/<int:customer_id>",
+          "\"POST\""
+        ],
+        [
+          "/api/delete-sale/<int:sale_id>",
+          "\"POST\""
+        ],
+        [
+          "/api/delete-payment/<int:payment_id>",
+          "\"POST\""
+        ],
+        [
+          "/supplier/<int:supplier_id>",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/partner/<int:partner_id>",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/sale/<int:sale_id>",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/payment/<int:payment_id>",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/expense/<int:expense_id>",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/api/restore/<int:deletion_id>",
+          "\"POST\""
+        ]
+      ]
+    },
+    "health": {
+      "file": "routes\\health.py",
+      "routes": [
+        [
+          "/",
+          "\"GET\""
+        ],
+        [
+          "/status",
+          "\"GET\""
+        ],
+        [
+          "/ping",
+          "\"GET\""
+        ],
+        [
+          "/ready",
+          "\"GET\""
+        ],
+        [
+          "/live",
+          "\"GET\""
+        ],
+        [
+          "/metrics",
+          "\"GET\""
+        ]
+      ]
+    },
+    "partner_settlements": {
+      "file": "routes\\partner_settlements.py",
+      "routes": [
+        [
+          "/<int:partner_id>/settlements/preview",
+          "\"GET\""
+        ],
+        [
+          "/<int:partner_id>/settlements/create",
+          "\"POST\""
+        ],
+        [
+          "/settlements/<int:settlement_id>/confirm",
+          "\"POST\""
+        ],
+        [
+          "/settlements/<int:settlement_id>",
+          "\"GET\""
+        ]
+      ]
+    },
+    "payments": {
+      "file": "routes\\payments.py",
+      "routes": [
+        [
+          "/entity-search",
+          "\"GET\""
+        ],
+        [
+          "/archive/<int:payment_id>",
+          "\"POST\""
+        ],
+        [
+          "/restore/<int:payment_id>",
+          "\"POST\""
+        ]
+      ]
+    },
+    "report_routes": {
+      "file": "routes\\report_routes.py",
+      "routes": [
+        [
+          "/dynamic",
+          "\"GET\", \"POST\""
+        ],
+        [
+          "/sales",
+          "\"GET\""
+        ],
+        [
+          "/ar-aging",
+          "\"GET\""
+        ],
+        [
+          "/top-products",
+          "\"GET\""
+        ],
+        [
+          "/ap-aging",
+          "\"GET\""
+        ],
+        [
+          "/api/model_fields",
+          "\"GET\""
+        ],
+        [
+          "/service-reports",
+          "\"GET\""
+        ],
+        [
+          "/api/dynamic",
+          "\"POST\""
+        ],
+        [
+          "/export/dynamic.csv",
+          "\"POST\""
+        ],
+        [
+          "/export/ar_aging.csv",
+          "\"GET\""
+        ],
+        [
+          "/export/ap_aging.csv",
+          "\"GET\""
+        ],
+        [
+          "/customer-detail/<int:customer_id>",
+          "\"GET\""
+        ],
+        [
+          "/supplier-detail/<int:supplier_id>",
+          "\"GET\""
+        ],
+        [
+          "/partner-detail/<int:partner_id>",
+          "\"GET\""
+        ]
+      ]
+    },
+    "sales": {
+      "file": "routes\\sales.py",
+      "routes": [
+        [
+          "/quick",
+          "\"POST\""
+        ],
+        [
+          "/archive/<int:sale_id>",
+          "\"POST\""
+        ],
+        [
+          "/restore/<int:sale_id>",
+          "'POST'"
+        ]
+      ]
+    },
+    "security": {
+      "file": "routes\\security.py",
+      "routes": [
+        [
+          "/block-ip",
+          "'GET', 'POST'"
+        ],
+        [
+          "/unblock-ip/<ip>",
+          "'POST'"
+        ],
+        [
+          "/block-country",
+          "'GET', 'POST'"
+        ],
+        [
+          "/block-user/<int:user_id>",
+          "'POST'"
+        ],
+        [
+          "/system-cleanup",
+          "'GET', 'POST'"
+        ],
+        [
+          "/ai-assistant",
+          "'GET', 'POST'"
+        ],
+        [
+          "/system-map",
+          "'GET', 'POST'"
+        ],
+        [
+          "/ai-training",
+          "'GET', 'POST'"
+        ],
+        [
+          "/decrypt-tool",
+          "'GET', 'POST'"
+        ],
+        [
+          "/ai-config",
+          "'GET', 'POST'"
+        ],
+        [
+          "/api/ai-chat",
+          "'POST'"
+        ],
+        [
+          "/code-editor",
+          "'GET', 'POST'"
+        ],
+        [
+          "/theme-editor",
+          "'GET', 'POST'"
+        ],
+        [
+          "/text-editor",
+          "'GET', 'POST'"
+        ],
+        [
+          "/logo-manager",
+          "'GET', 'POST'"
+        ],
+        [
+          "/template-editor",
+          "'GET', 'POST'"
+        ],
+        [
+          "/table-manager",
+          "'GET', 'POST'"
+        ],
+        [
+          "/permissions-manager",
+          "'GET', 'POST'"
+        ],
+        [
+          "/email-manager",
+          "'GET', 'POST'"
+        ],
+        [
+          "/invoice-designer",
+          "'GET', 'POST'"
+        ],
+        [
+          "/integrations",
+          "'GET'"
+        ],
+        [
+          "/save-integration",
+          "'POST'"
+        ],
+        [
+          "/test-integration/<integration_type>",
+          "'POST'"
+        ],
+        [
+          "/send-test-message/<integration_type>",
+          "'POST'"
+        ],
+        [
+          "/impersonate/<int:user_id>",
+          "'POST'"
+        ],
+        [
+          "/stop-impersonate",
+          "'POST'"
+        ],
+        [
+          "/force-reset-password/<int:user_id>",
+          "'POST'"
+        ],
+        [
+          "/toggle-user/<int:user_id>",
+          "'POST'"
+        ],
+        [
+          "/sql-console",
+          "'GET', 'POST'"
+        ],
+        [
+          "/python-console",
+          "'GET', 'POST'"
+        ],
+        [
+          "/settings",
+          "'GET', 'POST'"
+        ],
+        [
+          "/system-settings",
+          "'GET', 'POST'"
+        ],
+        [
+          "/emergency/maintenance-mode",
+          "'POST'"
+        ],
+        [
+          "/emergency/clear-cache",
+          "'POST'"
+        ],
+        [
+          "/emergency/kill-sessions",
+          "'POST'"
+        ],
+        [
+          "/advanced-backup",
+          "'GET', 'POST'"
+        ],
+        [
+          "/system-branding",
+          "'GET', 'POST'"
+        ],
+        [
+          "/logs-clear/<log_type>",
+          "'POST'"
+        ],
+        [
+          "/system-constants",
+          "'GET', 'POST'"
+        ],
+        [
+          "/advanced-config",
+          "'GET', 'POST'"
+        ],
+        [
+          "/db-editor/add-column/<table_name>",
+          "'POST'"
+        ],
+        [
+          "/db-editor/update-cell/<table_name>",
+          "'POST'"
+        ],
+        [
+          "/db-editor/edit-row/<table_name>/<int:row_id>",
+          "'POST'"
+        ],
+        [
+          "/db-editor/delete-row/<table_name>/<row_id>",
+          "'POST'"
+        ],
+        [
+          "/db-editor/delete-column/<table_name>",
+          "'POST'"
+        ],
+        [
+          "/db-editor/add-row/<table_name>",
+          "'POST'"
+        ],
+        [
+          "/db-editor/bulk-update/<table_name>",
+          "'POST'"
+        ],
+        [
+          "/db-editor/fill-missing/<table_name>",
+          "'POST'"
+        ],
+        [
+          "/dark-mode-settings",
+          "'GET', 'POST'"
+        ],
+        [
+          "/indexes-manager",
+          "'GET', 'POST'"
+        ],
+        [
+          "/api/indexes/create",
+          "'POST'"
+        ],
+        [
+          "/api/indexes/drop",
+          "'POST'"
+        ],
+        [
+          "/api/indexes/auto-optimize",
+          "'POST'"
+        ],
+        [
+          "/api/indexes/clean-and-rebuild",
+          "'POST'"
+        ],
+        [
+          "/api/indexes/analyze-table",
+          "'POST'"
+        ],
+        [
+          "/api/indexes/batch-create",
+          "'POST'"
+        ]
+      ]
+    },
+    "service": {
+      "file": "routes\\service.py",
+      "routes": [
+        [
+          "/",
+          "'GET'"
+        ],
+        [
+          "/list",
+          "'GET'"
+        ],
+        [
+          "/export/csv",
+          "'GET'"
+        ],
+        [
+          "/new",
+          "'GET','POST'"
+        ],
+        [
+          "/<int:rid>",
+          "'GET'"
+        ],
+        [
+          "/<int:rid>/receipt",
+          "'GET'"
+        ],
+        [
+          "/<int:rid>/receipt/download",
+          "'GET'"
+        ],
+        [
+          "/<int:rid>/diagnosis",
+          "'POST'"
+        ],
+        [
+          "/<int:rid>/<action>",
+          "'POST'"
+        ],
+        [
+          "/<int:rid>/parts/add",
+          "'POST'"
+        ],
+        [
+          "/parts/<int:pid>/delete",
+          "'POST'"
+        ],
+        [
+          "/<int:rid>/tasks/add",
+          "'POST'"
+        ],
+        [
+          "/tasks/<int:tid>/delete",
+          "'POST'"
+        ],
+        [
+          "/<int:rid>/payments/add",
+          "'GET','POST'"
+        ],
+        [
+          "/<int:rid>/invoice",
+          "'GET','POST'"
+        ],
+        [
+          "/<int:rid>/delete",
+          "'POST'"
+        ],
+        [
+          "/api/requests",
+          "'GET'"
+        ],
+        [
+          "/search",
+          "'GET'"
+        ],
+        [
+          "/<int:rid>/archive",
+          "'POST'"
+        ],
+        [
+          "/archive/<int:service_id>",
+          "'POST'"
+        ],
+        [
+          "/restore/<int:service_id>",
+          "'POST'"
+        ]
+      ]
+    },
+    "shipments": {
+      "file": "routes\\shipments.py",
+      "routes": [
+        [
+          "/data",
+          "\"GET\""
+        ],
+        [
+          "/<int:id>/mark-in-transit",
+          "\"POST\""
+        ],
+        [
+          "/<int:id>/mark-in-customs",
+          "\"POST\""
+        ],
+        [
+          "/<int:id>/mark-delivered",
+          "\"POST\""
+        ],
+        [
+          "/<int:id>/mark-returned",
+          "\"POST\""
+        ],
+        [
+          "/<int:id>/update-delivery-attempt",
+          "\"POST\""
+        ]
+      ]
+    },
+    "supplier_settlements": {
+      "file": "routes\\supplier_settlements.py",
+      "routes": [
+        [
+          "/<int:supplier_id>/settlements/preview",
+          "\"GET\""
+        ],
+        [
+          "/<int:supplier_id>/settlements/create",
+          "\"POST\""
+        ],
+        [
+          "/settlements/<int:settlement_id>/confirm",
+          "\"POST\""
+        ],
+        [
+          "/settlements/<int:settlement_id>/void",
+          "\"POST\""
+        ],
+        [
+          "/settlements/<int:settlement_id>",
+          "\"GET\""
+        ],
+        [
+          "/exchange-transaction/<int:tx_id>/update-price",
+          "\"POST\""
+        ]
+      ]
+    },
+    "advanced_control": {
+      "file": "routes\\advanced_control.py",
+      "routes": [
+        [
+          "/db-merger",
+          "'GET', 'POST'"
+        ],
+        [
+          "/multi-tenant",
+          "'GET', 'POST'"
+        ],
+        [
+          "/dashboard-links",
+          "'GET', 'POST'"
+        ],
+        [
+          "/version-control",
+          "'GET', 'POST'"
+        ],
+        [
+          "/licensing",
+          "'GET', 'POST'"
+        ],
+        [
+          "/module-manager",
+          "'GET', 'POST'"
+        ],
+        [
+          "/backup-manager",
+          "'GET', 'POST'"
+        ],
+        [
+          "/restore-backup/<filename>",
+          "'POST'"
+        ],
+        [
+          "/delete-backup/<filename>",
+          "'POST'"
+        ],
+        [
+          "/toggle-auto-backup",
+          "'POST'"
+        ],
+        [
+          "/test-db-connection",
+          "'POST'"
+        ],
+        [
+          "/api-generator",
+          "'GET', 'POST'"
+        ],
+        [
+          "/feature-flags",
+          "'GET', 'POST'"
+        ],
+        [
+          "/system-health",
+          "'GET', 'POST'"
+        ],
+        [
+          "/system-cloner",
+          "'GET', 'POST'"
+        ],
+        [
+          "/mobile-app-generator",
+          "'GET', 'POST'"
+        ]
+      ]
+    },
+    "archive": {
+      "file": "routes\\archive.py",
+      "routes": [
+        [
+          "/search",
+          "'GET', 'POST'"
+        ],
+        [
+          "/bulk-archive",
+          "'GET', 'POST'"
+        ],
+        [
+          "/restore/<int:archive_id>",
+          "'GET', 'POST'"
+        ],
+        [
+          "/delete/<int:archive_id>",
+          "'POST'"
+        ]
+      ]
+    },
+    "archive_routes": {
+      "file": "routes\\archive_routes.py",
+      "routes": [
+        [
+          "/shipments/archive/<int:shipment_id>",
+          "\"POST\""
+        ],
+        [
+          "/checks/archive/<int:check_id>",
+          "\"POST\""
+        ]
+      ]
+    },
+    "expenses": {
+      "file": "routes\\expenses.py",
+      "routes": [
+        [
+          "/archive/<int:expense_id>",
+          "\"POST\""
+        ],
+        [
+          "/restore/<int:expense_id>",
+          "'POST'"
+        ]
+      ]
+    },
+    "shop": {
+      "file": "routes\\shop.py",
+      "routes": [
+        [
+          "/archive-preorder/<int:preorder_id>",
+          "\"POST\""
+        ]
+      ]
+    },
+    "vendors": {
+      "file": "routes\\vendors.py",
+      "routes": [
+        [
+          "/suppliers/archive/<int:supplier_id>",
+          "\"POST\""
+        ],
+        [
+          "/partners/archive/<int:partner_id>",
+          "\"POST\""
+        ],
+        [
+          "/suppliers/restore/<int:supplier_id>",
+          "\"POST\""
+        ],
+        [
+          "/partners/restore/<int:partner_id>",
+          "\"POST\""
+        ]
+      ]
+    }
+  },
+  "templates": {
+    "templates": [
+      "base.html",
+      "base_print.html",
+      "dashboard.html",
+      "maintenance.html",
+      "restore_db.html",
+      "user_guide.html",
+      "base.html",
+      "base_print.html",
+      "dashboard.html",
+      "maintenance.html",
+      "restore_db.html",
+      "user_guide.html",
+      "base.html",
+      "base_print.html",
+      "dashboard.html",
+      "maintenance.html",
+      "restore_db.html",
+      "user_guide.html",
+      "base.html",
+      "base_print.html",
+      "dashboard.html",
+      "maintenance.html",
+      "restore_db.html",
+      "user_guide.html",
+      "base.html",
+      "base_print.html",
+      "dashboard.html",
+      "maintenance.html",
+      "restore_db.html",
+      "user_guide.html",
+      "base.html",
+      "base_print.html",
+      "dashboard.html",
+      "maintenance.html",
+      "restore_db.html",
+      "user_guide.html",
+      "base.html",
+      "base_print.html",
+      "dashboard.html",
+      "maintenance.html",
+      "restore_db.html",
+      "user_guide.html",
+      "base.html",
+      "base_print.html",
+      "dashboard.html",
+      "maintenance.html",
+      "restore_db.html",
+      "user_guide.html"
+    ],
+    "ai": [
+      "assistant.html",
+      "assistant.html",
+      "assistant.html",
+      "assistant.html",
+      "assistant.html",
+      "assistant.html",
+      "assistant.html"
+    ],
+    "api": [
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html"
+    ],
+    "auth": [
+      "auth_base.html",
+      "customer_password_reset.html",
+      "customer_password_reset_request.html",
+      "customer_password_reset_sent.html",
+      "customer_register.html",
+      "login.html",
+      "auth_base.html",
+      "customer_password_reset.html",
+      "customer_password_reset_request.html",
+      "customer_password_reset_sent.html",
+      "customer_register.html",
+      "login.html",
+      "auth_base.html",
+      "customer_password_reset.html",
+      "customer_password_reset_request.html",
+      "customer_password_reset_sent.html",
+      "customer_register.html",
+      "login.html",
+      "auth_base.html",
+      "customer_password_reset.html",
+      "customer_password_reset_request.html",
+      "customer_password_reset_sent.html",
+      "customer_register.html",
+      "login.html",
+      "auth_base.html",
+      "customer_password_reset.html",
+      "customer_password_reset_request.html",
+      "customer_password_reset_sent.html",
+      "customer_register.html",
+      "login.html",
+      "auth_base.html",
+      "customer_password_reset.html",
+      "customer_password_reset_request.html",
+      "customer_password_reset_sent.html",
+      "customer_register.html",
+      "login.html",
+      "auth_base.html",
+      "customer_password_reset.html",
+      "customer_password_reset_request.html",
+      "customer_password_reset_sent.html",
+      "customer_register.html",
+      "login.html",
+      "auth_base.html",
+      "customer_password_reset.html",
+      "customer_password_reset_request.html",
+      "customer_password_reset_sent.html",
+      "customer_register.html",
+      "login.html"
+    ],
+    "barcode_scanner": [
+      "bulk_scan.html",
+      "index.html",
+      "bulk_scan.html",
+      "index.html",
+      "bulk_scan.html",
+      "index.html",
+      "bulk_scan.html",
+      "index.html",
+      "bulk_scan.html",
+      "index.html",
+      "bulk_scan.html",
+      "index.html",
+      "bulk_scan.html",
+      "index.html",
+      "bulk_scan.html",
+      "index.html",
+      "stats.html"
+    ],
+    "checks": [
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "detail.html",
+      "form.html",
+      "index.html",
+      "reports.html"
+    ],
+    "currencies": [
+      "currency_form.html",
+      "exchange_rates.html",
+      "exchange_rate_form.html",
+      "list.html",
+      "reports.html",
+      "settings.html",
+      "currency_form.html",
+      "exchange_rates.html",
+      "exchange_rate_form.html",
+      "list.html",
+      "reports.html",
+      "settings.html",
+      "currency_form.html",
+      "exchange_rates.html",
+      "exchange_rate_form.html",
+      "list.html",
+      "reports.html",
+      "settings.html",
+      "currency_form.html",
+      "exchange_rates.html",
+      "exchange_rate_form.html",
+      "list.html",
+      "reports.html",
+      "settings.html",
+      "currency_form.html",
+      "exchange_rates.html",
+      "exchange_rate_form.html",
+      "list.html",
+      "reports.html",
+      "settings.html",
+      "currency_form.html",
+      "exchange_rates.html",
+      "exchange_rate_form.html",
+      "list.html",
+      "reports.html",
+      "settings.html",
+      "currency_form.html",
+      "exchange_rates.html",
+      "exchange_rate_form.html",
+      "list.html",
+      "reports.html",
+      "settings.html",
+      "currency_form.html",
+      "exchange_rates.html",
+      "exchange_rate_form.html",
+      "list.html",
+      "reports.html",
+      "settings.html"
+    ],
+    "customers": [
+      "account_statement.html",
+      "advanced_filter.html",
+      "analytics.html",
+      "detail.html",
+      "edit.html",
+      "import.html",
+      "list.html",
+      "new.html",
+      "vcf_export.html",
+      "_form.html",
+      "_import_form.html",
+      "_table.html",
+      "account_statement.html",
+      "advanced_filter.html",
+      "analytics.html",
+      "detail.html",
+      "edit.html",
+      "import.html",
+      "list.html",
+      "new.html",
+      "vcf_export.html",
+      "_form.html",
+      "_import_form.html",
+      "_table.html",
+      "account_statement.html",
+      "advanced_filter.html",
+      "analytics.html",
+      "detail.html",
+      "edit.html",
+      "import.html",
+      "list.html",
+      "new.html",
+      "vcf_export.html",
+      "_form.html",
+      "_import_form.html",
+      "_table.html",
+      "account_statement.html",
+      "advanced_filter.html",
+      "analytics.html",
+      "detail.html",
+      "edit.html",
+      "import.html",
+      "list.html",
+      "new.html",
+      "vcf_export.html",
+      "_form.html",
+      "_import_form.html",
+      "_table.html",
+      "account_statement.html",
+      "advanced_filter.html",
+      "analytics.html",
+      "detail.html",
+      "edit.html",
+      "import.html",
+      "list.html",
+      "new.html",
+      "vcf_export.html",
+      "_form.html",
+      "_import_form.html",
+      "_table.html",
+      "account_statement.html",
+      "advanced_filter.html",
+      "analytics.html",
+      "detail.html",
+      "edit.html",
+      "import.html",
+      "list.html",
+      "new.html",
+      "vcf_export.html",
+      "_form.html",
+      "_import_form.html",
+      "_table.html",
+      "account_statement.html",
+      "advanced_filter.html",
+      "analytics.html",
+      "detail.html",
+      "edit.html",
+      "import.html",
+      "list.html",
+      "new.html",
+      "vcf_export.html",
+      "_form.html",
+      "_import_form.html",
+      "_table.html",
+      "account_statement.html",
+      "advanced_filter.html",
+      "analytics.html",
+      "detail.html",
+      "edit.html",
+      "import.html",
+      "list.html",
+      "new.html",
+      "vcf_export.html",
+      "_form.html",
+      "_import_form.html",
+      "_table.html"
+    ],
+    "errors": [
+      "403.html",
+      "404.html",
+      "500.html",
+      "403.html",
+      "404.html",
+      "500.html",
+      "403.html",
+      "404.html",
+      "500.html",
+      "403.html",
+      "404.html",
+      "500.html",
+      "403.html",
+      "404.html",
+      "500.html",
+      "403.html",
+      "404.html",
+      "500.html",
+      "403.html",
+      "404.html",
+      "500.html",
+      "400.html",
+      "401.html",
+      "403.html",
+      "404.html",
+      "429.html",
+      "500.html",
+      "502.html",
+      "503.html"
+    ],
+    "expenses": [
+      "detail.html",
+      "employees_list.html",
+      "employee_detail.html",
+      "employee_form.html",
+      "expenses_list.html",
+      "expenses_print.html",
+      "expense_form.html",
+      "quick_add.html",
+      "types_list.html",
+      "type_form.html",
+      "detail.html",
+      "employees_list.html",
+      "employee_detail.html",
+      "employee_form.html",
+      "expenses_list.html",
+      "expenses_print.html",
+      "expense_form.html",
+      "quick_add.html",
+      "types_list.html",
+      "type_form.html",
+      "detail.html",
+      "employees_list.html",
+      "employee_detail.html",
+      "employee_form.html",
+      "expenses_list.html",
+      "expenses_print.html",
+      "expense_form.html",
+      "quick_add.html",
+      "types_list.html",
+      "type_form.html",
+      "detail.html",
+      "employees_list.html",
+      "employee_detail.html",
+      "employee_form.html",
+      "expenses_list.html",
+      "expenses_print.html",
+      "expense_form.html",
+      "quick_add.html",
+      "types_list.html",
+      "type_form.html",
+      "detail.html",
+      "employees_list.html",
+      "employee_detail.html",
+      "employee_form.html",
+      "expenses_list.html",
+      "expenses_print.html",
+      "expense_form.html",
+      "quick_add.html",
+      "types_list.html",
+      "type_form.html",
+      "detail.html",
+      "employees_list.html",
+      "employee_detail.html",
+      "employee_form.html",
+      "expenses_list.html",
+      "expenses_print.html",
+      "expense_form.html",
+      "quick_add.html",
+      "types_list.html",
+      "type_form.html",
+      "detail.html",
+      "employees_list.html",
+      "employee_detail.html",
+      "employee_form.html",
+      "expenses_list.html",
+      "expenses_print.html",
+      "expense_form.html",
+      "quick_add.html",
+      "types_list.html",
+      "type_form.html",
+      "detail.html",
+      "employees_list.html",
+      "employee_detail.html",
+      "employee_form.html",
+      "expenses_list.html",
+      "expenses_print.html",
+      "expense_form.html",
+      "quick_add.html",
+      "types_list.html",
+      "type_form.html"
+    ],
+    "hard_delete": [
+      "confirm_customer.html",
+      "confirm_expense.html",
+      "confirm_partner.html",
+      "confirm_payment.html",
+      "confirm_restore.html",
+      "confirm_sale.html",
+      "confirm_supplier.html",
+      "delete_service.html",
+      "logs.html",
+      "confirm_customer.html",
+      "confirm_expense.html",
+      "confirm_partner.html",
+      "confirm_payment.html",
+      "confirm_restore.html",
+      "confirm_sale.html",
+      "confirm_supplier.html",
+      "delete_service.html",
+      "logs.html",
+      "confirm_customer.html",
+      "confirm_expense.html",
+      "confirm_partner.html",
+      "confirm_payment.html",
+      "confirm_restore.html",
+      "confirm_sale.html",
+      "confirm_supplier.html",
+      "delete_service.html",
+      "logs.html",
+      "confirm_customer.html",
+      "confirm_expense.html",
+      "confirm_partner.html",
+      "confirm_payment.html",
+      "confirm_restore.html",
+      "confirm_sale.html",
+      "confirm_supplier.html",
+      "delete_service.html",
+      "logs.html",
+      "confirm_customer.html",
+      "confirm_expense.html",
+      "confirm_partner.html",
+      "confirm_payment.html",
+      "confirm_restore.html",
+      "confirm_sale.html",
+      "confirm_supplier.html",
+      "delete_service.html",
+      "logs.html",
+      "confirm_customer.html",
+      "confirm_expense.html",
+      "confirm_partner.html",
+      "confirm_payment.html",
+      "confirm_restore.html",
+      "confirm_sale.html",
+      "confirm_supplier.html",
+      "delete_service.html",
+      "logs.html",
+      "confirm_customer.html",
+      "confirm_expense.html",
+      "confirm_partner.html",
+      "confirm_payment.html",
+      "confirm_restore.html",
+      "confirm_sale.html",
+      "confirm_supplier.html",
+      "delete_service.html",
+      "logs.html",
+      "confirm_customer.html",
+      "confirm_expense.html",
+      "confirm_partner.html",
+      "confirm_payment.html",
+      "confirm_restore.html",
+      "confirm_sale.html",
+      "confirm_supplier.html",
+      "delete_service.html",
+      "logs.html"
+    ],
+    "ledger": [
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html"
+    ],
+    "notes": [
+      "detail.html",
+      "list.html",
+      "_form.html",
+      "detail.html",
+      "list.html",
+      "_form.html",
+      "detail.html",
+      "list.html",
+      "_form.html",
+      "detail.html",
+      "list.html",
+      "_form.html",
+      "detail.html",
+      "list.html",
+      "_form.html",
+      "detail.html",
+      "list.html",
+      "_form.html",
+      "detail.html",
+      "list.html",
+      "_form.html",
+      "detail.html",
+      "list.html",
+      "_form.html"
+    ],
+    "other_systems": [
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html"
+    ],
+    "partials": [
+      "company_info.html",
+      "footer.html",
+      "navbar.html",
+      "sidebar.html",
+      "company_info.html",
+      "footer.html",
+      "navbar.html",
+      "sidebar.html",
+      "company_info.html",
+      "footer.html",
+      "navbar.html",
+      "sidebar.html",
+      "company_info.html",
+      "footer.html",
+      "navbar.html",
+      "sidebar.html",
+      "company_info.html",
+      "footer.html",
+      "navbar.html",
+      "sidebar.html",
+      "company_info.html",
+      "footer.html",
+      "navbar.html",
+      "sidebar.html",
+      "company_info.html",
+      "footer.html",
+      "navbar.html",
+      "sidebar.html",
+      "company_info.html",
+      "footer.html",
+      "navbar.html",
+      "sidebar.html"
+    ],
+    "partner_settlements": [
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html"
+    ],
+    "parts": [
+      "card.html",
+      "preorders_list.html",
+      "preorder_detail.html",
+      "preorder_form.html",
+      "card.html",
+      "preorders_list.html",
+      "preorder_detail.html",
+      "preorder_form.html",
+      "card.html",
+      "preorders_list.html",
+      "preorder_detail.html",
+      "preorder_form.html",
+      "card.html",
+      "preorders_list.html",
+      "preorder_detail.html",
+      "preorder_form.html",
+      "card.html",
+      "preorders_list.html",
+      "preorder_detail.html",
+      "preorder_form.html",
+      "card.html",
+      "preorders_list.html",
+      "preorder_detail.html",
+      "preorder_form.html",
+      "card.html",
+      "preorders_list.html",
+      "preorder_detail.html",
+      "preorder_form.html",
+      "card.html",
+      "preorders_list.html",
+      "preorder_detail.html",
+      "preorder_form.html"
+    ],
+    "payments": [
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "view.html",
+      "_entity_fields.html",
+      "_split_row.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "view.html",
+      "_entity_fields.html",
+      "_split_row.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "view.html",
+      "_entity_fields.html",
+      "_split_row.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "view.html",
+      "_entity_fields.html",
+      "_split_row.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "view.html",
+      "_entity_fields.html",
+      "_split_row.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "view.html",
+      "_entity_fields.html",
+      "_split_row.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "view.html",
+      "_entity_fields.html",
+      "_split_row.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "view.html",
+      "_entity_fields.html",
+      "_split_row.html"
+    ],
+    "permissions": [
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html"
+    ],
+    "pricing": [
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html",
+      "index.html"
+    ],
+    "reports": [
+      "ap_aging.html",
+      "ar_aging.html",
+      "below_min_stock.html",
+      "customers.html",
+      "customer_detail.html",
+      "dynamic.html",
+      "expenses.html",
+      "index.html",
+      "inventory.html",
+      "online.html",
+      "partners.html",
+      "partner_detail.html",
+      "payments.html",
+      "sales.html",
+      "service_reports.html",
+      "shipments.html",
+      "suppliers.html",
+      "supplier_detail.html",
+      "top_products.html",
+      "_base.html",
+      "cards.html",
+      "index.html",
+      "preorders.html",
+      "ap_aging.html",
+      "ar_aging.html",
+      "below_min_stock.html",
+      "customers.html",
+      "customer_detail.html",
+      "dynamic.html",
+      "expenses.html",
+      "index.html",
+      "inventory.html",
+      "online.html",
+      "partners.html",
+      "partner_detail.html",
+      "payments.html",
+      "sales.html",
+      "service_reports.html",
+      "shipments.html",
+      "suppliers.html",
+      "supplier_detail.html",
+      "top_products.html",
+      "_base.html",
+      "cards.html",
+      "index.html",
+      "preorders.html",
+      "ap_aging.html",
+      "ar_aging.html",
+      "below_min_stock.html",
+      "customers.html",
+      "customer_detail.html",
+      "dynamic.html",
+      "expenses.html",
+      "index.html",
+      "inventory.html",
+      "online.html",
+      "partners.html",
+      "partner_detail.html",
+      "payments.html",
+      "sales.html",
+      "service_reports.html",
+      "shipments.html",
+      "suppliers.html",
+      "supplier_detail.html",
+      "top_products.html",
+      "_base.html",
+      "cards.html",
+      "index.html",
+      "preorders.html",
+      "ap_aging.html",
+      "ar_aging.html",
+      "below_min_stock.html",
+      "customers.html",
+      "customer_detail.html",
+      "dynamic.html",
+      "expenses.html",
+      "index.html",
+      "inventory.html",
+      "online.html",
+      "partners.html",
+      "partner_detail.html",
+      "payments.html",
+      "sales.html",
+      "service_reports.html",
+      "shipments.html",
+      "suppliers.html",
+      "supplier_detail.html",
+      "top_products.html",
+      "_base.html",
+      "cards.html",
+      "index.html",
+      "preorders.html",
+      "ap_aging.html",
+      "ar_aging.html",
+      "below_min_stock.html",
+      "customers.html",
+      "customer_detail.html",
+      "dynamic.html",
+      "expenses.html",
+      "index.html",
+      "inventory.html",
+      "online.html",
+      "partners.html",
+      "partner_detail.html",
+      "payments.html",
+      "sales.html",
+      "service_reports.html",
+      "shipments.html",
+      "suppliers.html",
+      "supplier_detail.html",
+      "top_products.html",
+      "_base.html",
+      "cards.html",
+      "index.html",
+      "preorders.html",
+      "ap_aging.html",
+      "ar_aging.html",
+      "below_min_stock.html",
+      "customers.html",
+      "customer_detail.html",
+      "dynamic.html",
+      "expenses.html",
+      "index.html",
+      "inventory.html",
+      "online.html",
+      "partners.html",
+      "partner_detail.html",
+      "payments.html",
+      "sales.html",
+      "service_reports.html",
+      "shipments.html",
+      "suppliers.html",
+      "supplier_detail.html",
+      "top_products.html",
+      "_base.html",
+      "cards.html",
+      "index.html",
+      "preorders.html",
+      "ap_aging.html",
+      "ar_aging.html",
+      "below_min_stock.html",
+      "customers.html",
+      "customer_detail.html",
+      "dynamic.html",
+      "expenses.html",
+      "index.html",
+      "inventory.html",
+      "online.html",
+      "partners.html",
+      "partner_detail.html",
+      "payments.html",
+      "sales.html",
+      "service_reports.html",
+      "shipments.html",
+      "suppliers.html",
+      "supplier_detail.html",
+      "top_products.html",
+      "_base.html",
+      "cards.html",
+      "index.html",
+      "preorders.html",
+      "ap_aging.html",
+      "ar_aging.html",
+      "below_min_stock.html",
+      "customers.html",
+      "customer_detail.html",
+      "dynamic.html",
+      "expenses.html",
+      "index.html",
+      "inventory.html",
+      "online.html",
+      "partners.html",
+      "partner_detail.html",
+      "payments.html",
+      "sales.html",
+      "service_reports.html",
+      "shipments.html",
+      "suppliers.html",
+      "supplier_detail.html",
+      "top_products.html",
+      "_base.html",
+      "cards.html",
+      "index.html",
+      "preorders.html"
+    ],
+    "roles": [
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html",
+      "form.html",
+      "list.html"
+    ],
+    "sales": [
+      "dashboard.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "dashboard.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "dashboard.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "dashboard.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "dashboard.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "dashboard.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "dashboard.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "receipt.html",
+      "dashboard.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "receipt.html"
+    ],
+    "security": [
+      "activity_timeline.html",
+      "advanced_backup.html",
+      "advanced_config.html",
+      "ai_analytics.html",
+      "ai_assistant.html",
+      "ai_config.html",
+      "ai_training.html",
+      "audit_logs.html",
+      "blocked_countries.html",
+      "blocked_ips.html",
+      "block_country.html",
+      "block_ip.html",
+      "database_browser.html",
+      "data_export.html",
+      "db_editor.html",
+      "db_editor_table.html",
+      "db_schema_editor.html",
+      "decrypt_tool.html",
+      "emergency_tools.html",
+      "error_tracker.html",
+      "failed_logins.html",
+      "index.html",
+      "live_monitoring.html",
+      "logs_content.html",
+      "logs_viewer.html",
+      "notifications_center.html",
+      "pattern_detection.html",
+      "performance_monitor.html",
+      "python_console.html",
+      "sql_console.html",
+      "system_branding.html",
+      "system_cleanup.html",
+      "system_constants.html",
+      "system_settings.html",
+      "ultimate_control.html",
+      "user_control.html",
+      "_navigation.html",
+      "activity_timeline.html",
+      "advanced_backup.html",
+      "advanced_config.html",
+      "ai_analytics.html",
+      "ai_assistant.html",
+      "ai_config.html",
+      "ai_training.html",
+      "audit_logs.html",
+      "blocked_countries.html",
+      "blocked_ips.html",
+      "block_country.html",
+      "block_ip.html",
+      "database_browser.html",
+      "data_export.html",
+      "db_editor.html",
+      "db_editor_table.html",
+      "db_schema_editor.html",
+      "decrypt_tool.html",
+      "emergency_tools.html",
+      "error_tracker.html",
+      "failed_logins.html",
+      "index.html",
+      "live_monitoring.html",
+      "logs_content.html",
+      "logs_viewer.html",
+      "notifications_center.html",
+      "pattern_detection.html",
+      "performance_monitor.html",
+      "python_console.html",
+      "sql_console.html",
+      "system_branding.html",
+      "system_cleanup.html",
+      "system_constants.html",
+      "system_settings.html",
+      "ultimate_control.html",
+      "user_control.html",
+      "_navigation.html",
+      "activity_timeline.html",
+      "advanced_backup.html",
+      "advanced_config.html",
+      "ai_analytics.html",
+      "ai_assistant.html",
+      "ai_config.html",
+      "ai_diagnostics.html",
+      "ai_training.html",
+      "audit_logs.html",
+      "blocked_countries.html",
+      "blocked_ips.html",
+      "block_country.html",
+      "block_ip.html",
+      "database_browser.html",
+      "data_export.html",
+      "db_editor.html",
+      "db_editor_table.html",
+      "db_schema_editor.html",
+      "decrypt_tool.html",
+      "emergency_tools.html",
+      "error_tracker.html",
+      "failed_logins.html",
+      "index.html",
+      "live_monitoring.html",
+      "logs_content.html",
+      "logs_viewer.html",
+      "notifications_center.html",
+      "pattern_detection.html",
+      "performance_monitor.html",
+      "python_console.html",
+      "sql_console.html",
+      "system_branding.html",
+      "system_cleanup.html",
+      "system_constants.html",
+      "system_map.html",
+      "system_settings.html",
+      "ultimate_control.html",
+      "user_control.html",
+      "_navigation.html",
+      "activity_timeline.html",
+      "advanced_backup.html",
+      "advanced_config.html",
+      "ai_analytics.html",
+      "ai_assistant.html",
+      "ai_config.html",
+      "ai_diagnostics.html",
+      "ai_training.html",
+      "audit_logs.html",
+      "blocked_countries.html",
+      "blocked_ips.html",
+      "block_country.html",
+      "block_ip.html",
+      "database_browser.html",
+      "data_export.html",
+      "db_editor.html",
+      "db_editor_table.html",
+      "db_schema_editor.html",
+      "decrypt_tool.html",
+      "emergency_tools.html",
+      "error_tracker.html",
+      "failed_logins.html",
+      "index.html",
+      "live_monitoring.html",
+      "logs_content.html",
+      "logs_viewer.html",
+      "notifications_center.html",
+      "pattern_detection.html",
+      "performance_monitor.html",
+      "python_console.html",
+      "sql_console.html",
+      "system_branding.html",
+      "system_cleanup.html",
+      "system_constants.html",
+      "system_map.html",
+      "system_settings.html",
+      "ultimate_control.html",
+      "user_control.html",
+      "_navigation.html",
+      "activity_timeline.html",
+      "advanced_backup.html",
+      "advanced_config.html",
+      "ai_analytics.html",
+      "ai_assistant.html",
+      "ai_config.html",
+      "ai_diagnostics.html",
+      "ai_training.html",
+      "audit_logs.html",
+      "blocked_countries.html",
+      "blocked_ips.html",
+      "block_country.html",
+      "block_ip.html",
+      "database_browser.html",
+      "data_export.html",
+      "db_editor.html",
+      "db_editor_table.html",
+      "db_schema_editor.html",
+      "decrypt_tool.html",
+      "emergency_tools.html",
+      "error_tracker.html",
+      "failed_logins.html",
+      "index.html",
+      "live_monitoring.html",
+      "logs_content.html",
+      "logs_viewer.html",
+      "notifications_center.html",
+      "pattern_detection.html",
+      "performance_monitor.html",
+      "python_console.html",
+      "sql_console.html",
+      "system_branding.html",
+      "system_cleanup.html",
+      "system_constants.html",
+      "system_map.html",
+      "system_settings.html",
+      "ultimate_control.html",
+      "user_control.html",
+      "_navigation.html",
+      "activity_timeline.html",
+      "advanced_backup.html",
+      "advanced_config.html",
+      "ai_analytics.html",
+      "ai_assistant.html",
+      "ai_config.html",
+      "ai_diagnostics.html",
+      "ai_training.html",
+      "audit_logs.html",
+      "blocked_countries.html",
+      "blocked_ips.html",
+      "block_country.html",
+      "block_ip.html",
+      "database_browser.html",
+      "data_export.html",
+      "db_editor.html",
+      "db_editor_table.html",
+      "db_schema_editor.html",
+      "decrypt_tool.html",
+      "emergency_tools.html",
+      "error_tracker.html",
+      "failed_logins.html",
+      "index.html",
+      "live_monitoring.html",
+      "logs_content.html",
+      "logs_viewer.html",
+      "notifications_center.html",
+      "pattern_detection.html",
+      "performance_monitor.html",
+      "python_console.html",
+      "sql_console.html",
+      "system_branding.html",
+      "system_cleanup.html",
+      "system_constants.html",
+      "system_map.html",
+      "system_settings.html",
+      "ultimate_control.html",
+      "user_control.html",
+      "_navigation.html",
+      "activity_timeline.html",
+      "advanced_backup.html",
+      "advanced_config.html",
+      "ai_analytics.html",
+      "ai_assistant.html",
+      "ai_config.html",
+      "ai_diagnostics.html",
+      "ai_training.html",
+      "audit_logs.html",
+      "blocked_countries.html",
+      "blocked_ips.html",
+      "block_country.html",
+      "block_ip.html",
+      "database_browser.html",
+      "data_export.html",
+      "db_editor.html",
+      "db_editor_table.html",
+      "db_schema_editor.html",
+      "decrypt_tool.html",
+      "emergency_tools.html",
+      "error_tracker.html",
+      "failed_logins.html",
+      "index.html",
+      "live_monitoring.html",
+      "logs_content.html",
+      "logs_viewer.html",
+      "notifications_center.html",
+      "pattern_detection.html",
+      "performance_monitor.html",
+      "python_console.html",
+      "sql_console.html",
+      "system_branding.html",
+      "system_cleanup.html",
+      "system_constants.html",
+      "system_map.html",
+      "system_settings.html",
+      "ultimate_control.html",
+      "user_control.html",
+      "_navigation.html",
+      "activity_timeline.html",
+      "advanced_analytics.html",
+      "ai_analytics.html",
+      "ai_assistant.html",
+      "ai_config.html",
+      "ai_diagnostics.html",
+      "ai_training.html",
+      "audit_logs.html",
+      "blocked_countries.html",
+      "blocked_ips.html",
+      "block_country.html",
+      "block_ip.html",
+      "card_vault.html",
+      "dark_mode_settings.html",
+      "database_browser.html",
+      "data_export.html",
+      "db_editor.html",
+      "db_editor_table.html",
+      "db_schema_editor.html",
+      "decrypt_tool.html",
+      "email_manager.html",
+      "emergency_tools.html",
+      "error_tracker.html",
+      "failed_logins.html",
+      "grafana_setup.html",
+      "index.html",
+      "indexes_manager.html",
+      "integrations.html",
+      "invoice_designer.html",
+      "live_monitoring.html",
+      "logo_manager.html",
+      "logs_content.html",
+      "logs_viewer.html",
+      "monitoring_dashboard.html",
+      "notifications_center.html",
+      "pattern_detection.html",
+      "performance_monitor.html",
+      "permissions_manager.html",
+      "python_console.html",
+      "sql_console.html",
+      "system_branding.html",
+      "system_cleanup.html",
+      "system_map.html",
+      "system_settings.html",
+      "table_manager.html",
+      "theme_editor.html",
+      "ultimate_control.html",
+      "user_control.html",
+      "_navigation.html"
+    ],
+    "service": [
+      "base_print.html",
+      "dashboard.html",
+      "list.html",
+      "new.html",
+      "receipt.html",
+      "view.html",
+      "_parts_table.html",
+      "_payments_table.html",
+      "_summary_card.html",
+      "_tasks_table.html",
+      "base_print.html",
+      "dashboard.html",
+      "list.html",
+      "new.html",
+      "receipt.html",
+      "view.html",
+      "_parts_table.html",
+      "_payments_table.html",
+      "_summary_card.html",
+      "_tasks_table.html",
+      "base_print.html",
+      "dashboard.html",
+      "list.html",
+      "new.html",
+      "receipt.html",
+      "view.html",
+      "_parts_table.html",
+      "_payments_table.html",
+      "_summary_card.html",
+      "_tasks_table.html",
+      "base_print.html",
+      "dashboard.html",
+      "list.html",
+      "new.html",
+      "receipt.html",
+      "view.html",
+      "_parts_table.html",
+      "_payments_table.html",
+      "_summary_card.html",
+      "_tasks_table.html",
+      "base_print.html",
+      "dashboard.html",
+      "list.html",
+      "new.html",
+      "receipt.html",
+      "view.html",
+      "_parts_table.html",
+      "_payments_table.html",
+      "_summary_card.html",
+      "_tasks_table.html",
+      "base_print.html",
+      "dashboard.html",
+      "list.html",
+      "new.html",
+      "receipt.html",
+      "view.html",
+      "_parts_table.html",
+      "_payments_table.html",
+      "_summary_card.html",
+      "_tasks_table.html",
+      "base_print.html",
+      "dashboard.html",
+      "list.html",
+      "new.html",
+      "receipt.html",
+      "view.html",
+      "_parts_table.html",
+      "_payments_table.html",
+      "_summary_card.html",
+      "_tasks_table.html",
+      "analytics.html",
+      "base_print.html",
+      "dashboard.html",
+      "list.html",
+      "new.html",
+      "receipt.html",
+      "view.html",
+      "_parts_table.html",
+      "_payments_table.html",
+      "_summary_card.html",
+      "_tasks_table.html"
+    ],
+    "shop": [
+      "admin_products.html",
+      "admin_product_form.html",
+      "base.html",
+      "cart.html",
+      "catalog.html",
+      "pay_online.html",
+      "preorder_list.html",
+      "preorder_receipt.html",
+      "products.html",
+      "product_detail.html",
+      "admin_products.html",
+      "admin_product_form.html",
+      "base.html",
+      "cart.html",
+      "catalog.html",
+      "pay_online.html",
+      "preorder_list.html",
+      "preorder_receipt.html",
+      "products.html",
+      "product_detail.html",
+      "admin_products.html",
+      "admin_product_form.html",
+      "base.html",
+      "cart.html",
+      "catalog.html",
+      "pay_online.html",
+      "preorder_list.html",
+      "preorder_receipt.html",
+      "products.html",
+      "product_detail.html",
+      "admin_products.html",
+      "admin_product_form.html",
+      "base.html",
+      "cart.html",
+      "catalog.html",
+      "pay_online.html",
+      "preorder_list.html",
+      "preorder_receipt.html",
+      "products.html",
+      "product_detail.html",
+      "admin_products.html",
+      "admin_product_form.html",
+      "base.html",
+      "cart.html",
+      "catalog.html",
+      "pay_online.html",
+      "preorder_list.html",
+      "preorder_receipt.html",
+      "products.html",
+      "product_detail.html",
+      "admin_products.html",
+      "admin_product_form.html",
+      "base.html",
+      "cart.html",
+      "catalog.html",
+      "pay_online.html",
+      "preorder_list.html",
+      "preorder_receipt.html",
+      "products.html",
+      "product_detail.html",
+      "admin_products.html",
+      "admin_product_form.html",
+      "base.html",
+      "cart.html",
+      "catalog.html",
+      "pay_online.html",
+      "preorder_list.html",
+      "preorder_receipt.html",
+      "products.html",
+      "product_detail.html",
+      "admin_products.html",
+      "admin_product_form.html",
+      "base.html",
+      "cart.html",
+      "catalog.html",
+      "pay_online.html",
+      "preorder_list.html",
+      "preorder_receipt.html",
+      "products.html",
+      "product_detail.html"
+    ],
+    "supplier_settlements": [
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html",
+      "list.html"
+    ],
+    "users": [
+      "detail.html",
+      "form.html",
+      "list.html",
+      "profile.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "profile.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "profile.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "profile.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "profile.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "profile.html",
+      "detail.html",
+      "form.html",
+      "list.html",
+      "profile.html",
+      "change_password.html",
+      "detail.html",
+      "edit_profile.html",
+      "form.html",
+      "list.html",
+      "profile.html"
+    ],
+    "vendors": [
+      "_settlement_modal.html",
+      "_settlement_modal.html",
+      "_settlement_modal.html",
+      "_settlement_modal.html",
+      "_settlement_modal.html",
+      "_settlement_modal.html",
+      "_settlement_modal.html",
+      "_settlement_modal.html"
+    ],
+    "warehouses": [
+      "add_product.html",
+      "base.html",
+      "detail.html",
+      "form.html",
+      "import_preview.html",
+      "import_products.html",
+      "inventory_summary.html",
+      "list.html",
+      "preview_inventory.html",
+      "products.html",
+      "shipments.html",
+      "shipment_detail.html",
+      "shipment_form.html",
+      "transfers_form.html",
+      "transfers_list.html",
+      "add_product.html",
+      "base.html",
+      "detail.html",
+      "form.html",
+      "import_preview.html",
+      "import_products.html",
+      "inventory_summary.html",
+      "list.html",
+      "preview_inventory.html",
+      "products.html",
+      "shipments.html",
+      "shipment_detail.html",
+      "shipment_form.html",
+      "transfers_form.html",
+      "transfers_list.html",
+      "add_product.html",
+      "base.html",
+      "detail.html",
+      "form.html",
+      "import_preview.html",
+      "import_products.html",
+      "inventory_summary.html",
+      "list.html",
+      "preview_inventory.html",
+      "products.html",
+      "shipments.html",
+      "shipment_detail.html",
+      "shipment_form.html",
+      "transfers_form.html",
+      "transfers_list.html",
+      "add_product.html",
+      "base.html",
+      "detail.html",
+      "form.html",
+      "import_preview.html",
+      "import_products.html",
+      "inventory_summary.html",
+      "list.html",
+      "preview_inventory.html",
+      "products.html",
+      "shipments.html",
+      "shipment_detail.html",
+      "shipment_form.html",
+      "transfers_form.html",
+      "transfers_list.html",
+      "add_product.html",
+      "base.html",
+      "detail.html",
+      "form.html",
+      "import_preview.html",
+      "import_products.html",
+      "inventory_summary.html",
+      "list.html",
+      "preview_inventory.html",
+      "products.html",
+      "shipments.html",
+      "shipment_detail.html",
+      "shipment_form.html",
+      "transfers_form.html",
+      "transfers_list.html",
+      "add_product.html",
+      "base.html",
+      "detail.html",
+      "form.html",
+      "import_preview.html",
+      "import_products.html",
+      "inventory_summary.html",
+      "list.html",
+      "preview_inventory.html",
+      "products.html",
+      "shipments.html",
+      "shipment_detail.html",
+      "shipment_form.html",
+      "transfers_form.html",
+      "transfers_list.html",
+      "add_product.html",
+      "base.html",
+      "detail.html",
+      "form.html",
+      "import_preview.html",
+      "import_products.html",
+      "inventory_summary.html",
+      "list.html",
+      "preview_inventory.html",
+      "products.html",
+      "shipments.html",
+      "shipment_detail.html",
+      "shipment_form.html",
+      "transfers_form.html",
+      "transfers_list.html",
+      "add_product.html",
+      "base.html",
+      "detail.html",
+      "form.html",
+      "import_preview.html",
+      "import_products.html",
+      "import_runs.html",
+      "inventory_summary.html",
+      "list.html",
+      "preview_inventory.html",
+      "products.html",
+      "shipments.html",
+      "shipment_detail.html",
+      "shipment_form.html",
+      "transfers_form.html",
+      "transfers_list.html"
+    ],
+    "partners": [
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "statement.html"
+    ],
+    "suppliers": [
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "statement.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "statement.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "statement.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "statement.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "statement.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "statement.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "statement.html",
+      "form.html",
+      "list.html",
+      "settlement_preview.html",
+      "statement.html"
+    ],
+    "advanced": [
+      "api_generator.html",
+      "backup_manager.html",
+      "dashboard_links.html",
+      "db_merger.html",
+      "feature_flags.html",
+      "licensing.html",
+      "mobile_app_generator.html",
+      "module_manager.html",
+      "multi_tenant.html",
+      "system_cloner.html",
+      "system_health.html",
+      "version_control.html",
+      "_navigation.html"
+    ],
+    "archive": [
+      "bulk_archive.html",
+      "index.html",
+      "restore.html",
+      "search.html",
+      "view.html"
+    ]
+  },
+  "forms": {
+    "ProductImportForm": {
+      "fields": [
+        "csv_file"
+      ],
+      "file": "forms.py"
+    },
+    "TransferImportForm": {
+      "fields": [
+        "csv_file"
+      ],
+      "file": "forms.py"
+    },
+    "RestoreForm": {
+      "fields": [
+        "db_file"
+      ],
+      "file": "forms.py"
+    },
+    "TransferForm": {
+      "fields": [
+        "reference",
+        "quantity",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "SettlementRangeForm": {
+      "fields": [
+        "start",
+        "end"
+      ],
+      "file": "forms.py"
+    },
+    "LoginForm": {
+      "fields": [
+        "username",
+        "password",
+        "remember_me"
+      ],
+      "file": "forms.py"
+    },
+    "RegistrationForm": {
+      "fields": [
+        "username",
+        "email",
+        "password",
+        "confirm"
+      ],
+      "file": "forms.py"
+    },
+    "PasswordResetForm": {
+      "fields": [
+        "password",
+        "confirm"
+      ],
+      "file": "forms.py"
+    },
+    "PasswordResetRequestForm": {
+      "fields": [
+        "email"
+      ],
+      "file": "forms.py"
+    },
+    "UserForm": {
+      "fields": [
+        "role_id",
+        "is_active",
+        "password",
+        "confirm",
+        "last_login_ip",
+        "login_count",
+        "notes_text"
+      ],
+      "file": "forms.py"
+    },
+    "RoleForm": {
+      "fields": [
+        "name",
+        "description",
+        "is_default"
+      ],
+      "file": "forms.py"
+    },
+    "PermissionForm": {
+      "fields": [
+        "name",
+        "name_ar",
+        "code",
+        "module",
+        "aliases",
+        "is_protected",
+        "description"
+      ],
+      "file": "forms.py"
+    },
+    "CustomerForm": {
+      "fields": [
+        "category",
+        "is_active",
+        "is_online",
+        "is_archived",
+        "notes",
+        "password",
+        "confirm"
+      ],
+      "file": "forms.py"
+    },
+    "CustomerImportForm": {
+      "fields": [
+        "csv_file"
+      ],
+      "file": "forms.py"
+    },
+    "ProductSupplierLoanForm": {
+      "fields": [
+        "is_settled",
+        "partner_share_quantity",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "SupplierForm": {
+      "fields": [
+        "is_local",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "PartnerForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "QuickSupplierForm": {
+      "fields": [],
+      "file": "forms.py"
+    },
+    "QuickPartnerForm": {
+      "fields": [],
+      "file": "forms.py"
+    },
+    "BaseServicePartForm": {
+      "fields": [
+        "quantity",
+        "note"
+      ],
+      "file": "forms.py"
+    },
+    "PaymentAllocationForm": {
+      "fields": [
+        "payment_id",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "BulkPaymentForm": {
+      "fields": [
+        "payer_type",
+        "payer_search",
+        "method"
+      ],
+      "file": "forms.py"
+    },
+    "SupplierSettlementLineForm": {
+      "fields": [
+        "source_type",
+        "source_id",
+        "description",
+        "needs_pricing",
+        "cost_source"
+      ],
+      "file": "forms.py"
+    },
+    "SupplierSettlementForm": {
+      "fields": [
+        "code",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "SupplierLoanSettlementForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "RefundForm": {
+      "fields": [
+        "original_payment_id",
+        "reason",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "InvoiceRefundForm": {
+      "fields": [
+        "reason",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "InvoiceCancelForm": {
+      "fields": [
+        "cancel_reason"
+      ],
+      "file": "forms.py"
+    },
+    "PartnerSettlementLineForm": {
+      "fields": [
+        "source_type",
+        "source_id",
+        "description"
+      ],
+      "file": "forms.py"
+    },
+    "PartnerSettlementForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "LoanSettlementPaymentForm": {
+      "fields": [
+        "method",
+        "reference",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "SplitEntryForm": {
+      "fields": [
+        "method",
+        "check_number",
+        "check_bank",
+        "check_due_date",
+        "card_number",
+        "card_holder",
+        "card_expiry",
+        "bank_transfer_ref",
+        "online_gateway",
+        "online_ref"
+      ],
+      "file": "forms.py"
+    },
+    "PaymentForm": {
+      "fields": [
+        "payment_number",
+        "method",
+        "status",
+        "direction",
+        "entity_type",
+        "customer_search",
+        "supplier_search",
+        "partner_search",
+        "shipment_search",
+        "expense_search",
+        "loan_settlement_search",
+        "sale_search",
+        "invoice_search",
+        "preorder_search",
+        "service_search",
+        "receipt_number",
+        "reference",
+        "check_number",
+        "check_bank",
+        "check_due_date",
+        "card_number",
+        "card_holder",
+        "card_expiry",
+        "card_cvv",
+        "bank_transfer_ref",
+        "online_gateway",
+        "online_ref",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "PreOrderForm": {
+      "fields": [
+        "quantity",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ServiceRequestForm": {
+      "fields": [
+        "problem_description",
+        "diagnosis",
+        "resolution",
+        "notes",
+        "engineer_notes",
+        "description",
+        "priority",
+        "status",
+        "estimated_duration",
+        "actual_duration",
+        "start_time",
+        "end_time",
+        "warranty_days",
+        "consume_stock"
+      ],
+      "file": "forms.py"
+    },
+    "ShipmentItemForm": {
+      "fields": [
+        "quantity",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ShipmentPartnerForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ShipmentForm": {
+      "fields": [
+        "status",
+        "notes",
+        "package_count",
+        "priority",
+        "delivery_method",
+        "delivery_instructions",
+        "return_reason"
+      ],
+      "file": "forms.py"
+    },
+    "ShipmentExpenseForm": {
+      "fields": [
+        "type_id",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ShipmentPaymentForm": {
+      "fields": [
+        "method",
+        "notes",
+        "check_due_date"
+      ],
+      "file": "forms.py"
+    },
+    "UniversalReportForm": {
+      "fields": [
+        "table",
+        "date_field",
+        "start_date",
+        "end_date"
+      ],
+      "file": "forms.py"
+    },
+    "AuditLogFilterForm": {
+      "fields": [
+        "model_name",
+        "action",
+        "start_date",
+        "end_date",
+        "export_format",
+        "include_details"
+      ],
+      "file": "forms.py"
+    },
+    "CustomReportForm": {
+      "fields": [
+        "report_type",
+        "parameters"
+      ],
+      "file": "forms.py"
+    },
+    "EmployeeForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ExpenseTypeForm": {
+      "fields": [
+        "description",
+        "is_active"
+      ],
+      "file": "forms.py"
+    },
+    "QuickExpenseForm": {
+      "fields": [
+        "date",
+        "type_id",
+        "payment_method",
+        "check_due_date",
+        "payment_details"
+      ],
+      "file": "forms.py"
+    },
+    "ExpenseForm": {
+      "fields": [
+        "date",
+        "type_id",
+        "period_start",
+        "period_end",
+        "payment_method",
+        "check_due_date",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "UtilityAccountForm": {
+      "fields": [
+        "utility_type",
+        "is_active"
+      ],
+      "file": "forms.py"
+    },
+    "StockAdjustmentItemForm": {
+      "fields": [
+        "quantity"
+      ],
+      "file": "forms.py"
+    },
+    "StockAdjustmentForm": {
+      "fields": [
+        "date",
+        "reason",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "CustomerPasswordResetRequestForm": {
+      "fields": [],
+      "file": "forms.py"
+    },
+    "CustomerPasswordResetForm": {
+      "fields": [
+        "password",
+        "confirm"
+      ],
+      "file": "forms.py"
+    },
+    "AddToOnlineCartForm": {
+      "fields": [
+        "quantity"
+      ],
+      "file": "forms.py"
+    },
+    "OnlinePaymentForm": {
+      "fields": [
+        "payment_ref",
+        "order_id",
+        "method",
+        "gateway",
+        "status",
+        "transaction_data",
+        "card_last4",
+        "card_encrypted",
+        "card_expiry",
+        "cardholder_name",
+        "card_brand",
+        "card_fingerprint"
+      ],
+      "file": "forms.py"
+    },
+    "ExchangeTransactionForm": {
+      "fields": [
+        "direction",
+        "quantity",
+        "is_priced",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "EquipmentTypeForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ServiceTaskForm": {
+      "fields": [
+        "quantity"
+      ],
+      "file": "forms.py"
+    },
+    "ServiceDiagnosisForm": {
+      "fields": [
+        "problem_description",
+        "diagnosis",
+        "resolution",
+        "estimated_duration"
+      ],
+      "file": "forms.py"
+    },
+    "ServicePartForm": {
+      "fields": [
+        "quantity",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "SaleLineForm": {
+      "fields": [
+        "quantity"
+      ],
+      "file": "forms.py"
+    },
+    "SaleForm": {
+      "fields": [
+        "status",
+        "payment_status",
+        "shipping_address",
+        "billing_address",
+        "notes",
+        "preorder_id"
+      ],
+      "file": "forms.py"
+    },
+    "InvoiceLineForm": {
+      "fields": [],
+      "file": "forms.py"
+    },
+    "InvoiceForm": {
+      "fields": [
+        "invoice_number",
+        "source",
+        "status",
+        "notes",
+        "terms"
+      ],
+      "file": "forms.py"
+    },
+    "ProductPartnerForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ProductPartnerShareForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "WarehousePartnerShareForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ProductCategoryForm": {
+      "fields": [
+        "description",
+        "is_active"
+      ],
+      "file": "forms.py"
+    },
+    "ImportForm": {
+      "fields": [
+        "file",
+        "duplicate_strategy",
+        "dry_run",
+        "continue_after_warnings"
+      ],
+      "file": "forms.py"
+    },
+    "WarehouseOnlineDefaultForm": {
+      "fields": [
+        "confirm"
+      ],
+      "file": "forms.py"
+    },
+    "ProductForm": {
+      "fields": [
+        "description",
+        "min_qty",
+        "reorder_point",
+        "condition",
+        "warranty_period",
+        "is_active",
+        "is_digital",
+        "is_exchange",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "CheckoutForm": {
+      "fields": [
+        "shipping_address",
+        "billing_address"
+      ],
+      "file": "forms.py"
+    },
+    "WarehouseForm": {
+      "fields": [
+        "warehouse_type",
+        "capacity",
+        "current_occupancy",
+        "online_is_default",
+        "is_active",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "PartnerShareForm": {
+      "fields": [
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ExchangeVendorForm": {
+      "fields": [],
+      "file": "forms.py"
+    },
+    "StockLevelForm": {
+      "fields": [
+        "quantity",
+        "reserved_quantity",
+        "min_stock",
+        "max_stock"
+      ],
+      "file": "forms.py"
+    },
+    "InventoryAdjustmentForm": {
+      "fields": [
+        "adjustment_type",
+        "quantity",
+        "reason"
+      ],
+      "file": "forms.py"
+    },
+    "NoteForm": {
+      "fields": [
+        "content",
+        "entity_type",
+        "is_pinned",
+        "priority",
+        "target_type",
+        "target_ids",
+        "notification_type"
+      ],
+      "file": "forms.py"
+    },
+    "AccountForm": {
+      "fields": [
+        "type",
+        "is_active",
+        "opening_balance_date",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "JournalLineForm": {
+      "fields": [
+        "entity_type"
+      ],
+      "file": "forms.py"
+    },
+    "JournalEntryForm": {
+      "fields": [
+        "description",
+        "post_now"
+      ],
+      "file": "forms.py"
+    },
+    "GeneralLedgerFilterForm": {
+      "fields": [
+        "start_date",
+        "end_date",
+        "include_unposted"
+      ],
+      "file": "forms.py"
+    },
+    "TrialBalanceFilterForm": {
+      "fields": [
+        "start_date",
+        "end_date",
+        "include_zero"
+      ],
+      "file": "forms.py"
+    },
+    "ClosingEntryForm": {
+      "fields": [
+        "start_date",
+        "end_date"
+      ],
+      "file": "forms.py"
+    },
+    "ExportContactsForm": {
+      "fields": [
+        "format"
+      ],
+      "file": "forms.py"
+    },
+    "OnlineCartPaymentForm": {
+      "fields": [
+        "payment_method",
+        "shipping_address",
+        "billing_address",
+        "transaction_data",
+        "save_card"
+      ],
+      "file": "forms.py"
+    },
+    "ImportRunForm": {
+      "fields": [
+        "file",
+        "dry_run",
+        "notes"
+      ],
+      "file": "forms.py"
+    },
+    "ImportRunFilterForm": {
+      "fields": [
+        "dry_run",
+        "date_from",
+        "date_to"
+      ],
+      "file": "forms.py"
+    },
+    "GLBatchPostVoidForm": {
+      "fields": [
+        "action",
+        "memo"
+      ],
+      "file": "forms.py"
+    },
+    "GLBatchForm": {
+      "fields": [
+        "memo",
+        "status"
+      ],
+      "file": "forms.py"
+    },
+    "GLEntryForm": {
+      "fields": [],
+      "file": "forms.py"
+    },
+    "ExchangeRateForm": {
+      "fields": [
+        "base_code",
+        "quote_code",
+        "valid_from",
+        "source",
+        "is_active"
+      ],
+      "file": "forms.py"
+    },
+    "CheckForm": {
+      "fields": [
+        "check_date",
+        "check_due_date",
+        "currency",
+        "direction",
+        "status",
+        "drawer_address",
+        "customer_id",
+        "supplier_id",
+        "partner_id",
+        "notes",
+        "internal_notes"
+      ],
+      "file": "forms.py"
+    }
+  },
+  "functions": {
+    "routes.admin_reports": [
+      "admin_reports_index",
+      "_mask_pan",
+      "_parse_yyyy_mm_dd",
+      "cards",
+      "cards_reveal",
+      "preorders"
+    ],
+    "routes.api": [
+      "api_not_found",
+      "api_bad_request",
+      "api_unauthorized",
+      "api_forbidden",
+      "api_internal_error",
+      "api_database_error",
+      "api_integrity_error",
+      "api_operational_error",
+      "api_error_response",
+      "api_success_response",
+      "api_index",
+      "api_docs",
+      "api_health",
+      "get_current_exchange_rates",
+      "_limit_from_request",
+      "_as_int",
+      "_as_float",
+      "_req",
+      "_norm_currency",
+      "_money",
+      "_norm_status",
+      "normalize_email",
+      "normalize_phone",
+      "_number_of",
+      "_ok",
+      "_created",
+      "_err",
+      "_simple_id_lookup",
+      "_simple_search_endpoint",
+      "_available_expr",
+      "_available_qty",
+      "_auto_pick_warehouse",
+      "_lock_stock_rows",
+      "_collect_requirements_from_lines",
+      "_reserve_stock",
+      "_release_stock",
+      "_aggregate_items_payload",
+      "_aggregate_partners_payload",
+      "_compute_shipment_totals",
+      "_landed_allocation",
+      "_apply_arrival_items",
+      "_reverse_arrival_items",
+      "_items_snapshot",
+      "_safe_generate_number_after_flush",
+      "sale_to_dict",
+      "me",
+      "permissions_json",
+      "permissions_csv",
+      "search_categories",
+      "api_customers",
+      "create_customer_api",
+      "search_suppliers",
+      "create_supplier",
+      "get_supplier",
+      "update_supplier",
+      "delete_supplier",
+      "search_partners",
+      "api_update_partner",
+      "api_delete_partner",
+      "barcode_validate",
+      "api_products",
+      "product_by_barcode",
+      "product_info",
+      "create_category",
+      "api_warehouses",
+      "api_update_warehouse",
+      "api_delete_warehouse",
+      "api_products_by_warehouse",
+      "api_inventory_summary",
+      "update_product",
+      "update_stock",
+      "transfer_between_warehouses",
+      "get_partner_shares",
+      "update_partner_shares",
+      "invoices",
+      "services",
+      "sales",
+      "shipments",
+      "search_employees",
+      "search_utility_accounts",
+      "search_stock_adjustments",
+      "stock_adjustment_total",
+      "create_shipment_api",
+      "get_shipment_api",
+      "update_shipment_api",
+      "api_mark_arrived",
+      "api_cancel_shipment",
+      "delete_shipment_api",
+      "transfers",
+      "preorders",
+      "online_preorders",
+      "expenses",
+      "loan_settlements",
+      "payments",
+      "create_sale_api",
+      "update_sale_api",
+      "change_sale_status_api",
+      "delete_sale_api",
+      "sale_payments_api",
+      "quick_sell_api"
+    ],
+    "routes.auth": [
+      "_sa_get_or_404",
+      "_is_safe_url",
+      "_get_client_ip",
+      "_redirect_back_or",
+      "_get_login_identifier",
+      "_norm_ident",
+      "_la_key",
+      "is_blocked",
+      "record_attempt",
+      "clear_attempts",
+      "login",
+      "logout",
+      "customer_register",
+      "customer_password_reset_request",
+      "customer_password_reset",
+      "send_customer_password_reset_email"
+    ],
+    "routes.barcode": [
+      "barcode_validate"
+    ],
+    "routes.barcode_scanner": [
+      "_get_or_404",
+      "generate_unique_barcode",
+      "auto_assign_barcodes",
+      "scanner_index",
+      "scan_barcode",
+      "generate_barcode_for_product",
+      "print_barcode",
+      "bulk_generate_barcodes",
+      "inventory_update_by_barcode",
+      "get_warehouses",
+      "get_warehouse_fields",
+      "check_product_exists",
+      "search_products",
+      "auto_assign_barcodes_route",
+      "barcode_stats",
+      "bulk_import_products",
+      "bulk_scan_page"
+    ],
+    "routes.checks": [
+      "_check_before_delete",
+      "_payment_check_before_delete",
+      "_glbatch_before_delete",
+      "ensure_check_accounts",
+      "create_gl_entry_for_check",
+      "index",
+      "get_checks",
+      "get_statistics",
+      "get_check_lifecycle",
+      "get_current_check_status",
+      "update_check_status",
+      "get_alerts",
+      "add_check",
+      "edit_check",
+      "check_detail",
+      "delete_check",
+      "reports"
+    ],
+    "routes.currencies": [
+      "list_currencies",
+      "new_currency",
+      "list_exchange_rates",
+      "new_exchange_rate",
+      "edit_exchange_rate",
+      "delete_exchange_rate",
+      "toggle_exchange_rate",
+      "currency_reports",
+      "update_exchange_rates",
+      "test_exchange_rate",
+      "currency_settings",
+      "toggle_online_fx",
+      "update_fx_interval",
+      "test_online_fx"
+    ],
+    "routes.customers": [
+      "_get_or_404",
+      "rate_limit",
+      "_serialize_dates",
+      "_is_ajax",
+      "log_customer_action",
+      "list_customers",
+      "customer_detail",
+      "customer_analytics",
+      "create_form",
+      "create_customer",
+      "edit_customer",
+      "delete_customer",
+      "import_customers",
+      "customer_whatsapp",
+      "export_customer_vcf",
+      "account_statement",
+      "advanced_filter",
+      "export_customers",
+      "export_contacts",
+      "archive_customer",
+      "restore_customer"
+    ],
+    "routes.expenses": [
+      "_get_or_404",
+      "_to_datetime",
+      "_parse_date_arg",
+      "_int_arg",
+      "_base_query_with_filters",
+      "_csv_safe",
+      "employees_list",
+      "add_employee",
+      "edit_employee",
+      "delete_employee",
+      "types_list",
+      "add_type",
+      "edit_type",
+      "delete_type",
+      "index",
+      "detail",
+      "add",
+      "edit",
+      "delete",
+      "pay",
+      "export_csv",
+      "quick_add",
+      "print_list",
+      "archive_expense",
+      "restore_expense"
+    ],
+    "routes.hard_delete": [
+      "delete_customer",
+      "deletion_logs",
+      "restore_deletion",
+      "api_delete_customer",
+      "api_delete_sale",
+      "api_delete_payment",
+      "delete_supplier",
+      "delete_partner",
+      "delete_sale",
+      "delete_payment",
+      "delete_expense",
+      "api_restore_deletion",
+      "hard_delete_service"
+    ],
+    "routes.health": [
+      "_check_database",
+      "_check_cache",
+      "_check_disk_space",
+      "_check_memory",
+      "_check_socketio",
+      "_get_system_info",
+      "health_check",
+      "ping",
+      "readiness",
+      "liveness",
+      "metrics"
+    ],
+    "routes.ledger_ai_assistant": [
+      "get_database_schema",
+      "get_code_structure",
+      "execute_safe_query",
+      "use_real_ai",
+      "ask_question",
+      "analyze_query"
+    ],
+    "routes.ledger_blueprint": [
+      "ledger_index",
+      "get_ledger_data",
+      "get_accounts_summary",
+      "get_receivables_summary",
+      "smart_assistant",
+      "export_ledger",
+      "view_transaction",
+      "_parse_dates",
+      "_entity_filter",
+      "_get_pagination",
+      "trial_balance",
+      "account_ledger",
+      "entity_ledger"
+    ],
+    "routes.main": [
+      "_has_perm",
+      "_inject_sidebar_helpers",
+      "favicon",
+      "dashboard",
+      "backup_db",
+      "restore_db",
+      "automated_backup_status",
+      "toggle_automated_backup",
+      "perform_automated_backup",
+      "cleanup_old_backups"
+    ],
+    "routes.notes": [
+      "_get_or_404",
+      "_coalesce_entity",
+      "list_notes",
+      "create_note",
+      "note_detail",
+      "edit_note",
+      "update_note",
+      "delete_note",
+      "toggle_pin"
+    ],
+    "routes.other_systems": [
+      "other_systems_index"
+    ],
+    "routes.partner_settlements": [
+      "settlements_list",
+      "_get_partner_or_404",
+      "_parse_iso_to_datetime",
+      "_extract_range_from_request",
+      "_d2",
+      "_due_direction",
+      "_currency_mismatch",
+      "_overlap_exists",
+      "preview",
+      "create",
+      "confirm",
+      "show",
+      "partner_settlement",
+      "_calculate_smart_partner_balance",
+      "_calculate_partner_incoming",
+      "_calculate_partner_outgoing",
+      "_calculate_payments_to_partner",
+      "_calculate_payments_from_partner",
+      "_check_unpriced_items_for_partner",
+      "_get_last_partner_settlement",
+      "_get_partner_operations_details",
+      "_get_settlement_recommendation",
+      "_check_required_fx_rates",
+      "_convert_to_ils",
+      "_get_partner_inventory",
+      "_get_partner_sales_share",
+      "_get_payments_to_partner",
+      "_get_partner_expenses",
+      "_get_previous_partner_settlements",
+      "_get_partner_payments_received",
+      "_get_partner_sales_as_customer",
+      "_get_partner_service_fees",
+      "_get_partner_damaged_items"
+    ],
+    "routes.parts": [
+      "_to_decimal",
+      "_wants_json",
+      "parts_list",
+      "parts_create",
+      "parts_edit",
+      "stock_levels",
+      "parts_delete",
+      "update_part_cost",
+      "update_multiple_costs"
+    ],
+    "routes.payments": [
+      "_wants_json",
+      "_safe_filename_component",
+      "_ok_not_found",
+      "_safe_get_payment",
+      "_f2",
+      "_line_total",
+      "_service_totals",
+      "_sale_info_dict",
+      "_clean_details",
+      "_val",
+      "_coerce_method",
+      "_norm_dir",
+      "_dir_to_db",
+      "_sync_payment_method_with_splits",
+      "_serialize_split",
+      "_serialize_payment_min",
+      "_serialize_payment",
+      "ensure_currency",
+      "_render_payment_receipt_pdf",
+      "entity_search",
+      "index",
+      "create_payment",
+      "create_expense_payment",
+      "delete_split",
+      "view_payment",
+      "update_payment_status",
+      "delete_payment",
+      "view_receipt",
+      "download_receipt",
+      "entity_fields",
+      "_ensure_payment_number",
+      "_sum_splits_decimal",
+      "get_entities",
+      "search_entities",
+      "shop_checkout",
+      "shop_payment_methods",
+      "shop_process_payment",
+      "shop_refund",
+      "shop_payment_status",
+      "archive_payment",
+      "restore_payment"
+    ],
+    "routes.permissions": [
+      "_get_or_404",
+      "_normalize_code",
+      "_unique_violation",
+      "_clear_affected_caches",
+      "_ensure_code_from_inputs",
+      "_parse_aliases",
+      "list_permissions",
+      "create_permission",
+      "edit_permission",
+      "delete_permission"
+    ],
+    "routes.pricing": [
+      "pricing_index"
+    ],
+    "routes.product_ratings": [
+      "product_ratings",
+      "add_rating",
+      "mark_helpful",
+      "edit_rating",
+      "delete_rating",
+      "pending_ratings",
+      "approve_rating",
+      "reject_rating",
+      "rating_stats"
+    ],
+    "routes.report_routes": [
+      "_parse_date",
+      "_parse_date_like",
+      "_ensure_model",
+      "_model_columns",
+      "_model_all_fields",
+      "_is_selectable_field",
+      "_sanitize_fields",
+      "_sanitize_likes",
+      "_clamp_limit",
+      "reports_index",
+      "dynamic_report",
+      "below_min_stock_report",
+      "shipments_report",
+      "online_report",
+      "sales",
+      "payments_summary",
+      "ar_aging",
+      "inventory_report",
+      "top_products",
+      "suppliers_report",
+      "partners_report",
+      "customers_report",
+      "expenses_report",
+      "ap_aging",
+      "model_fields",
+      "service_reports",
+      "api_dynamic",
+      "_csv_from_rows",
+      "export_dynamic_csv",
+      "export_ar_aging_csv",
+      "export_ap_aging_csv",
+      "customer_detail_report",
+      "supplier_detail_report",
+      "partner_detail_report"
+    ],
+    "routes.roles": [
+      "_get_or_404",
+      "_is_protected_role_name",
+      "_group_permissions",
+      "list_roles",
+      "create_role",
+      "edit_role",
+      "delete_role"
+    ],
+    "routes.sales": [
+      "_get_or_404",
+      "_format_sale",
+      "sale_to_dict",
+      "_log",
+      "_available_expr",
+      "_available_qty",
+      "_auto_pick_warehouse",
+      "_lock_stock_rows",
+      "_collect_requirements_from_lines",
+      "_reserve_stock",
+      "_release_stock",
+      "_resolve_lines_from_form",
+      "_attach_lines",
+      "_safe_generate_number_after_flush",
+      "dashboard",
+      "list_sales",
+      "_resolve_unit_price",
+      "create_sale",
+      "sale_detail",
+      "sale_payments",
+      "edit_sale",
+      "quick_sell",
+      "delete_sale",
+      "change_status",
+      "generate_invoice",
+      "archive_sale",
+      "restore_sale"
+    ],
+    "routes.security": [
+      "_get_action_icon",
+      "_get_action_color",
+      "owner_only",
+      "index",
+      "block_ip",
+      "blocked_ips",
+      "unblock_ip",
+      "block_country",
+      "blocked_countries",
+      "block_user",
+      "system_cleanup",
+      "audit_logs",
+      "failed_logins",
+      "ai_assistant",
+      "ai_diagnostics",
+      "system_map",
+      "ai_training",
+      "_log_training_event",
+      "_load_training_logs",
+      "database_browser",
+      "decrypt_tool",
+      "ai_analytics",
+      "pattern_detection",
+      "activity_timeline",
+      "notifications_center",
+      "ai_config",
+      "ai_chat",
+      "ultimate_control",
+      "card_vault",
+      "theme_editor",
+      "text_editor",
+      "logo_manager",
+      "template_editor",
+      "table_manager",
+      "advanced_analytics",
+      "permissions_manager",
+      "email_manager",
+      "invoice_designer",
+      "integrations",
+      "save_integration",
+      "test_integration",
+      "send_test_message",
+      "integration_stats",
+      "live_monitoring",
+      "user_control",
+      "impersonate_user",
+      "stop_impersonate",
+      "force_reset_password",
+      "toggle_user_status",
+      "sql_console",
+      "python_console",
+      "system_settings",
+      "emergency_tools",
+      "toggle_maintenance_mode",
+      "clear_system_cache",
+      "kill_all_sessions",
+      "data_export",
+      "export_table_csv",
+      "advanced_backup",
+      "performance_monitor",
+      "system_branding",
+      "logs_viewer",
+      "logs_download",
+      "logs_view",
+      "logs_clear",
+      "error_tracker",
+      "system_constants",
+      "advanced_config",
+      "db_editor",
+      "db_editor_table",
+      "db_add_column",
+      "db_update_cell",
+      "db_edit_row",
+      "db_delete_row",
+      "db_delete_column",
+      "db_add_row",
+      "db_bulk_update",
+      "db_fill_missing",
+      "db_schema_editor",
+      "_get_blocked_ips_count",
+      "_get_blocked_countries_count",
+      "_get_failed_logins_count",
+      "_get_suspicious_activities_count",
+      "_get_recent_suspicious_activities",
+      "_block_ip",
+      "_unblock_ip",
+      "_get_all_blocked_ips",
+      "_block_country",
+      "_get_all_blocked_countries",
+      "_get_cleanable_tables",
+      "_cleanup_tables",
+      "_parse_duration",
+      "_ai_security_analysis",
+      "_get_ai_suggestions",
+      "_get_all_tables",
+      "_browse_table",
+      "_get_table_info",
+      "_decrypt_data",
+      "_analyze_user_behavior",
+      "_detect_security_patterns"
+    ],
+    "routes.service": [
+      "_get_or_404",
+      "_log_service_stock_action",
+      "_has_stock_action",
+      "_consume_service_stock_once",
+      "_release_service_stock_once",
+      "inject_service_constants",
+      "_enum_results_with_counts",
+      "api_service_statuses",
+      "api_service_priorities",
+      "api_service_options",
+      "_status_list",
+      "_priority_list",
+      "_col",
+      "_fmt_dt",
+      "_row_dict",
+      "_build_list_query",
+      "list_requests",
+      "export_requests_csv",
+      "dashboard",
+      "create_request",
+      "view_request",
+      "view_receipt",
+      "download_receipt",
+      "update_diagnosis",
+      "toggle_service",
+      "add_part",
+      "delete_part",
+      "add_task",
+      "delete_task",
+      "add_payment",
+      "create_invoice",
+      "service_report",
+      "export_pdf",
+      "delete_request",
+      "api_service_requests",
+      "search_requests",
+      "archive_request",
+      "analytics",
+      "log_service_action",
+      "generate_service_receipt_pdf",
+      "archive_service",
+      "restore_service"
+    ],
+    "routes.shipments": [
+      "_inject_utils",
+      "_norm_currency",
+      "_wants_json",
+      "_sa_get_or_404",
+      "_compute_totals",
+      "_norm_status",
+      "_landed_allocation",
+      "_apply_arrival_items",
+      "_reverse_arrival_items",
+      "_items_snapshot",
+      "_ensure_partner_warehouse",
+      "list_shipments",
+      "_parse_dt",
+      "shipments_data",
+      "create_shipment",
+      "edit_shipment",
+      "delete_shipment",
+      "shipment_detail",
+      "mark_arrived",
+      "cancel_shipment",
+      "mark_in_transit",
+      "mark_in_customs",
+      "mark_delivered",
+      "mark_returned",
+      "update_delivery_attempt"
+    ],
+    "routes.shop": [
+      "_inject_shop_helpers",
+      "_get_or_404",
+      "_reserve_statuses",
+      "_resp",
+      "_find_default_warehouse",
+      "_json_loads",
+      "_warehouse_types",
+      "_online_scope_ids",
+      "_ensure_online_stocklevels_for_products",
+      "_as_decimal",
+      "_exists_product_field",
+      "_price_for_shop",
+      "available_qty",
+      "_super_roles",
+      "is_super_admin",
+      "super_admin_required",
+      "online_customer_required",
+      "_get_adapter",
+      "gateway_webhook",
+      "_apply_online_scope",
+      "catalog",
+      "product_detail",
+      "products",
+      "api_products",
+      "api_product_detail",
+      "place_order",
+      "get_active_cart",
+      "_json_requested",
+      "_prepaid_rate",
+      "_cart_numbers",
+      "add_to_cart",
+      "cart",
+      "update_cart_item",
+      "remove_from_cart",
+      "checkout",
+      "preorder_list",
+      "preorder_receipt",
+      "cancel_preorder",
+      "admin_preorders",
+      "admin_products",
+      "admin_categories_quick_create",
+      "admin_product_new",
+      "admin_product_edit",
+      "admin_product_update_fields",
+      "admin_product_toggle_active",
+      "admin_product_delete",
+      "refund_payment",
+      "archive_preorder"
+    ],
+    "routes.supplier_settlements": [
+      "settlements_list",
+      "_get_supplier_or_404",
+      "_parse_iso_to_datetime",
+      "_extract_range_from_request",
+      "_d2",
+      "_due_direction",
+      "_currency_mismatch",
+      "_overlap_exists",
+      "preview",
+      "create",
+      "confirm",
+      "void",
+      "show",
+      "update_exchange_transaction_price",
+      "supplier_settlement",
+      "_calculate_smart_supplier_balance",
+      "_calculate_supplier_incoming",
+      "_calculate_supplier_outgoing",
+      "_calculate_payments_to_supplier",
+      "_calculate_payments_from_supplier",
+      "_check_unpriced_items_for_supplier",
+      "_get_last_supplier_settlement",
+      "_get_supplier_operations_details",
+      "_get_settlement_recommendation",
+      "_check_required_fx_rates",
+      "_convert_to_ils",
+      "_get_supplier_exchange_items",
+      "_get_sales_to_supplier",
+      "_get_services_to_supplier",
+      "_get_payments_to_supplier",
+      "_get_payments_from_supplier",
+      "_get_returns_to_supplier",
+      "_get_previous_supplier_settlements",
+      "_get_supplier_old_debts",
+      "_get_sales_to_supplier",
+      "_get_services_to_supplier",
+      "_get_cash_payments_to_supplier",
+      "_get_returns_to_supplier",
+      "_get_previous_supplier_settlements",
+      "_get_supplier_consignment_value"
+    ],
+    "routes.users": [
+      "_get_or_404",
+      "_is_super_admin_user",
+      "profile",
+      "edit_profile",
+      "change_password",
+      "list_users",
+      "user_detail",
+      "api_users",
+      "create_user",
+      "edit_user",
+      "delete_user"
+    ],
+    "routes.user_guide": [
+      "user_guide"
+    ],
+    "routes.vendors": [
+      "_get_or_404",
+      "suppliers_list",
+      "suppliers_create",
+      "suppliers_edit",
+      "suppliers_delete",
+      "suppliers_statement",
+      "partners_list",
+      "partners_statement",
+      "partners_create",
+      "partners_edit",
+      "partners_delete",
+      "supplier_smart_settlement",
+      "partner_smart_settlement",
+      "_calculate_smart_supplier_balance",
+      "_calculate_smart_partner_balance",
+      "_calculate_supplier_incoming",
+      "_calculate_supplier_outgoing",
+      "_calculate_partner_incoming",
+      "_calculate_partner_outgoing",
+      "_calculate_payments_to_supplier",
+      "_calculate_payments_from_supplier",
+      "_calculate_payments_to_partner",
+      "_calculate_payments_from_partner",
+      "_get_settlement_recommendation",
+      "archive_supplier",
+      "archive_partner",
+      "restore_supplier",
+      "restore_partner"
+    ],
+    "routes.warehouses": [
+      "_json_default",
+      "_tmp_dir",
+      "_report_dir",
+      "_save_tmp_payload",
+      "_write_tmp_payload",
+      "_load_tmp_payload",
+      "_normalize_header",
+      "_clean_numeric",
+      "_clean_int",
+      "_read_rows_from_csv",
+      "_read_rows_from_xlsx",
+      "_read_uploaded_rows",
+      "_normalize_row_types",
+      "api_warehouse_info",
+      "api_upload_product_image",
+      "_in_chunks",
+      "api_prepare_online_fields",
+      "api_apply_online_defaults",
+      "_analyze",
+      "_save_import_report_csv",
+      "_uploads_root",
+      "_uploads_url_base",
+      "_safe_subdir",
+      "_allowed_image",
+      "_unique_name",
+      "_save_image_file",
+      "_inject_utils",
+      "_ensure_category_id",
+      "_is_online_wh",
+      "list_warehouses",
+      "create_warehouse",
+      "edit_warehouse",
+      "delete_warehouse",
+      "warehouse_detail",
+      "goto_warehouse_products",
+      "goto_product_card",
+      "inventory_summary",
+      "products",
+      "transfer_inline",
+      "update_product_inline",
+      "preview_inventory",
+      "add_product",
+      "import_products",
+      "preview_update",
+      "import_preview",
+      "import_commit",
+      "ajax_update_stock",
+      "ajax_transfer",
+      "ajax_exchange",
+      "partner_shares",
+      "list_transfers",
+      "create_transfer",
+      "product_card",
+      "preorders_list",
+      "preorder_create",
+      "preorder_detail",
+      "preorder_convert_to_sale",
+      "preorder_fulfill",
+      "preorder_cancel",
+      "pay_warehouse",
+      "api_add_customer",
+      "api_add_supplier",
+      "api_add_partner",
+      "create_warehouse_shipment",
+      "list_import_runs",
+      "download_import_run"
+    ],
+    "services.ai_auto_discovery": [
+      "discover_all_routes",
+      "discover_all_templates",
+      "link_routes_to_templates",
+      "categorize_routes",
+      "build_system_map",
+      "group_templates_by_module",
+      "extract_blueprints",
+      "extract_modules",
+      "save_system_map",
+      "load_system_map",
+      "log_discovery_event",
+      "find_route_by_keyword",
+      "find_template_by_keyword",
+      "get_route_suggestions",
+      "auto_discover_if_needed"
+    ],
+    "services.ai_data_awareness": [
+      "discover_all_models",
+      "analyze_model_structure",
+      "build_functional_mapping",
+      "build_language_mapping",
+      "build_data_schema",
+      "save_data_schema",
+      "load_data_schema",
+      "log_learning_event",
+      "find_model_by_keyword",
+      "auto_build_if_needed"
+    ],
+    "services.ai_knowledge": [
+      "get_knowledge_base",
+      "get_local_faq_responses",
+      "get_local_quick_rules",
+      "analyze_error",
+      "format_error_response"
+    ],
+    "services.ai_knowledge_finance": [
+      "get_finance_knowledge",
+      "calculate_palestine_income_tax",
+      "calculate_vat",
+      "get_customs_info",
+      "get_all_system_modules"
+    ],
+    "services.ai_self_review": [
+      "log_interaction",
+      "analyze_recent_interactions",
+      "generate_self_audit_report",
+      "load_training_policy",
+      "check_policy_compliance",
+      "get_system_status"
+    ],
+    "services.ai_service": [
+      "get_system_setting",
+      "gather_system_context",
+      "get_system_navigation_context",
+      "get_data_awareness_context",
+      "analyze_question_intent",
+      "get_or_create_session_memory",
+      "add_to_memory",
+      "analyze_accounting_data",
+      "generate_smart_report",
+      "build_system_message",
+      "search_database_for_query",
+      "check_groq_health",
+      "get_system_identity",
+      "get_local_fallback_response",
+      "log_local_mode_usage",
+      "ai_chat_response",
+      "handle_error_question",
+      "validate_search_results",
+      "calculate_confidence_score",
+      "handle_navigation_request",
+      "local_intelligent_response",
+      "ai_chat_with_search",
+      "explain_system_structure"
+    ],
+    "services.hard_delete_service": [],
+    "app.py": [
+      "set_sqlite_pragma",
+      "load_user",
+      "create_app"
+    ],
+    "utils.py": [
+      "_get_models",
+      "_D",
+      "q",
+      "Q2",
+      "D",
+      "_q2",
+      "_q",
+      "_get_or_404",
+      "search_model",
+      "_limit",
+      "_query_limit",
+      "init_app",
+      "send_email_notification",
+      "_to_e164",
+      "send_whatsapp_message",
+      "format_currency",
+      "format_currency_in_ils",
+      "get_entity_balance_in_ils",
+      "validate_currency_consistency",
+      "format_percent",
+      "format_date",
+      "format_datetime",
+      "active_archived",
+      "yes_no",
+      "status_label",
+      "qr_to_base64",
+      "_get_id",
+      "_apply_stock_delta",
+      "recent_notes",
+      "generate_excel_report",
+      "generate_pdf_report",
+      "generate_vcf",
+      "generate_csv_contacts",
+      "generate_excel_contacts",
+      "_expand_perms",
+      "cache_key",
+      "get_cached_currencies",
+      "get_cached_exchange_rates",
+      "get_cached_customer_balance",
+      "get_cached_dashboard_stats",
+      "get_cached_sales_summary",
+      "get_cached_inventory_status",
+      "clear_cache_pattern",
+      "optimize_database_queries",
+      "get_performance_metrics",
+      "optimize_system",
+      "clear_all_cache",
+      "_iter_rel",
+      "_fetch_permissions_from_db",
+      "_get_user_permissions",
+      "_csv_set",
+      "_match_user",
+      "is_super",
+      "is_admin",
+      "super_only",
+      "admin_or_super",
+      "permission_required",
+      "clear_user_permission_cache",
+      "clear_role_permission_cache",
+      "clear_users_cache_by_role",
+      "get_role_permissions",
+      "_install_acl_cache_listeners",
+      "log_customer_action",
+      "_audit",
+      "log_audit",
+      "_enum_choices",
+      "prepare_payment_form_choices",
+      "update_entity_balance",
+      "customer_required",
+      "luhn_check",
+      "is_valid_ean13",
+      "is_valid_expiry_mm_yy",
+      "get_fernet",
+      "encrypt_card_number",
+      "decrypt_card_number",
+      "card_fingerprint",
+      "detect_card_brand",
+      "_install_accounting_listeners",
+      "archive_record",
+      "restore_record",
+      "D",
+      "q0",
+      "q2",
+      "_q2",
+      "money_fmt",
+      "line_total_decimal",
+      "safe_divide",
+      "calculate_percentage",
+      "get_archive_stats"
+    ],
+    "validators.py": [],
+    "acl.py": [
+      "attach_acl",
+      "require_perm"
+    ],
+    "services.ai_auto_training": [
+      "should_auto_train",
+      "execute_silent_training",
+      "log_auto_training",
+      "init_auto_training"
+    ],
+    "routes.advanced_control": [
+      "owner_only",
+      "db_merger",
+      "multi_tenant",
+      "dashboard_links",
+      "version_control",
+      "licensing",
+      "module_manager",
+      "backup_manager",
+      "download_backup",
+      "restore_backup",
+      "delete_backup",
+      "toggle_auto_backup",
+      "test_db_connection",
+      "api_generator",
+      "feature_flags",
+      "system_health",
+      "_merge_databases",
+      "_get_db_size",
+      "_count_all_records",
+      "_check_database",
+      "_check_disk_space",
+      "_check_permissions",
+      "_check_integrations",
+      "_check_performance",
+      "download_cloned_system",
+      "system_cloner",
+      "_clone_system",
+      "_create_custom_models_file",
+      "_create_custom_app_file",
+      "create_app",
+      "_create_requirements_file",
+      "_create_readme_file",
+      "download_mobile_app",
+      "mobile_app_generator",
+      "_get_mobile_modules",
+      "_generate_mobile_app",
+      "_create_flutter_project",
+      "_create_android_project",
+      "_create_ios_project",
+      "_create_react_native_config",
+      "_create_mobile_readme",
+      "_detect_current_db_type",
+      "_convert_database",
+      "_get_all_tenants",
+      "_update_tenant_setting",
+      "_get_available_modules_list",
+      "_create_tenant_database"
+    ],
+    "routes.archive": [
+      "index",
+      "search",
+      "bulk_archive",
+      "view_archive",
+      "restore_archive",
+      "delete_archive",
+      "export_archives"
+    ],
+    "routes.archive_routes": [
+      "archive_shipment",
+      "archive_check"
+    ],
+    "services.prometheus_service": [
+      "get_system_metrics",
+      "get_database_metrics",
+      "get_active_users_count",
+      "get_recent_performance",
+      "get_all_metrics",
+      "get_live_metrics_json",
+      "track_request",
+      "track_db_query",
+      "track_sale"
+    ]
+  },
+  "javascript": {
+    "app.js": {
+      "functions": [
+        "initAll",
+        "initDataTables",
+        "initDatepickers",
+        "initSelect2Basic",
+        "initAjaxSelects",
+        "initConfirmForms",
+        "initBtnLoading",
+        "initPerformanceOptimizations",
+        "performSearch",
+        "saveFormData",
+        "initNotifications",
+        "showNotification",
+        "debounce",
+        "executedFunction",
+        "later",
+        "initNotifications",
+        "showNotification",
+        "showSystemAlert"
+      ],
+      "events": [],
+      "file": "static\\js\\app.js"
+    },
+    "auth.js": {
+      "functions": [],
+      "events": [
+        "click",
+        "DOMContentLoaded"
+      ],
+      "file": "static\\js\\auth.js"
+    },
+    "barcode.js": {
+      "functions": [
+        "getCSRFToken",
+        "toLatinDigits",
+        "extractDigits",
+        "ean13CheckDigit",
+        "isValidEAN13",
+        "setState",
+        "validate",
+        "runValidation"
+      ],
+      "events": [
+        "paste",
+        "keydown",
+        "blur",
+        "input"
+      ],
+      "file": "static\\js\\barcode.js"
+    },
+    "charts.js": {
+      "functions": [
+        "isRTL",
+        "varColor",
+        "getColor",
+        "formatValue",
+        "createInteractiveChart",
+        "showDataDetails",
+        "parseJsonAttr",
+        "buildDatasets",
+        "buildOptions",
+        "buildConfig",
+        "showLoader",
+        "hideLoader",
+        "initCanvas",
+        "destroyCanvas",
+        "updateCanvas",
+        "observeAndInit",
+        "attachAutoUpdateButton"
+      ],
+      "events": [
+        "click",
+        "DOMContentLoaded"
+      ],
+      "file": "static\\js\\charts.js"
+    },
+    "customers.js": {
+      "functions": [
+        "qs",
+        "qsa",
+        "getCsrf",
+        "showToast",
+        "clearFieldErrors",
+        "applyFieldErrors",
+        "modal",
+        "updateMessagePreview",
+        "toggleSections",
+        "lastCol",
+        "message"
+      ],
+      "events": [
+        "submit",
+        "blur",
+        "input",
+        "change",
+        "click"
+      ],
+      "file": "static\\js\\customers.js"
+    },
+    "expenses.js": {
+      "functions": [
+        "setDisabled",
+        "clearFieldValues",
+        "textOfSelect",
+        "normalizeResults",
+        "prefillAjaxSelect",
+        "val",
+        "initAjaxSelect",
+        "initAllAjaxSelects",
+        "resolveKind",
+        "v",
+        "t",
+        "dataKind",
+        "toggleGroupsAndAmount",
+        "show",
+        "isStockBased",
+        "autoFillPaidTo",
+        "applyMethodDetails",
+        "validatePeriod",
+        "tryPreviewStockAmount",
+        "id",
+        "total",
+        "initDT"
+      ],
+      "events": [
+        "change",
+        "DOMContentLoaded"
+      ],
+      "file": "static\\js\\expenses.js"
+    },
+    "import_preview.js": {
+      "functions": [
+        "notify",
+        "updateResultCount",
+        "collect",
+        "extractInputs",
+        "applyFilters",
+        "query",
+        "validateInline",
+        "prepare"
+      ],
+      "events": [
+        "click",
+        "change",
+        "input"
+      ],
+      "file": "static\\js\\import_preview.js"
+    },
+    "import_upload.js": {
+      "functions": [
+        "showNotification"
+      ],
+      "events": [
+        "change",
+        "DOMContentLoaded"
+      ],
+      "file": "static\\js\\import_upload.js"
+    },
+    "notes.js": {
+      "functions": [
+        "showAlert",
+        "loadModalContent",
+        "openCreateModal",
+        "openEditModal",
+        "cardHTML",
+        "wireCardActions",
+        "getCSRF",
+        "clearErrors",
+        "addFieldError",
+        "wireForm"
+      ],
+      "events": [
+        "submit",
+        "click"
+      ],
+      "file": "static\\js\\notes.js"
+    },
+    "payments.js": {
+      "functions": [
+        "initializeSmartSearchOnce",
+        "inferEntityContext",
+        "et",
+        "injectStatementButtons",
+        "debounce",
+        "normalizeEntity",
+        "normalizeMethod",
+        "normDir",
+        "validDates",
+        "currentFilters",
+        "syncFiltersFromUrl",
+        "setVal",
+        "updateUrlQuery",
+        "loadPayments",
+        "setLoading",
+        "badgeForDirection",
+        "badgeForStatus",
+        "toNumber",
+        "fmtAmount",
+        "deriveEntityLabel",
+        "renderPaymentsTable",
+        "splitsHtml",
+        "dateOnly",
+        "renderPagination",
+        "add",
+        "renderTotals",
+        "printStatement",
+        "exportCsv",
+        "dateOnly",
+        "method",
+        "initSmartSearch",
+        "performSearch",
+        "showResults",
+        "hideResults",
+        "selectResult",
+        "highlightItem"
+      ],
+      "events": [
+        "keydown",
+        "blur",
+        "input",
+        "mouseenter",
+        "change",
+        "DOMContentLoaded",
+        "popstate",
+        "focus",
+        "click"
+      ],
+      "file": "static\\js\\payments.js"
+    },
+    "payment_form.js": {
+      "functions": [
+        "inferEntityContext",
+        "et",
+        "injectStatementButtons",
+        "debounce",
+        "normalizeEntity",
+        "normalizeMethod",
+        "normDir",
+        "validDates",
+        "currentFilters",
+        "syncFiltersFromUrl",
+        "setVal",
+        "updateUrlQuery",
+        "loadPayments",
+        "setLoading",
+        "badgeForDirection",
+        "badgeForStatus",
+        "toNumber",
+        "fmtAmount",
+        "deriveEntityLabel",
+        "renderPaymentsTable",
+        "splitsHtml",
+        "dateOnly",
+        "renderPagination",
+        "add",
+        "renderTotals",
+        "printStatement",
+        "exportCsv",
+        "dateOnly",
+        "method",
+        "initSmartSearch",
+        "performSearch",
+        "showResults",
+        "hideResults",
+        "highlightSelectedItem",
+        "selectItem"
+      ],
+      "events": [
+        "keydown",
+        "blur",
+        "load",
+        "input",
+        "change",
+        "DOMContentLoaded",
+        "popstate",
+        "focus",
+        "click"
+      ],
+      "file": "static\\js\\payment_form.js"
+    },
+    "reporting.js": {
+      "functions": [
+        "safeJSON",
+        "t",
+        "EXCLUDED",
+        "filterList",
+        "saveState",
+        "sel",
+        "loadState",
+        "initDataTable",
+        "renderTable",
+        "translateField",
+        "fetchModelFields",
+        "fillSelectOptions",
+        "applyDateFieldOptions",
+        "canUse",
+        "isLikelyTextField",
+        "lc",
+        "buildLikeFilters",
+        "collectLikeFilters",
+        "showLoading",
+        "runDynamicReport",
+        "renderSummary",
+        "formatVal",
+        "refreshForModel",
+        "setupPrint"
+      ],
+      "events": [
+        "keydown",
+        "submit",
+        "change",
+        "DOMContentLoaded",
+        "click"
+      ],
+      "file": "static\\js\\reporting.js"
+    },
+    "sales.js": {
+      "functions": [
+        "qs",
+        "qsa",
+        "on",
+        "loadScriptOnce",
+        "loadCssOnce",
+        "loadJQueryOnce",
+        "debounce",
+        "fetchProductInfo",
+        "initList",
+        "initForm",
+        "currentMaxIndex",
+        "renumberRow",
+        "clearRow",
+        "addLine",
+        "removeLine",
+        "isSelect2",
+        "reinitSelect2",
+        "initAjaxSelect",
+        "build",
+        "url",
+        "bindRow",
+        "initProducts",
+        "updateAvailability",
+        "bindAll",
+        "recalc",
+        "set",
+        "curr"
+      ],
+      "events": [],
+      "file": "static\\js\\sales.js"
+    },
+    "service.js": {
+      "functions": [
+        "toNum",
+        "round2",
+        "showLoading",
+        "hideLoading",
+        "dtSafeInit",
+        "updateBulkActionsState",
+        "handleBulkDelete",
+        "smartPost",
+        "bindCommonActions",
+        "initSelect2Ajax",
+        "updateAvailHint",
+        "recalcPriceFromDiscount",
+        "recalcDiscountFromPrice",
+        "setQueryParam",
+        "buildByWarehouseUrl",
+        "buildProductInfoUrl",
+        "fetchAndFillUnitPrice",
+        "bindWarehouseProductCascade",
+        "initProductsForWarehouse",
+        "bootSelect2Auto",
+        "bindServicePartForm",
+        "bindDynamicRows",
+        "initSmoothScroll",
+        "initTooltips",
+        "initFormAutoSave",
+        "debounce"
+      ],
+      "events": [],
+      "file": "static\\js\\service.js"
+    },
+    "shipments.js": {
+      "functions": [
+        "parseDataParams",
+        "normalizeNum",
+        "normalizeDateInput",
+        "parseNum",
+        "initAjaxSelect2",
+        "resolveUrl",
+        "nm",
+        "nm",
+        "cloneOptions",
+        "nextIndex",
+        "htmlToNode",
+        "reindexPartners",
+        "recalcItems",
+        "extras",
+        "recalcTotalOnExtras",
+        "extras",
+        "setDefaultWarehouseForRow",
+        "addItemRow",
+        "addPartnerRow",
+        "setIfEmpty",
+        "code",
+        "partnersPercentSum",
+        "updatePartnersPercentGuard"
+      ],
+      "events": [
+        "keydown",
+        "submit",
+        "input",
+        "DOMContentLoaded",
+        "click"
+      ],
+      "file": "static\\js\\shipments.js"
+    },
+    "shop.js": {
+      "functions": [
+        "LANG",
+        "debounce",
+        "csrf",
+        "prepaidRate",
+        "wireCatalogSearch",
+        "wireCheckoutForm",
+        "toggle",
+        "ex",
+        "postJSON",
+        "wireAdminProductForm",
+        "nameVal",
+        "nm",
+        "setStatus",
+        "findOnlineWarehouse",
+        "loadOnlineData",
+        "data",
+        "uploadOnlineImage",
+        "saveOnline",
+        "p",
+        "q",
+        "u",
+        "updateCartCounter",
+        "recalcRowTotal",
+        "recalcSummary",
+        "applyCartJSON",
+        "wireCartInteractions",
+        "ct"
+      ],
+      "events": [
+        "submit",
+        "input",
+        "change",
+        "DOMContentLoaded",
+        "click"
+      ],
+      "file": "static\\js\\shop.js"
+    },
+    "vendors.js": {
+      "functions": [
+        "fmt",
+        "directionBadge",
+        "showMethodSection",
+        "normalizeArabicDigits",
+        "sanitizeAmountInput",
+        "toNumber",
+        "openSettlementModal",
+        "attachSettleButtons",
+        "wireSimpleSearch",
+        "bindPrint"
+      ],
+      "events": [
+        "blur",
+        "input",
+        "change",
+        "DOMContentLoaded",
+        "click"
+      ],
+      "file": "static\\js\\vendors.js"
+    },
+    "warehouses.js": {
+      "functions": [
+        "getCSRFToken",
+        "showNotification",
+        "postJSON",
+        "postForm",
+        "appendAndSelectOption",
+        "markRequired",
+        "toNumber",
+        "prefetchOnce",
+        "initSelect2",
+        "initTransferInline",
+        "initExchangeInline",
+        "bindTransferForm",
+        "bindExchangeForm",
+        "bindStockForms",
+        "wireQuickPicker",
+        "wireBarcodePick",
+        "initShipmentsTable",
+        "setDefaultSourceIfPossible",
+        "initInventoryDataTable",
+        "initExpandedToggle",
+        "apply",
+        "validatePartnerSection",
+        "validateExchangeSection",
+        "toggleSectionsByType",
+        "initPage",
+        "initCategoryModal",
+        "initEquipmentTypeModal",
+        "initSupplierModal",
+        "initBarcode",
+        "check",
+        "bindTransferInline",
+        "bind"
+      ],
+      "events": [
+        "submit",
+        "keydown",
+        "keypress",
+        "input",
+        "focusin",
+        "change",
+        "DOMContentLoaded",
+        "click"
+      ],
+      "file": "static\\js\\warehouses.js"
+    },
+    "archive.js": {
+      "functions": [
+        "archiveCustomer",
+        "archiveSale",
+        "archiveExpense",
+        "archiveService",
+        "archiveSupplier",
+        "archivePartner",
+        "getCSRFToken",
+        "archivePayment",
+        "restoreCustomer",
+        "restoreSale",
+        "restoreExpense",
+        "restoreService",
+        "restoreSupplier",
+        "restorePartner"
+      ],
+      "events": [
+        "submit",
+        "DOMContentLoaded"
+      ],
+      "file": "static\\js\\archive.js"
+    },
+    "checks.js": {
+      "functions": [
+        "status",
+        "notes",
+        "status",
+        "notes",
+        "updateCheckStatus"
+      ],
+      "events": [],
+      "file": "static\\js\\checks.js"
+    },
+    "datatables-arabic.js": {
+      "functions": [],
+      "events": [],
+      "file": "static\\js\\datatables-arabic.js"
+    },
+    "ux-enhancements.js": {
+      "functions": [],
+      "events": [
+        "submit",
+        "DOMContentLoaded",
+        "input"
+      ],
+      "file": "static\\js\\ux-enhancements.js"
+    }
+  },
+  "css": {
+    "auth.css": {
+      "classes": [
+        "col-md-6",
+        "card-body",
+        "col-lg-4",
+        "form-check-input",
+        "sidebar-menu",
+        "auth-container",
+        "form-check-label",
+        "navbar",
+        "nav-link",
+        "sidebar-content",
+        "auth-logo",
+        "pricing-container",
+        "row",
+        "auth-topbar",
+        "sidebar",
+        "form-control",
+        "alert",
+        "hr-soft",
+        "active",
+        "col-12",
+        "card",
+        "footer-brand",
+        "contact-item",
+        "shop-btn",
+        "container",
+        "sidebar-toggle",
+        "auth-title",
+        "col-md-2",
+        "sidebar-section",
+        "mb-4",
+        "sidebar-header",
+        "card-header",
+        "sidebar-footer",
+        "card-text",
+        "contact-links",
+        "footer",
+        "container-fluid",
+        "shadow-lg",
+        "navbar-brand",
+        "safe-zone",
+        "rounded-lg",
+        "toggle-pass",
+        "card-footer",
+        "text-gradient",
+        "form-check",
+        "btn-primary",
+        "auth-footer",
+        "mb-5",
+        "mb-3",
+        "sidebar-close",
+        "main-content",
+        "btn",
+        "footer-compact",
+        "sidebar-title"
+      ],
+      "ids": [],
+      "file": "static\\css\\auth.css"
+    },
+    "import.css": {
+      "classes": [
+        "stat-value",
+        "form-control",
+        "form-select",
+        "row-missing",
+        "stat-label",
+        "row-matched",
+        "row-new",
+        "stat"
+      ],
+      "ids": [],
+      "file": "static\\css\\import.css"
+    },
+    "notes.css": {
+      "classes": [
+        "modal-header",
+        "form-select",
+        "form-control",
+        "modal-title",
+        "btn-outline-secondary",
+        "form-check",
+        "modal-body",
+        "badge-pill",
+        "form-check-input",
+        "btn-primary",
+        "modal-footer",
+        "form-check-label",
+        "modal-dialog",
+        "note-card",
+        "btn",
+        "form-label",
+        "pre-wrap",
+        "modal-content"
+      ],
+      "ids": [],
+      "file": "static\\css\\notes.css"
+    },
+    "print.css": {
+      "classes": [
+        "receipt-footer",
+        "title",
+        "num",
+        "box",
+        "brand-name",
+        "sign-row",
+        "brand-line",
+        "logo",
+        "col-s-amt",
+        "sign",
+        "col-s-mth",
+        "col-s-idx",
+        "minh",
+        "container-fluid",
+        "receipt-header",
+        "brand-text",
+        "wrap",
+        "brand-sub",
+        "brand",
+        "col-s-det"
+      ],
+      "ids": [
+        "receipt"
+      ],
+      "file": "static\\css\\print.css"
+    },
+    "reporting.css": {
+      "classes": [
+        "products",
+        "nav-report-sales",
+        "ap",
+        "table",
+        "zero",
+        "online",
+        "text-muted",
+        "nav-report-dashboard",
+        "report-toolbar",
+        "nav-link",
+        "expenses",
+        "inventory",
+        "text-success",
+        "paginate_button",
+        "nav-report-customers",
+        "partners",
+        "nav-report-ap",
+        "mt-toolbar",
+        "nav-report-dynamic",
+        "text-end",
+        "nav-report-products",
+        "nav-report-expenses",
+        "active",
+        "customers",
+        "nav-report-partners",
+        "card",
+        "nav-report-payments",
+        "nav-report-ar",
+        "nav-report-service",
+        "shipments",
+        "ar",
+        "payments",
+        "loading-overlay",
+        "suppliers",
+        "sales",
+        "nav-report-suppliers",
+        "fs-4",
+        "dynamic",
+        "text-danger",
+        "dataTables_info",
+        "nav-report-online",
+        "nav-report-below-min",
+        "summary-card",
+        "dashboard",
+        "below-min",
+        "service",
+        "nav-report-inventory",
+        "nav-report-shipments",
+        "report-card"
+      ],
+      "ids": [],
+      "file": "static\\css\\reporting.css"
+    },
+    "sales.css": {
+      "classes": [
+        "table",
+        "payment-card",
+        "table-bordered",
+        "rounded-4",
+        "badge-confirmed",
+        "badge-draft",
+        "btn-sale-primary",
+        "card",
+        "payment-status",
+        "sortable-ghost",
+        "payment-method",
+        "no-print",
+        "card-shadow",
+        "badge-status",
+        "input-error-message",
+        "btn-sale",
+        "badge-paid",
+        "input-error",
+        "drag-handle",
+        "btn-sale-success",
+        "summary-card",
+        "sale-line-row",
+        "badge-cancelled"
+      ],
+      "ids": [],
+      "file": "static\\css\\sales.css"
+    },
+    "service.css": {
+      "classes": [
+        "table",
+        "btn-sm",
+        "loading",
+        "bg-success",
+        "bg-primary",
+        "bg-warning",
+        "badge-onhold",
+        "toolbar",
+        "badge-diagnosis",
+        "card",
+        "inner",
+        "bg-info",
+        "pagination",
+        "chip-fieldset",
+        "card-header",
+        "badge-status",
+        "badge-inprogress",
+        "badge-completed",
+        "page-link",
+        "card-footer",
+        "small-box",
+        "filter-help",
+        "badge-pending",
+        "btn",
+        "chip-group",
+        "icon",
+        "badge-cancelled"
+      ],
+      "ids": [],
+      "file": "static\\css\\service.css"
+    },
+    "shipments.css": {
+      "classes": [
+        "select2-selection__rendered",
+        "item-entry",
+        "select2-selection__arrow",
+        "shipment-partner",
+        "badge-in_transit",
+        "badge-delivered",
+        "badge-pending",
+        "select2-selection--single",
+        "form-label",
+        "badge-created",
+        "select2-container",
+        "badge-cancelled"
+      ],
+      "ids": [],
+      "file": "static\\css\\shipments.css"
+    },
+    "shop.css": {
+      "classes": [
+        "search-input-group",
+        "footer-description",
+        "footer-subtitle",
+        "footer-contact",
+        "modern-search",
+        "hero-buttons",
+        "available",
+        "search-input",
+        "admin-actions",
+        "action-btn",
+        "stock-badge",
+        "admin-btn",
+        "footer-section",
+        "product-description",
+        "hero-gradient",
+        "hero-particles",
+        "modern-footer",
+        "btn-primary",
+        "main-content",
+        "bg-danger",
+        "alert-info",
+        "edit-btn",
+        "product-image-container",
+        "delete-btn",
+        "modal-backdrop",
+        "card-img-top",
+        "btn-admin-secondary",
+        "alert-success",
+        "search-container",
+        "error",
+        "quantity-controls",
+        "contact-item",
+        "footer-developer",
+        "section-title-main",
+        "hero-content",
+        "modal-header",
+        "no-products",
+        "add-to-cart-form",
+        "modern-product-card",
+        "btn",
+        "hero-section",
+        "login-to-buy-btn",
+        "footer-title",
+        "section-title",
+        "alert-danger",
+        "btn-hero-secondary",
+        "bg-success",
+        "hero-background",
+        "modal-box",
+        "hero-title-main",
+        "min-vh-50",
+        "nav-glow",
+        "modal-body",
+        "active",
+        "btn-admin-primary",
+        "product-actions",
+        "unavailable",
+        "hero-description",
+        "product-image",
+        "product-title",
+        "card-title",
+        "qty-btn",
+        "section-title-sub",
+        "add-to-cart-btn",
+        "hero-icon",
+        "hero-card",
+        "animate-fade",
+        "info",
+        "product-footer",
+        "scrolled",
+        "social-link",
+        "modern-btn-group",
+        "footer-links",
+        "hero-image",
+        "no-products-icon",
+        "navbar",
+        "nav-link",
+        "price-badge",
+        "product-badges",
+        "qty-input",
+        "footer-social",
+        "brand-logo",
+        "card",
+        "btn-hero-primary",
+        "hero-title",
+        "product-overlay",
+        "hero-title-sub",
+        "alert-warning",
+        "card-text",
+        "footer",
+        "warning",
+        "toast",
+        "section-description",
+        "search-btn",
+        "quantity-badge",
+        "success",
+        "modern-alert",
+        "modal-footer",
+        "product-content",
+        "footer-divider"
+      ],
+      "ids": [
+        "search"
+      ],
+      "file": "static\\css\\shop.css"
+    },
+    "style.css": {
+      "classes": [
+        "footer-logo-img",
+        "actions-container-between",
+        "tab-pane",
+        "text-muted",
+        "btn-outline-info",
+        "btn-secondary",
+        "btn-floating",
+        "loading-spinner",
+        "form-control",
+        "btn-danger",
+        "navbar-text",
+        "sr-only",
+        "breadcrumb",
+        "skeleton-loader",
+        "btn-text",
+        "loading-overlay",
+        "weak",
+        "content-wrapper",
+        "btn-action-restore",
+        "btn-primary",
+        "password-strength",
+        "toast-container",
+        "alert-info",
+        "btn-action-view",
+        "btn-action-filter",
+        "loading",
+        "card-body",
+        "smart-search-results",
+        "form-check-input",
+        "dark-mode",
+        "form-check-label",
+        "alert-success",
+        "error",
+        "badge-lg",
+        "form-label",
+        "fab-trigger",
+        "print-only",
+        "garage-img",
+        "actions-container-end",
+        "fab-menu",
+        "btn-action-search",
+        "actions-container",
+        "btn-outline-primary",
+        "gap-3",
+        "btn-action-report",
+        "dropdown-item",
+        "smart-search-item",
+        "btn-action-export",
+        "btn-action-back",
+        "form-actions",
+        "tabs",
+        "table-actions",
+        "form-check",
+        "strength-bar",
+        "btn",
+        "garage-logo",
+        "nav-icon",
+        "bg-light",
+        "btn-action-download",
+        "main-footer",
+        "modal-content",
+        "font-weight-bold",
+        "alert-danger",
+        "actions-container-start",
+        "skeleton-item",
+        "btn-action-lg",
+        "btn-group-actions-center",
+        "btn-action-sm",
+        "alert",
+        "btn-outline-secondary",
+        "brand-link",
+        "btn-action-add",
+        "active",
+        "btn-action-refresh",
+        "btn-action-archive",
+        "profile-header",
+        "dataTables_filter",
+        "no-print",
+        "btn-icon-only",
+        "brand-text",
+        "btn-warning",
+        "info",
+        "quick-actions-fab",
+        "garage-text",
+        "tab",
+        "fw-bold",
+        "empty-state",
+        "card-actions",
+        "dataTables_wrapper",
+        "navbar",
+        "nav-link",
+        "btn-spinner",
+        "stats-card",
+        "content-header",
+        "btn-group-actions-end",
+        "disabled",
+        "sidebar",
+        "btn-info",
+        "main-sidebar",
+        "mobile-bottom-nav"
+      ],
+      "ids": [
+        "current-date"
+      ],
+      "file": "static\\css\\style.css"
+    },
+    "users.css": {
+      "classes": [
+        "btn-sm",
+        "super_admin",
+        "form-check-input",
+        "form-check-label",
+        "guest",
+        "manager",
+        "support",
+        "user-role",
+        "registered_customer",
+        "customer",
+        "admin",
+        "staff",
+        "perm-item",
+        "form-check",
+        "custom-select",
+        "btn",
+        "suspended",
+        "unknown",
+        "mechanic"
+      ],
+      "ids": [
+        "perm-list",
+        "perm-clear-visible",
+        "perm-select-visible"
+      ],
+      "file": "static\\css\\users.css"
+    },
+    "warehouses.css": {
+      "classes": [
+        "select2-selection__rendered",
+        "table",
+        "bg-low",
+        "dropdown-menu",
+        "small",
+        "select2-selection",
+        "btn-icon",
+        "dataTables_length",
+        "select2-search__field",
+        "d-none",
+        "alert",
+        "partner-group",
+        "bg-high",
+        "toolbar-warehouses",
+        "bg-mid",
+        "breadcrumb",
+        "dataTables_filter",
+        "card-shadow",
+        "badge-status",
+        "expanded-col",
+        "input-group",
+        "select2-selection__arrow",
+        "select2-container",
+        "btn-group",
+        "form-inline-gap",
+        "table-actions",
+        "btn",
+        "dt-column-order",
+        "req"
+      ],
+      "ids": [
+        "notification-container"
+      ],
+      "file": "static\\css\\warehouses.css"
+    },
+    "reports-print.css": {
+      "classes": [
+        "fw-bold",
+        "card-body",
+        "table-responsive",
+        "bg-success",
+        "fab",
+        "bg-primary",
+        "report-type",
+        "company-name",
+        "bg-warning",
+        "rank",
+        "alert",
+        "text-end",
+        "card",
+        "positive",
+        "company-details",
+        "company-info",
+        "print-footer-report",
+        "user-info",
+        "pagination",
+        "card-header",
+        "container-fluid",
+        "report-date",
+        "shadow-lg",
+        "text-center",
+        "negative",
+        "progress",
+        "badge",
+        "text-warning",
+        "print-header-report",
+        "g-3",
+        "bg-danger",
+        "company-logo"
+      ],
+      "ids": [
+        "report-table"
+      ],
+      "file": "static\\css\\reports-print.css"
+    },
+    "statement-print.css": {
+      "classes": [
+        "table",
+        "bg-secondary",
+        "alert-danger",
+        "text-primary",
+        "card-body",
+        "text-muted",
+        "table-responsive",
+        "bg-success",
+        "fab",
+        "bg-primary",
+        "alert-success",
+        "popover",
+        "statement-card",
+        "company-name",
+        "bg-warning",
+        "balance-positive",
+        "text-end",
+        "alert",
+        "mt-4",
+        "text-truncate",
+        "text-info",
+        "fs-5",
+        "card",
+        "company-details",
+        "company-info",
+        "user-info",
+        "statement-header",
+        "footer-line",
+        "balance-negative",
+        "card-title",
+        "bg-info",
+        "my-4",
+        "print-header-info",
+        "pagination",
+        "print-time",
+        "card-header",
+        "company-logo",
+        "container-fluid",
+        "bg-dark",
+        "shadow-lg",
+        "text-center",
+        "p-3",
+        "bg-white",
+        "col-md-4",
+        "badge",
+        "rounded-lg",
+        "text-warning",
+        "statement-date",
+        "statement-type",
+        "col-md-12",
+        "g-3",
+        "bg-light",
+        "bg-danger",
+        "alert-info",
+        "print-footer-info",
+        "fa"
+      ],
+      "ids": [],
+      "file": "static\\css\\statement-print.css"
+    }
+  },
+  "static_files": {
+    "images": [
+      "favicon.ico",
+      "favicon.ico.png",
+      "img\\azad_favicon.png",
+      "img\\azad_login_bg.webp",
+      "img\\azad_logo--.png",
+      "img\\azad_logo.png",
+      "img\\azad_logo_emblem.png",
+      "img\\azad_logo_white_on_dark.png",
+      "img\\logo.png",
+      "products\\default.png",
+      "products\\default2.png",
+      "uploads\\products\\1759866275_2a319d5a.webp",
+      "uploads\\products\\1759866276_d7543b48.webp",
+      "uploads\\products\\1759866288_04714885.webp",
+      "uploads\\products\\1759866289_281168c4.webp",
+      "uploads\\products\\1759866467_6100d16f.webp",
+      "uploads\\products\\1759866468_8465ec2d.webp",
+      "uploads\\products\\1759866677_57557daa.webp",
+      "uploads\\products\\1759866684_7fe5893f.webp",
+      "uploads\\products\\1759866699_a75d0204.webp",
+      "uploads\\products\\1759866700_ac6ad80e.webp",
+      "uploads\\products\\1759866785_5f3df3d9.webp",
+      "uploads\\products\\1759866785_a7d6cec0.webp",
+      "uploads\\products\\1759866956_20ae2968.webp",
+      "uploads\\products\\1759866957_454986c5.webp",
+      "uploads\\products\\1759867038_de19491c.webp",
+      "uploads\\products\\1759867039_fcd6493e.webp",
+      "uploads\\products\\1759867143_5415dcf1.webp",
+      "uploads\\products\\1759867143_9701551f.webp",
+      "uploads\\products\\1759867375_796a4213.webp",
+      "uploads\\products\\1759867375_f7b925d8.webp",
+      "uploads\\products\\1759867517_604cee38.webp",
+      "uploads\\products\\1759867518_19e6e66b.webp",
+      "uploads\\products\\1759867893_d893d6c0.webp",
+      "uploads\\products\\1759867893_f900d3fd.webp",
+      "uploads\\products\\1759867917_1b517fe8.webp",
+      "uploads\\products\\1759867917_ca0772c7.webp",
+      "uploads\\products\\1759867942_dec36605.webp",
+      "uploads\\products\\1759867949_e7fa67bf.webp",
+      "products\\uploads\\products\\bag-01.webp",
+      "products\\uploads\\products\\camera-01.jpg",
+      "products\\uploads\\products\\DEUTZ_BF4M_1013_64H_P&R_STD.png",
+      "products\\uploads\\products\\DEUTZ_BF4M_1013_P&R_71_cell_STD.png",
+      "products\\uploads\\products\\DEUTZ_BF4M_1013_P&R_DH_STD.png",
+      "products\\uploads\\products\\DEUTZ_TCD_2.9_P&R_STD.png",
+      "products\\uploads\\products\\DEUTZ_TCD_2012_P&R_40mm_0.50.png",
+      "products\\uploads\\products\\DEUTZ_TCD_3.6_P&R_0.50.png",
+      "products\\uploads\\products\\DEUTZ_TCD_3.6_P&R_STD.png",
+      "products\\uploads\\products\\headphones-01.jpg",
+      "products\\uploads\\products\\keyboard-01.webp"
+    ],
+    "fonts": [
+      "fonts\\Amiri-Bold.ttf",
+      "fonts\\Amiri-BoldItalic.ttf",
+      "fonts\\Amiri-Italic.ttf",
+      "fonts\\Amiri-Regular.ttf",
+      "adminlte\\plugins\\summernote\\font\\summernote.eot",
+      "adminlte\\plugins\\summernote\\font\\summernote.ttf",
+      "adminlte\\plugins\\summernote\\font\\summernote.woff",
+      "adminlte\\plugins\\summernote\\font\\summernote.woff2",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-brands-400.eot",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-brands-400.ttf",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-brands-400.woff",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-brands-400.woff2",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-regular-400.eot",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-regular-400.ttf",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-regular-400.woff",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-regular-400.woff2",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-solid-900.eot",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-solid-900.ttf",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-solid-900.woff",
+      "adminlte\\plugins\\fontawesome-free\\webfonts\\fa-solid-900.woff2"
+    ],
+    "data": [
+      "datatables\\Arabic.json"
+    ],
+    "images_count": 597,
+    "fonts_count": 20,
+    "data_count": 1
+  },
+  "relationships": {
+    "DeletionLog → deleted_by_user": {
+      "from": "DeletionLog",
+      "to": "deleted_by_user",
+      "type": "one-to-many"
+    },
+    "DeletionLog → restored_by_user": {
+      "from": "DeletionLog",
+      "to": "restored_by_user",
+      "type": "one-to-many"
+    },
+    "ProductPartnerShare → partner": {
+      "from": "ProductPartnerShare",
+      "to": "partner",
+      "type": "one-to-many"
+    },
+    "ProductPartnerShare → warehouse": {
+      "from": "ProductPartnerShare",
+      "to": "warehouse",
+      "type": "one-to-many"
+    },
+    "ProductPartnerShare → product": {
+      "from": "ProductPartnerShare",
+      "to": "product",
+      "type": "one-to-many"
+    },
+    "ProductPartner → product": {
+      "from": "ProductPartner",
+      "to": "product",
+      "type": "one-to-many"
+    },
+    "ProductPartner → partner": {
+      "from": "ProductPartner",
+      "to": "partner",
+      "type": "one-to-many"
+    },
+    "SaleReturnLine → sale_return": {
+      "from": "SaleReturnLine",
+      "to": "sale_return",
+      "type": "one-to-many"
+    },
+    "SaleReturnLine → product": {
+      "from": "SaleReturnLine",
+      "to": "product",
+      "type": "one-to-many"
+    },
+    "SaleReturnLine → warehouse": {
+      "from": "SaleReturnLine",
+      "to": "warehouse",
+      "type": "one-to-many"
+    },
+    "InvoiceLine → invoice": {
+      "from": "InvoiceLine",
+      "to": "invoice",
+      "type": "one-to-many"
+    },
+    "InvoiceLine → product": {
+      "from": "InvoiceLine",
+      "to": "product",
+      "type": "one-to-many"
+    },
+    "ShipmentItem → shipment": {
+      "from": "ShipmentItem",
+      "to": "shipment",
+      "type": "one-to-many"
+    },
+    "ShipmentItem → product": {
+      "from": "ShipmentItem",
+      "to": "product",
+      "type": "one-to-many"
+    },
+    "ShipmentItem → warehouse": {
+      "from": "ShipmentItem",
+      "to": "warehouse",
+      "type": "one-to-many"
+    },
+    "OnlineCartItem → cart": {
+      "from": "OnlineCartItem",
+      "to": "cart",
+      "type": "one-to-many"
+    },
+    "OnlineCartItem → product": {
+      "from": "OnlineCartItem",
+      "to": "product",
+      "type": "one-to-many"
+    },
+    "OnlinePreOrderItem → order": {
+      "from": "OnlinePreOrderItem",
+      "to": "order",
+      "type": "one-to-many"
+    },
+    "OnlinePreOrderItem → product": {
+      "from": "OnlinePreOrderItem",
+      "to": "product",
+      "type": "one-to-many"
+    },
+    "StockAdjustmentItem → adjustment": {
+      "from": "StockAdjustmentItem",
+      "to": "adjustment",
+      "type": "one-to-many"
+    },
+    "StockAdjustmentItem → product": {
+      "from": "StockAdjustmentItem",
+      "to": "product",
+      "type": "one-to-many"
+    },
+    "StockAdjustmentItem → warehouse": {
+      "from": "StockAdjustmentItem",
+      "to": "warehouse",
+      "type": "one-to-many"
+    },
+    "DeletionLog → User": {
+      "from": "DeletionLog",
+      "to": "User",
+      "type": "one-to-many"
+    },
+    "ProductPartnerShare → Partner": {
+      "from": "ProductPartnerShare",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "ProductPartnerShare → Warehouse": {
+      "from": "ProductPartnerShare",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "ProductPartnerShare → Product": {
+      "from": "ProductPartnerShare",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "ProductPartner → Product": {
+      "from": "ProductPartner",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "ProductPartner → Partner": {
+      "from": "ProductPartner",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "SaleReturnLine → SaleReturn": {
+      "from": "SaleReturnLine",
+      "to": "SaleReturn",
+      "type": "one-to-many"
+    },
+    "SaleReturnLine → Product": {
+      "from": "SaleReturnLine",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "SaleReturnLine → Warehouse": {
+      "from": "SaleReturnLine",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "InvoiceLine → Invoice": {
+      "from": "InvoiceLine",
+      "to": "Invoice",
+      "type": "one-to-many"
+    },
+    "InvoiceLine → Product": {
+      "from": "InvoiceLine",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "ShipmentItem → Shipment": {
+      "from": "ShipmentItem",
+      "to": "Shipment",
+      "type": "one-to-many"
+    },
+    "ShipmentItem → Product": {
+      "from": "ShipmentItem",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "ShipmentItem → Warehouse": {
+      "from": "ShipmentItem",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "OnlineCartItem → OnlineCart": {
+      "from": "OnlineCartItem",
+      "to": "OnlineCart",
+      "type": "one-to-many"
+    },
+    "OnlineCartItem → Product": {
+      "from": "OnlineCartItem",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "OnlinePreOrderItem → OnlinePreOrder": {
+      "from": "OnlinePreOrderItem",
+      "to": "OnlinePreOrder",
+      "type": "one-to-many"
+    },
+    "OnlinePreOrderItem → Product": {
+      "from": "OnlinePreOrderItem",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "StockAdjustmentItem → StockAdjustment": {
+      "from": "StockAdjustmentItem",
+      "to": "StockAdjustment",
+      "type": "one-to-many"
+    },
+    "StockAdjustmentItem → Product": {
+      "from": "StockAdjustmentItem",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "StockAdjustmentItem → Warehouse": {
+      "from": "StockAdjustmentItem",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "Supplier → Payment": {
+      "from": "Supplier",
+      "to": "Payment",
+      "type": "one-to-many"
+    },
+    "Supplier → Invoice": {
+      "from": "Supplier",
+      "to": "Invoice",
+      "type": "one-to-many"
+    },
+    "Supplier → PreOrder": {
+      "from": "Supplier",
+      "to": "PreOrder",
+      "type": "one-to-many"
+    },
+    "Supplier → Warehouse": {
+      "from": "Supplier",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "Supplier → SupplierLoanSettlement": {
+      "from": "Supplier",
+      "to": "SupplierLoanSettlement",
+      "type": "one-to-many"
+    },
+    "SupplierSettlement → Supplier": {
+      "from": "SupplierSettlement",
+      "to": "Supplier",
+      "type": "one-to-many"
+    },
+    "SupplierSettlement → SupplierSettlementLine": {
+      "from": "SupplierSettlement",
+      "to": "SupplierSettlementLine",
+      "type": "one-to-many"
+    },
+    "SupplierSettlementLine → SupplierSettlement": {
+      "from": "SupplierSettlementLine",
+      "to": "SupplierSettlement",
+      "type": "one-to-many"
+    },
+    "SupplierSettlementLine → Product": {
+      "from": "SupplierSettlementLine",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "SupplierLoanSettlement → ProductSupplierLoan": {
+      "from": "SupplierLoanSettlement",
+      "to": "ProductSupplierLoan",
+      "type": "one-to-many"
+    },
+    "SupplierLoanSettlement → Supplier": {
+      "from": "SupplierLoanSettlement",
+      "to": "Supplier",
+      "type": "one-to-many"
+    },
+    "SupplierLoanSettlement → Payment": {
+      "from": "SupplierLoanSettlement",
+      "to": "Payment",
+      "type": "one-to-many"
+    },
+    "Partner → Warehouse": {
+      "from": "Partner",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "Partner → Payment": {
+      "from": "Partner",
+      "to": "Payment",
+      "type": "one-to-many"
+    },
+    "Partner → PreOrder": {
+      "from": "Partner",
+      "to": "PreOrder",
+      "type": "one-to-many"
+    },
+    "Partner → Invoice": {
+      "from": "Partner",
+      "to": "Invoice",
+      "type": "one-to-many"
+    },
+    "Partner → ShipmentPartner": {
+      "from": "Partner",
+      "to": "ShipmentPartner",
+      "type": "one-to-many"
+    },
+    "Partner → WarehousePartnerShare": {
+      "from": "Partner",
+      "to": "WarehousePartnerShare",
+      "type": "one-to-many"
+    },
+    "Partner → ProductPartnerShare": {
+      "from": "Partner",
+      "to": "ProductPartnerShare",
+      "type": "one-to-many"
+    },
+    "Partner → ProductPartner": {
+      "from": "Partner",
+      "to": "ProductPartner",
+      "type": "one-to-many"
+    },
+    "Partner → ServicePart": {
+      "from": "Partner",
+      "to": "ServicePart",
+      "type": "one-to-many"
+    },
+    "Partner → ServiceTask": {
+      "from": "Partner",
+      "to": "ServiceTask",
+      "type": "one-to-many"
+    },
+    "Partner → Expense": {
+      "from": "Partner",
+      "to": "Expense",
+      "type": "one-to-many"
+    },
+    "PartnerSettlement → Partner": {
+      "from": "PartnerSettlement",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "PartnerSettlement → PartnerSettlementLine": {
+      "from": "PartnerSettlement",
+      "to": "PartnerSettlementLine",
+      "type": "one-to-many"
+    },
+    "PartnerSettlementLine → PartnerSettlement": {
+      "from": "PartnerSettlementLine",
+      "to": "PartnerSettlement",
+      "type": "one-to-many"
+    },
+    "PartnerSettlementLine → Product": {
+      "from": "PartnerSettlementLine",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "PartnerSettlementLine → Warehouse": {
+      "from": "PartnerSettlementLine",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "EquipmentType → Product": {
+      "from": "EquipmentType",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "EquipmentType → ServiceRequest": {
+      "from": "EquipmentType",
+      "to": "ServiceRequest",
+      "type": "one-to-many"
+    },
+    "ProductCategory → ProductCategory": {
+      "from": "ProductCategory",
+      "to": "ProductCategory",
+      "type": "one-to-many"
+    },
+    "ProductCategory → Product": {
+      "from": "ProductCategory",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "Warehouse → Warehouse": {
+      "from": "Warehouse",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "Warehouse → Supplier": {
+      "from": "Warehouse",
+      "to": "Supplier",
+      "type": "one-to-many"
+    },
+    "Warehouse → Partner": {
+      "from": "Warehouse",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "Warehouse → StockLevel": {
+      "from": "Warehouse",
+      "to": "StockLevel",
+      "type": "one-to-many"
+    },
+    "Warehouse → Transfer": {
+      "from": "Warehouse",
+      "to": "Transfer",
+      "type": "one-to-many"
+    },
+    "Warehouse → SaleLine": {
+      "from": "Warehouse",
+      "to": "SaleLine",
+      "type": "one-to-many"
+    },
+    "Warehouse → ServicePart": {
+      "from": "Warehouse",
+      "to": "ServicePart",
+      "type": "one-to-many"
+    },
+    "Warehouse → ExchangeTransaction": {
+      "from": "Warehouse",
+      "to": "ExchangeTransaction",
+      "type": "one-to-many"
+    },
+    "Warehouse → ShipmentItem": {
+      "from": "Warehouse",
+      "to": "ShipmentItem",
+      "type": "one-to-many"
+    },
+    "Warehouse → Shipment": {
+      "from": "Warehouse",
+      "to": "Shipment",
+      "type": "one-to-many"
+    },
+    "Warehouse → PreOrder": {
+      "from": "Warehouse",
+      "to": "PreOrder",
+      "type": "one-to-many"
+    },
+    "Warehouse → WarehousePartnerShare": {
+      "from": "Warehouse",
+      "to": "WarehousePartnerShare",
+      "type": "one-to-many"
+    },
+    "Warehouse → Expense": {
+      "from": "Warehouse",
+      "to": "Expense",
+      "type": "one-to-many"
+    },
+    "Warehouse → StockAdjustment": {
+      "from": "Warehouse",
+      "to": "StockAdjustment",
+      "type": "one-to-many"
+    },
+    "StockLevel → Product": {
+      "from": "StockLevel",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "StockLevel → Warehouse": {
+      "from": "StockLevel",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "ImportRun → Warehouse": {
+      "from": "ImportRun",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "ImportRun → User": {
+      "from": "ImportRun",
+      "to": "User",
+      "type": "one-to-many"
+    },
+    "Transfer → Product": {
+      "from": "Transfer",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "Transfer → Warehouse": {
+      "from": "Transfer",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "Transfer → User": {
+      "from": "Transfer",
+      "to": "User",
+      "type": "one-to-many"
+    },
+    "ExchangeTransaction → Product": {
+      "from": "ExchangeTransaction",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "ExchangeTransaction → Warehouse": {
+      "from": "ExchangeTransaction",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "ExchangeTransaction → Supplier": {
+      "from": "ExchangeTransaction",
+      "to": "Supplier",
+      "type": "one-to-many"
+    },
+    "ExchangeTransaction → Partner": {
+      "from": "ExchangeTransaction",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "ExchangeTransaction → GLBatch": {
+      "from": "ExchangeTransaction",
+      "to": "GLBatch",
+      "type": "one-to-many"
+    },
+    "WarehousePartnerShare → Partner": {
+      "from": "WarehousePartnerShare",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "WarehousePartnerShare → Warehouse": {
+      "from": "WarehousePartnerShare",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "WarehousePartnerShare → Product": {
+      "from": "WarehousePartnerShare",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "PreOrder → Customer": {
+      "from": "PreOrder",
+      "to": "Customer",
+      "type": "one-to-many"
+    },
+    "PreOrder → Supplier": {
+      "from": "PreOrder",
+      "to": "Supplier",
+      "type": "one-to-many"
+    },
+    "PreOrder → Partner": {
+      "from": "PreOrder",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "PreOrder → Product": {
+      "from": "PreOrder",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "PreOrder → Warehouse": {
+      "from": "PreOrder",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "PreOrder → User": {
+      "from": "PreOrder",
+      "to": "User",
+      "type": "one-to-many"
+    },
+    "PreOrder → PreOrder": {
+      "from": "PreOrder",
+      "to": "PreOrder",
+      "type": "one-to-many"
+    },
+    "PreOrder → Payment": {
+      "from": "PreOrder",
+      "to": "Payment",
+      "type": "one-to-many"
+    },
+    "PreOrder → Sale": {
+      "from": "PreOrder",
+      "to": "Sale",
+      "type": "one-to-many"
+    },
+    "PreOrder → Invoice": {
+      "from": "PreOrder",
+      "to": "Invoice",
+      "type": "one-to-many"
+    },
+    "Sale → Customer": {
+      "from": "Sale",
+      "to": "Customer",
+      "type": "one-to-many"
+    },
+    "Sale → User": {
+      "from": "Sale",
+      "to": "User",
+      "type": "one-to-many"
+    },
+    "Sale → PreOrder": {
+      "from": "Sale",
+      "to": "PreOrder",
+      "type": "one-to-many"
+    },
+    "Sale → Sale": {
+      "from": "Sale",
+      "to": "Sale",
+      "type": "one-to-many"
+    },
+    "Sale → SaleLine": {
+      "from": "Sale",
+      "to": "SaleLine",
+      "type": "one-to-many"
+    },
+    "Sale → Payment": {
+      "from": "Sale",
+      "to": "Payment",
+      "type": "one-to-many"
+    },
+    "Sale → Invoice": {
+      "from": "Sale",
+      "to": "Invoice",
+      "type": "one-to-many"
+    },
+    "Sale → Shipment": {
+      "from": "Sale",
+      "to": "Shipment",
+      "type": "one-to-many"
+    },
+    "Sale → GLBatch": {
+      "from": "Sale",
+      "to": "GLBatch",
+      "type": "one-to-many"
+    },
+    "SaleLine → Sale": {
+      "from": "SaleLine",
+      "to": "Sale",
+      "type": "one-to-many"
+    },
+    "SaleLine → Product": {
+      "from": "SaleLine",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "SaleLine → Warehouse": {
+      "from": "SaleLine",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "SaleReturn → Sale": {
+      "from": "SaleReturn",
+      "to": "Sale",
+      "type": "one-to-many"
+    },
+    "SaleReturn → Customer": {
+      "from": "SaleReturn",
+      "to": "Customer",
+      "type": "one-to-many"
+    },
+    "SaleReturn → Warehouse": {
+      "from": "SaleReturn",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "SaleReturn → Invoice": {
+      "from": "SaleReturn",
+      "to": "Invoice",
+      "type": "one-to-many"
+    },
+    "SaleReturn → SaleReturnLine": {
+      "from": "SaleReturn",
+      "to": "SaleReturnLine",
+      "type": "one-to-many"
+    },
+    "ProductSupplierLoan → Product": {
+      "from": "ProductSupplierLoan",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "ProductSupplierLoan → Supplier": {
+      "from": "ProductSupplierLoan",
+      "to": "Supplier",
+      "type": "one-to-many"
+    },
+    "ProductSupplierLoan → SupplierLoanSettlement": {
+      "from": "ProductSupplierLoan",
+      "to": "SupplierLoanSettlement",
+      "type": "one-to-many"
+    },
+    "Shipment → ShipmentItem": {
+      "from": "Shipment",
+      "to": "ShipmentItem",
+      "type": "one-to-many"
+    },
+    "Shipment → ShipmentPartner": {
+      "from": "Shipment",
+      "to": "ShipmentPartner",
+      "type": "one-to-many"
+    },
+    "Shipment → Payment": {
+      "from": "Shipment",
+      "to": "Payment",
+      "type": "one-to-many"
+    },
+    "Shipment → Sale": {
+      "from": "Shipment",
+      "to": "Sale",
+      "type": "one-to-many"
+    },
+    "Shipment → Warehouse": {
+      "from": "Shipment",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "Shipment → Expense": {
+      "from": "Shipment",
+      "to": "Expense",
+      "type": "one-to-many"
+    },
+    "ShipmentPartner → Partner": {
+      "from": "ShipmentPartner",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "ShipmentPartner → Shipment": {
+      "from": "ShipmentPartner",
+      "to": "Shipment",
+      "type": "one-to-many"
+    },
+    "ServiceRequest → Customer": {
+      "from": "ServiceRequest",
+      "to": "Customer",
+      "type": "one-to-many"
+    },
+    "ServiceRequest → User": {
+      "from": "ServiceRequest",
+      "to": "User",
+      "type": "one-to-many"
+    },
+    "ServiceRequest → EquipmentType": {
+      "from": "ServiceRequest",
+      "to": "EquipmentType",
+      "type": "one-to-many"
+    },
+    "ServiceRequest → Invoice": {
+      "from": "ServiceRequest",
+      "to": "Invoice",
+      "type": "one-to-many"
+    },
+    "ServiceRequest → Payment": {
+      "from": "ServiceRequest",
+      "to": "Payment",
+      "type": "one-to-many"
+    },
+    "ServiceRequest → ServicePart": {
+      "from": "ServiceRequest",
+      "to": "ServicePart",
+      "type": "one-to-many"
+    },
+    "ServiceRequest → ServiceTask": {
+      "from": "ServiceRequest",
+      "to": "ServiceTask",
+      "type": "one-to-many"
+    },
+    "ServiceRequest → GLBatch": {
+      "from": "ServiceRequest",
+      "to": "GLBatch",
+      "type": "one-to-many"
+    },
+    "ServiceRequest → ServiceRequest": {
+      "from": "ServiceRequest",
+      "to": "ServiceRequest",
+      "type": "one-to-many"
+    },
+    "ServicePart → ServiceRequest": {
+      "from": "ServicePart",
+      "to": "ServiceRequest",
+      "type": "one-to-many"
+    },
+    "ServicePart → Product": {
+      "from": "ServicePart",
+      "to": "Product",
+      "type": "one-to-many"
+    },
+    "ServicePart → Warehouse": {
+      "from": "ServicePart",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "ServicePart → Partner": {
+      "from": "ServicePart",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "ServiceTask → ServiceRequest": {
+      "from": "ServiceTask",
+      "to": "ServiceRequest",
+      "type": "one-to-many"
+    },
+    "ServiceTask → Partner": {
+      "from": "ServiceTask",
+      "to": "Partner",
+      "type": "one-to-many"
+    },
+    "OnlineCart → Customer": {
+      "from": "OnlineCart",
+      "to": "Customer",
+      "type": "one-to-many"
+    },
+    "OnlineCart → OnlineCartItem": {
+      "from": "OnlineCart",
+      "to": "OnlineCartItem",
+      "type": "one-to-many"
+    },
+    "OnlinePreOrder → Warehouse": {
+      "from": "OnlinePreOrder",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "OnlinePreOrder → Customer": {
+      "from": "OnlinePreOrder",
+      "to": "Customer",
+      "type": "one-to-many"
+    },
+    "OnlinePreOrder → OnlineCart": {
+      "from": "OnlinePreOrder",
+      "to": "OnlineCart",
+      "type": "one-to-many"
+    },
+    "OnlinePreOrder → OnlinePreOrderItem": {
+      "from": "OnlinePreOrder",
+      "to": "OnlinePreOrderItem",
+      "type": "one-to-many"
+    },
+    "OnlinePreOrder → OnlinePayment": {
+      "from": "OnlinePreOrder",
+      "to": "OnlinePayment",
+      "type": "one-to-many"
+    },
+    "OnlinePayment → OnlinePreOrder": {
+      "from": "OnlinePayment",
+      "to": "OnlinePreOrder",
+      "type": "one-to-many"
+    },
+    "StockAdjustment → Warehouse": {
+      "from": "StockAdjustment",
+      "to": "Warehouse",
+      "type": "one-to-many"
+    },
+    "StockAdjustment → StockAdjustmentItem": {
+      "from": "StockAdjustment",
+      "to": "StockAdjustmentItem",
+      "type": "one-to-many"
+    },
+    "StockAdjustment → Expense": {
+      "from": "StockAdjustment",
+      "to": "Expense",
+      "type": "one-to-many"
+    },
+    "GLBatch → GLEntry": {
+      "from": "GLBatch",
+      "to": "GLEntry",
+      "type": "one-to-many"
+    },
+    "Supplier → Customer": {
+      "from": "Supplier",
+      "to": "Customer",
+      "type": "one-to-many"
+    },
+    "Supplier → User": {
+      "from": "Supplier",
+      "to": "User",
+      "type": "one-to-many"
+    },
+    "Partner → Customer": {
+      "from": "Partner",
+      "to": "Customer",
+      "type": "one-to-many"
+    },
+    "Partner → User": {
+      "from": "Partner",
+      "to": "User",
+      "type": "one-to-many"
+    },
+    "Shipment → User": {
+      "from": "Shipment",
+      "to": "User",
+      "type": "one-to-many"
+    }
+  },
+  "business_rules": [
+    {
+      "rule": "كل كراج له قاعدة بيانات مستقلة",
+      "source": "app.py - multi-tenant architecture",
+      "impact": "high"
+    },
+    {
+      "rule": "لا يمكن حذف دفعة مربوطة بفاتورة",
+      "source": "routes/payments.py",
+      "impact": "high"
+    },
+    {
+      "rule": "الشريك يتسلم أرباحه بعد التسوية فقط",
+      "source": "models.py - PartnerSettlement",
+      "impact": "medium"
+    },
+    {
+      "rule": "Super Admin (ID=1) يتجاوز وضع الصيانة",
+      "source": "app.py - check_maintenance_mode",
+      "impact": "high"
+    },
+    {
+      "rule": "المخازن بأنواع: Online, Partner, Inventory, Exchange, Main",
+      "source": "models.py - Warehouse",
+      "impact": "medium"
+    },
+    {
+      "rule": "العملات المدعومة: ILS, USD, JOD, EUR",
+      "source": "models.py - CURRENCY_CHOICES",
+      "impact": "high"
+    },
+    {
+      "rule": "سعر الصرف يُحفظ مع كل عملية (fx_rate_used)",
+      "source": "models.py - Payment, Invoice",
+      "impact": "high"
+    },
+    {
+      "rule": "التحويل التلقائي بين العملات عند الدفع",
+      "source": "routes/payments.py",
+      "impact": "medium"
+    },
+    {
+      "rule": "سعر الصرف من 3 مصادر: online, manual, default",
+      "source": "models.py - fx_rate_source",
+      "impact": "medium"
+    }
+  ],
+  "common_errors": [],
+  "last_indexed": "2025-10-18T12:09:57.652989",
+  "index_count": 8
+}

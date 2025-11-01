@@ -303,17 +303,17 @@
           <div class="card-body p-0">
             <ul class="nav nav-tabs" id="operationsTabs" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock-content" type="button" role="tab">
+                <button class="nav-link active" id="stock-tab" data-toggle="tab" data-target="#stock-content" type="button" role="tab">
                   <i class="fas fa-box me-1"></i> تحديث مخزون
                 </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="transfer-tab" data-bs-toggle="tab" data-bs-target="#transfer-content" type="button" role="tab">
+                <button class="nav-link" id="transfer-tab" data-toggle="tab" data-target="#transfer-content" type="button" role="tab">
                   <i class="fas fa-exchange-alt me-1"></i> تحويل
                 </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="exchange-tab" data-bs-toggle="tab" data-bs-target="#exchange-content" type="button" role="tab">
+                <button class="nav-link" id="exchange-tab" data-toggle="tab" data-target="#exchange-content" type="button" role="tab">
                   <i class="fas fa-random me-1"></i> وارد/صادر/تسوية
                 </button>
               </li>
@@ -646,7 +646,7 @@
     // ========== دعم Bootstrap Tabs (4 و 5) ==========
     $(function() {
       // دعم Bootstrap 4
-      $('[data-bs-toggle="tab"]').on('click', function(e) {
+      $('[data-toggle="tab"]').on('click', function(e) {
         e.preventDefault();
         const target = $(this).data('bs-target');
         

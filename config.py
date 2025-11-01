@@ -85,14 +85,19 @@ class Config:
             "timeout": 30,
             "check_same_thread": False if _is_sqlite else True,
         },
-        "pool_pre_ping": True,
-        "pool_recycle": 1800,
+        "pool_pre_ping": True,  # ✅ فحص الاتصال قبل الاستخدام
+        "pool_recycle": 1800,   # ✅ إعادة تدوير كل 30 دقيقة
         "pool_size": _int("SQLALCHEMY_POOL_SIZE", 10),
         "max_overflow": _int("SQLALCHEMY_MAX_OVERFLOW", 20),
         "pool_timeout": _int("SQLALCHEMY_POOL_TIMEOUT", 30),
+        "echo": False,          # ✅ إيقاف SQL logging للأداء
+        "echo_pool": False,     # ✅ إيقاف pool logging
     }
     
     SQLALCHEMY_ECHO = False
+    
+    # Template auto-reload
+    TEMPLATES_AUTO_RELOAD = True
 
     JSON_AS_ASCII = False
     JSON_SORT_KEYS = False
@@ -169,13 +174,16 @@ class Config:
     RATELIMIT_LOGIN = "10 per hour;3 per minute"
     RATELIMIT_API = "60 per hour;1 per second"
     
-    # Cache
+    # Cache - تحسين التخزين المؤقت
     CACHE_TYPE = os.environ.get("CACHE_TYPE", "simple")
     CACHE_REDIS_URL = os.environ.get("CACHE_REDIS_URL", REDIS_URL)
     CACHE_DEFAULT_TIMEOUT = _int("CACHE_DEFAULT_TIMEOUT", 300)
     CACHE_KEY_PREFIX = os.environ.get("CACHE_KEY_PREFIX", "garage_manager")
+    CACHE_THRESHOLD = _int("CACHE_THRESHOLD", 500)  # ✅ عدد العناصر قبل التنظيف التلقائي
 
-    ITEMS_PER_PAGE = _int("ITEMS_PER_PAGE", 10)
+    # ✅ Pagination محسّن
+    ITEMS_PER_PAGE = _int("ITEMS_PER_PAGE", 50)  # زيادة من 10 إلى 50 للأداء الأفضل
+    MAX_ITEMS_PER_PAGE = _int("MAX_ITEMS_PER_PAGE", 100)  # حد أقصى
     SHOP_PREPAID_RATE = _float("SHOP_PREPAID_RATE", 0.20)
     SHOP_WAREHOUSE_IDS = _csv_int("SHOP_WAREHOUSE_IDS")
     SHOP_WAREHOUSE_TYPES = _csv_str("SHOP_WAREHOUSE_TYPES", ["MAIN", "INVENTORY"])

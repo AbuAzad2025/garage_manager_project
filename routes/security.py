@@ -3,13 +3,13 @@ from flask_login import login_required, current_user
 from sqlalchemy import text, func
 from datetime import datetime, timedelta, timezone
 from extensions import db, cache
-from models import User, AuditLog
+from models import User, AuditLog, SystemSettings
 import utils
 from functools import wraps
 import json
 import os
 
-from services.ai_service import (
+from AI.engine.ai_service import (
     ai_chat_with_search,
     search_database_for_query,
     gather_system_context,
@@ -98,7 +98,6 @@ def owner_only(f):
     return decorated_function
 
 
-# Alias للتوافق
 super_admin_only = owner_only
 
 
@@ -106,23 +105,9 @@ super_admin_only = owner_only
 @owner_only
 def dashboard():
     """
-    🎯 Dashboard الموحد الجديد - النسخة المُحدّثة
+    🎯 Dashboard - redirect إلى الصفحة الرئيسية الموحدة
     """
-    from datetime import datetime, timedelta, timezone
-    
-    stats = {
-        'total_users': User.query.count(),
-        'active_users': User.query.filter_by(is_active=True).count(),
-        'blocked_users': User.query.filter_by(is_active=False).count(),
-        'online_users': 0,
-        'blocked_ips': 0,
-        'blocked_countries': 0,
-        'failed_logins_24h': 0,
-        'db_size': 'N/A',
-        'system_health': 'ممتاز'
-    }
-    
-    return render_template('security/dashboard.html', stats=stats)
+    return redirect(url_for('security.index'))
 
 
 @security_bp.route('/saas-manager')
@@ -563,8 +548,12 @@ def api_saas_invoice_pdf(invoice_id):
 @security_bp.route('/')
 @owner_only
 def index():
-    """Redirect to new unified dashboard"""
-    return redirect(url_for('security.dashboard'))
+    """
+    👑 لوحة التحكم الأمنية الرئيسية - Owner's Security Dashboard
+    
+    مع Caching للإحصائيات (5 دقائق)
+    """
+    return render_template('security/index.html', stats=get_cached_security_stats(), recent=get_recent_suspicious_activities())
 
 
 @security_bp.route('/index-old')
@@ -589,7 +578,7 @@ def index_old():
         ✅ روابط سريعة لجميع الأدوات
     
     📊 Quick Links:
-        - Ultimate Control (37+ أداة)
+        - مركز القيادة الموحد (7 مراكز + 41 وظيفة)
         - User Control (إدارة مستخدمين)
         - Database Manager (3 in 1)
         - SQL Console
@@ -695,7 +684,7 @@ def index_old():
 
 
 @security_bp.route('/block-ip', methods=['GET', 'POST'])
-@super_admin_only
+@owner_only
 def block_ip():
     """حظر IP معين"""
     if request.method == 'POST':
@@ -714,7 +703,7 @@ def block_ip():
 
 
 @security_bp.route('/blocked-ips')
-@super_admin_only
+@owner_only
 def blocked_ips():
     """قائمة IPs المحظورة"""
     blocked = _get_all_blocked_ips()
@@ -722,7 +711,7 @@ def blocked_ips():
 
 
 @security_bp.route('/unblock-ip/<ip>', methods=['POST'])
-@super_admin_only
+@owner_only
 def unblock_ip(ip):
     """إلغاء حظر IP"""
     _unblock_ip(ip)
@@ -731,7 +720,7 @@ def unblock_ip(ip):
 
 
 @security_bp.route('/block-country', methods=['GET', 'POST'])
-@super_admin_only
+@owner_only
 def block_country():
     """حظر دولة معينة"""
     if request.method == 'POST':
@@ -749,7 +738,7 @@ def block_country():
 
 
 @security_bp.route('/blocked-countries')
-@super_admin_only
+@owner_only
 def blocked_countries():
     """قائمة الدول المحظورة"""
     blocked = _get_all_blocked_countries()
@@ -757,7 +746,7 @@ def blocked_countries():
 
 
 @security_bp.route('/block-user/<int:user_id>', methods=['POST'])
-@super_admin_only
+@owner_only
 def block_user(user_id):
     """حظر مستخدم معين"""
     user = User.query.get_or_404(user_id)
@@ -773,7 +762,7 @@ def block_user(user_id):
 
 
 @security_bp.route('/system-cleanup', methods=['GET', 'POST'])
-@super_admin_only
+@owner_only
 def system_cleanup():
     """تنظيف جداول النظام (Format)"""
     if request.method == 'POST':
@@ -794,409 +783,68 @@ def system_cleanup():
     return render_template('security/system_cleanup.html', tables=cleanable_tables)
 
 
-@security_bp.route('/logs-manager')
-@owner_only
-def logs_manager():
-    """مدير السجلات الموحد - 3 في 1 (تدقيق + نظام + أخطاء)"""
-    tab = request.args.get('tab', 'audit')  # audit, system, errors
-    
-    # فلاتر
-    filter_user = request.args.get('user_id')
-    filter_action = request.args.get('action')
-    filter_date = request.args.get('date')
-    
-    # سجلات التدقيق
-    audit_query = AuditLog.query
-    if filter_user:
-        audit_query = audit_query.filter_by(user_id=filter_user)
-    if filter_action:
-        audit_query = audit_query.filter(AuditLog.action.like(f'%{filter_action}%'))
-    if filter_date:
-        audit_query = audit_query.filter(func.date(AuditLog.created_at) == filter_date)
-    
-    audit_logs = audit_query.order_by(AuditLog.created_at.desc()).limit(200).all()
-    audit_count = AuditLog.query.count()
-    
-    # سجلات النظام (من ملف اللوجات)
-    system_logs = ""
-    system_logs_count = 0
-    try:
-        log_file = 'logs/app.log'
-        if os.path.exists(log_file):
-            with open(log_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                system_logs = ''.join(lines[-500:])  # آخر 500 سطر
-                system_logs_count = len(lines)
-    except:
-        system_logs = "تعذر قراءة ملف السجلات"
-    
-    # تتبع الأخطاء (محاولات فاشلة من AuditLog)
-    error_logs = AuditLog.query.filter(
-        AuditLog.action.like('%failed%') | 
-        AuditLog.action.like('%error%')
-    ).order_by(AuditLog.created_at.desc()).limit(100).all()
-    
-    errors_count = len(error_logs)
-    errors_today = sum(1 for e in error_logs if e.created_at.date() == datetime.utcnow().date())
-    errors_week = sum(1 for e in error_logs if e.created_at >= datetime.utcnow() - timedelta(days=7))
-    errors_month = sum(1 for e in error_logs if e.created_at >= datetime.utcnow() - timedelta(days=30))
-    errors_total = AuditLog.query.filter(
-        AuditLog.action.like('%failed%') | AuditLog.action.like('%error%')
-    ).count()
-    
-    all_users = User.query.order_by(User.username).all()
-    
-    return render_template('security/logs_manager.html',
-                          audit_logs=audit_logs,
-                          audit_count=audit_count,
-                          system_logs=system_logs,
-                          system_logs_count=system_logs_count,
-                          error_logs=error_logs,
-                          errors_count=errors_count,
-                          errors_today=errors_today,
-                          errors_week=errors_week,
-                          errors_month=errors_month,
-                          errors_total=errors_total,
-                          all_users=all_users,
-                          filter_user=filter_user,
-                          filter_action=filter_action,
-                          filter_date=filter_date,
-                          active_tab=tab)
-
-
-# Backward compatibility
 @security_bp.route('/audit-logs')
-@super_admin_only
+@owner_only
 def audit_logs():
-    """Redirect to logs_manager - audit tab"""
-    return redirect(url_for('security.logs_manager', tab='audit'))
+    """Redirect to Database Control Center - Logs tab"""
+    return redirect(url_for('security.database_manager', tab='logs', log_type='audit'))
 
 
 @security_bp.route('/failed-logins')
-@super_admin_only
+@owner_only
 def failed_logins():
     """Redirect to logs_manager - errors tab"""
     return redirect(url_for('security.logs_manager', tab='errors'))
 
 
-# ═══════════════════════════════════════════════════════════════
-# AI Control Panel - UNIFIED
-# ═══════════════════════════════════════════════════════════════
 
-@security_bp.route('/ai-hub')
-@security_bp.route('/ai-control-panel')
-@security_bp.route('/ai-control')
+@security_bp.route('/security-center')
 @owner_only
-def ai_hub():
+def security_center():
     """
-    🤖 AI Hub الموحد - 6 في 1
-    - المساعد الذكي
-    - الإعدادات
-    - التحليلات
-    - التشخيص
-    - التدريب
-    - الأنماط
+    🛡️ Security & Monitoring Center - 4 في 1
+    - مراقبة فورية (Live Monitoring)
+    - جدار الحماية (Firewall)
+    - التنبيهات (Notifications)
+    - النشاط (Activity Timeline)
     """
-    tab = request.args.get('tab', 'assistant')
+    tab = request.args.get('tab', 'monitoring')
     
-    # بيانات بسيطة
-    ai_config = {'enabled': True, 'auto_suggestions': True, 'model': 'gpt-4', 'temperature': 0.7, 'max_tokens': 1000}
-    ai_stats = {'total_queries': 0, 'successful': 0, 'avg_response_time': 0, 'today': 0}
-    diagnostics = {'ai_service_status': True, 'api_key_valid': True, 'success_rate': 95, 'avg_time': 1.2, 'last_error': None, 'warnings': []}
-    
-    return render_template('security/ai_hub.html',
-                          chat_history=[],
-                          ai_config=ai_config,
-                          ai_stats=ai_stats,
-                          recent_queries=[],
-                          diagnostics=diagnostics,
-                          training_examples=[],
-                          suspicious_patterns=[],
-                          pattern_data=None,
-                          test_result=None,
-                          active_tab=tab)
-
-
-# ═══════════════════════════════════════════════════════════════
-# AI Security Assistant - ADVANCED
-# ═══════════════════════════════════════════════════════════════
-
-@security_bp.route('/ai-assistant', methods=['GET', 'POST'])
-@login_required
-def ai_assistant():
-    """المساعد الذكي الشامل - متاح لجميع المستخدمين"""
-    if request.method == 'POST':
-        query = request.form.get('query', '').strip()
-        analysis = _ai_security_analysis(query)
-        return render_template('security/ai_assistant.html', query=query, analysis=analysis)
-    
-    # اقتراحات ذكية
-    suggestions = _get_ai_suggestions()
-    
-    return render_template('security/ai_assistant.html', suggestions=suggestions)
-
-
-@security_bp.route('/ai-diagnostics')
-@owner_only
-def ai_diagnostics():
-    """Redirect to AI Hub - Diagnostics Tab"""
-    return redirect(url_for('security.ai_hub', tab='diagnostics'))
-
-
-@security_bp.route('/system-map', methods=['GET', 'POST'])
-@owner_only
-def system_map():
-    """خريطة النظام - Auto Discovery"""
-    from services.ai_auto_discovery import (
-        build_system_map,
-        load_system_map,
-        SYSTEM_MAP_FILE,
-        DISCOVERY_LOG_FILE
-    )
-    import os
-    
-    system_map_data = load_system_map()
-    map_exists = os.path.exists(SYSTEM_MAP_FILE)
-    
-    logs = []
-    if os.path.exists(DISCOVERY_LOG_FILE):
-        try:
-            with open(DISCOVERY_LOG_FILE, 'r', encoding='utf-8') as f:
-                import json
-                logs = json.load(f)[-10:]  # آخر 10 أحداث
-        except:
-            pass
-    
-    if request.method == 'POST':
-        action = request.form.get('action')
-        
-        if action == 'rebuild':
-            try:
-                system_map_data = build_system_map()
-                flash('✅ تم إعادة بناء خريطة النظام بنجاح!', 'success')
-            except Exception as e:
-                flash(f'⚠️ خطأ: {str(e)}', 'danger')
-            return redirect(url_for('security.system_map'))
-    
-    return render_template('security/system_map.html',
-                         system_map=system_map_data,
-                         map_exists=map_exists,
-                         logs=logs)
-
-
-@security_bp.route('/ai-training', methods=['GET', 'POST'])
-@owner_only
-def ai_training():
-    """Redirect to AI Hub - Training Tab"""
-    return redirect(url_for('security.ai_hub', tab='training'))
-    """تدريب المساعد الذكي - للمالك فقط"""
-    """واجهة التدريب الشامل - نظام الوعي الذاتي الكامل"""
-    from services.ai_knowledge import get_knowledge_base, KNOWLEDGE_CACHE_FILE, TRAINING_LOG_FILE
-    from services.ai_auto_discovery import build_system_map, load_system_map
-    from services.ai_data_awareness import build_data_schema, load_data_schema
-    from services.ai_self_review import analyze_recent_interactions
-    import os
-    import json
-    from datetime import datetime
-    
-    # تحميل البيانات الحالية
-    kb = get_knowledge_base()
-    structure = kb.get_system_structure()
-    cache_exists = os.path.exists(KNOWLEDGE_CACHE_FILE)
-    last_indexed = kb.knowledge.get('last_indexed', 'لم يتم الفهرسة بعد')
-    index_count = kb.knowledge.get('index_count', 0)
-    
-    # تحميل حالة النظام
-    system_map = load_system_map()
-    data_schema = load_data_schema()
-    
-    # التقرير الشامل
-    training_report = None
-    
-    if request.method == 'POST':
-        action = request.form.get('action')
-        
-        if action == 'comprehensive_training':
-            # 🧠 التدريب الشامل
-            training_report = {
-                'start_time': datetime.now().isoformat(),
-                'steps': [],
-                'status': 'in_progress'
-            }
-            
-            try:
-                # 1️⃣ تحليل النظام الكامل (Auto Discovery)
-                training_report['steps'].append({'name': 'Auto Discovery', 'status': 'started'})
-                system_map = build_system_map()
-                training_report['steps'][-1]['status'] = 'completed'
-                training_report['steps'][-1]['result'] = {
-                    'routes': system_map['statistics']['total_routes'],
-                    'templates': system_map['statistics']['total_templates'],
-                    'blueprints': len(system_map['blueprints'])
-                }
-                
-                # 2️⃣ تحليل البيانات (Data Profiling)
-                training_report['steps'].append({'name': 'Data Profiling', 'status': 'started'})
-                data_schema = build_data_schema()
-                training_report['steps'][-1]['status'] = 'completed'
-                training_report['steps'][-1]['result'] = {
-                    'tables': data_schema['statistics']['total_tables'],
-                    'columns': data_schema['statistics']['total_columns'],
-                    'relationships': data_schema['statistics']['total_relationships']
-                }
-                
-                # 3️⃣ تحديث المعرفة
-                training_report['steps'].append({'name': 'Knowledge Update', 'status': 'started'})
-                kb.index_all_files(force_reindex=True)
-                training_report['steps'][-1]['status'] = 'completed'
-                
-                # 4️⃣ الاختبار الذاتي
-                training_report['steps'].append({'name': 'Self Validation', 'status': 'started'})
-                
-                # اختبار 5 استعلامات
-                from models import Customer, Expense, ServiceRequest, ExchangeTransaction, Payment
-                
-                test_results = {
-                    'customers_count': Customer.query.count(),
-                    'expenses_count': Expense.query.count(),
-                    'services_count': ServiceRequest.query.count(),
-                    'last_exchange_rate': 'N/A',
-                    'last_payment': 'N/A'
-                }
-                
-                try:
-                    latest_fx = ExchangeTransaction.query.order_by(
-                        ExchangeTransaction.created_at.desc()
-                    ).first()
-                    if latest_fx:
-                        test_results['last_exchange_rate'] = f"{float(latest_fx.rate):.2f}"
-                except:
-                    pass
-                
-                try:
-                    latest_payment = Payment.query.order_by(
-                        Payment.created_at.desc()
-                    ).first()
-                    if latest_payment:
-                        test_results['last_payment'] = f"{float(latest_payment.total_amount):.2f}"
-                except:
-                    pass
-                
-                # حساب درجة الثقة
-                confidence = 0
-                if test_results['customers_count'] > 0:
-                    confidence += 20
-                if test_results['expenses_count'] > 0:
-                    confidence += 20
-                if test_results['services_count'] > 0:
-                    confidence += 20
-                if test_results['last_exchange_rate'] != 'N/A':
-                    confidence += 20
-                if test_results['last_payment'] != 'N/A':
-                    confidence += 20
-                
-                training_report['steps'][-1]['status'] = 'completed'
-                training_report['steps'][-1]['result'] = test_results
-                training_report['confidence'] = confidence
-                
-                # 5️⃣ تحليل الأداء
-                training_report['steps'].append({'name': 'Performance Analysis', 'status': 'started'})
-                interactions = analyze_recent_interactions(100)
-                training_report['steps'][-1]['status'] = 'completed'
-                training_report['steps'][-1]['result'] = {
-                    'avg_confidence': interactions.get('avg_confidence', 0),
-                    'quality_score': interactions.get('quality_score', 'N/A')
-                }
-                
-                training_report['status'] = 'success' if confidence >= 70 else 'partial'
-                training_report['end_time'] = datetime.now().isoformat()
-                
-                # حفظ التقرير
-                _log_training_event('comprehensive_training', current_user.id, training_report)
-                
-                if confidence >= 70:
-                    flash(f'✅ تم التدريب الشامل بنجاح! درجة الثقة: {confidence}%', 'success')
-                else:
-                    flash(f'⚠️ تدريب جزئي. درجة الثقة: {confidence}%', 'warning')
-                
-            except Exception as e:
-                training_report['status'] = 'failed'
-                training_report['error'] = str(e)
-                flash(f'❌ فشل التدريب: {str(e)}', 'danger')
-                _log_training_event('training_failed', current_user.id, {'error': str(e)})
-            
-            return redirect(url_for('security.ai_training'))
-        
-        elif action == 'reindex':
-            kb.index_all_files(force_reindex=True)
-            flash('✅ تمت إعادة الفهرسة بنجاح!', 'success')
-            _log_training_event('manual_reindex', current_user.id)
-            return redirect(url_for('security.ai_training'))
-        
-        elif action == 'clear_cache':
-            try:
-                if os.path.exists(KNOWLEDGE_CACHE_FILE):
-                    os.remove(KNOWLEDGE_CACHE_FILE)
-                flash('✅ تم حذف الذاكرة!', 'success')
-                _log_training_event('clear_cache', current_user.id)
-            except Exception as e:
-                flash(f'⚠️ خطأ: {str(e)}', 'danger')
-            return redirect(url_for('security.ai_training'))
-    
-    # حساب Learning Quality Index
-    learning_quality = kb.knowledge.get('learning_quality', {})
-    
-    # إحصائيات النظام
-    system_stats = {
-        'knowledge': {
-            'cache_exists': cache_exists,
-            'last_indexed': last_indexed,
-            'index_count': index_count,
-            'models_count': len(structure.get('models', {})),
-            'enums_count': structure.get('enums_count', 0),
-            'forms_count': structure.get('forms_count', 0),
-            'functions_count': structure.get('functions_count', 0),
-            'routes_count': len(structure.get('routes', {})),
-            'javascript_count': structure.get('javascript_count', 0),
-            'css_count': structure.get('css_count', 0),
-            'static_count': structure.get('static_files_count', 0),
-            'total_items': structure.get('total_items', 0)
-        },
-        'navigation': {
-            'routes': system_map['statistics']['total_routes'] if system_map else 0,
-            'templates': system_map['statistics']['total_templates'] if system_map else 0,
-            'blueprints': len(system_map['blueprints']) if system_map else 0
-        },
-        'data_awareness': {
-            'tables': data_schema['statistics']['total_tables'] if data_schema else 0,
-            'columns': data_schema['statistics']['total_columns'] if data_schema else 0,
-            'modules': len(data_schema['functional_mapping']) if data_schema else 0
-        },
-        'learning_quality': {
-            'index': learning_quality.get('index', 0),
-            'avg_confidence': learning_quality.get('avg_confidence', 0),
-            'data_density': learning_quality.get('data_density', 0),
-            'system_health': learning_quality.get('system_health', 0),
-            'tables_with_data': learning_quality.get('tables_with_data', 0)
-        }
+    security_stats = {
+        'online_users': 0,
+        'blocked_ips': BlockedIP.query.count() if 'BlockedIP' in dir() else 0,
+        'failed_logins': 0,
+        'active_sessions': 1,
+        'threats_detected': 0,
+        'patterns_found': 0,
+        'notifications': 0
     }
     
-    training_logs = _load_training_logs()
+    recent_activities = []
+    blocked_ips = []
+    patterns = []
+    notifications = []
     
-    return render_template('security/ai_training.html',
-                         structure=structure,
-                         system_stats=system_stats,
-                         training_report=training_report,
-                         training_logs=training_logs,
-                         cache_exists=cache_exists,
-                         last_indexed=last_indexed,
-                         index_count=index_count)
+    if tab == 'firewall':
+        blocked_ips = BlockedIP.query.order_by(BlockedIP.created_at.desc()).limit(50).all() if 'BlockedIP' in dir() else []
+    elif tab == 'patterns':
+        patterns = _detect_suspicious_patterns()
+    
+    stats = get_cached_security_stats()
+    return render_template('security/security_center.html',
+                          active_tab=tab,
+                          security_stats=security_stats,
+                          recent_activities=recent_activities,
+                          blocked_ips=blocked_ips,
+                          patterns=patterns,
+                          notifications=notifications,
+                          stats=stats)
 
 
 def _log_training_event(event_type, user_id, details=None):
     """تسجيل حدث تدريب - محسّن"""
     try:
-        from services.ai_knowledge import TRAINING_LOG_FILE
+        from AI.engine.ai_knowledge import TRAINING_LOG_FILE
         import os
         
         os.makedirs('instance', exist_ok=True)
@@ -1230,7 +878,7 @@ def _log_training_event(event_type, user_id, details=None):
 def _load_training_logs():
     """تحميل سجل التدريب"""
     try:
-        from services.ai_knowledge import TRAINING_LOG_FILE
+        from AI.engine.ai_knowledge import TRAINING_LOG_FILE
         import os
         
         if os.path.exists(TRAINING_LOG_FILE):
@@ -1241,53 +889,57 @@ def _load_training_logs():
         return []
 
 
-@security_bp.route('/database-manager')
+@security_bp.route('/database-manager', methods=['GET', 'POST'])
 @owner_only
 def database_manager():
     """
-    🗄️ مدير قاعدة البيانات الموحد - Unified Database Manager
+    🗄️ مركز التحكم الشامل بقاعدة البيانات - Database Control Center
     
     📋 الوصف:
-        محرر شامل 3 في 1 يجمع (Browse + Edit + Schema)
+        وحدة موحدة شاملة 11-في-1 تجمع جميع أدوات إدارة قاعدة البيانات
     
     📥 Parameters:
-        - tab (str): browse|edit|schema (default: browse)
+        - tab (str): browse|edit|schema|indexes|logs|sql|python|maintenance|restore|tools|archive (default: browse)
         - table (str): اسم الجدول للعمل عليه (optional)
-        - limit (int): عدد السجلات (default: 100 browse, 1000 edit)
+        - limit (int): عدد السجلات (optional)
+        - log_type (str): نوع اللوج (optional)
     
     📤 Response:
         HTML: templates/security/database_manager.html
         
-    🎯 الوظائف:
-        ✅ Browse: تصفح جميع الجداول + البيانات
+    🎯 التبويبات (11 تبويب):
+        ✅ Browse: تصفح الجداول والبيانات
         ✅ Edit: تحرير مباشر للبيانات
-        ✅ Schema: عرض الهيكل + الفهارس + العلاقات
+        ✅ Schema: هيكل الجدول + الأعمدة
+        ✅ Indexes: إدارة الفهارس الكاملة
+        ✅ Logs: سجلات النظام والتدقيق
+        ✅ SQL Console: تنفيذ استعلامات SQL
+        ✅ Python Console: تنفيذ كود Python
+        ✅ Maintenance: صيانة + VACUUM
+        ✅ Restore: استعادة قاعدة البيانات
+        ✅ Tools: أدوات إضافية (Decrypt, Error Tracker)
+        ✅ Archive: إدارة الأرشيفات والبيانات المحذوفة
     
     🔗 Related APIs:
-        - POST /db-editor/add-column/<table>
-        - POST /db-editor/update-cell/<table>
-        - POST /db-editor/edit-row/<table>/<id>
-        - POST /db-editor/delete-row/<table>/<id>
-        - POST /db-editor/add-row/<table>
-        - POST /db-editor/bulk-update/<table>
+        - جميع APIs السابقة متاحة
     
     💡 Usage Examples:
         /database-manager?tab=browse
-        /database-manager?tab=edit&table=customers&limit=50
-        /database-manager?tab=schema&table=sales
+        /database-manager?tab=indexes
+        /database-manager?tab=sql
+        /database-manager?tab=logs&log_type=audit
     
     🔒 Security:
         - Owner only (@owner_only)
         - Full audit trail
-        - CSRF protection on all operations
+        - CSRF protection
     """
-    tab = request.args.get('tab', 'browse')  # browse, edit, schema
+    tab = request.args.get('tab', 'browse')
     selected_table = request.args.get('table')
+    log_type = request.args.get('log_type', 'audit')
     
-    # الحصول على جميع الجداول
+    # ==== البيانات الأساسية (للجميع) ====
     tables = _get_all_tables()
-    
-    # حساب عدد السجلات في كل جدول
     table_counts = {}
     for table in tables:
         try:
@@ -1297,128 +949,326 @@ def database_manager():
         except:
             table_counts[table] = 0
     
+    # ==== بيانات خاصة بكل تبويب ====
     data = []
     columns = []
     table_info = []
+    indexes_data = []
+    indexes_stats = {}
+    audit_logs = []
+    system_logs = ""
+    error_logs = []
+    sql_result = None
+    sql_error = None
+    python_result = None
+    python_error = None
+    log_files = []
+    errors = []
+    error_stats = {}
+    decrypt_result = None
+    all_users = []
     
-    if selected_table:
+    # === 1) Browse & Edit & Schema ===
+    if tab in ['browse', 'edit', 'schema'] and selected_table:
         data, columns = _browse_table(selected_table, limit=1000 if tab == 'edit' else 100)
         table_info = _get_table_info(selected_table)
     
-    return render_template('security/database_manager.html', 
+    # === 2) Indexes ===
+    if tab == 'indexes':
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        for table in sorted(tables):
+            cols = inspector.get_columns(table)
+            idxs = inspector.get_indexes(table)
+            fks = inspector.get_foreign_keys(table)
+            indexes_data.append({
+                'name': table,
+                'columns_count': len(cols),
+                'indexes_count': len(idxs),
+                'fk_count': len(fks),
+                'columns': [{'name': c['name'], 'type': str(c['type'])} for c in cols],
+                'indexes': [{'name': idx['name'], 'columns': idx['column_names'], 'unique': idx['unique']} for idx in idxs],
+                'foreign_keys': [{'columns': fk['constrained_columns'], 'ref_table': fk['referred_table']} for fk in fks]
+            })
+        indexes_stats = {
+            'total_tables': len(tables),
+            'total_indexes': sum([t['indexes_count'] for t in indexes_data]),
+            'total_columns': sum([t['columns_count'] for t in indexes_data]),
+            'tables_without_indexes': len([t for t in indexes_data if t['indexes_count'] == 0]),
+            'avg_indexes_per_table': round(sum([t['indexes_count'] for t in indexes_data]) / len(tables), 2) if tables else 0
+        }
+    
+    # === 3) Logs ===
+    if tab == 'logs':
+        # Audit logs
+        audit_logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(200).all()
+        
+        # System logs
+        try:
+            if os.path.exists('logs/app.log'):
+                with open('logs/app.log', 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    system_logs = ''.join(lines[-500:])
+        except:
+            system_logs = "تعذر قراءة ملف السجلات"
+        
+        # Error logs
+        error_logs = AuditLog.query.filter(
+            AuditLog.action.like('%failed%') | AuditLog.action.like('%error%')
+        ).order_by(AuditLog.created_at.desc()).limit(100).all()
+        
+        # Log files list
+        log_files = _get_available_log_files()
+        
+        all_users = User.query.order_by(User.username).all()
+    
+    # === 4) SQL Console ===
+    if tab == 'sql' and request.method == 'POST':
+        sql_query = request.form.get('sql_query', '').strip()
+        try:
+            result_proxy = db.session.execute(text(sql_query))
+            try:
+                rows = result_proxy.fetchall()
+                cols = result_proxy.keys() if hasattr(result_proxy, 'keys') else []
+                sql_result = {
+                    'columns': list(cols),
+                    'rows': [list(row) for row in rows],
+                    'count': len(rows)
+                }
+            except:
+                db.session.commit()
+                sql_result = {'message': 'تم تنفيذ الاستعلام بنجاح'}
+        except Exception as e:
+            sql_error = str(e)
+            db.session.rollback()
+    
+    # === 5) Python Console ===
+    if tab == 'python' and request.method == 'POST':
+        python_code = request.form.get('python_code', '').strip()
+        try:
+            local_vars = {
+                'db': db,
+                'User': User,
+                'AuditLog': AuditLog,
+                'current_user': current_user,
+                'datetime': datetime,
+                'timezone': timezone
+            }
+            exec(python_code, {'__builtins__': __builtins__}, local_vars)
+            python_result = local_vars.get('output', 'تم التنفيذ بنجاح')
+        except Exception as e:
+            python_error = str(e)
+    
+    # === 6) Tools (Error Tracker) ===
+    if tab == 'tools':
+        errors = _get_recent_errors(100)
+        error_stats = _get_error_statistics()
+        
+        # Decrypt tool
+        if request.method == 'POST' and request.form.get('encrypted_data'):
+            encrypted_data = request.form.get('encrypted_data', '').strip()
+            decrypt_type = request.form.get('decrypt_type', 'auto')
+            decrypt_result = _decrypt_data(encrypted_data, decrypt_type)
+    
+    return render_template('security/database_manager.html',
+                          # عام
                           tables=tables,
+                          table_counts=table_counts,
+                          active_tab=tab,
                           selected_table=selected_table,
+                          # Browse/Edit/Schema
                           data=data,
                           columns=columns,
                           table_info=table_info,
-                          table_counts=table_counts,
-                          active_tab=tab)
+                          # Indexes
+                          indexes_data=indexes_data,
+                          indexes_stats=indexes_stats,
+                          # Logs
+                          audit_logs=audit_logs,
+                          system_logs=system_logs,
+                          error_logs=error_logs,
+                          log_files=log_files,
+                          log_type=log_type,
+                          all_users=all_users,
+                          # SQL
+                          sql_result=sql_result,
+                          sql_error=sql_error,
+                          # Python
+                          python_result=python_result,
+                          python_error=python_error,
+                          # Tools
+                          errors=errors,
+                          error_stats=error_stats,
+                          decrypt_result=decrypt_result)
 
 
-# ✅ database-browser REMOVED - use /database-manager?tab=browse instead
-# Removed for cleanup - was just a redirect
+
+@security_bp.route('/indexes-manager')
+@owner_only
+def indexes_manager():
+    """Redirect to Database Control Center - Indexes tab"""
+    return redirect(url_for('security.database_manager', tab='indexes'))
+
+
+@security_bp.route('/table-manager')
+@owner_only
+def table_manager():
+    """Redirect to Database Control Center - Browse tab"""
+    table = request.args.get('table')
+    if table:
+        return redirect(url_for('security.database_manager', tab='browse', table=table))
+    return redirect(url_for('security.database_manager', tab='browse'))
+
+
+@security_bp.route('/logs-manager')
+@owner_only
+def logs_manager():
+    """Redirect to Database Control Center - Logs tab"""
+    log_type = request.args.get('tab', 'audit')
+    return redirect(url_for('security.database_manager', tab='logs', log_type=log_type))
+
+
+@security_bp.route('/logs-viewer')
+@owner_only
+def logs_viewer():
+    """Redirect to Database Control Center - Logs tab"""
+    return redirect(url_for('security.database_manager', tab='logs'))
+
+
+@security_bp.route('/sql-console', methods=['GET', 'POST'])
+@owner_only
+def sql_console():
+    """Redirect to Database Control Center - SQL tab"""
+    if request.method == 'POST':
+        # إعادة توجيه POST إلى الوحدة الجديدة
+        return redirect(url_for('security.database_manager', tab='sql'), code=307)
+    return redirect(url_for('security.database_manager', tab='sql'))
+
+
+@security_bp.route('/python-console', methods=['GET', 'POST'])
+@owner_only
+def python_console():
+    """Redirect to Database Control Center - Python tab"""
+    if request.method == 'POST':
+        return redirect(url_for('security.database_manager', tab='python'), code=307)
+    return redirect(url_for('security.database_manager', tab='python'))
+
+
+@security_bp.route('/error-tracker')
+@owner_only
+def error_tracker():
+    """Redirect to Database Control Center - Tools tab"""
+    return redirect(url_for('security.database_manager', tab='tools'))
 
 
 @security_bp.route('/decrypt-tool', methods=['GET', 'POST'])
 @owner_only
 def decrypt_tool():
-    """أداة فك التشفير"""
-    result = None
-    
+    """Redirect to Database Control Center - Tools tab"""
     if request.method == 'POST':
-        encrypted_data = request.form.get('encrypted_data', '').strip()
-        decrypt_type = request.form.get('decrypt_type', 'auto')
-        
-        result = _decrypt_data(encrypted_data, decrypt_type)
-    
-    return render_template('security/decrypt_tool.html', result=result)
-
-
-@security_bp.route('/ai-analytics')
-@owner_only
-def ai_analytics():
-    """Redirect to AI Hub - Analytics Tab"""
-    return redirect(url_for('security.ai_hub', tab='analytics'))
-    """تحليلات ذكاء اصطناعي متقدمة"""
-    # تحليلات AI
-    analytics = {
-        'user_behavior': _analyze_user_behavior(),
-        'security_patterns': _detect_security_patterns(),
-        'anomalies': _detect_anomalies(),
-        'recommendations': _ai_recommendations(),
-        'threat_level': _calculate_threat_level(),
-    }
-    
-    return render_template('security/ai_analytics.html', analytics=analytics)
-
-
-@security_bp.route('/pattern-detection')
-@owner_only
-def pattern_detection():
-    """كشف الأنماط المشبوهة"""
-    patterns = _detect_suspicious_patterns()
-    return render_template('security/pattern_detection.html', patterns=patterns)
+        return redirect(url_for('security.database_manager', tab='tools'), code=307)
+    return redirect(url_for('security.database_manager', tab='tools'))
 
 
 @security_bp.route('/activity-timeline')
 @owner_only
 def activity_timeline():
-    """Timeline نشاط النظام الكامل"""
-    hours = request.args.get('hours', 24, type=int)
-    user_filter = request.args.get('user', type=int)
-    action_filter = request.args.get('action', '')
-    
-    # استعلام AuditLog
-    query = AuditLog.query
-    
-    if user_filter:
-        query = query.filter_by(user_id=user_filter)
-    
-    if action_filter:
-        query = query.filter(AuditLog.action.like(f'%{action_filter}%'))
-    
-    query = query.filter(
-        AuditLog.created_at >= datetime.now(timezone.utc) - timedelta(hours=hours)
-    )
-    
-    activities = query.order_by(AuditLog.created_at.desc()).limit(500).all()
-    
-    # إحصائيات
-    stats = {
-        'total': len(activities),
-        'users': len(set(a.user_id for a in activities if a.user_id)),
-        'actions': len(set(a.action for a in activities)),
-    }
-    
-    # جميع المستخدمين للفلترة
-    users = User.query.filter_by(is_active=True).all()
-    
-    return render_template('security/activity_timeline.html', 
-                          activities=activities,
-                          stats=stats,
-                          users=users,
-                          hours=hours,
-                          user_filter=user_filter,
-                          action_filter=action_filter)
+    """Redirect to Security Center - Activity tab"""
+    return redirect(url_for('security.security_center', tab='activity'))
 
 
 @security_bp.route('/notifications-center')
 @owner_only
 def notifications_center():
-    """مركز الإشعارات الأمنية"""
-    # الإشعارات الحديثة
-    notifications = _get_security_notifications()
-    
-    return render_template('security/notifications_center.html', 
-                          notifications=notifications)
+    """Redirect to Security Center - Notifications tab"""
+    return redirect(url_for('security.security_center', tab='notifications'))
 
 
-@security_bp.route('/ai-config', methods=['GET', 'POST'])
+@security_bp.route('/users-center')
 @owner_only
-def ai_config():
-    """Redirect to AI Hub - Config Tab"""
-    return redirect(url_for('security.ai_hub', tab='config'))
-    """إعدادات AI - Groq API Keys - للمالك فقط"""
+def users_center():
+    """
+    👥 Users & Permissions Center - 2 في 1
+    - التحكم بالمستخدمين (User Control)
+    - إدارة الصلاحيات (Permissions)
+    """
+    tab = request.args.get('tab', 'users')
+    stats = get_cached_security_stats()
+    return render_template('security/users_center.html', active_tab=tab, stats=stats)
+
+
+@security_bp.route('/settings-center')
+@owner_only
+def settings_center():
+    """
+    ⚙️ Settings & Customization Center - 8 في 1
+    - إعدادات النظام + ثوابت + تكوين
+    - العلامة التجارية + المظهر + الثيمات + الشعارات
+    - الوضع الليلي
+    - الفروع والمواقع
+    """
+    tab = request.args.get('tab', 'system')
+    stats = get_cached_security_stats()
+    return render_template('security/settings_center.html', active_tab=tab, stats=stats)
+
+
+@security_bp.route('/reports-center')
+@owner_only
+def reports_center():
+    """
+    📊 Reports & Performance Center - 4 في 1
+    - التقارير الإدارية
+    - لوحة المراقبة الشاملة
+    - مراقبة الأداء
+    - Grafana + Prometheus
+    """
+    tab = request.args.get('tab', 'reports')
+    stats = get_cached_security_stats()
+    return render_template('security/reports_center.html', active_tab=tab, stats=stats)
+
+
+@security_bp.route('/tools-center')
+@owner_only
+def tools_center():
+    """
+    🔧 Tools & Integration Center - 5 في 1
+    - التكامل (Integrations)
+    - محرر الفواتير (Invoice Designer)
+    - إدارة البريد (Email Manager)
+    - إدارة الكروت (Card Vault)
+    - تصدير البيانات (Data Export)
+    """
+    tab = request.args.get('tab', 'integrations')
+    
+    integrations_data = None
+    if tab == 'integrations':
+        integrations_data = {
+            'stripe': {
+                'enabled': _get_setting('stripe_enabled', False),
+                'public_key': _get_setting('stripe_public_key', ''),
+                'secret_key': _get_setting('stripe_secret_key', ''),
+            },
+            'paypal': {
+                'enabled': _get_setting('paypal_enabled', False),
+                'mode': _get_setting('paypal_mode', 'sandbox'),
+                'client_id': _get_setting('paypal_client_id', ''),
+            },
+            'sms': {
+                'enabled': _get_setting('sms_enabled', False),
+                'twilio_phone_number': _get_setting('twilio_phone_number', ''),
+            },
+            'email': {
+                'enabled': _get_setting('email_enabled', True),
+                'smtp_host': _get_setting('smtp_host', ''),
+            },
+        }
+    
+    stats = get_cached_security_stats()
+    return render_template('security/tools_center.html', active_tab=tab, integrations=integrations_data, stats=stats)
+
+
+def _unused_ai_config_function():
+    """إعدادات AI - Groq API Keys - تم دمجها في AI Hub"""
     """تكوين AI للمساعد الذكي - دعم مفاتيح متعددة"""
     if request.method == 'POST':
         action = request.form.get('action', 'add')
@@ -1489,48 +1339,11 @@ def ai_config():
     return render_template('security/ai_config.html', keys=keys)
 
 
-@security_bp.route('/api/ai-chat', methods=['POST'])
-@login_required
-def ai_chat():
-    """API للمحادثة مع AI - متاح لجميع المستخدمين"""
-    from services.ai_service import ai_chat_with_search
-    
-    data = request.get_json()
-    message = data.get('message', '')
-    
-    # استخدام خدمة AI المركزية
-    response = ai_chat_with_search(message)
-    
-    return jsonify({
-        'response': response,
-        'timestamp': datetime.now(timezone.utc).isoformat()
-    })
-
-
-# ═══════════════════════════════════════════════════════════════
-# ULTIMATE CONTROL PANEL - SUPER OWNER POWERS
-# ═══════════════════════════════════════════════════════════════
-
 @security_bp.route('/ultimate-control')
 @owner_only
 def ultimate_control():
-    """لوحة التحكم النهائية - للمالك __OWNER__ فقط"""
-    stats = {
-        'users_online': _get_users_online(),
-        'total_users': User.query.count(),
-        'total_services': _safe_count_table('service_requests'),
-        'total_sales': _safe_count_table('sales'),
-        'db_size': _get_db_size(),
-        'system_health': _get_system_health(),
-        'active_sessions': _get_active_sessions_count(),
-        'system_version': 'v5.0.0',
-        'total_modules': '40+',
-        'total_apis': 133,
-        'total_indexes': 89,
-        'total_relationships': '150+',
-        'total_permissions': 41
-    }
-    return render_template('security/ultimate_control.html', stats=stats)
+    """Redirect to Security Index - المراكز الموحدة في مكان واحد"""
+    return redirect(url_for('security.index'))
 
 
 @security_bp.route('/ledger-control-old')
@@ -1715,8 +1528,6 @@ def theme_editor():
                          active_tab=editor_type)
 
 
-# ✅ text-editor REMOVED - use /theme-editor?type=text instead
-# Removed for cleanup - was just a redirect
 
 
 @security_bp.route('/logo-manager', methods=['GET', 'POST'])
@@ -1759,75 +1570,6 @@ def logo_manager():
     }
     
     return render_template('security/logo_manager.html', logos=logos)
-
-
-# ✅ template-editor REMOVED - use /theme-editor?type=html instead
-# Removed for cleanup - was just a redirect
-
-
-@security_bp.route('/table-manager', methods=['GET', 'POST'])
-@owner_only
-def table_manager():
-    """
-    📊 مدير الجداول - Simple Table Manager
-    
-    📋 الوصف:
-        عرض بسيط وسريع لهيكل الجداول (Read-Only)
-        مختلف عن database-manager (لا يوجد تعديل)
-    
-    📥 Parameters:
-        - table (str): اسم الجدول (optional)
-    
-    📤 Response:
-        HTML: templates/security/table_manager.html
-        
-    🎯 الوظائف:
-        ✅ قائمة جميع الجداول
-        ✅ عرض الأعمدة والأنواع
-        ✅ عينة من البيانات (10 صفوف فقط)
-        ✅ إحصائيات بسيطة
-    
-    💡 Usage:
-        /table-manager
-        /table-manager?table=customers
-    
-    🔒 Security:
-        - Owner only
-        - Read-only (لا توجد عمليات تحرير)
-    
-    📝 Note:
-        للتحرير الكامل استخدم /database-manager?tab=edit
-    """
-    tables = db.engine.table_names() if hasattr(db.engine, 'table_names') else []
-    
-    if not tables:
-        try:
-            from sqlalchemy import inspect
-            inspector = inspect(db.engine)
-            tables = inspector.get_table_names()
-        except:
-            tables = []
-    
-    selected_table = request.args.get('table')
-    columns = []
-    sample_data = []
-    
-    if selected_table:
-        try:
-            from sqlalchemy import inspect
-            inspector = inspect(db.engine)
-            columns = inspector.get_columns(selected_table)
-            
-            result = db.session.execute(text(f"SELECT * FROM {selected_table} LIMIT 10"))
-            sample_data = [dict(row._mapping) for row in result]
-        except:
-            pass
-    
-    return render_template('security/table_manager.html',
-                         tables=tables,
-                         selected_table=selected_table,
-                         columns=columns,
-                         sample_data=sample_data)
 
 
 @security_bp.route('/advanced-analytics')
@@ -2003,77 +1745,1230 @@ def invoice_designer():
     return render_template('security/invoice_designer.html', settings=settings)
 
 
-@security_bp.route('/integrations', methods=['GET'])
+@security_bp.route('/integrations', methods=['GET', 'POST'])
 @owner_only
 def integrations():
-    """مركز التكامل - واتساب + بريد + APIs"""
-    from models import SystemSettings
+    """🔌 مركز التكامل الشامل - إعداد جميع التكاملات من مكان واحد"""
     
-    integration_keys = [
-        'whatsapp_phone', 'whatsapp_token', 'whatsapp_url',
-        'smtp_server', 'smtp_port', 'smtp_username', 'smtp_use_tls',
-        'reader_type', 'reader_api_url', 'reader_api_key', 'merchant_id',
-        'accounting_system', 'accounting_api_url', 'accounting_api_key', 'sync_gl_auto',
-        'obd2_device', 'obd2_port', 'obd2_auto_diagnose',
-        'barcode_type', 'barcode_sound',
-        'sms_provider', 'sms_api_key', 'sms_sender',
-        'google_maps_key', 'openai_key', 'stripe_key', 'paypal_client_id'
-    ]
+    if request.method == 'POST':
+        try:
+            action = request.form.get('action')
+            
+            if action == 'save_stripe':
+                _save_setting('stripe_enabled', request.form.get('stripe_enabled') == 'on')
+                _save_setting('stripe_public_key', request.form.get('stripe_public_key', ''))
+                _save_setting('stripe_secret_key', request.form.get('stripe_secret_key', ''))
+                _save_setting('stripe_webhook_secret', request.form.get('stripe_webhook_secret', ''))
+                flash('✅ تم حفظ إعدادات Stripe', 'success')
+            
+            elif action == 'save_paypal':
+                _save_setting('paypal_enabled', request.form.get('paypal_enabled') == 'on')
+                _save_setting('paypal_mode', request.form.get('paypal_mode', 'sandbox'))
+                _save_setting('paypal_client_id', request.form.get('paypal_client_id', ''))
+                _save_setting('paypal_secret', request.form.get('paypal_secret', ''))
+                flash('✅ تم حفظ إعدادات PayPal', 'success')
+            
+            elif action == 'save_sms':
+                _save_setting('sms_enabled', request.form.get('sms_enabled') == 'on')
+                _save_setting('twilio_account_sid', request.form.get('twilio_account_sid', ''))
+                _save_setting('twilio_auth_token', request.form.get('twilio_auth_token', ''))
+                _save_setting('twilio_phone_number', request.form.get('twilio_phone_number', ''))
+                _save_setting('twilio_whatsapp_number', request.form.get('twilio_whatsapp_number', ''))
+                flash('✅ تم حفظ إعدادات SMS/WhatsApp', 'success')
+            
+            elif action == 'save_thermal_printer':
+                _save_setting('thermal_printer_enabled', request.form.get('thermal_printer_enabled') == 'on')
+                _save_setting('thermal_printer_type', request.form.get('thermal_printer_type', 'network'))
+                _save_setting('thermal_printer_ip', request.form.get('thermal_printer_ip', ''))
+                _save_setting('thermal_printer_port', request.form.get('thermal_printer_port', '9100'))
+                _save_setting('thermal_printer_usb_vendor', request.form.get('thermal_printer_usb_vendor', ''))
+                _save_setting('thermal_printer_usb_product', request.form.get('thermal_printer_usb_product', ''))
+                _save_setting('thermal_printer_width', request.form.get('thermal_printer_width', '80'))
+                flash('✅ تم حفظ إعدادات الطابعة الحرارية', 'success')
+            
+            elif action == 'save_barcode_scanner':
+                _save_setting('barcode_scanner_enabled', request.form.get('barcode_scanner_enabled') == 'on')
+                _save_setting('barcode_scanner_type', request.form.get('barcode_scanner_type', 'web'))
+                _save_setting('barcode_scanner_device', request.form.get('barcode_scanner_device', ''))
+                _save_setting('barcode_auto_focus', request.form.get('barcode_auto_focus') == 'on')
+                _save_setting('barcode_beep_sound', request.form.get('barcode_beep_sound') == 'on')
+                flash('✅ تم حفظ إعدادات ماسح الباركود', 'success')
+            
+            elif action == 'save_cloud_storage':
+                _save_setting('cloud_storage_enabled', request.form.get('cloud_storage_enabled') == 'on')
+                _save_setting('aws_access_key', request.form.get('aws_access_key', ''))
+                _save_setting('aws_secret_key', request.form.get('aws_secret_key', ''))
+                _save_setting('aws_region', request.form.get('aws_region', 'eu-west-1'))
+                _save_setting('aws_bucket', request.form.get('aws_bucket', ''))
+                flash('✅ تم حفظ إعدادات التخزين السحابي', 'success')
+            
+            elif action == 'save_webhooks':
+                _save_setting('webhooks_enabled', request.form.get('webhooks_enabled') == 'on')
+                _save_setting('webhook_secret', request.form.get('webhook_secret', ''))
+                _save_setting('webhook_retry_count', request.form.get('webhook_retry_count', '3'))
+                _save_setting('webhook_timeout', request.form.get('webhook_timeout', '10'))
+                flash('✅ تم حفظ إعدادات Webhooks', 'success')
+            
+            elif action == 'save_local_gateways':
+                _save_setting('moyasar_enabled', request.form.get('moyasar_enabled') == 'on')
+                _save_setting('moyasar_api_key', request.form.get('moyasar_api_key', ''))
+                _save_setting('tap_enabled', request.form.get('tap_enabled') == 'on')
+                _save_setting('tap_api_key', request.form.get('tap_api_key', ''))
+                _save_setting('paytabs_enabled', request.form.get('paytabs_enabled') == 'on')
+                _save_setting('paytabs_profile_id', request.form.get('paytabs_profile_id', ''))
+                _save_setting('paytabs_server_key', request.form.get('paytabs_server_key', ''))
+                flash('✅ تم حفظ إعدادات بوابات الدفع المحلية', 'success')
+            
+            elif action == 'save_pos_terminal':
+                _save_setting('pos_terminal_enabled', request.form.get('pos_terminal_enabled') == 'on')
+                _save_setting('pos_terminal_type', request.form.get('pos_terminal_type', 'verifone'))
+                _save_setting('pos_terminal_ip', request.form.get('pos_terminal_ip', ''))
+                _save_setting('pos_terminal_port', request.form.get('pos_terminal_port', '5000'))
+                _save_setting('pos_merchant_id', request.form.get('pos_merchant_id', ''))
+                flash('✅ تم حفظ إعدادات جهاز POS', 'success')
+            
+            elif action == 'save_obd2_reader':
+                _save_setting('obd2_reader_enabled', request.form.get('obd2_reader_enabled') == 'on')
+                _save_setting('obd2_reader_type', request.form.get('obd2_reader_type', 'bluetooth'))
+                _save_setting('obd2_port', request.form.get('obd2_port', 'COM3'))
+                _save_setting('obd2_bluetooth_address', request.form.get('obd2_bluetooth_address', ''))
+                _save_setting('obd2_auto_scan', request.form.get('obd2_auto_scan') == 'on')
+                flash('✅ تم حفظ إعدادات كمبيوتر السيارة', 'success')
+            
+            elif action == 'save_digital_scale':
+                _save_setting('digital_scale_enabled', request.form.get('digital_scale_enabled') == 'on')
+                _save_setting('digital_scale_type', request.form.get('digital_scale_type', 'serial'))
+                _save_setting('digital_scale_port', request.form.get('digital_scale_port', 'COM4'))
+                _save_setting('digital_scale_baudrate', request.form.get('digital_scale_baudrate', '9600'))
+                flash('✅ تم حفظ إعدادات الميزان الإلكتروني', 'success')
+            
+            elif action == 'save_label_printer':
+                _save_setting('label_printer_enabled', request.form.get('label_printer_enabled') == 'on')
+                _save_setting('label_printer_type', request.form.get('label_printer_type', 'zebra'))
+                _save_setting('label_printer_connection', request.form.get('label_printer_connection', 'usb'))
+                _save_setting('label_printer_ip', request.form.get('label_printer_ip', ''))
+                _save_setting('label_printer_port', request.form.get('label_printer_port', '9100'))
+                _save_setting('label_printer_width', request.form.get('label_printer_width', '4'))
+                flash('✅ تم حفظ إعدادات طابعة اللصاقات', 'success')
+            
+            elif action == 'save_cash_drawer':
+                _save_setting('cash_drawer_enabled', request.form.get('cash_drawer_enabled') == 'on')
+                _save_setting('cash_drawer_connection', request.form.get('cash_drawer_connection', 'printer'))
+                _save_setting('cash_drawer_port', request.form.get('cash_drawer_port', 'COM1'))
+                _save_setting('cash_drawer_open_code', request.form.get('cash_drawer_open_code', '27,112,0,25,250'))
+                flash('✅ تم حفظ إعدادات درج النقدية', 'success')
+            
+            elif action == 'save_customer_display':
+                _save_setting('customer_display_enabled', request.form.get('customer_display_enabled') == 'on')
+                _save_setting('customer_display_type', request.form.get('customer_display_type', 'lcd'))
+                _save_setting('customer_display_port', request.form.get('customer_display_port', 'COM2'))
+                _save_setting('customer_display_lines', request.form.get('customer_display_lines', '2'))
+                _save_setting('customer_display_chars', request.form.get('customer_display_chars', '20'))
+                flash('✅ تم حفظ إعدادات شاشة العميل', 'success')
+            
+            elif action == 'save_fingerprint_scanner':
+                _save_setting('fingerprint_scanner_enabled', request.form.get('fingerprint_scanner_enabled') == 'on')
+                _save_setting('fingerprint_scanner_type', request.form.get('fingerprint_scanner_type', 'usb'))
+                _save_setting('fingerprint_vendor_id', request.form.get('fingerprint_vendor_id', ''))
+                _save_setting('fingerprint_product_id', request.form.get('fingerprint_product_id', ''))
+                flash('✅ تم حفظ إعدادات قارئ البصمة', 'success')
+            
+            elif action == 'save_cctv_system':
+                _save_setting('cctv_enabled', request.form.get('cctv_enabled') == 'on')
+                _save_setting('cctv_type', request.form.get('cctv_type', 'hikvision'))
+                _save_setting('cctv_nvr_ip', request.form.get('cctv_nvr_ip', ''))
+                _save_setting('cctv_username', request.form.get('cctv_username', 'admin'))
+                _save_setting('cctv_password', request.form.get('cctv_password', ''))
+                _save_setting('cctv_recording', request.form.get('cctv_recording') == 'on')
+                flash('✅ تم حفظ إعدادات نظام المراقبة', 'success')
+            
+            elif action == 'test_stripe':
+                result = _test_stripe()
+                if result['success']:
+                    flash(f'✅ Stripe متصل! Account: {result.get("account_id")}', 'success')
+                else:
+                    flash(f'❌ Stripe: {result.get("error")}', 'danger')
+            
+            elif action == 'test_paypal':
+                result = _test_paypal()
+                if result['success']:
+                    flash('✅ PayPal متصل بنجاح!', 'success')
+                else:
+                    flash(f'❌ PayPal: {result.get("error")}', 'danger')
+            
+            elif action == 'test_sms':
+                test_number = request.form.get('test_phone_number')
+                if test_number:
+                    result = _test_sms(test_number)
+                    if result['success']:
+                        flash(f'✅ تم إرسال SMS إلى {test_number}', 'success')
+                    else:
+                        flash(f'❌ SMS: {result.get("error")}', 'danger')
+                else:
+                    flash('❌ أدخل رقم هاتف', 'warning')
+            
+            elif action == 'test_thermal_printer':
+                result = _test_thermal()
+                if result['success']:
+                    flash('✅ الطابعة تعمل!', 'success')
+                else:
+                    flash(f'❌ الطابعة: {result.get("error")}', 'danger')
+            
+            elif action == 'test_pos_terminal':
+                result = _test_pos()
+                if result['success']:
+                    flash('✅ جهاز POS متصل!', 'success')
+                else:
+                    flash(f'❌ POS: {result.get("error")}', 'danger')
+            
+            elif action == 'test_obd2_reader':
+                result = _test_obd2()
+                if result['success']:
+                    flash(f'✅ OBD-II متصل! {result.get("vehicle_info", "")}', 'success')
+                else:
+                    flash(f'❌ OBD-II: {result.get("error")}', 'danger')
+            
+            elif action == 'test_digital_scale':
+                result = _test_scale()
+                if result['success']:
+                    flash(f'✅ الميزان يعمل! القراءة: {result.get("weight", "0")} kg', 'success')
+                else:
+                    flash(f'❌ الميزان: {result.get("error")}', 'danger')
+            
+            elif action == 'test_cctv':
+                result = _test_cctv()
+                if result['success']:
+                    flash(f'✅ نظام المراقبة متصل! الكاميرات: {result.get("cameras", 0)}', 'success')
+                else:
+                    flash(f'❌ CCTV: {result.get("error")}', 'danger')
+            
+            db.session.commit()
+            return redirect(url_for('security.integrations'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ خطأ: {str(e)}', 'danger')
     
-    integrations_data = {}
-    for key in integration_keys:
-        s = SystemSettings.query.filter_by(key=key).first()
-        integrations_data[key] = s.value if s else ''
+    # GET - جلب الإعدادات
+    integrations_data = {
+        'stripe': {
+            'enabled': _get_setting('stripe_enabled', False),
+            'public_key': _get_setting('stripe_public_key', ''),
+            'secret_key': _get_setting('stripe_secret_key', ''),
+            'webhook_secret': _get_setting('stripe_webhook_secret', ''),
+        },
+        'paypal': {
+            'enabled': _get_setting('paypal_enabled', False),
+            'mode': _get_setting('paypal_mode', 'sandbox'),
+            'client_id': _get_setting('paypal_client_id', ''),
+            'secret': _get_setting('paypal_secret', ''),
+        },
+        'sms': {
+            'enabled': _get_setting('sms_enabled', False),
+            'twilio_account_sid': _get_setting('twilio_account_sid', ''),
+            'twilio_auth_token': _get_setting('twilio_auth_token', ''),
+            'twilio_phone_number': _get_setting('twilio_phone_number', ''),
+            'twilio_whatsapp_number': _get_setting('twilio_whatsapp_number', ''),
+        },
+        'thermal_printer': {
+            'enabled': _get_setting('thermal_printer_enabled', False),
+            'type': _get_setting('thermal_printer_type', 'network'),
+            'ip': _get_setting('thermal_printer_ip', ''),
+            'port': _get_setting('thermal_printer_port', '9100'),
+            'usb_vendor': _get_setting('thermal_printer_usb_vendor', ''),
+            'usb_product': _get_setting('thermal_printer_usb_product', ''),
+            'width': _get_setting('thermal_printer_width', '80'),
+        },
+        'barcode_scanner': {
+            'enabled': _get_setting('barcode_scanner_enabled', True),
+            'type': _get_setting('barcode_scanner_type', 'web'),
+            'device': _get_setting('barcode_scanner_device', ''),
+            'auto_focus': _get_setting('barcode_auto_focus', True),
+            'beep_sound': _get_setting('barcode_beep_sound', True),
+        },
+        'cloud_storage': {
+            'enabled': _get_setting('cloud_storage_enabled', False),
+            'aws_access_key': _get_setting('aws_access_key', ''),
+            'aws_secret_key': _get_setting('aws_secret_key', ''),
+            'aws_region': _get_setting('aws_region', 'eu-west-1'),
+            'aws_bucket': _get_setting('aws_bucket', ''),
+        },
+        'webhooks': {
+            'enabled': _get_setting('webhooks_enabled', False),
+            'secret': _get_setting('webhook_secret', ''),
+            'retry_count': _get_setting('webhook_retry_count', '3'),
+            'timeout': _get_setting('webhook_timeout', '10'),
+        },
+        'local_gateways': {
+            'moyasar_enabled': _get_setting('moyasar_enabled', False),
+            'moyasar_api_key': _get_setting('moyasar_api_key', ''),
+            'tap_enabled': _get_setting('tap_enabled', False),
+            'tap_api_key': _get_setting('tap_api_key', ''),
+            'paytabs_enabled': _get_setting('paytabs_enabled', False),
+            'paytabs_profile_id': _get_setting('paytabs_profile_id', ''),
+            'paytabs_server_key': _get_setting('paytabs_server_key', ''),
+        },
+        'pos_terminal': {
+            'enabled': _get_setting('pos_terminal_enabled', False),
+            'type': _get_setting('pos_terminal_type', 'verifone'),
+            'ip': _get_setting('pos_terminal_ip', ''),
+            'port': _get_setting('pos_terminal_port', '5000'),
+            'merchant_id': _get_setting('pos_merchant_id', ''),
+        },
+        'obd2_reader': {
+            'enabled': _get_setting('obd2_reader_enabled', False),
+            'type': _get_setting('obd2_reader_type', 'bluetooth'),
+            'port': _get_setting('obd2_port', 'COM3'),
+            'bluetooth_address': _get_setting('obd2_bluetooth_address', ''),
+            'auto_scan': _get_setting('obd2_auto_scan', True),
+        },
+        'digital_scale': {
+            'enabled': _get_setting('digital_scale_enabled', False),
+            'type': _get_setting('digital_scale_type', 'serial'),
+            'port': _get_setting('digital_scale_port', 'COM4'),
+            'baudrate': _get_setting('digital_scale_baudrate', '9600'),
+        },
+        'label_printer': {
+            'enabled': _get_setting('label_printer_enabled', False),
+            'type': _get_setting('label_printer_type', 'zebra'),
+            'connection': _get_setting('label_printer_connection', 'usb'),
+            'ip': _get_setting('label_printer_ip', ''),
+            'port': _get_setting('label_printer_port', '9100'),
+            'width': _get_setting('label_printer_width', '4'),
+        },
+        'cash_drawer': {
+            'enabled': _get_setting('cash_drawer_enabled', False),
+            'connection': _get_setting('cash_drawer_connection', 'printer'),
+            'port': _get_setting('cash_drawer_port', 'COM1'),
+            'open_code': _get_setting('cash_drawer_open_code', '27,112,0,25,250'),
+        },
+        'customer_display': {
+            'enabled': _get_setting('customer_display_enabled', False),
+            'type': _get_setting('customer_display_type', 'lcd'),
+            'port': _get_setting('customer_display_port', 'COM2'),
+            'lines': _get_setting('customer_display_lines', '2'),
+            'chars_per_line': _get_setting('customer_display_chars', '20'),
+        },
+        'fingerprint_scanner': {
+            'enabled': _get_setting('fingerprint_scanner_enabled', False),
+            'type': _get_setting('fingerprint_scanner_type', 'usb'),
+            'vendor_id': _get_setting('fingerprint_vendor_id', ''),
+            'product_id': _get_setting('fingerprint_product_id', ''),
+        },
+        'cctv_system': {
+            'enabled': _get_setting('cctv_enabled', False),
+            'type': _get_setting('cctv_type', 'hikvision'),
+            'nvr_ip': _get_setting('cctv_nvr_ip', ''),
+            'username': _get_setting('cctv_username', 'admin'),
+            'password': _get_setting('cctv_password', ''),
+            'recording': _get_setting('cctv_recording', True),
+        },
+    }
     
     return render_template('security/integrations.html', integrations=integrations_data)
+
+
+@cache.memoize(timeout=300)  # 5 دقائق
+def get_cached_security_stats():
+    """
+    📊 جلب إحصائيات الأمان مع Caching
+    
+    التحسين: يتم حفظ النتائج لمدة 5 دقائق لتسريع التحميل
+    """
+    from datetime import datetime, timedelta, timezone
+    
+    # إحصائيات المستخدمين
+    total_users = User.query.count()
+    active_users = User.query.filter_by(is_active=True).count()
+    blocked_users = User.query.filter_by(is_active=False).count()
+    system_accounts = User.query.filter_by(is_system_account=True).count()
+    
+    # المتصلين الآن (آخر 15 دقيقة)
+    threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
+    all_users = User.query.filter(User.last_seen.isnot(None)).all()
+    online_users = sum(1 for u in all_users if make_aware(u.last_seen) >= threshold)
+    
+    # محاولات فشل الدخول (آخر 24 ساعة)
+    day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+    from models import AuthAudit, AuthEvent
+    try:
+        failed_logins_24h = AuthAudit.query.filter(
+            AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
+            AuthAudit.created_at >= day_ago
+        ).count()
+    except:
+        failed_logins_24h = 0
+    
+    # Blocked IPs & Countries
+    blocked_ips = 0
+    blocked_countries = 0
+    try:
+        from models import BlockedIP, BlockedCountry
+        blocked_ips = BlockedIP.query.count()
+        blocked_countries = BlockedCountry.query.count()
+    except:
+        pass
+    
+    # أنشطة مشبوهة
+    suspicious_activities = 0
+    try:
+        suspicious_activities = db.session.query(
+            func.count(AuthAudit.ip_address)
+        ).filter(
+            AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
+            AuthAudit.created_at >= day_ago
+        ).group_by(AuthAudit.ip_address).having(
+            func.count(AuthAudit.ip_address) >= 5
+        ).count()
+    except:
+        pass
+    
+    # حجم قاعدة البيانات
+    db_size = "N/A"
+    try:
+        import os
+        db_path = os.path.join(current_app.root_path, 'instance', 'app.db')
+        if os.path.exists(db_path):
+            size_bytes = os.path.getsize(db_path)
+            if size_bytes < 1024 * 1024:
+                db_size = f"{size_bytes / 1024:.1f} KB"
+            else:
+                db_size = f"{size_bytes / (1024 * 1024):.1f} MB"
+    except:
+        pass
+    
+    # صحة النظام
+    system_health = "ممتاز"
+    if failed_logins_24h > 50:
+        system_health = "تحذير"
+    elif failed_logins_24h > 100:
+        system_health = "خطر"
+    
+    # 🔄 حساب الإحصائيات ديناميكياً من قاعدة البيانات
+    from sqlalchemy import inspect
+    
+    try:
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        # حساب إجمالي الفهارس
+        total_indexes = 0
+        for table in tables:
+            idxs = inspector.get_indexes(table)
+            total_indexes += len(idxs)
+        
+        # حساب إجمالي الجداول (ما عدا الجداول النظامية)
+        total_tables = len([t for t in tables if not t.startswith('sqlite_')])
+        
+        # حساب إجمالي العلاقات (Foreign Keys)
+        total_relations = 0
+        for table in tables:
+            fks = inspector.get_foreign_keys(table)
+            total_relations += len(fks)
+    except:
+        total_indexes = 0
+        total_tables = 0
+        total_relations = 0
+    
+    # حساب عدد Routes (APIs)
+    total_apis = len([rule for rule in current_app.url_map.iter_rules() if 'security' in rule.endpoint])
+    
+    return {
+        'total_users': total_users,
+        'active_users': active_users,
+        'blocked_users': blocked_users,
+        'system_accounts': system_accounts,
+        'online_users': online_users,
+        'blocked_ips': blocked_ips,
+        'blocked_countries': blocked_countries,
+        'failed_logins_24h': failed_logins_24h,
+        'suspicious_activities': suspicious_activities,
+        'db_size': db_size,
+        'system_health': system_health,
+        'active_sessions': online_users,
+        # 🔄 إحصائيات ديناميكية
+        'total_services': total_tables,
+        'system_version': 'v5.0.0',
+        'total_modules': f'{total_tables}+',
+        'total_apis': total_apis,
+        'total_indexes': total_indexes,
+        'total_relations': total_relations
+    }
+
+
+@cache.memoize(timeout=300)  # 5 دقائق
+def get_recent_suspicious_activities():
+    """
+    📋 جلب آخر الأنشطة المشبوهة مع Caching
+    """
+    from datetime import datetime, timedelta, timezone
+    from models import AuthAudit, AuthEvent
+    
+    day_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+    
+    try:
+        return AuthAudit.query.filter(
+            AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
+            AuthAudit.created_at >= day_ago
+        ).order_by(AuthAudit.created_at.desc()).limit(10).all()
+    except:
+        return []
+
+
+def _get_setting(key, default=None):
+    """جلب إعداد من SystemSettings"""
+    setting = SystemSettings.query.filter_by(key=key).first()
+    if setting:
+        value = setting.value
+        if default is False or default is True:
+            return value.lower() in ('true', '1', 'on', 'yes') if value else default
+        return value if value else default
+    return default
+
+
+def _save_setting(key, value):
+    """حفظ إعداد في SystemSettings"""
+    setting = SystemSettings.query.filter_by(key=key).first()
+    if setting:
+        setting.value = str(value) if value is not None else ''
+        setting.updated_at = datetime.utcnow()
+    else:
+        setting = SystemSettings(key=key, value=str(value) if value is not None else '')
+        db.session.add(setting)
+    db.session.flush()
+
+
+def _test_stripe():
+    """اختبار Stripe"""
+    try:
+        import stripe
+        stripe.api_key = _get_setting('stripe_secret_key', '')
+        if not stripe.api_key:
+            return {'success': False, 'error': 'API Key مفقود'}
+        account = stripe.Account.retrieve()
+        return {'success': True, 'account_id': account.id, 'email': account.email}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _test_paypal():
+    """اختبار PayPal"""
+    try:
+        import paypalrestsdk
+        paypalrestsdk.configure({
+            'mode': _get_setting('paypal_mode', 'sandbox'),
+            'client_id': _get_setting('paypal_client_id', ''),
+            'client_secret': _get_setting('paypal_secret', '')
+        })
+        payment = paypalrestsdk.Payment.find("TEST")
+        return {'success': True}
+    except paypalrestsdk.ResourceNotFound:
+        return {'success': True}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _test_sms(phone_number):
+    """اختبار SMS"""
+    try:
+        from twilio.rest import Client
+        sid = _get_setting('twilio_account_sid', '')
+        token = _get_setting('twilio_auth_token', '')
+        from_num = _get_setting('twilio_phone_number', '')
+        if not all([sid, token, from_num]):
+            return {'success': False, 'error': 'إعدادات Twilio غير مكتملة'}
+        client = Client(sid, token)
+        message = client.messages.create(body='اختبار من نظام الكراج ✅', from_=from_num, to=phone_number)
+        return {'success': True, 'sid': message.sid}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _test_thermal():
+    """اختبار الطابعة الحرارية"""
+    try:
+        ptype = _get_setting('thermal_printer_type', 'network')
+        if ptype == 'network':
+            from escpos.printer import Network
+            ip = _get_setting('thermal_printer_ip', '')
+            if not ip:
+                return {'success': False, 'error': 'IP مفقود'}
+            printer = Network(ip, int(_get_setting('thermal_printer_port', '9100')))
+            printer.text("اختبار طابعة\nTest Print\n")
+            printer.cut()
+            return {'success': True}
+        elif ptype == 'usb':
+            from escpos.printer import Usb
+            vendor = _get_setting('thermal_printer_usb_vendor', '')
+            product = _get_setting('thermal_printer_usb_product', '')
+            if not vendor or not product:
+                return {'success': False, 'error': 'USB IDs مفقودة'}
+            printer = Usb(int(vendor, 16), int(product, 16))
+            printer.text("اختبار\nTest\n")
+            printer.cut()
+            return {'success': True}
+        return {'success': False, 'error': 'نوع غير معروف'}
+    except ImportError:
+        return {'success': False, 'error': 'pip install python-escpos'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _test_pos():
+    """اختبار جهاز POS"""
+    try:
+        import socket
+        ip = _get_setting('pos_terminal_ip', '')
+        port = int(_get_setting('pos_terminal_port', '5000'))
+        if not ip:
+            return {'success': False, 'error': 'IP مفقود'}
+        
+        # محاولة الاتصال بالجهاز
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(3)
+        result = sock.connect_ex((ip, port))
+        sock.close()
+        
+        if result == 0:
+            return {'success': True}
+        else:
+            return {'success': False, 'error': 'لا يمكن الاتصال بالجهاز'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _test_obd2():
+    """اختبار كمبيوتر السيارة OBD-II"""
+    try:
+        import obd
+        connection_type = _get_setting('obd2_reader_type', 'bluetooth')
+        
+        if connection_type == 'bluetooth':
+            address = _get_setting('obd2_bluetooth_address', '')
+            if not address:
+                return {'success': False, 'error': 'عنوان Bluetooth مفقود'}
+            connection = obd.OBD(portstr=address, baudrate=38400)
+        else:  # Serial
+            port = _get_setting('obd2_port', 'COM3')
+            connection = obd.OBD(portstr=port)
+        
+        if connection.is_connected():
+            # قراءة معلومات السيارة
+            cmd = obd.commands.VIN
+            response = connection.query(cmd)
+            vin = response.value if response.value else 'N/A'
+            connection.close()
+            return {'success': True, 'vehicle_info': f'VIN: {vin}'}
+        else:
+            return {'success': False, 'error': 'لا يمكن الاتصال بالسيارة'}
+    except ImportError:
+        return {'success': False, 'error': 'pip install obd'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _test_scale():
+    """اختبار الميزان الإلكتروني"""
+    try:
+        import serial
+        port = _get_setting('digital_scale_port', 'COM4')
+        baudrate = int(_get_setting('digital_scale_baudrate', '9600'))
+        
+        ser = serial.Serial(port, baudrate, timeout=2)
+        ser.write(b'R\r\n')  # طلب قراءة
+        response = ser.readline().decode('utf-8').strip()
+        ser.close()
+        
+        if response:
+            # استخراج الوزن من الاستجابة
+            weight = ''.join(filter(lambda x: x.isdigit() or x == '.', response))
+            return {'success': True, 'weight': weight}
+        return {'success': False, 'error': 'لا توجد استجابة'}
+    except ImportError:
+        return {'success': False, 'error': 'pip install pyserial'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def _test_cctv():
+    """اختبار نظام المراقبة"""
+    try:
+        import requests
+        from requests.auth import HTTPDigestAuth
+        
+        cctv_type = _get_setting('cctv_type', 'hikvision')
+        ip = _get_setting('cctv_nvr_ip', '')
+        username = _get_setting('cctv_username', 'admin')
+        password = _get_setting('cctv_password', '')
+        
+        if not ip:
+            return {'success': False, 'error': 'IP مفقود'}
+        
+        # Hikvision API
+        if cctv_type == 'hikvision':
+            url = f'http://{ip}/ISAPI/System/deviceInfo'
+            response = requests.get(url, auth=HTTPDigestAuth(username, password), timeout=5)
+            if response.status_code == 200:
+                # جلب عدد الكاميرات
+                cameras_url = f'http://{ip}/ISAPI/System/Video/inputs'
+                cameras_resp = requests.get(cameras_url, auth=HTTPDigestAuth(username, password), timeout=5)
+                # تقدير عدد الكاميرات من الاستجابة
+                camera_count = cameras_resp.text.count('<VideoInputChannel>') if cameras_resp.status_code == 200 else 0
+                return {'success': True, 'cameras': camera_count}
+        
+        # Dahua API
+        elif cctv_type == 'dahua':
+            url = f'http://{ip}/cgi-bin/magicBox.cgi?action=getDeviceType'
+            response = requests.get(url, auth=HTTPDigestAuth(username, password), timeout=5)
+            if response.status_code == 200:
+                return {'success': True, 'cameras': 'متصل'}
+        
+        return {'success': False, 'error': 'نوع غير مدعوم'}
+    except ImportError:
+        return {'success': False, 'error': 'requests مثبتة مسبقاً'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+# ==================== خدمات التكامل الفعلية ====================
+
+def get_stripe_service():
+    """الحصول على خدمة Stripe"""
+    if not _get_setting('stripe_enabled', False):
+        return None
+    try:
+        import stripe
+        stripe.api_key = _get_setting('stripe_secret_key', '')
+        return stripe
+    except:
+        return None
+
+
+def get_paypal_service():
+    """الحصول على خدمة PayPal"""
+    if not _get_setting('paypal_enabled', False):
+        return None
+    try:
+        import paypalrestsdk
+        paypalrestsdk.configure({
+            'mode': _get_setting('paypal_mode', 'sandbox'),
+            'client_id': _get_setting('paypal_client_id', ''),
+            'client_secret': _get_setting('paypal_secret', '')
+        })
+        return paypalrestsdk
+    except:
+        return None
+
+
+def send_sms(to, message):
+    """إرسال SMS عبر Twilio"""
+    if not _get_setting('sms_enabled', False):
+        return {'success': False, 'error': 'SMS غير مفعّل'}
+    try:
+        from twilio.rest import Client
+        client = Client(
+            _get_setting('twilio_account_sid', ''),
+            _get_setting('twilio_auth_token', '')
+        )
+        msg = client.messages.create(
+            body=message,
+            from_=_get_setting('twilio_phone_number', ''),
+            to=to
+        )
+        return {'success': True, 'sid': msg.sid}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def send_whatsapp(to, message):
+    """إرسال WhatsApp عبر Twilio"""
+    if not _get_setting('sms_enabled', False):
+        return {'success': False, 'error': 'WhatsApp غير مفعّل'}
+    try:
+        from twilio.rest import Client
+        client = Client(
+            _get_setting('twilio_account_sid', ''),
+            _get_setting('twilio_auth_token', '')
+        )
+        msg = client.messages.create(
+            body=message,
+            from_=_get_setting('twilio_whatsapp_number', ''),
+            to=f'whatsapp:{to}'
+        )
+        return {'success': True, 'sid': msg.sid}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def print_thermal_invoice(sale):
+    """طباعة فاتورة على طابعة حرارية"""
+    if not _get_setting('thermal_printer_enabled', False):
+        return {'success': False, 'error': 'الطابعة غير مفعّلة'}
+    
+    try:
+        ptype = _get_setting('thermal_printer_type', 'network')
+        
+        # الاتصال بالطابعة
+        if ptype == 'network':
+            from escpos.printer import Network
+            printer = Network(
+                _get_setting('thermal_printer_ip', ''),
+                int(_get_setting('thermal_printer_port', '9100'))
+            )
+        else:  # USB
+            from escpos.printer import Usb
+            printer = Usb(
+                int(_get_setting('thermal_printer_usb_vendor', ''), 16),
+                int(_get_setting('thermal_printer_usb_product', ''), 16)
+            )
+        
+        # طباعة الفاتورة
+        printer.set(align='center', text_type='B', width=2, height=2)
+        printer.text(f"فاتورة رقم\n{sale.sale_number}\n")
+        printer.set(align='center', text_type='normal', width=1, height=1)
+        printer.text("─" * 32 + "\n")
+        
+        printer.set(align='right')
+        printer.text(f"العميل: {sale.customer.name}\n")
+        printer.text(f"التاريخ: {sale.sale_date.strftime('%Y-%m-%d %H:%M')}\n")
+        printer.text("─" * 32 + "\n\n")
+        
+        # الأصناف
+        for line in sale.lines:
+            printer.text(f"{line.product.name[:24]}\n")
+            printer.text(f"  {line.quantity} × {line.unit_price:.2f} = {line.net_amount:.2f}\n")
+        
+        printer.text("\n" + "─" * 32 + "\n")
+        
+        # الإجمالي
+        printer.set(align='right', text_type='B')
+        printer.text(f"المجموع: {sale.total_amount:.2f} {sale.currency}\n")
+        
+        if sale.total_paid > 0:
+            printer.set(text_type='normal')
+            printer.text(f"المدفوع: {sale.total_paid:.2f}\n")
+            printer.text(f"المتبقي: {sale.balance_due:.2f}\n")
+        
+        printer.text("\n")
+        printer.set(align='center', text_type='normal')
+        printer.text("شكراً لثقتكم\nThank You\n")
+        printer.text(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        
+        # قص الفاتورة
+        printer.cut()
+        
+        return {'success': True}
+        
+    except ImportError:
+        return {'success': False, 'error': 'pip install python-escpos'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def upload_to_s3(file, folder='uploads'):
+    """رفع ملف إلى AWS S3"""
+    if not _get_setting('cloud_storage_enabled', False):
+        return {'success': False, 'error': 'Cloud Storage غير مفعّل'}
+    
+    try:
+        import boto3
+        from werkzeug.utils import secure_filename
+        import uuid
+        
+        s3 = boto3.client('s3',
+            aws_access_key_id=_get_setting('aws_access_key', ''),
+            aws_secret_access_key=_get_setting('aws_secret_key', ''),
+            region_name=_get_setting('aws_region', 'eu-west-1')
+        )
+        
+        bucket = _get_setting('aws_bucket', '')
+        filename = secure_filename(file.filename)
+        key = f"{folder}/{uuid.uuid4()}_{filename}"
+        
+        s3.upload_fileobj(file, bucket, key, ExtraArgs={'ACL': 'public-read'})
+        url = f"https://{bucket}.s3.amazonaws.com/{key}"
+        
+        return {'success': True, 'url': url}
+    except ImportError:
+        return {'success': False, 'error': 'pip install boto3'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def trigger_webhook(event_name, data):
+    """إطلاق webhook للأنظمة الخارجية"""
+    if not _get_setting('webhooks_enabled', False):
+        return
+    
+    try:
+        import hmac
+        import hashlib
+        import requests
+        
+        # جلب جميع الـ webhooks المسجلة من SystemSettings
+        webhooks_json = _get_setting('registered_webhooks', '[]')
+        webhooks = json.loads(webhooks_json) if webhooks_json else []
+        
+        for webhook in webhooks:
+            if event_name in webhook.get('events', []):
+                payload = {
+                    'event': event_name,
+                    'data': data,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'source': 'garage_manager'
+                }
+                
+                # إنشاء signature
+                secret = _get_setting('webhook_secret', '')
+                signature = hmac.new(
+                    secret.encode(),
+                    json.dumps(payload).encode(),
+                    hashlib.sha256
+                ).hexdigest()
+                
+                headers = {
+                    'Content-Type': 'application/json',
+                    'X-Webhook-Signature': signature,
+                    'X-Event-Type': event_name
+                }
+                
+                timeout = int(_get_setting('webhook_timeout', '10'))
+                
+                requests.post(
+                    webhook['url'],
+                    json=payload,
+                    headers=headers,
+                    timeout=timeout
+                )
+    except Exception as e:
+        current_app.logger.error(f'Webhook error: {str(e)}')
+
+
+def process_card_payment(amount, currency='ILS'):
+    """معالجة دفعة عبر جهاز POS"""
+    if not _get_setting('pos_terminal_enabled', False):
+        return {'success': False, 'error': 'جهاز POS غير مفعّل'}
+    
+    try:
+        import socket
+        import json
+        
+        ip = _get_setting('pos_terminal_ip', '')
+        port = int(_get_setting('pos_terminal_port', '5000'))
+        merchant_id = _get_setting('pos_merchant_id', '')
+        
+        # إنشاء طلب دفع
+        payment_request = {
+            'action': 'sale',
+            'amount': float(amount),
+            'currency': currency,
+            'merchant_id': merchant_id,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # إرسال للجهاز
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(60)  # دقيقة للدفع
+        sock.connect((ip, port))
+        sock.send(json.dumps(payment_request).encode('utf-8'))
+        
+        # استقبال الاستجابة
+        response = sock.recv(4096).decode('utf-8')
+        sock.close()
+        
+        result = json.loads(response)
+        return result
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def scan_vehicle_obd2():
+    """فحص السيارة وقراءة الأعطال من OBD-II"""
+    if not _get_setting('obd2_reader_enabled', False):
+        return {'success': False, 'error': 'OBD-II غير مفعّل'}
+    
+    try:
+        import obd
+        
+        connection_type = _get_setting('obd2_reader_type', 'bluetooth')
+        
+        if connection_type == 'bluetooth':
+            address = _get_setting('obd2_bluetooth_address', '')
+            connection = obd.OBD(portstr=address, baudrate=38400)
+        else:
+            port = _get_setting('obd2_port', 'COM3')
+            connection = obd.OBD(portstr=port)
+        
+        if not connection.is_connected():
+            return {'success': False, 'error': 'لا يمكن الاتصال بالسيارة'}
+        
+        # قراءة البيانات
+        data = {
+            'vin': None,
+            'dtc_codes': [],
+            'rpm': None,
+            'speed': None,
+            'coolant_temp': None,
+            'engine_load': None,
+            'fuel_level': None,
+        }
+        
+        # VIN
+        cmd = obd.commands.VIN
+        response = connection.query(cmd)
+        data['vin'] = str(response.value) if response.value else None
+        
+        # أكواد الأعطال
+        cmd = obd.commands.GET_DTC
+        response = connection.query(cmd)
+        if response.value:
+            data['dtc_codes'] = [(code[0], code[1]) for code in response.value]
+        
+        # RPM
+        cmd = obd.commands.RPM
+        response = connection.query(cmd)
+        data['rpm'] = float(response.value.magnitude) if response.value else None
+        
+        # السرعة
+        cmd = obd.commands.SPEED
+        response = connection.query(cmd)
+        data['speed'] = float(response.value.magnitude) if response.value else None
+        
+        # حرارة المحرك
+        cmd = obd.commands.COOLANT_TEMP
+        response = connection.query(cmd)
+        data['coolant_temp'] = float(response.value.magnitude) if response.value else None
+        
+        # حمل المحرك
+        cmd = obd.commands.ENGINE_LOAD
+        response = connection.query(cmd)
+        data['engine_load'] = float(response.value.magnitude) if response.value else None
+        
+        # مستوى الوقود
+        cmd = obd.commands.FUEL_LEVEL
+        response = connection.query(cmd)
+        data['fuel_level'] = float(response.value.magnitude) if response.value else None
+        
+        connection.close()
+        
+        return {'success': True, 'data': data}
+        
+    except ImportError:
+        return {'success': False, 'error': 'pip install obd'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def read_weight_from_scale():
+    """قراءة الوزن من الميزان الإلكتروني"""
+    if not _get_setting('digital_scale_enabled', False):
+        return {'success': False, 'error': 'الميزان غير مفعّل'}
+    
+    try:
+        import serial
+        port = _get_setting('digital_scale_port', 'COM4')
+        baudrate = int(_get_setting('digital_scale_baudrate', '9600'))
+        
+        ser = serial.Serial(port, baudrate, timeout=2)
+        ser.write(b'R\r\n')  # طلب قراءة
+        response = ser.readline().decode('utf-8').strip()
+        ser.close()
+        
+        if response:
+            # استخراج الوزن من الاستجابة
+            weight = ''.join(filter(lambda x: x.isdigit() or x == '.', response))
+            return {'success': True, 'weight': float(weight), 'unit': 'kg'}
+        return {'success': False, 'error': 'لا توجد استجابة'}
+    except ImportError:
+        return {'success': False, 'error': 'pip install pyserial'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def print_product_label(product):
+    """طباعة لصاقة منتج على طابعة Zebra"""
+    if not _get_setting('label_printer_enabled', False):
+        return {'success': False, 'error': 'طابعة اللصاقات غير مفعّلة'}
+    
+    try:
+        from zebra import Zebra
+        
+        printer_type = _get_setting('label_printer_type', 'zebra')
+        connection = _get_setting('label_printer_connection', 'usb')
+        
+        if connection == 'network':
+            ip = _get_setting('label_printer_ip', '')
+            port = int(_get_setting('label_printer_port', '9100'))
+            z = Zebra(f'{ip}:{port}')
+        else:
+            z = Zebra()  # USB - default
+        
+        # ZPL code for label
+        width = _get_setting('label_printer_width', '4')  # 4 inch
+        
+        zpl = f"""
+^XA
+^FO50,50^A0N,50,50^FD{product.name[:20]}^FS
+^FO50,120^A0N,30,30^FDSKU: {product.sku}^FS
+^FO50,160^A0N,40,40^FD{product.sale_price:.2f} ILS^FS
+^FO50,220^BY3^BCN,100,Y,N,N^FD{product.barcode}^FS
+^XZ
+"""
+        
+        z.output(zpl)
+        return {'success': True}
+        
+    except ImportError:
+        return {'success': False, 'error': 'pip install zebra'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def open_cash_drawer():
+    """فتح درج النقدية"""
+    if not _get_setting('cash_drawer_enabled', False):
+        return {'success': False, 'error': 'درج النقدية غير مفعّل'}
+    
+    try:
+        connection_type = _get_setting('cash_drawer_connection', 'printer')
+        
+        if connection_type == 'printer':
+            # فتح عبر الطابعة الحرارية
+            ptype = _get_setting('thermal_printer_type', 'network')
+            if ptype == 'network':
+                from escpos.printer import Network
+                printer = Network(
+                    _get_setting('thermal_printer_ip', ''),
+                    int(_get_setting('thermal_printer_port', '9100'))
+                )
+            else:
+                from escpos.printer import Usb
+                printer = Usb(
+                    int(_get_setting('thermal_printer_usb_vendor', ''), 16),
+                    int(_get_setting('thermal_printer_usb_product', ''), 16)
+                )
+            
+            printer._raw(b'\x1B\x70\x00\x19\xFA')  # ESC p 0 25 250
+            return {'success': True}
+            
+        else:  # Serial connection
+            import serial
+            port = _get_setting('cash_drawer_port', 'COM1')
+            open_code = _get_setting('cash_drawer_open_code', '27,112,0,25,250')
+            
+            codes = [int(c) for c in open_code.split(',')]
+            ser = serial.Serial(port, 9600, timeout=1)
+            ser.write(bytes(codes))
+            ser.close()
+            return {'success': True}
+            
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def update_customer_display(line1, line2=''):
+    """تحديث شاشة العميل"""
+    if not _get_setting('customer_display_enabled', False):
+        return {'success': False, 'error': 'شاشة العميل غير مفعّلة'}
+    
+    try:
+        import serial
+        port = _get_setting('customer_display_port', 'COM2')
+        display_type = _get_setting('customer_display_type', 'lcd')
+        chars = int(_get_setting('customer_display_chars', '20'))
+        
+        # تحديد السطور بطول الشاشة
+        line1 = line1[:chars].ljust(chars)
+        line2 = line2[:chars].ljust(chars)
+        
+        ser = serial.Serial(port, 9600, timeout=1)
+        
+        # مسح الشاشة
+        ser.write(b'\x0C')
+        
+        # كتابة السطر الأول
+        ser.write(line1.encode('utf-8'))
+        
+        # الانتقال للسطر الثاني
+        if line2:
+            ser.write(b'\x0A')
+            ser.write(line2.encode('utf-8'))
+        
+        ser.close()
+        return {'success': True}
+        
+    except ImportError:
+        return {'success': False, 'error': 'pip install pyserial'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def verify_fingerprint(user_id):
+    """التحقق من بصمة المستخدم"""
+    if not _get_setting('fingerprint_scanner_enabled', False):
+        return {'success': False, 'error': 'قارئ البصمة غير مفعّل'}
+    
+    try:
+        # هذا مثال - يعتمد على نوع القارئ المستخدم
+        vendor_id = _get_setting('fingerprint_vendor_id', '')
+        product_id = _get_setting('fingerprint_product_id', '')
+        
+        if not vendor_id or not product_id:
+            return {'success': False, 'error': 'إعدادات القارئ غير مكتملة'}
+        
+        # TODO: تكامل مع SDK الخاص بالقارئ
+        # مثال: DigitalPersona, ZKTeco, etc.
+        
+        return {'success': False, 'error': 'قيد التطوير - يحتاج SDK خاص بالقارئ'}
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+
+def capture_cctv_snapshot(camera_id=1):
+    """التقاط صورة من كاميرا محددة"""
+    if not _get_setting('cctv_enabled', False):
+        return {'success': False, 'error': 'نظام المراقبة غير مفعّل'}
+    
+    try:
+        import requests
+        from requests.auth import HTTPDigestAuth
+        
+        cctv_type = _get_setting('cctv_type', 'hikvision')
+        ip = _get_setting('cctv_nvr_ip', '')
+        username = _get_setting('cctv_username', 'admin')
+        password = _get_setting('cctv_password', '')
+        
+        if cctv_type == 'hikvision':
+            url = f'http://{ip}/ISAPI/Streaming/channels/{camera_id}01/picture'
+            response = requests.get(url, auth=HTTPDigestAuth(username, password), timeout=10)
+            
+            if response.status_code == 200:
+                # حفظ الصورة
+                filename = f'cctv_snapshot_{camera_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.jpg'
+                filepath = f'static/uploads/cctv/{filename}'
+                
+                import os
+                os.makedirs('static/uploads/cctv', exist_ok=True)
+                
+                with open(filepath, 'wb') as f:
+                    f.write(response.content)
+                
+                return {'success': True, 'filepath': filepath, 'url': f'/static/uploads/cctv/{filename}'}
+        
+        return {'success': False, 'error': 'نوع غير مدعوم'}
+        
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
 
 
 @security_bp.route('/save-integration', methods=['POST'])
 @owner_only
 def save_integration():
-    """حفظ إعدادات التكامل مع اختبار الاتصال"""
-    from models import SystemSettings
-    
-    integration_type = request.form.get('integration_type')
-    
-    # حفظ الإعدادات
-    for key, value in request.form.items():
-        if key in ['csrf_token', 'integration_type']:
-            continue
-        
-        setting = SystemSettings.query.filter_by(key=key).first()
-        if setting:
-            setting.value = str(value)
-        else:
-            db.session.add(SystemSettings(key=key, value=str(value)))
-    
-    db.session.commit()
-    
-    # اختبار الاتصال تلقائياً
-    test_result = _test_integration_connection(integration_type)
-    
-    # تسجيل النشاط في سجل التدقيق
-    _log_integration_activity(integration_type, 'configured', test_result['success'])
-    
-    type_names = {
-        'whatsapp': 'واتساب',
-        'email': 'البريد الإلكتروني',
-        'card_reader': 'قارئ الكروت',
-        'accounting': 'المحاسبة',
-        'obd2': 'كمبيوتر السيارات',
-        'barcode': 'قارئ الباركود',
-        'sms': 'الرسائل النصية',
-        'api_keys': 'مفاتيح API'
-    }
-    
-    name = type_names.get(integration_type, 'الإعدادات')
-    
-    if test_result['success']:
-        flash(f'✅ تم حفظ إعدادات {name} - الاتصال ناجح!', 'success')
-    else:
-        flash(f'⚠️ تم حفظ إعدادات {name} - فشل الاتصال: {test_result["error"]}', 'warning')
-    
-    return redirect(url_for('security.integrations'))
+    """حفظ إعدادات التكامل - route قديم للتوافق"""
+    # إعادة توجيه للـ route الجديد
+    return integrations()
 
 
 @security_bp.route('/test-integration/<integration_type>', methods=['POST'])
@@ -2804,110 +3699,14 @@ def update_user_role(user_id):
     return redirect(url_for('security.user_control'))
 
 
-@security_bp.route('/sql-console', methods=['GET', 'POST'])
-@owner_only
-def sql_console():
-    """
-    💻 وحدة SQL التفاعلية - Interactive SQL Console
-    
-    📋 الوصف:
-        تنفيذ استعلامات SQL مباشرة على قاعدة البيانات
-    
-    📥 Parameters (POST):
-        - query (str): استعلام SQL للتنفيذ
-        - format (str): json|html|csv (default: html)
-    
-    📤 Response:
-        HTML: templates/security/sql_console.html
-        JSON: نتائج الاستعلام (if format=json)
-        
-    🎯 الوظائف:
-        ✅ SELECT - استعلامات القراءة
-        ✅ INSERT - إضافة بيانات
-        ✅ UPDATE - تحديث بيانات
-        ✅ DELETE - حذف بيانات (مع تأكيد)
-        ✅ CREATE/ALTER/DROP - DDL operations
-        ✅ حفظ الاستعلامات المفضلة
-        ✅ عرض النتائج بجدول
-        ✅ Export to CSV/JSON
-    
-    ⚠️ Security:
-        - Owner only (خطير جداً!)
-        - تأكيد إضافي على DELETE/DROP
-        - Audit logging لكل استعلام
-        - تحذيرات للعمليات الخطيرة
-    
-    💡 Usage:
-        GET  /sql-console
-        POST /sql-console
-             query=SELECT * FROM customers LIMIT 10
-    """
-    result = None
-    error = None
-    
-    if request.method == 'POST':
-        sql_query = request.form.get('sql_query', '').strip()
-        
-        try:
-            result_proxy = db.session.execute(text(sql_query))
-            
-            # محاولة الحصول على النتائج
-            try:
-                rows = result_proxy.fetchall()
-                columns = result_proxy.keys() if hasattr(result_proxy, 'keys') else []
-                result = {
-                    'columns': list(columns),
-                    'rows': [list(row) for row in rows],
-                    'count': len(rows)
-                }
-            except:
-                # استعلام لا يرجع نتائج (INSERT, UPDATE, DELETE)
-                db.session.commit()
-                result = {'message': 'تم تنفيذ الاستعلام بنجاح'}
-        
-        except Exception as e:
-            error = str(e)
-            db.session.rollback()
-    
-    return render_template('security/sql_console.html', result=result, error=error)
-
-
-@security_bp.route('/python-console', methods=['GET', 'POST'])
-@owner_only
-def python_console():
-    """وحدة تنفيذ Python مباشرة"""
-    result = None
-    error = None
-    
-    if request.method == 'POST':
-        python_code = request.form.get('python_code', '').strip()
-        
-        try:
-            # تنفيذ الكود في بيئة آمنة
-            local_vars = {
-                'db': db,
-                'User': User,
-                'AuditLog': AuditLog,
-                'current_user': current_user,
-                'datetime': datetime,
-                'timezone': timezone
-            }
-            
-            exec(python_code, {'__builtins__': __builtins__}, local_vars)
-            result = local_vars.get('output', 'تم التنفيذ بنجاح')
-        
-        except Exception as e:
-            error = str(e)
-    
-    return render_template('security/python_console.html', result=result, error=error)
-
-
 @security_bp.route('/settings', methods=['GET', 'POST'])
 @security_bp.route('/system-settings', methods=['GET', 'POST'])  # Backward compatibility
 @owner_only
 def system_settings():
-    """إعدادات النظام الموحدة - 3 في 1 (عامة + متقدمة + ثوابت)"""
-    tab = request.args.get('tab', 'general')  # general, advanced, constants
+    """إعدادات النظام الموحدة - 4 في 1 (عامة + متقدمة + شركة + ثوابت أعمال)"""
+    from models import SystemSettings
+    
+    tab = request.args.get('tab', 'general')  # general, advanced, company, business
     
     if request.method == 'POST':
         tab = request.form.get('active_tab', 'general')
@@ -2938,8 +3737,8 @@ def system_settings():
                 _set_system_setting(key, value)
             flash('✅ تم تحديث التكوين المتقدم', 'success')
             
-        elif tab == 'constants':
-            # حفظ الثوابت
+        elif tab == 'company':
+            # حفظ بيانات الشركة
             constants = {
                 'COMPANY_NAME': request.form.get('company_name', ''),
                 'COMPANY_ADDRESS': request.form.get('company_address', ''),
@@ -2954,7 +3753,79 @@ def system_settings():
             for key, value in constants.items():
                 if value:
                     _set_system_setting(key, value)
-            flash('✅ تم تحديث الثوابت', 'success')
+            flash('✅ تم تحديث بيانات الشركة', 'success')
+            
+        elif tab == 'business':
+            # حفظ ثوابت الأعمال (Business Constants)
+            try:
+                # Tax Settings
+                SystemSettings.set_setting('default_vat_rate', request.form.get('default_vat_rate', 16.0), 
+                                         'نسبة VAT الافتراضية', 'number')
+                SystemSettings.set_setting('vat_enabled', request.form.get('vat_enabled') == 'on', 
+                                         'تفعيل VAT', 'boolean')
+                SystemSettings.set_setting('income_tax_rate', request.form.get('income_tax_rate', 15.0), 
+                                         'ضريبة دخل الشركات', 'number')
+                SystemSettings.set_setting('withholding_tax_rate', request.form.get('withholding_tax_rate', 5.0), 
+                                         'الخصم من المنبع', 'number')
+                
+                # Payroll Settings
+                SystemSettings.set_setting('social_insurance_enabled', request.form.get('social_insurance_enabled') == 'on', 
+                                         'تفعيل التأمينات', 'boolean')
+                SystemSettings.set_setting('social_insurance_company', request.form.get('social_insurance_company', 7.5), 
+                                         'نسبة التأمين - الشركة', 'number')
+                SystemSettings.set_setting('social_insurance_employee', request.form.get('social_insurance_employee', 7.0), 
+                                         'نسبة التأمين - الموظف', 'number')
+                SystemSettings.set_setting('overtime_rate_normal', request.form.get('overtime_rate_normal', 1.5), 
+                                         'معدل العمل الإضافي', 'number')
+                SystemSettings.set_setting('working_hours_per_day', request.form.get('working_hours_per_day', 8), 
+                                         'ساعات العمل اليومية', 'number')
+                
+                # Fixed Assets Settings
+                SystemSettings.set_setting('asset_auto_depreciation', request.form.get('asset_auto_depreciation') == 'on', 
+                                         'استهلاك تلقائي', 'boolean')
+                SystemSettings.set_setting('asset_threshold_amount', request.form.get('asset_threshold_amount', 500), 
+                                         'حد مبلغ الأصول', 'number')
+                
+                # Accounting Settings
+                SystemSettings.set_setting('cost_centers_enabled', request.form.get('cost_centers_enabled') == 'on', 
+                                         'تفعيل مراكز التكلفة', 'boolean')
+                SystemSettings.set_setting('budgeting_enabled', request.form.get('budgeting_enabled') == 'on', 
+                                         'تفعيل الموازنات', 'boolean')
+                SystemSettings.set_setting('fiscal_year_start_month', request.form.get('fiscal_year_start_month', 1), 
+                                         'بداية السنة المالية', 'number')
+                
+                # Notification Settings
+                SystemSettings.set_setting('notify_on_service_complete', request.form.get('notify_on_service_complete') == 'on', 
+                                         'إشعار اكتمال الصيانة', 'boolean')
+                SystemSettings.set_setting('notify_on_payment_due', request.form.get('notify_on_payment_due') == 'on', 
+                                         'إشعار استحقاق الدفعات', 'boolean')
+                SystemSettings.set_setting('notify_on_low_stock', request.form.get('notify_on_low_stock') == 'on', 
+                                         'تنبيه انخفاض المخزون', 'boolean')
+                SystemSettings.set_setting('payment_reminder_days', request.form.get('payment_reminder_days', 3), 
+                                         'التذكير قبل الاستحقاق', 'number')
+                
+                # Business Rules
+                SystemSettings.set_setting('allow_negative_stock', request.form.get('allow_negative_stock') == 'on', 
+                                         'السماح بالمخزون السالب', 'boolean')
+                SystemSettings.set_setting('require_approval_for_sales_above', request.form.get('require_approval_for_sales_above', 10000), 
+                                         'طلب موافقة للمبيعات الكبيرة', 'number')
+                SystemSettings.set_setting('discount_max_percent', request.form.get('discount_max_percent', 50), 
+                                         'الحد الأقصى للخصم', 'number')
+                SystemSettings.set_setting('credit_limit_check', request.form.get('credit_limit_check') == 'on', 
+                                         'فحص حد الائتمان', 'boolean')
+                
+                # Multi-Tenancy Settings  
+                SystemSettings.set_setting('multi_tenancy_enabled', request.form.get('multi_tenancy_enabled') == 'on', 
+                                         'تفعيل تعدد المستأجرين', 'boolean')
+                SystemSettings.set_setting('trial_period_days', request.form.get('trial_period_days', 30), 
+                                         'مدة التجريبي', 'number')
+                
+                db.session.commit()
+                flash('✅ تم حفظ ثوابت الأعمال', 'success')
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ خطأ: {str(e)}', 'danger')
         
         return redirect(url_for('security.system_settings', tab=tab))
     
@@ -2974,7 +3845,7 @@ def system_settings():
             'ENABLE_EMAIL_NOTIFICATIONS': _get_system_setting('ENABLE_EMAIL_NOTIFICATIONS', True),
             'ENABLE_SMS_NOTIFICATIONS': _get_system_setting('ENABLE_SMS_NOTIFICATIONS', False),
         },
-        'constants': {
+        'company': {
             'COMPANY_NAME': _get_system_setting('COMPANY_NAME', 'Azad Garage'),
             'COMPANY_ADDRESS': _get_system_setting('COMPANY_ADDRESS', ''),
             'COMPANY_PHONE': _get_system_setting('COMPANY_PHONE', ''),
@@ -2984,10 +3855,46 @@ def system_settings():
             'TIMEZONE': _get_system_setting('TIMEZONE', 'UTC'),
             'DATE_FORMAT': _get_system_setting('DATE_FORMAT', '%Y-%m-%d'),
             'TIME_FORMAT': _get_system_setting('TIME_FORMAT', '%H:%M:%S'),
+        },
+        'business': {
+            # Tax
+            'default_vat_rate': SystemSettings.get_setting('default_vat_rate', 16.0),
+            'vat_enabled': SystemSettings.get_setting('vat_enabled', True),
+            'income_tax_rate': SystemSettings.get_setting('income_tax_rate', 15.0),
+            'withholding_tax_rate': SystemSettings.get_setting('withholding_tax_rate', 5.0),
+            # Payroll
+            'social_insurance_enabled': SystemSettings.get_setting('social_insurance_enabled', False),
+            'social_insurance_company': SystemSettings.get_setting('social_insurance_company', 7.5),
+            'social_insurance_employee': SystemSettings.get_setting('social_insurance_employee', 7.0),
+            'overtime_rate_normal': SystemSettings.get_setting('overtime_rate_normal', 1.5),
+            'working_hours_per_day': SystemSettings.get_setting('working_hours_per_day', 8),
+            # Assets
+            'asset_auto_depreciation': SystemSettings.get_setting('asset_auto_depreciation', True),
+            'asset_threshold_amount': SystemSettings.get_setting('asset_threshold_amount', 500),
+            # Accounting
+            'cost_centers_enabled': SystemSettings.get_setting('cost_centers_enabled', False),
+            'budgeting_enabled': SystemSettings.get_setting('budgeting_enabled', False),
+            'fiscal_year_start_month': SystemSettings.get_setting('fiscal_year_start_month', 1),
+            # Notifications
+            'notify_on_service_complete': SystemSettings.get_setting('notify_on_service_complete', True),
+            'notify_on_payment_due': SystemSettings.get_setting('notify_on_payment_due', True),
+            'notify_on_low_stock': SystemSettings.get_setting('notify_on_low_stock', True),
+            'payment_reminder_days': SystemSettings.get_setting('payment_reminder_days', 3),
+            # Business Rules
+            'allow_negative_stock': SystemSettings.get_setting('allow_negative_stock', False),
+            'require_approval_for_sales_above': SystemSettings.get_setting('require_approval_for_sales_above', 10000),
+            'discount_max_percent': SystemSettings.get_setting('discount_max_percent', 50),
+            'credit_limit_check': SystemSettings.get_setting('credit_limit_check', True),
+            # Multi-Tenancy
+            'multi_tenancy_enabled': SystemSettings.get_setting('multi_tenancy_enabled', False),
+            'trial_period_days': SystemSettings.get_setting('trial_period_days', 30),
         }
     }
     
-    return render_template('security/system_settings.html', data=data, active_tab=tab)
+    # 🔄 إضافة إحصائيات ديناميكية
+    stats = get_cached_security_stats()
+    
+    return render_template('security/system_settings.html', data=data, active_tab=tab, stats=stats)
 
 
 @security_bp.route('/emergency-tools')
@@ -3183,134 +4090,6 @@ def system_branding():
     return render_template('security/system_branding.html', branding=branding)
 
 
-@security_bp.route('/logs-viewer')
-@owner_only
-def logs_viewer():
-    """عارض اللوجات (السيرفر والنظام)"""
-    log_files = _get_available_log_files()
-    return render_template('security/logs_viewer.html', log_files=log_files)
-
-
-@security_bp.route('/logs-download/<log_type>')
-@owner_only
-def logs_download(log_type):
-    """تحميل ملف لوج"""
-    import os
-    from flask import send_file
-    
-    log_files = {
-        'error': 'logs/error.log',
-        'server': 'logs/server_error.log',
-        'audit': 'instance/audit.log',
-        'access': 'logs/access.log',
-        'security': 'logs/security.log',
-        'performance': 'logs/performance.log',
-    }
-    
-    log_path = log_files.get(log_type)
-    if log_path and os.path.exists(log_path):
-        return send_file(log_path, as_attachment=True, download_name=f'{log_type}_log.txt')
-    
-    flash('ملف اللوج غير موجود', 'warning')
-    return redirect(url_for('security.logs_viewer'))
-
-
-@security_bp.route('/logs-view/<log_type>')
-@owner_only
-def logs_view(log_type):
-    """عرض محتوى ملف لوج"""
-    import os
-    
-    log_files = {
-        'error': 'logs/error.log',
-        'server': 'logs/server_error.log',
-        'audit': 'instance/audit.log',
-        'access': 'logs/access.log',
-        'security': 'logs/security.log',
-        'performance': 'logs/performance.log',
-    }
-    
-    log_path = log_files.get(log_type)
-    content = ''
-    
-    if log_path and os.path.exists(log_path):
-        try:
-            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
-                lines = f.readlines()
-                # آخر 1000 سطر
-                content = ''.join(lines[-1000:])
-        except Exception as e:
-            content = f'خطأ في قراءة الملف: {str(e)}'
-    else:
-        content = 'ملف اللوج غير موجود'
-    
-    return render_template('security/logs_content.html', log_type=log_type, content=content)
-
-
-@security_bp.route('/logs-clear/<log_type>', methods=['POST'])
-@owner_only
-def logs_clear(log_type):
-    """تنظيف محتوى ملف لوج (إفراغه)"""
-    import os
-    from flask import jsonify
-    
-    log_files = {
-        'error': 'logs/error.log',
-        'server': 'logs/server_error.log',
-        'access': 'logs/access.log',
-        'performance': 'logs/performance.log',
-        'security': 'logs/security.log',
-        'audit': 'instance/audit.log'
-    }
-    
-    log_path = log_files.get(log_type)
-    
-    # التحقق من وجود الملف
-    if not log_path:
-        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'message': 'نوع اللوج غير صحيح'}), 400
-        flash('نوع اللوج غير صحيح', 'error')
-        return redirect(url_for('security.logs_viewer'))
-    
-    if not os.path.exists(log_path):
-        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'message': 'ملف اللوج غير موجود'}), 404
-        flash('ملف اللوج غير موجود', 'warning')
-        return redirect(url_for('security.logs_viewer'))
-    
-    try:
-        # تنظيف الملف (إفراغه)
-        with open(log_path, 'w') as f:
-            f.write('')
-        
-        # دعم AJAX
-        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({
-                'success': True, 
-                'message': f'✅ تم تنظيف محتوى {log_type}.log بنجاح'
-            })
-        
-        flash(f'✅ تم تنظيف محتوى {log_type}.log بنجاح', 'success')
-    except Exception as e:
-        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return jsonify({'success': False, 'message': f'❌ خطأ: {str(e)}'}), 500
-        flash(f'❌ خطأ في تنظيف اللوج: {str(e)}', 'error')
-    
-    return redirect(url_for('security.logs_viewer'))
-
-
-@security_bp.route('/error-tracker')
-@owner_only
-def error_tracker():
-    """تتبع الأخطاء في الوقت الفعلي"""
-    errors = _get_recent_errors(100)
-    error_stats = _get_error_statistics()
-    
-    return render_template('security/error_tracker.html', 
-                          errors=errors, 
-                          error_stats=error_stats)
-
-
 @security_bp.route('/system-constants', methods=['GET', 'POST'])
 @owner_only
 def system_constants():
@@ -3325,20 +4104,10 @@ def advanced_config():
     return redirect(url_for('security.system_settings', tab='advanced'))
 
 
-# ═══════════════════════════════════════════════════════════════
-# DATABASE EDITOR - ADVANCED
-# ═══════════════════════════════════════════════════════════════
-
-# ✅ db-editor REMOVED - use /database-manager?tab=edit instead
-# Removed for cleanup - was just a redirect
 
 
-# ✅ db-editor/table REMOVED - use /database-manager?tab=edit&table=<name> instead
-# Removed for cleanup - was just a redirect
 
-# ═══════════════════════════════════════════════════════════════
-# DATABASE EDITOR APIs - ACTIVE (يُحتفظ بها جميعاً)
-# ═══════════════════════════════════════════════════════════════
+
 
 @security_bp.route('/db-editor/add-column/<table_name>', methods=['POST'])
 @owner_only
@@ -3585,9 +4354,6 @@ def db_schema_editor(table_name):
     return redirect(url_for('security.database_manager', tab='schema', table=table_name))
 
 
-# ═══════════════════════════════════════════════════════════════
-# Helper Functions
-# ═══════════════════════════════════════════════════════════════
 
 def _get_blocked_ips_count():
     """عدد IPs المحظورة"""
@@ -3682,87 +4448,187 @@ def _get_all_blocked_countries():
     return cache.get('blocked_countries') or []
 
 def _get_cleanable_tables():
-    """الجداول القابلة للتنظيف"""
-    return [
-        # المستخدمين والحسابات (خطر عالي!)
-        {'name': 'users_except_first_super', 'display': '👤 المستخدمين (ما عدا أول Super Admin)', 'danger': 'high'},
-        {'name': 'roles', 'display': '🎭 الأدوار', 'danger': 'high'},
-        {'name': 'user_roles', 'display': '🔗 ربط المستخدمين بالأدوار', 'danger': 'high'},
+    """
+    🔄 الجداول القابلة للتنظيف - تحديث تلقائي من قاعدة البيانات
+    
+    ✅ يتحدث تلقائياً بناءً على التهجيرات (Migrations)
+    🛡️ يستثني الجداول الحساسة (alembic_version, system_settings)
+    ⚠️ يحدد مستوى الخطورة بذكاء حسب نوع الجدول
+    """
+    from sqlalchemy import inspect, text
+    
+    # الحصول على جميع الجداول من قاعدة البيانات
+    inspector = inspect(db.engine)
+    all_tables = inspector.get_table_names()
+    
+    # الجداول التي لا يجب حذفها أبداً
+    SYSTEM_TABLES = {
+        'alembic_version',      # تاريخ التهجيرات
+        'system_settings',      # إعدادات النظام
+        'branches',             # الفروع
+        'currencies',           # العملات
+        'accounts',             # دليل الحسابات
+    }
+    
+    # قواعد تحديد مستوى الخطورة والأيقونات
+    DANGER_RULES = {
+        # خطر عالي جداً - بيانات أساسية
+        'high': {
+            'keywords': ['customer', 'supplier', 'partner', 'user', 'payment', 'sale', 'invoice', 
+                        'gl_', 'check', 'warehouse', 'product', 'shipment', 'stock_level', 'employee'],
+            'icon': '🔴'
+        },
+        # خطر متوسط - بيانات مهمة
+        'medium': {
+            'keywords': ['service_', 'stock_adjustment', 'preorder', 'expense', 'settlement', 
+                        'note', 'category', 'type', 'loan', 'partner'],
+            'icon': '🟡'
+        },
+        # خطر منخفض - سجلات ولوجات
+        'low': {
+            'keywords': ['log', 'audit', 'notification', 'cart', 'rating', 'helpful'],
+            'icon': '🟢'
+        }
+    }
+    
+    # قاموس الأيقونات حسب نوع الجدول
+    TABLE_ICONS = {
+        'user': '👤', 'role': '🎭', 'customer': '👥', 'supplier': '🏭', 'partner': '🤝',
+        'payment': '💰', 'check': '📝', 'expense': '📤', 'sale': '🛍️', 'invoice': '📄',
+        'product': '📦', 'warehouse': '🏪', 'stock': '📊', 'shipment': '🚚',
+        'service': '🔧', 'cart': '🛒', 'preorder': '📅', 'settlement': '💼',
+        'log': '📋', 'audit': '🔍', 'notification': '🔔', 'note': '📝',
+        'gl_': '📖', 'account': '💼', 'category': '🏷️', 'type': '📂',
+        'employee': '👔', 'advance': '💵', 'deduction': '➖'
+    }
+    
+    def get_danger_level(table_name):
+        """تحديد مستوى الخطورة بناءً على اسم الجدول"""
+        table_lower = table_name.lower()
+        for level, rules in DANGER_RULES.items():
+            if any(keyword in table_lower for keyword in rules['keywords']):
+                return level
+        return 'medium'  # افتراضي
+    
+    def get_icon(table_name):
+        """الحصول على الأيقونة المناسبة للجدول"""
+        table_lower = table_name.lower()
+        for keyword, icon in TABLE_ICONS.items():
+            if keyword in table_lower:
+                return icon
+        return '📊'  # أيقونة افتراضية
+    
+    def get_arabic_name(table_name):
+        """توليد اسم عربي للجدول"""
+        # قاموس الترجمات
+        translations = {
+            'users': 'المستخدمين', 'roles': 'الأدوار', 'customers': 'العملاء',
+            'suppliers': 'الموردين', 'partners': 'الشركاء', 'employees': 'الموظفين',
+            'payments': 'المدفوعات', 'checks': 'الشيكات', 'expenses': 'المصاريف',
+            'sales': 'المبيعات', 'invoices': 'الفواتير', 'products': 'المنتجات',
+            'warehouses': 'المخازن', 'shipments': 'الشحنات', 'stock_levels': 'مستويات المخزون',
+            'service_requests': 'طلبات الصيانة', 'service_parts': 'قطع الصيانة',
+            'service_tasks': 'مهام الصيانة', 'audit_logs': 'سجلات التدقيق',
+            'deletion_logs': 'سجلات الحذف', 'notes': 'الملاحظات',
+            'online_carts': 'سلات التسوق', 'preorders': 'الحجوزات المسبقة',
+            'gl_batches': 'دفعات القيود', 'gl_entries': 'القيود المحاسبية',
+            'product_categories': 'فئات المنتجات', 'expense_types': 'أنواع المصاريف',
+            'payment_splits': 'تقسيمات الدفع', 'sale_lines': 'بنود المبيعات',
+            'invoice_lines': 'بنود الفواتير', 'shipment_items': 'بنود الشحنات',
+            'stock_adjustments': 'تعديلات المخزون', 'exchange_transactions': 'معاملات التبادل',
+            'supplier_settlements': 'تسويات الموردين', 'partner_settlements': 'تسويات الشركاء',
+            'product_supplier_loans': 'قروض الموردين', 'utility_accounts': 'حسابات المرافق',
+            'equipment_types': 'أنواع المركبات', 'online_payments': 'المدفوعات الإلكترونية',
+            'online_preorders': 'الحجوزات الإلكترونية', 'product_partners': 'ربط المنتجات بالشركاء',
+            'shipment_partners': 'ربط الشحنات بالشركاء', 'notifications': 'الإشعارات',
+            'product_ratings': 'تقييمات المنتجات', 'employee_advances': 'سلف الموظفين',
+            'employee_deductions': 'استقطاعات الموظفين', 'saas_subscriptions': 'اشتراكات SaaS',
+            'auth_audit': 'سجلات المصادقة', 'archives': 'الأرشيفات',
+            'import_runs': 'عمليات الاستيراد', 'user_branches': 'فروع المستخدمين',
+            'user_permissions': 'صلاحيات المستخدمين', 'role_permissions': 'صلاحيات الأدوار',
+            'permissions': 'الصلاحيات', 'sites': 'المواقع', 'transfers': 'التحويلات',
+            'sale_returns': 'مرتجعات المبيعات', 'sale_return_lines': 'بنود المرتجعات',
+            'customer_loyalty': 'برنامج الولاء', 'customer_loyalty_points': 'نقاط الولاء',
+            'warehouse_partner_shares': 'حصص الشركاء بالمخازن',
+            'employee_advance_installments': 'أقساط سلف الموظفين',
+            'supplier_loan_settlements': 'تسويات قروض الموردين',
+            'partner_settlement_lines': 'بنود تسويات الشركاء',
+            'supplier_settlement_lines': 'بنود تسويات الموردين',
+            'online_cart_items': 'محتويات السلة', 'online_preorder_items': 'بنود الحجوزات',
+            'product_rating_helpful': 'تقييمات مفيدة', 'saas_plans': 'خطط SaaS',
+            'saas_invoices': 'فواتير SaaS'
+        }
         
-        # سجلات وملاحظات ولوجات
-        {'name': 'audit_logs', 'display': '📋 سجلات التدقيق (Audit)', 'danger': 'low'},
-        {'name': 'deletion_logs', 'display': '🗑️ سجل الحذف', 'danger': 'low'},
-        {'name': 'notes', 'display': '📝 الملاحظات', 'danger': 'medium'},
-        {'name': 'notifications', 'display': '🔔 الإشعارات', 'danger': 'low'},
-        {'name': 'activity_logs', 'display': '📊 سجلات النشاطات', 'danger': 'low'},
-        {'name': 'error_logs', 'display': '⚠️ سجلات الأخطاء', 'danger': 'low'},
+        return translations.get(table_name, table_name.replace('_', ' ').title())
+    
+    # بناء قائمة الجداول
+    cleanable_tables = []
+    
+    # إضافة خيار خاص للمستخدمين (حذف الكل ما عدا أول Super Admin)
+    cleanable_tables.append({
+        'name': 'users_except_first_super',
+        'display': '👤 المستخدمين (ما عدا أول Super Admin)',
+        'danger': 'high',
+        'category': 'المستخدمين والأدوار'
+    })
+    
+    # تصنيف الجداول حسب النوع
+    categories = {
+        'المستخدمين والأدوار': [],
+        'السجلات واللوجات': [],
+        'العمليات المالية': [],
+        'المبيعات والصيانة': [],
+        'المخزون والمنتجات': [],
+        'الجهات': [],
+        'التسوق الإلكتروني': [],
+        'العمليات المحاسبية': [],
+        'أخرى': []
+    }
+    
+    def get_category(table_name):
+        """تحديد التصنيف"""
+        if 'user' in table_name or 'role' in table_name or 'permission' in table_name:
+            return 'المستخدمين والأدوار'
+        elif 'log' in table_name or 'audit' in table_name or 'notification' in table_name:
+            return 'السجلات واللوجات'
+        elif 'payment' in table_name or 'check' in table_name or 'expense' in table_name:
+            return 'العمليات المالية'
+        elif 'sale' in table_name or 'service' in table_name or 'invoice' in table_name:
+            return 'المبيعات والصيانة'
+        elif 'stock' in table_name or 'product' in table_name or 'warehouse' in table_name:
+            return 'المخزون والمنتجات'
+        elif 'customer' in table_name or 'supplier' in table_name or 'partner' in table_name or 'employee' in table_name:
+            return 'الجهات'
+        elif 'online' in table_name or 'cart' in table_name or 'preorder' in table_name:
+            return 'التسوق الإلكتروني'
+        elif 'gl_' in table_name or 'account' in table_name:
+            return 'العمليات المحاسبية'
+        else:
+            return 'أخرى'
+    
+    # إضافة الجداول من قاعدة البيانات
+    for table_name in sorted(all_tables):
+        # تجاوز الجداول الحساسة
+        if table_name in SYSTEM_TABLES:
+            continue
         
-        # التسوق الإلكتروني
-        {'name': 'online_carts', 'display': '🛒 سلات التسوق', 'danger': 'low'},
-        {'name': 'online_payments', 'display': '💳 المدفوعات الإلكترونية', 'danger': 'medium'},
+        # تجاوز جدول المستخدمين (تمت إضافته يدوياً)
+        if table_name == 'users':
+            continue
         
-        # العمليات المالية
-        {'name': 'payments', 'display': '💰 المدفوعات', 'danger': 'high'},
-        {'name': 'payment_splits', 'display': '💸 تقسيمات الدفع', 'danger': 'high'},
-        {'name': 'expenses', 'display': '📤 المصاريف', 'danger': 'high'},
-        {'name': 'checks', 'display': '📝 الشيكات', 'danger': 'high'},
+        danger_level = get_danger_level(table_name)
+        icon = get_icon(table_name)
+        arabic_name = get_arabic_name(table_name)
+        category = get_category(table_name)
         
-        # المبيعات والصيانة
-        {'name': 'sales', 'display': '🛍️ المبيعات', 'danger': 'high'},
-        {'name': 'sale_lines', 'display': '📦 بنود المبيعات', 'danger': 'high'},
-        {'name': 'service_requests', 'display': '🔧 طلبات الصيانة', 'danger': 'high'},
-        {'name': 'service_parts', 'display': '⚙️ قطع الصيانة', 'danger': 'high'},
-        {'name': 'service_tasks', 'display': '✔️ مهام الصيانة', 'danger': 'medium'},
-        
-        # المخزون والتبادلات
-        {'name': 'stock_levels', 'display': '📊 مستويات المخزون', 'danger': 'high'},
-        {'name': 'exchange_transactions', 'display': '🔄 معاملات التبادل', 'danger': 'high'},
-        {'name': 'stock_adjustments', 'display': '📈 تعديلات المخزون', 'danger': 'medium'},
-        
-        # الحجوزات
-        {'name': 'preorders', 'display': '📅 الحجوزات المسبقة', 'danger': 'medium'},
-        {'name': 'online_preorders', 'display': '🌐 الحجوزات الإلكترونية', 'danger': 'medium'},
-        
-        # الشحنات والتسويات
-        {'name': 'shipments', 'display': '🚚 الشحنات', 'danger': 'high'},
-        {'name': 'shipment_items', 'display': '📦 بنود الشحنات', 'danger': 'high'},
-        {'name': 'supplier_settlements', 'display': '💼 تسويات الموردين', 'danger': 'high'},
-        
-        # الجهات (خطر عالي جداً!)
-        {'name': 'customers', 'display': '👥 العملاء', 'danger': 'high'},
-        {'name': 'suppliers', 'display': '🏭 الموردين', 'danger': 'high'},
-        {'name': 'partners', 'display': '🤝 الشركاء', 'danger': 'high'},
-        
-        # المخازن والمنتجات
-        {'name': 'warehouses', 'display': '🏪 المخازن', 'danger': 'high'},
-        {'name': 'products', 'display': '📦 المنتجات', 'danger': 'high'},
-        {'name': 'product_categories', 'display': '🏷️ فئات المنتجات', 'danger': 'medium'},
-        
-        # القروض
-        {'name': 'product_supplier_loans', 'display': '💳 قروض الموردين', 'danger': 'medium'},
-        {'name': 'supplier_loan_settlements', 'display': '💵 تسويات القروض', 'danger': 'medium'},
-        
-        # الفواتير
-        {'name': 'invoices', 'display': '📄 الفواتير', 'danger': 'high'},
-        {'name': 'invoice_lines', 'display': '📋 بنود الفواتير', 'danger': 'high'},
-        
-        # العلاقات والارتباطات
-        {'name': 'product_partners', 'display': '🔗 ربط المنتجات بالشركاء', 'danger': 'high'},
-        {'name': 'shipment_partners', 'display': '🚢 ربط الشحنات بالشركاء', 'danger': 'high'},
-        
-        # الإعدادات والمرافق
-        {'name': 'utility_accounts', 'display': '⚡ حسابات المرافق', 'danger': 'medium'},
-        {'name': 'expense_types', 'display': '📂 أنواع المصاريف', 'danger': 'medium'},
-        {'name': 'equipment_types', 'display': '🚗 أنواع المركبات', 'danger': 'medium'},
-        
-        # العمليات المحاسبية
-        {'name': 'gl_batches', 'display': '📚 دفعات القيود المحاسبية', 'danger': 'high'},
-        {'name': 'gl_entries', 'display': '📖 القيود المحاسبية', 'danger': 'high'},
-        
-        # أخرى
-        {'name': 'files', 'display': '📁 الملفات المرفقة', 'danger': 'medium'},
-        {'name': 'images', 'display': '🖼️ الصور', 'danger': 'medium'},
-    ]
+        cleanable_tables.append({
+            'name': table_name,
+            'display': f'{icon} {arabic_name}',
+            'danger': danger_level,
+            'category': category
+        })
+    
+    return cleanable_tables
 
 def _cleanup_tables(tables):
     """تنظيف الجداول المحددة"""
@@ -3841,9 +4707,6 @@ def _parse_duration(duration):
         return 0  # permanent
 
 
-# ═══════════════════════════════════════════════════════════════
-# AI Functions - ADVANCED
-# ═══════════════════════════════════════════════════════════════
 
 def _ai_security_analysis(query):
     """تحليل أمني بالذكاء الاصطناعي"""
@@ -4661,89 +5524,6 @@ def api_live_metrics():
     return jsonify(get_live_metrics_json())
 
 
-@security_bp.route('/indexes-manager', methods=['GET', 'POST'])
-@owner_only
-def indexes_manager():
-    """
-    ⚡ إدارة الفهارس - Advanced Indexes Manager
-    
-    📋 الوصف:
-        إدارة شاملة لجميع فهارس قاعدة البيانات (89+ فهرس)
-    
-    📤 Response:
-        HTML: templates/security/indexes_manager.html
-        
-    🎯 الوظائف:
-        ✅ عرض جميع الفهارس لكل جدول
-        ✅ إحصائيات الفهارس
-        ✅ إنشاء فهارس جديدة
-        ✅ حذف فهارس
-        ✅ Auto-optimization (تحسين تلقائي)
-        ✅ تحليل الجداول (ANALYZE)
-        ✅ اقتراحات ذكية للفهارس
-    
-    📊 Statistics:
-        - إجمالي الفهارس: 89+
-        - فهارس لكل جدول
-        - Unique indexes
-        - Composite indexes
-        - حجم الفهارس
-    
-    🔗 Related APIs:
-        - POST /api/indexes/create
-        - POST /api/indexes/drop
-        - POST /api/indexes/auto-optimize
-        - POST /api/indexes/clean-and-rebuild
-        - POST /api/indexes/analyze-table
-    
-    💡 Usage:
-        /indexes-manager
-    
-    🔒 Security:
-        - Owner only
-        - Audit logging
-        - تأكيد قبل الحذف
-    
-    ⚡ Performance Impact:
-        - تسريع الاستعلامات: 10x - 100x
-        - تحسين JOIN operations
-        - تحسين WHERE clauses
-    """
-    from sqlalchemy import inspect
-    
-    inspector = inspect(db.engine)
-    tables = inspector.get_table_names()
-    
-    indexes_data = []
-    for table in sorted(tables):
-        columns = inspector.get_columns(table)
-        indexes = inspector.get_indexes(table)
-        foreign_keys = inspector.get_foreign_keys(table)
-        
-        indexes_data.append({
-            'name': table,
-            'columns_count': len(columns),
-            'indexes_count': len(indexes),
-            'fk_count': len(foreign_keys),
-            'columns': [{'name': c['name'], 'type': str(c['type'])} for c in columns],
-            'indexes': [{'name': idx['name'], 'columns': idx['column_names'], 'unique': idx['unique']} for idx in indexes],
-            'foreign_keys': [{'columns': fk['constrained_columns'], 'ref_table': fk['referred_table']} for fk in foreign_keys]
-        })
-    
-    stats = {
-        'total_tables': len(tables),
-        'total_indexes': sum([t['indexes_count'] for t in indexes_data]),
-        'total_columns': sum([t['columns_count'] for t in indexes_data]),
-        'tables_without_indexes': len([t for t in indexes_data if t['indexes_count'] == 0]),
-        'avg_indexes_per_table': round(sum([t['indexes_count'] for t in indexes_data]) / len(tables), 2) if tables else 0
-    }
-    
-    return render_template('security/indexes_manager.html',
-                         tables=indexes_data,
-                         stats=stats,
-                         title='إدارة الفهارس')
-
-
 @security_bp.route('/api/indexes/create', methods=['POST'])
 @owner_only
 def api_create_index():
@@ -5154,6 +5934,96 @@ def api_batch_create_indexes():
         }), 500
 
 
+@security_bp.route('/api/maintenance/vacuum', methods=['POST'])
+@owner_only
+def api_maintenance_vacuum():
+    """تنفيذ VACUUM على قاعدة البيانات"""
+    try:
+        db.session.execute(text('VACUUM'))
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': '✅ تم تنفيذ VACUUM بنجاح - تم تنظيف قاعدة البيانات'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
+
+
+@security_bp.route('/api/maintenance/analyze', methods=['POST'])
+@owner_only
+def api_maintenance_analyze():
+    """تنفيذ ANALYZE على جميع الجداول"""
+    try:
+        db.session.execute(text('ANALYZE'))
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': '✅ تم تنفيذ ANALYZE بنجاح - تم تحليل جميع الجداول'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
+
+
+@security_bp.route('/api/maintenance/checkpoint', methods=['POST'])
+@owner_only
+def api_maintenance_checkpoint():
+    """تنفيذ Checkpoint لدمج WAL"""
+    try:
+        db.session.execute(text('PRAGMA wal_checkpoint(TRUNCATE)'))
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': '✅ تم تنفيذ Checkpoint بنجاح - تم دمج WAL files'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
+
+
+@security_bp.route('/api/maintenance/db-info', methods=['GET'])
+@owner_only
+def api_maintenance_db_info():
+    """الحصول على معلومات قاعدة البيانات"""
+    try:
+        import os
+        db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        db_path = db_uri.replace('sqlite:///', '')
+        
+        db_size = 'N/A'
+        if os.path.exists(db_path):
+            size_bytes = os.path.getsize(db_path)
+            db_size = f'{size_bytes / (1024*1024):.2f} MB'
+        
+        wal_result = db.session.execute(text('PRAGMA journal_mode')).fetchone()
+        wal_mode = wal_result[0].upper() == 'WAL' if wal_result else False
+        
+        page_result = db.session.execute(text('PRAGMA page_size')).fetchone()
+        page_size = f'{page_result[0]} bytes' if page_result else 'N/A'
+        
+        return jsonify({
+            'success': True,
+            'db_size': db_size,
+            'wal_mode': wal_mode,
+            'page_size': page_size
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'❌ خطأ: {str(e)}'
+        }), 500
+
+
 @security_bp.route('/data-quality-center', methods=['GET', 'POST'])
 @owner_only
 def data_quality_center():
@@ -5503,4 +6373,236 @@ def advanced_check_linking():
         db.session.rollback()
         flash(f'❌ خطأ: {str(e)}', 'danger')
         return redirect(url_for('security.advanced_check_linking'))
+
+
+@security_bp.route('/archive')
+@owner_only
+def archive_redirect():
+    """Redirect to Database Manager - Archive tab"""
+    return redirect(url_for('security.database_manager', tab='archive'))
+
+
+@security_bp.route('/branches')
+@owner_only
+def branches_redirect():
+    """Redirect to Settings Center - Branches tab"""
+    return redirect(url_for('security.settings_center', tab='branches'))
+
+
+@security_bp.route('/help')
+@owner_only
+def help_page():
+    """
+    ❓ مركز المساعدة - Help Center
+    
+    دليل شامل للوحدة السرية:
+    - شرح جميع المراكز والتبويبات
+    - اختصارات لوحة المفاتيح
+    - الأسئلة الشائعة
+    - حل المشاكل
+    """
+    return render_template('security/help.html')
+
+
+@security_bp.route('/sitemap')
+@owner_only
+def sitemap():
+    """
+    🗺️ خريطة الموقع - Site Map
+    
+    عرض جميع روابط الوحدة السرية في شكل شجرة:
+    - 7 مراكز موحدة + تبويباتها
+    - الأدوات المستقلة
+    - أدوات الأمان والحظر
+    - روابط سريعة
+    """
+    return render_template('security/sitemap.html')
+
+
+@security_bp.route('/api/system-constants')
+@owner_only
+def api_system_constants():
+    """
+    🔧 API للحصول على ثوابت النظام (للاستخدام في JavaScript)
+    
+    Returns:
+        JSON مع جميع ثوابت الأعمال
+    
+    Example:
+        GET /security/api/system-constants
+        
+        Response:
+        {
+            "success": true,
+            "data": {
+                "tax": {"default_vat_rate": 16.0, ...},
+                "payroll": {...}
+            }
+        }
+    """
+    try:
+        from utils import get_all_business_constants
+        constants = get_all_business_constants()
+        return jsonify({
+            'success': True,
+            'data': constants
+        })
+    except Exception as e:
+        current_app.logger.error(f"⚠️ فشل جلب الثوابت: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+# ==================== وحدة الإشعارات - Notifications Center ====================
+
+@security_bp.route('/notifications', methods=['GET'])
+@owner_only
+def notifications_log():
+    """
+    📧 مركز الإشعارات - Notifications Center
+    
+    إدارة شاملة:
+    - سجل الإشعارات
+    - إحصائيات
+    - اختبار الإرسال
+    """
+    from models import NotificationLog
+    from sqlalchemy import func, desc
+    from datetime import datetime, timedelta
+    
+    # الإحصائيات
+    stats = {
+        'total': NotificationLog.query.count(),
+        'sent': NotificationLog.query.filter_by(status='sent').count(),
+        'failed': NotificationLog.query.filter_by(status='failed').count(),
+        'today': NotificationLog.query.filter(
+            NotificationLog.created_at >= datetime.now().date()
+        ).count()
+    }
+    
+    # آخر 50 إشعار
+    recent_logs = NotificationLog.query.order_by(
+        desc(NotificationLog.created_at)
+    ).limit(50).all()
+    
+    # توزيع حسب النوع
+    type_stats_list = db.session.query(
+        NotificationLog.type,
+        func.count(NotificationLog.id).label('count')
+    ).group_by(NotificationLog.type).all()
+    
+    type_stats = dict(type_stats_list) if type_stats_list else {}
+    
+    return render_template(
+        'security/notifications.html',
+        stats=stats,
+        recent_logs=recent_logs,
+        type_stats=type_stats
+    )
+
+
+@security_bp.route('/notifications/test', methods=['POST'])
+@owner_only
+def test_notification():
+    """اختبار إرسال إشعار"""
+    from utils import send_notification_sms, send_notification_email
+    
+    notification_type = request.form.get('type')
+    recipient = request.form.get('recipient')
+    
+    if notification_type == 'sms':
+        result = send_notification_sms(
+            to=recipient,
+            message='🧪 رسالة اختبار من AZAD Garage',
+            metadata={'type': 'test'}
+        )
+    elif notification_type == 'email':
+        result = send_notification_email(
+            to=recipient,
+            subject='🧪 رسالة اختبار',
+            body_html='<h2>رسالة اختبار من AZAD Garage</h2><p>النظام يعمل بنجاح!</p>',
+            metadata={'type': 'test'}
+        )
+    else:
+        return jsonify({'success': False, 'error': 'Invalid type'}), 400
+    
+    return jsonify(result)
+
+
+# ==================== وحدة الضرائب - Tax Module ====================
+
+@security_bp.route('/tax-reports', methods=['GET'])
+@owner_only
+def tax_reports():
+    """
+    💰 تقارير الضرائب - Tax Reports
+    
+    - ملخص VAT
+    - تقارير شهرية/سنوية
+    - الإقرارات الضريبية
+    """
+    from models import TaxEntry
+    from utils import get_tax_summary
+    from sqlalchemy import func
+    from datetime import datetime
+    
+    # الفترة
+    period = request.args.get('period', datetime.now().strftime('%Y-%m'))
+    
+    # ملخص الفترة
+    summary = get_tax_summary(period)
+    
+    # السجلات التفصيلية
+    entries = TaxEntry.query.filter_by(tax_period=period).order_by(
+        TaxEntry.created_at.desc()
+    ).limit(100).all()
+    
+    # إحصائيات سنوية
+    year = period.split('-')[0]
+    yearly_stats = db.session.query(
+        TaxEntry.tax_period,
+        TaxEntry.entry_type,
+        func.sum(TaxEntry.tax_amount).label('total')
+    ).filter(
+        TaxEntry.fiscal_year == int(year)
+    ).group_by(
+        TaxEntry.tax_period,
+        TaxEntry.entry_type
+    ).all()
+    
+    # تنظيم البيانات السنوية
+    yearly_data = {}
+    for period_key, entry_type, total in yearly_stats:
+        if period_key not in yearly_data:
+            yearly_data[period_key] = {}
+        yearly_data[period_key][entry_type] = float(total or 0)
+    
+    return render_template(
+        'security/tax_reports.html',
+        period=period,
+        summary=summary,
+        entries=entries,
+        yearly_data=yearly_data,
+        current_year=year
+    )
+
+
+@security_bp.route('/tax-reports/export/<period>')
+@owner_only
+def export_tax_report(period):
+    """تصدير تقرير ضريبي"""
+    from utils import get_tax_summary
+    
+    summary = get_tax_summary(period)
+    return jsonify({
+        'success': True,
+        'period': period,
+        'data': summary
+    })
+
+
+# ==================== وحدة التكامل مع الأجهزة والأنظمة ====================
+
 

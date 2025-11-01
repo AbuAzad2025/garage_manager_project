@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+
+{% block title %}💰 تقارير الضرائب{% endblock %}
+
+{% block content %}
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1 class="m-0">💰 تقارير الضرائب <small class="badge badge-success">Tax Reports</small></h1>
+      </div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="/"><i class="fas fa-home"></i> الرئيسية</a></li>
+          <li class="breadcrumb-item"><a href="/security/"><i class="fas fa-shield-alt"></i> الوحدة السرية</a></li>
+          <li class="breadcrumb-item active">تقارير الضرائب</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="content">
+  <div class="container-fluid">
+    
+    <!-- اختيار الفترة -->
+    <div class="row">
+      <div class="col-md-12">
+        <div class="card card-primary">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-calendar"></i> اختيار الفترة</h3>
+          </div>
+          <div class="card-body">
+            <form method="GET" class="form-inline">
+              <div class="form-group mx-sm-3 mb-2">
+                <label for="period" class="mr-2">الفترة:</label>
+                <input type="month" name="period" id="period" class="form-control" 
+                       value="{{ period }}" onchange="this.form.submit()">
+              </div>
+              <button type="submit" class="btn btn-primary mb-2">
+                <i class="fas fa-search"></i> عرض
+              </button>
+              <a href="{{ url_for('security.export_tax_report', period=period) }}" 
+                 class="btn btn-success mb-2 ml-2">
+                <i class="fas fa-download"></i> تصدير
+              </a>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- ملخص VAT -->
+    <div class="row">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header bg-gradient-primary">
+            <h3 class="card-title"><i class="fas fa-calculator"></i> ملخص VAT - {{ period }}</h3>
+          </div>
+          <div class="card-body">
+            {% if summary.success %}
+            <div class="row">
+              <div class="col-md-3">
+                <div class="info-box bg-info">
+                  <span class="info-box-icon"><i class="fas fa-arrow-down"></i></span>
+                  <div class="info-box-content">
+                    <span class="info-box-text">INPUT VAT</span>
+                    <span class="info-box-number">{{ "%.2f"|format(summary.input_vat) }} ₪</span>
+                    <small>ضريبة المشتريات</small>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-3">
+                <div class="info-box bg-success">
+                  <span class="info-box-icon"><i class="fas fa-arrow-up"></i></span>
+                  <div class="info-box-content">
+                    <span class="info-box-text">OUTPUT VAT</span>
+                    <span class="info-box-number">{{ "%.2f"|format(summary.output_vat) }} ₪</span>
+                    <small>ضريبة المبيعات</small>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-3">
+                <div class="info-box {{ 'bg-warning' if summary.net_vat > 0 else 'bg-secondary' }}">
+                  <span class="info-box-icon"><i class="fas fa-balance-scale"></i></span>
+                  <div class="info-box-content">
+                    <span class="info-box-text">NET VAT</span>
+                    <span class="info-box-number">{{ "%.2f"|format(summary.net_vat) }} ₪</span>
+                    <small>{{ 'مستحق للحكومة' if summary.net_vat > 0 else 'مسترد من الحكومة' }}</small>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-3">
+                <div class="info-box bg-danger">
+                  <span class="info-box-icon"><i class="fas fa-file-invoice-dollar"></i></span>
+                  <div class="info-box-content">
+                    <span class="info-box-text">Income Tax</span>
+                    <span class="info-box-number">{{ "%.2f"|format(summary.income_tax) }} ₪</span>
+                    <small>ضريبة الدخل</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- المعادلة -->
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle"></i> 
+              <strong>المعادلة:</strong> 
+              NET VAT = OUTPUT VAT ({{ "%.2f"|format(summary.output_vat) }}) - INPUT VAT ({{ "%.2f"|format(summary.input_vat) }})
+              = <strong>{{ "%.2f"|format(summary.net_vat) }} ₪</strong>
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle"></i> {{ summary.error }}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- السجلات التفصيلية -->
+    <div class="row">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-list"></i> السجلات التفصيلية (آخر 100)</h3>
+          </div>
+          <div class="card-body table-responsive p-0" style="max-height: 500px;">
+            <table class="table table-sm table-striped table-head-fixed">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>النوع</th>
+                  <th>المعاملة</th>
+                  <th>المبلغ الأساسي</th>
+                  <th>النسبة</th>
+                  <th>الضريبة</th>
+                  <th>الإجمالي</th>
+                  <th>التاريخ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for entry in entries %}
+                <tr>
+                  <td>{{ entry.id }}</td>
+                  <td>
+                    {% if entry.entry_type == 'OUTPUT_VAT' %}
+                      <span class="badge badge-success">OUT</span>
+                    {% elif entry.entry_type == 'INPUT_VAT' %}
+                      <span class="badge badge-info">IN</span>
+                    {% elif entry.entry_type == 'INCOME_TAX' %}
+                      <span class="badge badge-danger">TAX</span>
+                    {% else %}
+                      <span class="badge badge-secondary">{{ entry.entry_type }}</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <small>{{ entry.transaction_type }}</small><br>
+                    <small class="text-muted">#{{ entry.transaction_reference or entry.transaction_id }}</small>
+                  </td>
+                  <td>{{ "%.2f"|format(entry.base_amount) }} {{ entry.currency }}</td>
+                  <td>{{ "%.1f"|format(entry.tax_rate) }}%</td>
+                  <td><strong>{{ "%.2f"|format(entry.tax_amount) }}</strong></td>
+                  <td>{{ "%.2f"|format(entry.total_amount) }}</td>
+                  <td><small>{{ entry.created_at.strftime('%Y-%m-%d') if entry.created_at else '-' }}</small></td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="8" class="text-center text-muted">
+                    <i class="fas fa-inbox"></i> لا توجد سجلات ضريبية لهذه الفترة
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- إحصائيات سنوية -->
+    {% if yearly_data %}
+    <div class="row">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-chart-line"></i> اتجاه السنة {{ current_year }}</h3>
+          </div>
+          <div class="card-body">
+            <canvas id="yearlyChart" height="100"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    
+  </div>
+</section>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3"></script>
+<script>
+$(document).ready(function() {
+    {% if yearly_data %}
+    // Yearly trend chart
+    const yearlyCtx = document.getElementById('yearlyChart').getContext('2d');
+    const yearlyData = {{ yearly_data|tojson }};
+    
+    const periods = Object.keys(yearlyData).sort();
+    const outputVat = periods.map(p => yearlyData[p]['OUTPUT_VAT'] || 0);
+    const inputVat = periods.map(p => yearlyData[p]['INPUT_VAT'] || 0);
+    const netVat = periods.map((p, i) => outputVat[i] - inputVat[i]);
+    
+    new Chart(yearlyCtx, {
+        type: 'line',
+        data: {
+            labels: periods,
+            datasets: [
+                {
+                    label: 'OUTPUT VAT',
+                    data: outputVat,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'INPUT VAT',
+                    data: inputVat,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'NET VAT',
+                    data: netVat,
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    tension: 0.4,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(0) + ' ₪';
+                        }
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+});
+</script>
+{% endblock %}
+

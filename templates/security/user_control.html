@@ -330,7 +330,7 @@
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title"><i class="fas fa-user"></i> تفاصيل المستخدم الكاملة</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal"></button>
       </div>
       <div class="modal-body" id="userDetailsContent">
         <div class="text-center py-5">
@@ -351,7 +351,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-header bg-warning">
           <h5 class="modal-title"><i class="fas fa-key"></i> إعادة تعيين كلمة المرور</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="close" data-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div class="alert alert-warning">
@@ -370,7 +370,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
           <button type="submit" class="btn btn-warning">
             <i class="fas fa-check"></i> تأكيد الإعادة
           </button>
@@ -388,7 +388,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-header bg-danger text-white">
           <h5 class="modal-title"><i class="fas fa-trash-alt"></i> حذف المستخدم</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          <button type="button" class="close" data-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div class="alert alert-danger">
@@ -403,7 +403,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
           <button type="submit" class="btn btn-danger">
             <i class="fas fa-trash-alt"></i> حذف نهائي
           </button>
@@ -421,7 +421,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="modal-header bg-primary text-white">
           <h5 class="modal-title"><i class="fas fa-user-plus"></i> إنشاء مستخدم جديد</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          <button type="button" class="close" data-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div class="mb-3">
@@ -465,7 +465,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
           <button type="submit" class="btn btn-primary">
             <i class="fas fa-check"></i> إنشاء المستخدم
           </button>
@@ -560,8 +560,7 @@ function bulkOperation(operation, userIds) {
 
 // عرض تفاصيل المستخدم
 function viewUserDetails(userId) {
-  const modal = new bootstrap.Modal(document.getElementById('userDetailsModal'));
-  modal.show();
+  $('#userDetailsModal').modal('show');
   
   fetch(`/security/api/users/${userId}/details`)
     .then(res => res.json())
@@ -660,7 +659,7 @@ function resetPassword(userId, username) {
   document.getElementById('resetUsername').textContent = username;
   document.getElementById('resetPasswordForm').action = `/security/force-reset-password/${userId}`;
   document.getElementById('newPassword').value = generateRandomPassword();
-  new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+  $('#resetPasswordModal').modal('show');
 }
 
 // توليد كلمة مرور عشوائية
@@ -680,7 +679,7 @@ function generateRandomPassword() {
 // إظهار نافذة إنشاء مستخدم
 function showCreateUser() {
   document.getElementById('createPassword').value = generateRandomPassword();
-  new bootstrap.Modal(document.getElementById('createUserModal')).show();
+  $('#createUserModal').modal('show');
 }
 
 // توليد كلمة مرور لإنشاء مستخدم
@@ -693,7 +692,7 @@ function deleteUser(userId, username) {
   document.getElementById('deleteUsername').textContent = username;
   document.getElementById('deleteUserForm').action = `/security/delete-user/${userId}`;
   document.getElementById('confirmDelete').checked = false;
-  new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
+  $('#deleteUserModal').modal('show');
 }
 </script>
 

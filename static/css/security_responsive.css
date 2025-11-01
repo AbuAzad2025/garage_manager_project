@@ -1,0 +1,276 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * 📱 تحسينات Responsive للوحدة السرية
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
+/* ═══ Mobile (< 576px) ═══ */
+@media (max-width: 575.98px) {
+  /* تصغير البطاقات على الموبايل */
+  .card .fa-3x {
+    font-size: 2rem !important;
+  }
+  
+  .card h5 {
+    font-size: 0.95rem !important;
+  }
+  
+  .card h4 {
+    font-size: 1.1rem !important;
+  }
+  
+  .card p.small {
+    font-size: 0.75rem !important;
+  }
+  
+  /* Small boxes */
+  .small-box {
+    min-height: 90px !important;
+    margin-bottom: 15px !important;
+  }
+  
+  .small-box .inner h3 {
+    font-size: 1.8rem !important;
+  }
+  
+  .small-box .inner p {
+    font-size: 0.85rem !important;
+  }
+  
+  .small-box .icon i {
+    font-size: 50px !important;
+  }
+  
+  /* الأزرار */
+  .btn-sm {
+    font-size: 0.8rem !important;
+    padding: 0.3rem 0.6rem !important;
+  }
+  
+  .btn-lg {
+    font-size: 1rem !important;
+    padding: 0.6rem 1rem !important;
+  }
+  
+  /* Alerts */
+  .alert {
+    font-size: 0.85rem !important;
+    padding: 0.75rem !important;
+  }
+  
+  .alert .badge {
+    font-size: 0.7rem !important;
+  }
+  
+  /* Navbar التنقل */
+  .navbar-nav .nav-link {
+    font-size: 0.85rem !important;
+    padding: 0.4rem 0.6rem !important;
+  }
+  
+  /* شريط البحث */
+  #quickSearch {
+    font-size: 0.95rem !important;
+  }
+  
+  .input-group-lg .input-group-text {
+    padding: 0.5rem 0.75rem !important;
+  }
+  
+  /* Container */
+  .container-fluid {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  
+  /* Row spacing */
+  .row.g-3 {
+    --bs-gutter-x: 0.75rem !important;
+    --bs-gutter-y: 0.75rem !important;
+  }
+  
+  /* Cards في Grid */
+  .col-lg-4.col-md-6 {
+    width: 100% !important;
+  }
+  
+  .col-lg-3.col-md-6 {
+    width: 100% !important;
+  }
+}
+
+/* ═══ Tablet (576px - 991px) ═══ */
+@media (min-width: 576px) and (max-width: 991.98px) {
+  .card .fa-3x {
+    font-size: 2.5rem !important;
+  }
+  
+  .card h5 {
+    font-size: 1rem !important;
+  }
+  
+  .small-box {
+    min-height: 100px !important;
+  }
+  
+  .small-box .inner h3 {
+    font-size: 2rem !important;
+  }
+  
+  /* 2 عمود على Tablet */
+  .col-lg-4.col-md-6 {
+    width: 50% !important;
+  }
+}
+
+/* ═══ Desktop (992px - 1399px) ═══ */
+@media (min-width: 992px) and (max-width: 1399.98px) {
+  .card h5 {
+    font-size: 1.1rem !important;
+  }
+  
+  .small-box {
+    min-height: 110px !important;
+  }
+}
+
+/* ═══ Large Desktop (1400px+) ═══ */
+@media (min-width: 1400px) {
+  .card h5 {
+    font-size: 1.25rem !important;
+  }
+  
+  .small-box {
+    min-height: 120px !important;
+  }
+  
+  .container-fluid {
+    max-width: 1600px !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* ═══ Landscape Mobile ═══ */
+@media (max-height: 500px) and (orientation: landscape) {
+  .small-box {
+    min-height: 80px !important;
+  }
+  
+  .card {
+    margin-bottom: 10px !important;
+  }
+  
+  .alert {
+    padding: 0.5rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+}
+
+/* ═══ تحسينات Touch للموبايل ═══ */
+@media (hover: none) and (pointer: coarse) {
+  /* زيادة حجم النقر */
+  .btn {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+  
+  .nav-link {
+    min-height: 44px !important;
+  }
+  
+  /* تحسين Hover على Touch */
+  .card:active {
+    transform: scale(0.98) !important;
+  }
+  
+  .btn:active {
+    transform: scale(0.95) !important;
+  }
+}
+
+/* ═══ Dark Mode Support ═══ */
+@media (prefers-color-scheme: dark) {
+  /* يمكن إضافة dark mode styles هنا إذا لزم */
+}
+
+/* ═══ Print Styles ═══ */
+@media print {
+  .card {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  
+  .btn, .alert {
+    display: none !important;
+  }
+  
+  .card-body {
+    border: 1px solid #ddd !important;
+  }
+}
+
+/* ═══ تحسينات إضافية ═══ */
+
+/* Loading State */
+.card.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.card.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* Focus States للـ Accessibility */
+.card:focus-within {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+.btn:focus {
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.5) !important;
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* تحسين النصوص على الشاشات الصغيرة */
+@media (max-width: 575.98px) {
+  h1 {
+    font-size: 1.5rem !important;
+  }
+  
+  h2 {
+    font-size: 1.3rem !important;
+  }
+  
+  h3 {
+    font-size: 1.1rem !important;
+  }
+  
+  h4 {
+    font-size: 1rem !important;
+  }
+  
+  h5 {
+    font-size: 0.9rem !important;
+  }
+}
+

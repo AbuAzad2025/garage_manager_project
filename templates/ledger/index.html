@@ -645,11 +645,6 @@
                             <i class="fas fa-pen-alt"></i> قيد يدوي
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="assistant-tab" data-toggle="tab" href="#assistant" role="tab">
-                            <i class="fas fa-robot"></i> المساعد الذكي
-                        </a>
-                    </li>
                 </ul>
             </div>
             <div class="card-body">
@@ -864,7 +859,6 @@
                 </div>
             </div>
 
-            <!-- ملاحظة: المساعد الذكي له Tab منفصل (Tab 7) -->
             <!-- ملاحظة: دفتر الأستاذ له Tab منفصل (Tab 2) -->
             
                     </div><!-- End Dashboard Tab -->
@@ -1336,43 +1330,6 @@
             
                     </div><!-- End Manual Entry Tab -->
                     
-                    <!-- Tab 7: AI Assistant -->
-                    <div class="tab-pane fade" id="assistant" role="tabpanel">
-                        
-            <!-- المساعد الذكي -->
-            <div class="row mb-4">
-                <div class="col-12">
-                    <div class="card ledger-card">
-                        <div class="card-header ledger-header">
-                            <h4 class="mb-0">
-                                <i class="fas fa-robot"></i>
-                                المساعد المحاسبي الذكي
-                            </h4>
-                        </div>
-                        <div class="card-body">
-                            <div class="input-group mb-3">
-                                <input type="text" class="form-control form-control-lg" id="smart-query" 
-                                       placeholder="اسأل أي سؤال محاسبي... مثال: من أين جاء رقم المبيعات؟ كم مستحق للموردين؟ ما هو رصيد العميل أحمد؟">
-                                <button class="btn btn-primary btn-lg" type="button" onclick="askSmartAssistant()">
-                                    <i class="fas fa-search"></i> اسأل
-                                </button>
-                            </div>
-                            <div id="smart-answer" class="alert alert-info" style="display: none;">
-                                <div class="d-flex align-items-start">
-                                    <i class="fas fa-robot fa-2x mr-3"></i>
-                                    <div id="answer-content"></div>
-                                </div>
-                            </div>
-                            <div id="smart-loading" class="text-center" style="display: none;">
-                                <i class="fas fa-spinner fa-spin fa-2x"></i>
-                                <p class="mt-2">جاري التحليل...</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-                    </div><!-- End Assistant Tab -->
                     
                 </div><!-- End Tab Content -->
             </div><!-- End Card Body -->
@@ -2310,63 +2267,6 @@ function showAlert(message, type) {
     // تنبيهات الأخطاء والتحذيرات تبقى حتى يغلقها المستخدم
 }
 
-// المساعد الذكي
-function askSmartAssistant() {
-    const query = $('#smart-query').val().trim();
-    
-    if (!query) {
-        showAlert('الرجاء إدخال سؤال', 'error');
-        return;
-    }
-    
-    $('#smart-loading').show();
-    $('#smart-answer').hide();
-    
-    $.ajax({
-        url: '{{ url_for("ai_assistant.ask_question") }}',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-            query: query,
-            from_date: $('#from-date').val(),
-            to_date: $('#to-date').val()
-        }),
-        headers: {
-            'X-CSRFToken': $('meta[name="csrf-token"]').attr('content')
-        },
-        beforeSend: function(xhr) {
-            xhr.setRequestHeader('X-CSRF-Token', $('meta[name="csrf-token"]').attr('content'));
-        },
-        success: function(response) {
-            $('#smart-loading').hide();
-            
-            if (response.success) {
-                displaySmartAnswer(response.answer, response.details);
-            } else {
-                showAlert(response.error || 'حدث خطأ', 'error');
-            }
-        },
-        error: function() {
-            $('#smart-loading').hide();
-            showAlert('خطأ في الاتصال بالمساعد الذكي', 'error');
-        }
-    });
-}
-
-function displaySmartAnswer(answer, details) {
-    let html = `<h5>${answer}</h5>`;
-    
-    if (details && details.length > 0) {
-        html += '<hr><div class="mt-3"><strong>التفاصيل:</strong><ul class="mt-2">';
-        details.forEach(function(detail) {
-            html += `<li>${detail}</li>`;
-        });
-        html += '</ul></div>';
-    }
-    
-    $('#answer-content').html(html);
-    $('#smart-answer').show();
-}
 
 // تحديث رسم Waterfall
 function updateWaterfallChart(stats) {

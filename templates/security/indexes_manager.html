@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}إدارة الفهارس - 89 فهرس احترافي{% endblock %}
+{% block title %}إدارة الفهارس{% if stats %} - {{ stats.total_indexes }} فهرس{% endif %}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
@@ -161,8 +161,13 @@
             <div>
                 <i class="fas fa-bolt"></i>
                 <strong>نظام الفهارس الاحترافي:</strong>
-                <span class="badge bg-white text-success ms-2">89 فهرس</span>
-                <span class="badge bg-white text-info ms-1">18 جدول</span>
+                {% if indexes_stats %}
+                <span class="badge bg-white text-success ms-2">{{ indexes_stats.total_indexes }} فهرس</span>
+                <span class="badge bg-white text-info ms-1">{{ indexes_stats.total_tables }} جدول</span>
+                {% else %}
+                <span class="badge bg-white text-success ms-2">🔄 فهرس</span>
+                <span class="badge bg-white text-info ms-1">🔄 جدول</span>
+                {% endif %}
                 <span class="badge bg-white text-warning ms-1">تسريع 10x</span>
             </div>
         </div>
@@ -171,7 +176,12 @@
     <div class="row mb-4">
         <div class="col-12">
             <h2 class="mb-3">
-                <i class="fas fa-database"></i> إدارة الفهارس <span class="badge bg-success">89 فهرس</span>
+                <i class="fas fa-database"></i> إدارة الفهارس 
+                {% if indexes_stats %}
+                <span class="badge bg-success">{{ indexes_stats.total_indexes }} فهرس</span>
+                {% else %}
+                <span class="badge bg-success">🔄</span>
+                {% endif %}
                 <small class="text-muted">Indexes Manager</small>
             </h2>
         </div>

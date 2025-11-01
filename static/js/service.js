@@ -181,13 +181,14 @@
     return setQueryParam(tpl, 'wid', String(wid || 0));
   }
 
-  function buildProductInfoUrl(tpl, pid, wid) {
+  function buildProductInfoUrl(tpl, pid, wid, currency) {
     if (!tpl) return '';
     var url = tpl;
     if (/[\?&]pid=/.test(url)) url = url.replace(/pid=\d+/i, 'pid=' + String(pid));
     else if (/\/(0|\d+)(?=\/info(?:\/)?$)/.test(url)) url = url.replace(/\/(0|\d+)(?=\/info(?:\/)?$)/, '/' + String(pid));
     else url = setQueryParam(url, 'pid', String(pid));
     if (wid) url = /[\?&]warehouse_id=/.test(url) ? url.replace(/warehouse_id=\d+/i, 'warehouse_id=' + String(wid)) : setQueryParam(url, 'warehouse_id', String(wid));
+    if (currency) url = setQueryParam(url, 'currency', String(currency));
     return url;
   }
 
@@ -197,7 +198,10 @@
     var infoTpl = $part.attr('data-product-info');
     var pid = $part.val(); if (!infoTpl || !pid || !$price.length) return;
     var $wh = $scope.find('select[name="warehouse_id"]'); var wid = $wh.val();
-    var url = buildProductInfoUrl(infoTpl, pid, wid);
+    
+    // جلب عملة الصيانة من الصفحة
+    var serviceCurrency = $('#service-currency').val() || $('input[name="currency"]').val() || 'ILS';
+    var url = buildProductInfoUrl(infoTpl, pid, wid, serviceCurrency);
 
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function (r) { return r.ok ? r.json() : null; })
@@ -208,6 +212,19 @@
           var base = toNum(js.price);
           $price.data('basePrice', base);
           $price.val(round2(base));
+          
+          // عرض معلومات التحويل إذا كانت العملات مختلفة
+          if (js.original_currency && js.original_currency !== js.target_currency) {
+            var $hint = $price.siblings('.currency-hint');
+            if (!$hint.length) {
+              $hint = $('<small class="form-text text-info currency-hint"></small>');
+              $price.after($hint);
+            }
+            $hint.html('<i class="fas fa-exchange-alt"></i> السعر الأصلي: ' + round2(js.original_price) + ' ' + js.original_currency + ' → تم التحويل إلى ' + js.target_currency);
+          } else {
+            $price.siblings('.currency-hint').remove();
+          }
+          
           var $disc = $scope.find('input[name="discount"]');
           if ($disc.length) $disc.val('0.00');
         }
@@ -255,14 +272,55 @@
     });
   }
 
+  function validateDiscount($scope) {
+    var $disc = $scope.find('input[name="discount"]');
+    var $qty = $scope.find('input[name="quantity"]');
+    var $price = $scope.find('input[name="unit_price"]');
+    
+    if (!$disc.length || !$qty.length || !$price.length) return true;
+    
+    var discount = toNum($disc.val());
+    var quantity = toNum($qty.val());
+    var unitPrice = toNum($price.val());
+    var maxDiscount = quantity * unitPrice;
+    
+    if (discount > maxDiscount) {
+      $disc.addClass('is-invalid');
+      var $feedback = $disc.siblings('.invalid-feedback');
+      if (!$feedback.length) {
+        $feedback = $('<div class="invalid-feedback"></div>');
+        $disc.after($feedback);
+      }
+      $feedback.text('الخصم (' + round2(discount) + ' ₪) لا يمكن أن يتجاوز إجمالي البند (' + round2(maxDiscount) + ' ₪)');
+      return false;
+    } else {
+      $disc.removeClass('is-invalid');
+      $disc.siblings('.invalid-feedback').remove();
+      return true;
+    }
+  }
+
   function bindServicePartForm() {
     var $formPart = $('#form-add-part'); if (!$formPart.length) return;
     var $disc = $formPart.find('input[name="discount"]');
-    if ($disc.length) { $disc.attr('min', '-100'); $disc.attr('max', '100'); }
+    if ($disc.length) { $disc.attr('min', '0'); $disc.attr('max', '999999'); }
     bindWarehouseProductCascade($formPart);
     fetchAndFillUnitPrice($formPart);
-    $formPart.on('input change', 'input[name="discount"]', function () { recalcPriceFromDiscount($formPart); });
-    $formPart.on('input change', 'input[name="unit_price"]', function () { recalcDiscountFromPrice($formPart); });
+    $formPart.on('input change', 'input[name="discount"], input[name="quantity"], input[name="unit_price"]', function () { 
+      validateDiscount($formPart); 
+    });
+    $formPart.on('submit', function(e) {
+      if (!validateDiscount($formPart)) {
+        e.preventDefault();
+        Swal.fire({
+          icon: 'error',
+          title: 'خطأ في البيانات',
+          text: 'الرجاء التأكد من أن الخصم لا يتجاوز إجمالي البند',
+          confirmButtonText: 'حسناً'
+        });
+        return false;
+      }
+    });
   }
 
   function bindDynamicRows() {
@@ -286,8 +344,7 @@
       $row.find('.select2').each(function () { var $el = $(this); if ($el.data('bound')) return; var ep = $el.attr('data-endpoint'); if (ep) initSelect2Ajax($el, ep); $el.data('bound', true); });
       var $d = $row.find('input[name="discount"]'); if ($d.length) { $d.attr('min','0').attr('max','999999').attr('step','0.01').attr('placeholder','مبلغ الخصم'); }
       bindWarehouseProductCascade($row);
-      $row.on('input change', 'input[name="discount"]', function () { recalcPriceFromDiscount($row); });
-      $row.on('input change', 'input[name="unit_price"]', function () { recalcDiscountFromPrice($row); });
+      $row.on('input change', 'input[name="discount"], input[name="quantity"], input[name="unit_price"]', function () { validateDiscount($row); });
     });
 
     $(document).on('click', '.remove-part', function () { $(this).closest('.part-line').remove(); });
@@ -304,6 +361,26 @@
     });
 
     $(document).on('click', '.remove-task', function () { $(this).closest('.task-line').remove(); });
+    
+    // Validation للمهام
+    var $formTask = $('#form-add-task');
+    if ($formTask.length) {
+      $formTask.on('input change', 'input[name="discount"], input[name="quantity"], input[name="unit_price"]', function () { 
+        validateDiscount($formTask); 
+      });
+      $formTask.on('submit', function(e) {
+        if (!validateDiscount($formTask)) {
+          e.preventDefault();
+          Swal.fire({
+            icon: 'error',
+            title: 'خطأ في البيانات',
+            text: 'الرجاء التأكد من أن الخصم لا يتجاوز إجمالي البند',
+            confirmButtonText: 'حسناً'
+          });
+          return false;
+        }
+      });
+    }
   }
 
   // ========== تحسينات UX إضافية ==========
@@ -323,12 +400,7 @@
 
   // Tooltips محسّن
   function initTooltips() {
-    if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
-      var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"], [title]'));
-      tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-      });
-    }
+    $('[data-toggle="tooltip"], [title]').tooltip();
   }
 
   // Auto-save form drafts (localStorage)
@@ -386,6 +458,63 @@
     };
   }
 
+  // Validation للخصم الإجمالي
+  function validateTotalDiscount() {
+    var $discountInput = $('#discount_total');
+    if (!$discountInput.length) return true;
+    
+    var discount = toNum($discountInput.val());
+    
+    // حساب إجمالي الفاتورة (قطع + مهام)
+    var partsTotal = 0;
+    var tasksTotal = 0;
+    
+    // حساب من الجداول الموجودة في الصفحة
+    $('table').each(function() {
+      var $table = $(this);
+      var headerText = $table.find('thead th').text();
+      
+      // إذا كان جدول قطع الغيار
+      if (headerText.indexOf('قطع') >= 0 || headerText.indexOf('القطعة') >= 0) {
+        $table.find('tbody tr').each(function() {
+          var lineText = $(this).find('td:last').prev().text();
+          var match = lineText.match(/[\d.,]+/);
+          if (match) {
+            partsTotal += toNum(match[0].replace(',', ''));
+          }
+        });
+      }
+      
+      // إذا كان جدول المهام
+      if (headerText.indexOf('المهام') >= 0 || headerText.indexOf('المهمة') >= 0) {
+        $table.find('tbody tr').each(function() {
+          var lineText = $(this).find('td:last').prev().text();
+          var match = lineText.match(/[\d.,]+/);
+          if (match) {
+            tasksTotal += toNum(match[0].replace(',', ''));
+          }
+        });
+      }
+    });
+    
+    var invoiceTotal = partsTotal + tasksTotal;
+    
+    if (discount > invoiceTotal) {
+      $discountInput.addClass('is-invalid');
+      var $feedback = $discountInput.siblings('.invalid-feedback');
+      if (!$feedback.length) {
+        $feedback = $('<div class="invalid-feedback"></div>');
+        $discountInput.after($feedback);
+      }
+      $feedback.text('الخصم (' + round2(discount) + ' ₪) لا يمكن أن يتجاوز إجمالي الفاتورة (' + round2(invoiceTotal) + ' ₪)');
+      return false;
+    } else {
+      $discountInput.removeClass('is-invalid');
+      $discountInput.siblings('.invalid-feedback').remove();
+      return true;
+    }
+  }
+
   // ========== التهيئة الرئيسية ==========
   $(document).ready(function () {
     dtSafeInit();
@@ -396,6 +525,21 @@
     initSmoothScroll();
     initTooltips();
     initFormAutoSave();
+    
+    // Validation للخصم الإجمالي
+    $('#discount_total').on('input change', validateTotalDiscount);
+    $('#form-discount-tax').on('submit', function(e) {
+      if (!validateTotalDiscount()) {
+        e.preventDefault();
+        Swal.fire({
+          icon: 'error',
+          title: 'خطأ في البيانات',
+          text: 'الرجاء التأكد من أن الخصم الإجمالي لا يتجاوز إجمالي الفاتورة',
+          confirmButtonText: 'حسناً'
+        });
+        return false;
+      }
+    });
     
     // Fade in animation
     $('.card, .small-box').css('opacity', 0).animate({ opacity: 1 }, 600);

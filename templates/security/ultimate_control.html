@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
-{% block title %}Ultimate Control Panel{% endblock %}
-{% block page_title %}👑 لوحة التحكم النهائية{% endblock %}
+{% block title %}مركز القيادة الموحد{% endblock %}
+{% block page_title %}👑 مركز القيادة الموحد - Unified Command Center{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -27,15 +27,18 @@
   <div class="alert alert-danger border-0 shadow-sm">
     <i class="fas fa-crown"></i> <strong>صلاحيات خارقة:</strong> أنت المالك (__OWNER__) - لديك سيطرة كاملة!
     <div class="mt-2">
-      <span class="badge bg-light text-dark">40+ وحدة</span>
-      <span class="badge bg-light text-dark">133 API</span>
-      <span class="badge bg-light text-dark">89 فهرس</span>
-      <span class="badge bg-light text-dark">150+ علاقة</span>
-      <span class="badge bg-light text-dark">41 صلاحية</span>
+      <span class="badge bg-light text-dark">7 مراكز موحدة</span>
+      <span class="badge bg-light text-dark">41 وظيفة مدمجة</span>
+      {% if stats %}
+      <span class="badge bg-light text-dark">{{ stats.total_apis }} API</span>
+      <span class="badge bg-light text-dark">{{ stats.total_indexes }} فهرس</span>
+      {% else %}
+      <span class="badge bg-light text-dark">🔄 API</span>
+      <span class="badge bg-light text-dark">🔄 فهرس</span>
+      {% endif %}
     </div>
   </div>
 
-  <!-- إحصائيات سريعة -->
   <div class="row g-3 mb-4">
     <div class="col-lg-2 col-md-4 col-sm-6">
       <div class="small-box bg-success">
@@ -98,763 +101,172 @@
     </div>
   </div>
 
-  <!-- الأدوات الرئيسية -->
-  <div class="row g-3">
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+  <hr class="my-4">
+  <h4 class="mb-3"><i class="fas fa-th-large"></i> المراكز الموحدة - Unified Centers</h4>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
         <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-eye fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-              LIVE
-            </span>
-          </div>
-          <h5 class="fw-bold">مراقبة فورية</h5>
-          <p class="small opacity-75">شاهد كل شيء لحظياً</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.live_monitoring') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-tv"></i> مراقبة مباشرة
-            </a>
-            <div class="row text-center">
-              <div class="col-4">
-                <small class="opacity-75">مستخدمين</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">نشاط</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">أداء</small>
-              </div>
-            </div>
+          <i class="fas fa-database fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">🗄️ Database Control Center</h5>
+          <p class="small opacity-75">وحدة موحدة شاملة - 11 في 1 + أرشيفات</p>
+          <a href="{{ url_for('security.database_manager') }}" class="btn btn-light btn-sm fw-bold mb-2">
+            <i class="fas fa-terminal"></i> فتح المركز
+          </a>
+          <div class="mt-2 d-flex flex-wrap gap-1 justify-content-center">
+            <a href="{{ url_for('security.database_manager', tab='browse') }}" class="btn btn-sm btn-outline-light">تصفح</a>
+            <a href="{{ url_for('security.database_manager', tab='indexes') }}" class="btn btn-sm btn-outline-light">فهارس</a>
+            <a href="{{ url_for('security.database_manager', tab='sql') }}" class="btn btn-sm btn-outline-light">SQL</a>
+            <a href="{{ url_for('security.database_manager', tab='maintenance') }}" class="btn btn-sm btn-outline-light">صيانة</a>
           </div>
         </div>
       </div>
     </div>
-    
-    <div class="col-lg-3 col-md-6">
+
+    <div class="col-lg-4 col-md-6">
       <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
         <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-users-cog fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
-              {{ stats.total_users }}
-            </span>
-          </div>
-          <h5 class="fw-bold">التحكم بالمستخدمين</h5>
-          <p class="small opacity-75">سيطرة كاملة + إدارة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.user_control') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-crown"></i> إدارة المستخدمين
-            </a>
-            <div class="row text-center">
-              <div class="col-4">
-                <small class="opacity-75">نشطين</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">محظورين</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">جديد</small>
-              </div>
-            </div>
+          <i class="fas fa-brain fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">🤖 AI Control Center</h5>
+          <p class="small opacity-75">وحدة موحدة شاملة - 4 في 1 + أنماط + خريطة</p>
+          <a href="{{ url_for('ai.hub') }}" class="btn btn-light btn-sm fw-bold mb-2">
+            <i class="fas fa-robot"></i> فتح المركز
+          </a>
+          <div class="mt-2 d-flex flex-wrap gap-1 justify-content-center">
+            <a href="{{ url_for('ai.hub', tab='assistant') }}" class="btn btn-sm btn-outline-light">مساعد</a>
+            <a href="{{ url_for('ai.hub', tab='analytics') }}" class="btn btn-sm btn-outline-light">تحليل+أنماط</a>
+            <a href="{{ url_for('ai.hub', tab='prediction') }}" class="btn btn-sm btn-outline-light">تنبؤ</a>
+            <a href="{{ url_for('ai.hub', tab='training') }}" class="btn btn-sm btn-outline-light">تدريب+خريطة</a>
           </div>
         </div>
       </div>
     </div>
-    
-    <div class="col-lg-3 col-md-6">
+
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #FF512F 0%, #DD2476 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-shield-alt fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">🛡️ Security & Monitoring Center</h5>
+          <p class="small opacity-75">وحدة موحدة شاملة - 4 في 1</p>
+          <a href="{{ url_for('security.security_center') }}" class="btn btn-light btn-sm fw-bold mb-2">
+            <i class="fas fa-eye"></i> فتح المركز
+          </a>
+          <div class="mt-2 d-flex flex-wrap gap-1 justify-content-center">
+            <a href="{{ url_for('security.security_center', tab='monitoring') }}" class="btn btn-sm btn-outline-light">مراقبة</a>
+            <a href="{{ url_for('security.security_center', tab='firewall') }}" class="btn btn-sm btn-outline-light">حماية</a>
+            <a href="{{ url_for('security.security_center', tab='activity') }}" class="btn btn-sm btn-outline-light">نشاط</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-4 col-md-6">
       <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
         <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-terminal fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
-              DB
-            </span>
-          </div>
-          <h5 class="fw-bold">SQL Console</h5>
-          <p class="small opacity-75">تنفيذ استعلامات مباشرة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('security.sql_console') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-code"></i> فتح SQL Console
-            </a>
-            <div class="row text-center">
-              <div class="col-4">
-                <small class="opacity-75">SELECT</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">INSERT</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">UPDATE</small>
-              </div>
-            </div>
+          <i class="fas fa-users-cog fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">👥 Users & Permissions Center</h5>
+          <p class="small opacity-75">وحدة موحدة شاملة - 2 في 1</p>
+          <a href="{{ url_for('security.users_center') }}" class="btn btn-light btn-sm fw-bold mb-2">
+            <i class="fas fa-crown"></i> فتح المركز
+          </a>
+          <div class="mt-2 d-flex flex-wrap gap-1 justify-content-center">
+            <a href="{{ url_for('security.users_center', tab='users') }}" class="btn btn-sm btn-outline-light">مستخدمين</a>
+            <a href="{{ url_for('security.users_center', tab='permissions') }}" class="btn btn-sm btn-outline-light">صلاحيات</a>
           </div>
         </div>
       </div>
     </div>
-    
+
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-cogs fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">⚙️ Settings & Customization Center</h5>
+          <p class="small opacity-75">وحدة موحدة شاملة - 8 في 1 + فروع</p>
+          <a href="{{ url_for('security.settings_center') }}" class="btn btn-light btn-sm fw-bold mb-2">
+            <i class="fas fa-sliders-h"></i> فتح المركز
+          </a>
+          <div class="mt-2 d-flex flex-wrap gap-1 justify-content-center">
+            <a href="{{ url_for('security.settings_center', tab='system') }}" class="btn btn-sm btn-outline-light">إعدادات</a>
+            <a href="{{ url_for('security.settings_center', tab='theme') }}" class="btn btn-sm btn-outline-light">ثيمات</a>
+            <a href="{{ url_for('security.settings_center', tab='branding') }}" class="btn btn-sm btn-outline-light">علامة</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-4 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-chart-line fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">📊 Reports & Performance Center</h5>
+          <p class="small opacity-75">وحدة موحدة شاملة - 4 في 1</p>
+          <a href="{{ url_for('security.reports_center') }}" class="btn btn-light btn-sm fw-bold mb-2">
+            <i class="fas fa-chart-bar"></i> فتح المركز
+          </a>
+          <div class="mt-2 d-flex flex-wrap gap-1 justify-content-center">
+            <a href="{{ url_for('security.reports_center', tab='reports') }}" class="btn btn-sm btn-outline-light">تقارير</a>
+            <a href="{{ url_for('security.reports_center', tab='monitoring') }}" class="btn btn-sm btn-outline-light">مراقبة</a>
+            <a href="{{ url_for('security.reports_center', tab='performance') }}" class="btn btn-sm btn-outline-light">أداء</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6 col-md-6">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+        <div class="card-body text-center text-white">
+          <i class="fas fa-toolbox fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">🔧 Tools & Integration Center</h5>
+          <p class="small opacity-75">وحدة موحدة شاملة - 5 في 1</p>
+          <a href="{{ url_for('security.tools_center') }}" class="btn btn-light btn-sm fw-bold mb-2">
+            <i class="fas fa-wrench"></i> فتح المركز
+          </a>
+          <div class="mt-2 d-flex flex-wrap gap-1 justify-content-center">
+            <a href="{{ url_for('security.tools_center', tab='integrations') }}" class="btn btn-sm btn-outline-light">تكامل</a>
+            <a href="{{ url_for('security.tools_center', tab='invoices') }}" class="btn btn-sm btn-outline-light">فواتير</a>
+            <a href="{{ url_for('security.tools_center', tab='email') }}" class="btn btn-sm btn-outline-light">بريد</a>
+            <a href="{{ url_for('security.tools_center', tab='cards') }}" class="btn btn-sm btn-outline-light">كروت</a>
+            <a href="{{ url_for('security.tools_center', tab='export') }}" class="btn btn-sm btn-outline-light">تصدير</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="my-4">
+  <h4 class="mb-3"><i class="fas fa-star"></i> وحدات مستقلة - Standalone Units</h4>
+
+  <div class="row g-3">
     <div class="col-lg-3 col-md-6">
       <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
         <div class="card-body text-center text-white">
           <div class="position-relative">
             <i class="fas fa-university fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
-              NEW
-            </span>
+            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">NEW</span>
           </div>
           <h5 class="fw-bold">وحدة دفتر الأستاذ</h5>
           <p class="small opacity-75">تحكم شامل بالحسابات والقيود</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('ledger_control.index') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-chart-line"></i> فتح وحدة التحكم
-            </a>
-            <div class="row text-center">
-              <div class="col-4">
-                <small class="opacity-75">حسابات</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">قيود</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">تقارير</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fab fa-python fa-3x text-info mb-3"></i>
-          <h5>وحدة التحكم Python</h5>
-          <p class="text-muted small">تنفيذ كود مباشر</p>
-          <a href="{{ url_for('security.python_console') }}" class="btn btn-info btn-sm">
-            <i class="fas fa-code"></i> Python
+          <a href="{{ url_for('ledger_control.index') }}" class="btn btn-light btn-sm fw-bold">
+            <i class="fas fa-chart-line"></i> فتح وحدة التحكم
           </a>
         </div>
       </div>
     </div>
-    
+
     <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);">
         <div class="card-body text-center text-white">
-          <div class="position-relative">
-            <i class="fas fa-code-branch fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success">
-              NEW
-            </span>
-          </div>
-          <h5 class="fw-bold">إدارة الفروع/المواقع</h5>
-          <p class="small opacity-75">تحكم كامل بفروع الشركة</p>
-          <div class="d-grid gap-2">
-            <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-building"></i> الفروع والمواقع
-            </a>
-            <div class="row text-center">
-              <div class="col-4">
-                <small class="opacity-75">فروع</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">مواقع</small>
-              </div>
-              <div class="col-4">
-                <small class="opacity-75">تقارير</small>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fas fa-cogs fa-3x text-secondary mb-3"></i>
-          <h5>إعدادات النظام</h5>
-          <p class="text-muted small">تحكم كامل بالإعدادات</p>
-          <a href="{{ url_for('security.system_settings') }}" class="btn btn-secondary btn-sm">
-            <i class="fas fa-sliders-h"></i> إعدادات
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
-          <h5>أدوات الطوارئ</h5>
-          <p class="text-muted small">للحالات الحرجة فقط</p>
-          <a href="{{ url_for('security.emergency_tools') }}" class="btn btn-danger btn-sm">
+          <i class="fas fa-exclamation-triangle fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
+          <h5 class="fw-bold">أدوات الطوارئ</h5>
+          <p class="small opacity-75">للحالات الحرجة فقط</p>
+          <a href="{{ url_for('security.emergency_tools') }}" class="btn btn-light btn-sm fw-bold">
             <i class="fas fa-fire-extinguisher"></i> طوارئ
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fas fa-download fa-3x text-success mb-3"></i>
-          <h5>تصدير البيانات</h5>
-          <p class="text-muted small">تصدير أي جدول</p>
-          <a href="{{ url_for('security.data_export') }}" class="btn btn-success btn-sm">
-            <i class="fas fa-file-export"></i> تصدير
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fas fa-tachometer-alt fa-3x text-primary mb-3"></i>
-          <h5>مراقبة الأداء</h5>
-          <p class="text-muted small">سرعة النظام</p>
-          <a href="{{ url_for('security.performance_monitor') }}" class="btn btn-primary btn-sm">
-            <i class="fas fa-chart-line"></i> أداء
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div class="card-body text-center text-white">
-          <i class="fas fa-database fa-3x mb-3"></i>
-          <h5>إدارة الفهارس</h5>
-          <p class="small">89 فهرس احترافي • تسريع 10x</p>
-          <a href="{{ url_for('security.indexes_manager') }}" class="btn btn-light btn-sm">
-            <i class="fas fa-bolt"></i> 89 فهرس
-          </a>
-          <div class="row text-center small mt-2 text-white">
-            <div class="col-6">CREATE</div>
-            <div class="col-6">DROP</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fas fa-palette fa-3x text-info mb-3"></i>
-          <h5>العلامة التجارية</h5>
-          <p class="text-muted small">شعار + ألوان</p>
-          <a href="{{ url_for('security.system_branding') }}" class="btn btn-info btn-sm">
-            <i class="fas fa-paint-brush"></i> تخصيص
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fas fa-file-alt fa-3x text-warning mb-3"></i>
-          <h5>اللوجات</h5>
-          <p class="text-muted small">تتبع كامل</p>
-          <a href="{{ url_for('security.logs_viewer') }}" class="btn btn-warning btn-sm">
-            <i class="fas fa-eye"></i> لوجات
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fas fa-bug fa-3x text-danger mb-3"></i>
-          <h5>تتبع الأخطاء</h5>
-          <p class="text-muted small">مراقبة فورية</p>
-          <a href="{{ url_for('security.error_tracker') }}" class="btn btn-danger btn-sm">
-            <i class="fas fa-search"></i> أخطاء
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fas fa-cogs fa-3x text-dark mb-3"></i>
-          <h5>ثوابت النظام</h5>
-          <p class="text-muted small">معلومات الشركة</p>
-          <a href="{{ url_for('security.system_constants') }}" class="btn btn-dark btn-sm">
-            <i class="fas fa-wrench"></i> ثوابت
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body text-center">
-          <i class="fas fa-sliders-h fa-3x text-secondary mb-3"></i>
-          <h5>تكوين متقدم</h5>
-          <p class="text-muted small">إعدادات دقيقة</p>
-          <a href="{{ url_for('security.advanced_config') }}" class="btn btn-secondary btn-sm">
-            <i class="fas fa-tools"></i> تكوين
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-info">
-        <div class="card-body text-center">
-          <i class="fas fa-history fa-3x text-info mb-3"></i>
-          <h5>الخط الزمني للنشاط</h5>
-          <p class="text-muted small">تتبع كل الحركات</p>
-          <a href="{{ url_for('security.activity_timeline') }}" class="btn btn-info btn-sm">
-            <i class="fas fa-clock"></i> سجل
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-warning">
-        <div class="card-body text-center">
-          <i class="fas fa-bell fa-3x text-warning mb-3"></i>
-          <h5>مركز الإشعارات</h5>
-          <p class="text-muted small">تنبيهات أمنية</p>
-          <a href="{{ url_for('security.notifications_center') }}" class="btn btn-warning btn-sm">
-            <i class="fas fa-bell"></i> إشعارات
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-success">
-        <div class="card-body text-center">
-          <i class="fas fa-robot fa-3x text-success mb-3"></i>
-          <h5>إعدادات الذكاء الاصطناعي</h5>
-          <p class="text-muted small">تهيئة المساعد الذكي</p>
-          <a href="{{ url_for('security.ai_hub', tab='config') }}" class="btn btn-success btn-sm">
-            <i class="fas fa-cog"></i> إعداد
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-danger" style="background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-credit-card fa-3x text-danger mb-3"></i>
-          <h5 style="color: #721c24; font-weight: 700;">إدارة الكروت</h5>
-          <p class="text-muted small">بيانات الفيزا كارد</p>
-          <a href="{{ url_for('security.card_vault') }}" class="btn btn-danger btn-sm">
-            <i class="fas fa-lock"></i> خزنة الكروت
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-primary">
-        <div class="card-body text-center">
-          <i class="fas fa-paint-roller fa-3x text-primary mb-3"></i>
-          <h5>محرر المظهر</h5>
-          <p class="text-muted small">CSS مباشر</p>
-          <a href="{{ url_for('security.theme_editor') }}" class="btn btn-primary btn-sm">
-            <i class="fas fa-code"></i> تحرير
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-warning">
-        <div class="card-body text-center">
-          <i class="fas fa-paint-brush fa-3x text-warning mb-3"></i>
-          <h5>محرر الثيمات</h5>
-          <p class="text-muted small">ألوان + تنسيقات</p>
-          <a href="{{ url_for('security.theme_editor') }}" class="btn btn-warning btn-sm">
-            <i class="fas fa-palette"></i> ثيمات
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-info">
-        <div class="card-body text-center">
-          <i class="fas fa-image fa-3x text-info mb-3"></i>
-          <h5>مدير الشعارات</h5>
-          <p class="text-muted small">رفع + تعديل</p>
-          <a href="{{ url_for('security.logo_manager') }}" class="btn btn-info btn-sm">
-            <i class="fas fa-upload"></i> شعارات
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-success">
-        <div class="card-body text-center">
-          <i class="fas fa-terminal fa-3x text-success mb-3"></i>
-          <h5>وحدة التحكم SQL</h5>
-          <p class="text-muted small">استعلامات مباشرة</p>
-          <a href="{{ url_for('security.sql_console') }}" class="btn btn-success btn-sm">
-            <i class="fas fa-database"></i> SQL
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-dark">
-        <div class="card-body text-center">
-          <i class="fas fa-table fa-3x text-dark mb-3"></i>
-          <h5>مدير الجداول</h5>
-          <p class="text-muted small">إنشاء + تعديل</p>
-          <a href="{{ url_for('security.table_manager') }}" class="btn btn-dark btn-sm">
-            <i class="fas fa-database"></i> جداول
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-chart-pie fa-3x text-white mb-3"></i>
-          <h5 class="text-white">تحليلات متقدمة</h5>
-          <p class="text-white-50 small">ذكاء اصطناعي</p>
-          <a href="{{ url_for('security.advanced_analytics') }}" class="btn btn-light btn-sm">
-            <i class="fas fa-brain"></i> تحليل
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-primary">
-        <div class="card-body text-center">
-          <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
-          <h5>إدارة الصلاحيات</h5>
-          <p class="text-muted small">إنشاء + تخصيص</p>
-          <a href="{{ url_for('security.permissions_manager') }}" class="btn btn-primary btn-sm">
-            <i class="fas fa-key"></i> صلاحيات
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-danger">
-        <div class="card-body text-center">
-          <i class="fas fa-envelope fa-3x text-danger mb-3"></i>
-          <h5>إدارة البريد</h5>
-          <p class="text-muted small">SMTP + قوالب</p>
-          <a href="{{ url_for('security.email_manager') }}" class="btn btn-danger btn-sm">
-            <i class="fas fa-paper-plane"></i> بريد
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-warning">
-        <div class="card-body text-center">
-          <i class="fas fa-file-invoice-dollar fa-3x text-warning mb-3"></i>
-          <h5>محرر الفواتير</h5>
-          <p class="text-muted small">تخصيص التصميم</p>
-          <a href="{{ url_for('security.invoice_designer') }}" class="btn btn-warning btn-sm">
-            <i class="fas fa-file-pdf"></i> فواتير
-          </a>
-        </div>
-      </div>
-    </div>
-    
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-plug fa-3x text-white mb-3"></i>
-          <h5 class="text-white">مركز التكامل</h5>
-          <p class="text-white-50 small">واتساب + بريد + APIs</p>
-          <a href="{{ url_for('security.integrations') }}" class="btn btn-light btn-sm">
-            <i class="fas fa-link"></i> تكامل
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <hr class="my-4">
-  <h4 class="mb-3"><i class="fas fa-shield-alt"></i> الأمان المتقدم</h4>
-
-  <div class="row g-3 mb-4">
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #FF512F 0%, #DD2476 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-shield-virus fa-3x text-white mb-3"></i>
-          <h5 class="text-white fw-bold">مدير جدار الحماية</h5>
-          <p class="text-white-50 small">حماية متقدمة</p>
-          <a href="{{ url_for('security.block_ip') }}" class="btn btn-light btn-sm">
-            <i class="fas fa-ban"></i> إدارة
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f12711 0%, #f5af19 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-bell fa-3x text-white mb-3"></i>
-          <h5 class="text-white fw-bold">التنبيهات الفورية</h5>
-          <p class="text-white-50 small">إشعارات مباشرة</p>
-          <a href="{{ url_for('security.notifications_center') }}" class="btn btn-light btn-sm">
-            <i class="fas fa-exclamation-triangle"></i> تنبيهات
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #134E5E 0%, #71B280 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-user-shield fa-3x text-white mb-3"></i>
-          <h5 class="text-white fw-bold">التحكم بالصلاحيات</h5>
-          <p class="text-white-50 small">مصفوفة الوصول</p>
-          <a href="{{ url_for('security.permissions_manager') }}" class="btn btn-light btn-sm">
-            <i class="fas fa-key"></i> صلاحيات
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-clipboard-list fa-3x text-white mb-3"></i>
-          <h5 class="text-white fw-bold">سجل التدقيق</h5>
-          <p class="text-white-50 small">مسار المراجعة</p>
-          <a href="{{ url_for('security.logs_manager', tab='audit') }}" class="btn btn-light btn-sm">
-            <i class="fas fa-history"></i> سجلات
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <hr class="my-4">
-  <h4 class="mb-3"><i class="fas fa-chart-line"></i> تحسينات الأداء و UX</h4>
-
-  <div class="row g-3 mb-4">
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-chart-line fa-3x text-white mb-3"></i>
-          <h5 class="text-white fw-bold">لوحة المراقبة الشاملة</h5>
-          <p class="text-white-50 small">لوحة مراقبة احترافية</p>
-          <a href="{{ url_for('security.monitoring_dashboard') }}" class="btn btn-light btn-sm fw-bold">
-            <i class="fas fa-tachometer-alt"></i> فتح لوحة المراقبة
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-server fa-3x text-white mb-3"></i>
-          <h5 class="text-white fw-bold">Grafana + Prometheus</h5>
-          <p class="text-white-50 small">مراقبة احترافية</p>
-          <a href="{{ url_for('security.grafana_setup') }}" class="btn btn-light btn-sm fw-bold">
-            <i class="fas fa-cog"></i> إعداد Grafana
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-4 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-moon fa-3x text-white mb-3"></i>
-          <h5 class="text-white fw-bold">الوضع الليلي</h5>
-          <p class="text-white-50 small">إعدادات المظهر الداكن</p>
-          <a href="{{ url_for('security.dark_mode_settings') }}" class="btn btn-light btn-sm fw-bold">
-            <i class="fas fa-cog"></i> إعدادات الوضع الليلي
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-4 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
-        <div class="card-body text-center">
-          <i class="fas fa-robot fa-3x text-white mb-3"></i>
-          <h5 class="text-white fw-bold">المساعد الذكي AI</h5>
-          <p class="text-white-50 small">محلي 100%</p>
-          <a href="{{ url_for('security.ai_hub', tab='assistant') }}" class="btn btn-light btn-sm fw-bold">
-            <i class="fas fa-comments"></i> فتح المساعد
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <hr class="my-4">
-  <h4 class="mb-3"><i class="fas fa-tools"></i> أدوات التطوير</h4>
-
-  <div class="row g-3">
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-primary">
-        <div class="card-body text-center">
-          <i class="fas fa-database fa-3x text-primary mb-3"></i>
-          <h5>مدير قاعدة البيانات</h5>
-          <p class="text-muted small">تصفح + تحرير + هيكل - 3 في 1</p>
-          <a href="{{ url_for('security.database_manager') }}" class="btn btn-primary btn-sm">
-            <i class="fas fa-database"></i> فتح المدير
-          </a>
-          <div class="mt-2">
-            <a href="{{ url_for('security.database_manager', tab='browse') }}" class="btn btn-sm btn-outline-primary">تصفح</a>
-            <a href="{{ url_for('security.database_manager', tab='edit') }}" class="btn btn-sm btn-outline-success">تحرير</a>
-            <a href="{{ url_for('security.database_manager', tab='schema') }}" class="btn btn-sm btn-outline-warning">هيكل</a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-warning">
-        <div class="card-body text-center">
-          <i class="fas fa-clipboard-list fa-3x text-warning mb-3"></i>
-          <h5>مدير السجلات</h5>
-          <p class="text-muted small">تدقيق + نظام + أخطاء - 3 في 1</p>
-          <a href="{{ url_for('security.logs_manager') }}" class="btn btn-warning btn-sm">
-            <i class="fas fa-clipboard-list"></i> فتح المدير
-          </a>
-          <div class="mt-2">
-            <a href="{{ url_for('security.logs_manager', tab='audit') }}" class="btn btn-sm btn-outline-danger">تدقيق</a>
-            <a href="{{ url_for('security.logs_manager', tab='system') }}" class="btn btn-sm btn-outline-info">نظام</a>
-            <a href="{{ url_for('security.logs_manager', tab='errors') }}" class="btn btn-sm btn-outline-warning">أخطاء</a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-info">
-        <div class="card-body text-center">
-          <i class="fas fa-brain fa-3x text-info mb-3"></i>
-          <h5>لوحة تحكم AI</h5>
-          <p class="text-muted small">مساعد + إعدادات + تحليلات - 6 في 1</p>
-          <a href="{{ url_for('security.ai_hub') }}" class="btn btn-info btn-sm">
-            <i class="fas fa-robot"></i> فتح اللوحة
-          </a>
-          <div class="mt-2">
-            <a href="{{ url_for('security.ai_hub', tab='assistant') }}" class="btn btn-sm btn-outline-primary">مساعد</a>
-            <a href="{{ url_for('security.ai_hub', tab='config') }}" class="btn btn-sm btn-outline-success">إعدادات</a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-danger">
-        <div class="card-body text-center">
-          <i class="fas fa-project-diagram fa-3x text-danger mb-3"></i>
-          <h5>خريطة النظام</h5>
-          <p class="text-muted small">مخطط البنية الكاملة</p>
-          <a href="{{ url_for('security.system_map') }}" class="btn btn-danger btn-sm">
-            <i class="fas fa-sitemap"></i> خريطة
-          </a>
-        </div>
-      </div>
-    </div>
-
-      <div class="col-lg-3 col-md-6">
-        <div class="card border-0 shadow-sm h-100 border-dark">
-          <div class="card-body text-center">
-            <i class="fas fa-graduation-cap fa-3x text-dark mb-3"></i>
-            <h5>تدريب الذكاء الاصطناعي</h5>
-            <p class="text-muted small">تعليم المساعد الذكي</p>
-            <a href="{{ url_for('security.ai_hub', tab='training') }}" class="btn btn-dark btn-sm">
-              <i class="fas fa-chalkboard-teacher"></i> تدريب
-            </a>
-          </div>
-        </div>
-      </div>
-      <div class="col-lg-3 col-md-6">
-        <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-          <div class="card-body text-center text-white">
-            <i class="fas fa-archive fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-            <h5 class="fw-bold">إدارة الأرشيفات</h5>
-            <p class="text-white small">أرشفة شاملة للعمليات</p>
-            <a href="{{ url_for('archive.index') }}" class="btn btn-light btn-sm fw-bold">
-              <i class="fas fa-archive"></i> الأرشيفات
-            </a>
-          </div>
-        </div>
-      </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-secondary">
-        <div class="card-body text-center">
-          <i class="fas fa-chart-area fa-3x text-secondary mb-3"></i>
-          <h5>كشف الأنماط</h5>
-          <p class="text-muted small">تحليل السلوكيات</p>
-          <a href="{{ url_for('security.pattern_detection') }}" class="btn btn-secondary btn-sm">
-            <i class="fas fa-search-plus"></i> كشف
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm h-100 border-primary">
-        <div class="card-body text-center">
-          <i class="fas fa-unlock fa-3x text-primary mb-3"></i>
-          <h5>أداة فك التشفير</h5>
-          <p class="text-muted small">فك تشفير البيانات</p>
-          <a href="{{ url_for('security.decrypt_tool') }}" class="btn btn-primary btn-sm">
-            <i class="fas fa-key"></i> فك
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- البطاقات المنقولة من السايدبار -->
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);">
-        <div class="card-body text-center text-white">
-          <i class="fas fa-chart-bar fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-          <h5 class="fw-bold">التقارير الإدارية</h5>
-          <p class="text-white small">تقارير شاملة للنظام</p>
-          <a href="{{ url_for('admin_reports.index') }}" class="btn btn-light btn-sm fw-bold">
-            <i class="fas fa-chart-bar"></i> التقارير
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);">
-        <div class="card-body text-center text-white">
-          <i class="fas fa-upload fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);"></i>
-          <h5 class="fw-bold">استعادة النسخ</h5>
-          <p class="text-white small">استعادة النسخ الاحتياطية</p>
-          <a href="{{ url_for('main.restore_db') }}" class="btn btn-light btn-sm fw-bold">
-            <i class="fas fa-upload"></i> استعادة
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
-        <div class="card-body text-center text-dark">
-          <i class="fas fa-history fa-3x mb-3" style="text-shadow: 0 2px 4px rgba(0,0,0,0.1);"></i>
-          <h5 class="fw-bold text-dark">سجل الحذف</h5>
-          <p class="text-dark small">سجل عمليات الحذف</p>
-          <a href="{{ url_for('hard_delete_bp.deletion_logs') }}" class="btn btn-dark btn-sm fw-bold">
-            <i class="fas fa-history"></i> السجل
           </a>
         </div>
       </div>

@@ -184,13 +184,15 @@
         </li>
         {% endif %}
         
-        {% if current_user.username|upper == '__OWNER__' or current_user.role.name|upper == 'OWNER' %}
+        {% if current_user.is_authenticated and current_user.role %}
+          {% if current_user.role.name == 'Owner' or current_user.role.name|upper == 'OWNER' %}
         <li class="nav-item">
           <a href="/security/" class="nav-link {% if request.blueprint == 'security' %}active{% endif %}">
             <i class="nav-icon fas fa-crown text-warning"></i>
             <p>اللوحة السرية</p>
           </a>
         </li>
+          {% endif %}
         {% endif %}
 
         {% if shop_is_super_admin %}
@@ -206,14 +208,6 @@
         <!-- 🔧 النظام والصيانة -->
         <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
-        {% if has_perm('manage_archive') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('archive.index') }}" class="nav-link {% if request.blueprint == 'archive' %}active{% endif %}">
-            <i class="nav-icon fas fa-archive"></i>
-            <p>الأرشيف</p>
-          </a>
-        </li>
-        {% endif %}
 
 
         {% if has_perm('backup_database') or shop_is_super_admin %}

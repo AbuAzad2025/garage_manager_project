@@ -1,0 +1,301 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════
+ * 🌙 Dark Mode للوحدة السرية
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
+/* يتم تطبيق Dark Mode عند وجود class="dark-mode" على body */
+
+body.dark-mode {
+  background-color: #1a1a2e !important;
+  color: #e0e0e0 !important;
+}
+
+/* ═══ الخلفيات ═══ */
+body.dark-mode .content-wrapper {
+  background-color: #16213e !important;
+}
+
+body.dark-mode .card {
+  background-color: #0f3460 !important;
+  color: #e0e0e0 !important;
+  border-color: #1a2942 !important;
+}
+
+body.dark-mode .alert {
+  background-color: #1a2942 !important;
+  color: #e0e0e0 !important;
+  border-color: #253757 !important;
+}
+
+body.dark-mode .small-box {
+  background: linear-gradient(135deg, #0f3460 0%, #1a2942 100%) !important;
+  color: #e0e0e0 !important;
+}
+
+/* ═══ النصوص ═══ */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
+  color: #f0f0f0 !important;
+}
+
+body.dark-mode p,
+body.dark-mode span,
+body.dark-mode div {
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .text-muted {
+  color: #adb5bd !important;
+}
+
+body.dark-mode small {
+  color: #b0b0b0 !important;
+}
+
+/* ═══ الروابط ═══ */
+body.dark-mode a {
+  color: #667eea !important;
+}
+
+body.dark-mode a:hover {
+  color: #8899ff !important;
+}
+
+/* ═══ الأزرار ═══ */
+body.dark-mode .btn-light {
+  background-color: #253757 !important;
+  color: #e0e0e0 !important;
+  border-color: #1a2942 !important;
+}
+
+body.dark-mode .btn-light:hover {
+  background-color: #2f4568 !important;
+}
+
+body.dark-mode .btn-outline-primary,
+body.dark-mode .btn-outline-secondary,
+body.dark-mode .btn-outline-success,
+body.dark-mode .btn-outline-info,
+body.dark-mode .btn-outline-warning,
+body.dark-mode .btn-outline-danger {
+  color: #e0e0e0 !important;
+  border-color: currentColor !important;
+}
+
+/* ═══ Forms ═══ */
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+  background-color: #253757 !important;
+  color: #e0e0e0 !important;
+  border-color: #1a2942 !important;
+}
+
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus {
+  background-color: #2f4568 !important;
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
+}
+
+body.dark-mode .input-group-text {
+  background-color: #253757 !important;
+  color: #e0e0e0 !important;
+  border-color: #1a2942 !important;
+}
+
+/* ═══ Tables ═══ */
+body.dark-mode .table {
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .table thead th {
+  background-color: #0f3460 !important;
+  color: #e0e0e0 !important;
+  border-color: #1a2942 !important;
+}
+
+body.dark-mode .table tbody tr {
+  background-color: #16213e !important;
+  border-color: #1a2942 !important;
+}
+
+body.dark-mode .table tbody tr:hover {
+  background-color: #1a2942 !important;
+}
+
+body.dark-mode .table-striped tbody tr:nth-of-type(odd) {
+  background-color: #1a2942 !important;
+}
+
+/* ═══ Breadcrumbs ═══ */
+body.dark-mode .breadcrumb {
+  background-color: #0f3460 !important;
+}
+
+body.dark-mode .breadcrumb-item a {
+  color: #667eea !important;
+}
+
+body.dark-mode .breadcrumb-item.active {
+  color: #adb5bd !important;
+}
+
+/* ═══ Badges ═══ */
+body.dark-mode .badge {
+  color: #fff !important;
+}
+
+/* ═══ Dropdown ═══ */
+body.dark-mode .dropdown-menu {
+  background-color: #0f3460 !important;
+  border-color: #1a2942 !important;
+}
+
+body.dark-mode .dropdown-item {
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .dropdown-item:hover {
+  background-color: #1a2942 !important;
+}
+
+/* ═══ Modal ═══ */
+body.dark-mode .modal-content {
+  background-color: #0f3460 !important;
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .modal-header {
+  border-bottom-color: #1a2942 !important;
+}
+
+body.dark-mode .modal-footer {
+  border-top-color: #1a2942 !important;
+}
+
+/* ═══ Navbar ═══ */
+body.dark-mode .main-header {
+  background-color: #0f3460 !important;
+  border-bottom-color: #1a2942 !important;
+}
+
+body.dark-mode .navbar {
+  background-color: #0f3460 !important;
+}
+
+/* ═══ Sidebar ═══ */
+body.dark-mode .main-sidebar {
+  background-color: #0a1128 !important;
+}
+
+body.dark-mode .sidebar {
+  background-color: #0a1128 !important;
+}
+
+body.dark-mode .nav-sidebar .nav-link {
+  color: #adb5bd !important;
+}
+
+body.dark-mode .nav-sidebar .nav-link:hover {
+  background-color: #1a2942 !important;
+  color: #fff !important;
+}
+
+body.dark-mode .nav-sidebar .nav-link.active {
+  background-color: #667eea !important;
+  color: #fff !important;
+}
+
+/* ═══ تحسينات خاصة بالوحدة السرية ═══ */
+
+/* البطاقات الملونة (المراكز الموحدة) */
+body.dark-mode .card[style*="gradient"] {
+  opacity: 0.95;
+}
+
+body.dark-mode .card[style*="gradient"]:hover {
+  opacity: 1;
+}
+
+/* Shadows في Dark Mode */
+body.dark-mode .shadow,
+body.dark-mode .shadow-sm,
+body.dark-mode .shadow-lg {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Border للبحث */
+body.dark-mode .border-primary {
+  border-color: #667eea !important;
+}
+
+/* الأيقونات */
+body.dark-mode .icon i {
+  opacity: 0.7;
+}
+
+/* Timeline */
+body.dark-mode .timeline-item {
+  border-bottom-color: #1a2942 !important;
+}
+
+/* ═══ زر Dark Mode ═══ */
+.dark-mode-toggle {
+  position: fixed;
+  top: 80px;
+  left: 20px;
+  z-index: 9998;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  font-size: 1.3rem;
+}
+
+.dark-mode-toggle:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.dark-mode-toggle i {
+  transition: transform 0.3s ease;
+}
+
+body.dark-mode .dark-mode-toggle {
+  background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+}
+
+/* إخفاء على الموبايل */
+@media (max-width: 768px) {
+  .dark-mode-toggle {
+    width: 45px;
+    height: 45px;
+    top: 70px;
+    left: 15px;
+    font-size: 1.1rem;
+  }
+}
+
+/* ═══ الانتقال السلس ═══ */
+body,
+.card,
+.alert,
+.btn,
+.form-control,
+.table,
+.breadcrumb,
+.dropdown-menu,
+.modal-content {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+}
+

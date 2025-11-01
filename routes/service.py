@@ -403,6 +403,70 @@ def update_diagnosis(rid):
         db.session.rollback(); flash(f'❌ خطأ في قاعدة البيانات: {str(e)}','danger')
     return redirect(url_for('service.view_request', rid=rid))
 
+@service_bp.route('/<int:rid>/discount_tax', methods=['POST'])
+@login_required
+# @permission_required('manage_service')  # Commented out - function not available
+def update_discount_tax(rid):
+    """تحديث الخصم الإجمالي والضريبة"""
+    service = _get_or_404(ServiceRequest, rid)
+    
+    if service.status == ServiceStatus.COMPLETED.value:
+        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        return redirect(url_for('service.view_request', rid=rid))
+    
+    try:
+        discount_total = Decimal(request.form.get('discount_total', 0) or 0)
+        tax_rate = Decimal(request.form.get('tax_rate', 0) or 0)
+        
+        # حساب إجمالي الفاتورة للتحقق
+        parts_sum = sum((p.line_total or 0) for p in service.parts)
+        tasks_sum = sum((t.line_total or 0) for t in service.tasks)
+        invoice_total = parts_sum + tasks_sum
+        
+        # التحقق من صحة البيانات
+        if discount_total < 0:
+            flash('❌ الخصم لا يمكن أن يكون سالباً', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if discount_total > invoice_total:
+            flash(f'❌ الخصم ({discount_total:.2f} ₪) لا يمكن أن يتجاوز إجمالي الفاتورة ({invoice_total:.2f} ₪)', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if tax_rate < 0 or tax_rate > 100:
+            flash('❌ نسبة الضريبة يجب أن تكون بين 0 و 100', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        # حفظ القيم القديمة للـ audit log
+        old_data = {
+            'discount_total': str(service.discount_total or 0),
+            'tax_rate': str(service.tax_rate or 0)
+        }
+        
+        # تحديث القيم
+        service.discount_total = discount_total
+        service.tax_rate = tax_rate
+        
+        db.session.commit()
+        
+        # تسجيل في الـ audit log
+        log_service_action(service, "UPDATE_DISCOUNT_TAX", 
+                          old_data=old_data, 
+                          new_data={
+                              'discount_total': str(discount_total),
+                              'tax_rate': str(tax_rate)
+                          })
+        
+        flash('✅ تم تحديث الخصم والضريبة بنجاح', 'success')
+        
+    except ValueError as e:
+        flash(f'❌ خطأ في البيانات: {str(e)}', 'danger')
+        db.session.rollback()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash(f'❌ خطأ في قاعدة البيانات: {str(e)}', 'danger')
+    
+    return redirect(url_for('service.view_request', rid=rid))
+
 @service_bp.route('/<int:rid>/<action>', methods=['POST'])
 @login_required
 # @permission_required('manage_service')  # Commented out - function not available
@@ -416,9 +480,23 @@ def toggle_service(rid, action):
             service.completed_at=datetime.utcnow()
             if service.started_at: service.actual_duration=int((service.completed_at-service.started_at).total_seconds()/60)
             service.status=ServiceStatus.COMPLETED
+            _consume_service_stock_once(service)
+        elif action=='reopen':
+            if service.status==ServiceStatus.COMPLETED.value:
+                service.status=ServiceStatus.IN_PROGRESS
+                service.completed_at=None
         else: abort(400)
-        _consume_service_stock_once(service); db.session.commit()
-        if action=='complete' and service.customer and service.customer.phone: utils.send_whatsapp_message(service.customer.phone, f"تم إكمال صيانة المركبة {service.vehicle_vrn}.")
+        db.session.commit()
+        
+        if action=='complete':
+            if service.customer and service.customer.phone:
+                utils.send_whatsapp_message(service.customer.phone, f"تم إكمال صيانة المركبة {service.vehicle_vrn}.")
+            try:
+                from utils import notify_service_completed
+                notify_service_completed(service.id)
+            except Exception as e:
+                current_app.logger.warning(f'⚠️ Notification failed: {e}')
+        
         flash('✅ تم تحديث حالة الصيانة','success')
     except ValueError as ve:
         db.session.rollback(); flash(f'❌ مخزون غير كافٍ لبعض القطع: {ve}','danger')
@@ -431,22 +509,80 @@ def toggle_service(rid, action):
 # @permission_required('manage_service')  # Commented out - function not available
 def add_part(rid):
     service=_get_or_404(ServiceRequest, rid)
-    form=ServicePartForm()
-    if form.validate_on_submit():
-        warehouse_id=utils._get_id(form.warehouse_id.data); product_id=utils._get_id(form.part_id.data)
-        part=ServicePart(request=service, service_id=rid, part_id=product_id, warehouse_id=warehouse_id, quantity=form.quantity.data, unit_price=form.unit_price.data, discount=form.discount.data or 0, tax_rate=form.tax_rate.data or 0, note=form.note.data)
+    
+    if service.status == ServiceStatus.COMPLETED.value:
+        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        return redirect(url_for('service.view_request', rid=rid))
+    
+    try:
+        warehouse_id = int(request.form.get('warehouse_id'))
+        product_id = int(request.form.get('part_id'))
+        quantity = int(request.form.get('quantity'))
+        unit_price = Decimal(request.form.get('unit_price'))
+        discount = Decimal(request.form.get('discount', 0) or 0)
+        tax_rate = Decimal(request.form.get('tax_rate', 0) or 0)
+        note = (request.form.get('note') or '').strip() or None
+        
+        # Validation
+        if not warehouse_id or not product_id:
+            flash('❌ يجب اختيار المستودع والقطعة', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if quantity <= 0:
+            flash('❌ الكمية يجب أن تكون أكبر من صفر', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if unit_price < 0:
+            flash('❌ السعر لا يمكن أن يكون سالباً', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if discount < 0:
+            flash('❌ الخصم لا يمكن أن يكون سالباً', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        # التحقق من أن الخصم لا يتجاوز إجمالي البند
+        gross_amount = quantity * unit_price
+        if discount > gross_amount:
+            flash(f'❌ الخصم ({discount:.2f} ₪) لا يمكن أن يتجاوز إجمالي البند ({gross_amount:.2f} ₪)', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if tax_rate < 0 or tax_rate > 100:
+            flash('❌ نسبة الضريبة يجب أن تكون بين 0 و 100', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        part=ServicePart(
+            request=service, 
+            service_id=rid, 
+            part_id=product_id, 
+            warehouse_id=warehouse_id, 
+            quantity=quantity, 
+            unit_price=unit_price, 
+            discount=discount, 
+            tax_rate=tax_rate, 
+            note=note
+        )
         db.session.add(part)
-        try:
-            db.session.flush(); service.updated_at=datetime.utcnow()
-            if _service_consumes_stock(service):
-                new_qty=utils._apply_stock_delta(product_id, warehouse_id, -int(form.quantity.data or 0))
-                _log_service_stock_action(service,"STOCK_CONSUME_PART",[{"part_id":product_id,"warehouse_id":warehouse_id,"qty":-int(form.quantity.data or 0),"stock_after":int(new_qty)}])
-                current_app.logger.info("service.part_add",extra={"event":"service.part.add","service_id":service.id,"part_id":product_id,"warehouse_id":warehouse_id,"qty":-int(form.quantity.data or 0)})
-            db.session.commit(); flash('✅ تمت إضافة القطعة ومعالجة المخزون','success')
-        except ValueError as ve:
-            db.session.rollback(); flash(f'❌ مخزون غير كافٍ: {ve}','danger')
-        except SQLAlchemyError as e:
-            db.session.rollback(); flash(f'❌ خطأ: {str(e)}','danger')
+        db.session.flush()
+        service.updated_at=datetime.utcnow()
+        
+        if _service_consumes_stock(service):
+            new_qty=utils._apply_stock_delta(product_id, warehouse_id, -quantity)
+            _log_service_stock_action(service,"STOCK_CONSUME_PART",[{"part_id":product_id,"warehouse_id":warehouse_id,"qty":-quantity,"stock_after":int(new_qty)}])
+            current_app.logger.info("service.part_add",extra={"event":"service.part.add","service_id":service.id,"part_id":product_id,"warehouse_id":warehouse_id,"qty":-quantity})
+        
+        db.session.commit()
+        flash('✅ تمت إضافة القطعة بنجاح','success')
+        
+    except ValueError as ve:
+        db.session.rollback()
+        flash(f'❌ خطأ في البيانات: {ve}','danger')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash(f'❌ خطأ في قاعدة البيانات: {str(e)}','danger')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ خطأ: {str(e)}','danger')
+    
     return redirect(url_for('service.view_request', rid=rid))
 
 @service_bp.route('/parts/<int:pid>/delete', methods=['POST'])
@@ -457,7 +593,10 @@ def delete_part(pid):
     rid=part.service_id
     service=_get_or_404(ServiceRequest, rid)
     
-    # SECURITY: التحقق من صلاحية الوصول
+    if service.status == ServiceStatus.COMPLETED.value:
+        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        return redirect(url_for('service.view_request', rid=rid))
+    
     if not current_user.has_permission('manage_service'):
         flash('❌ غير مصرح لك بحذف قطع الغيار', 'danger')
         return redirect(url_for('service.view_request', rid=rid))
@@ -478,16 +617,72 @@ def delete_part(pid):
 # @permission_required('manage_service')  # Commented out - function not available
 def add_task(rid):
     service=_get_or_404(ServiceRequest, rid)
-    form=ServiceTaskForm(); form.service_id.data=rid
-    if form.validate_on_submit():
-        task=ServiceTask(request=service, service_id=rid, description=form.description.data, quantity=form.quantity.data or 1, unit_price=form.unit_price.data, discount=form.discount.data or 0, tax_rate=form.tax_rate.data or 0, note=form.note.data)
+    
+    if service.status == ServiceStatus.COMPLETED.value:
+        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        return redirect(url_for('service.view_request', rid=rid))
+    
+    try:
+        description = (request.form.get('description') or '').strip()
+        quantity = int(request.form.get('quantity', 1))
+        unit_price = Decimal(request.form.get('unit_price'))
+        discount = Decimal(request.form.get('discount', 0) or 0)
+        tax_rate = Decimal(request.form.get('tax_rate', 0) or 0)
+        note = (request.form.get('note') or '').strip() or None
+        
+        # Validation
+        if not description:
+            flash('❌ يجب إدخال وصف المهمة', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if quantity <= 0:
+            flash('❌ الكمية يجب أن تكون أكبر من صفر', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if unit_price < 0:
+            flash('❌ السعر لا يمكن أن يكون سالباً', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if discount < 0:
+            flash('❌ الخصم لا يمكن أن يكون سالباً', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        # التحقق من أن الخصم لا يتجاوز إجمالي البند
+        gross_amount = quantity * unit_price
+        if discount > gross_amount:
+            flash(f'❌ الخصم ({discount:.2f} ₪) لا يمكن أن يتجاوز إجمالي البند ({gross_amount:.2f} ₪)', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        if tax_rate < 0 or tax_rate > 100:
+            flash('❌ نسبة الضريبة يجب أن تكون بين 0 و 100', 'danger')
+            return redirect(url_for('service.view_request', rid=rid))
+        
+        task=ServiceTask(
+            request=service, 
+            service_id=rid, 
+            description=description, 
+            quantity=quantity, 
+            unit_price=unit_price, 
+            discount=discount, 
+            tax_rate=tax_rate, 
+            note=note
+        )
         db.session.add(task)
-        try:
-            db.session.flush(); service.updated_at=datetime.utcnow(); db.session.commit(); flash('✅ تمت إضافة المهمة','success')
-        except SQLAlchemyError as e:
-            db.session.rollback(); flash(f'❌ خطأ: {str(e)}','danger')
-    else:
-        flash('❌ تحقق من الحقول المدخلة','danger')
+        db.session.flush()
+        service.updated_at=datetime.utcnow()
+        db.session.commit()
+        flash('✅ تمت إضافة المهمة بنجاح','success')
+        
+    except ValueError as ve:
+        db.session.rollback()
+        flash(f'❌ خطأ في البيانات: {ve}','danger')
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        flash(f'❌ خطأ في قاعدة البيانات: {str(e)}','danger')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ خطأ: {str(e)}','danger')
+    
     return redirect(url_for('service.view_request', rid=rid))
 
 @service_bp.route('/tasks/<int:tid>/delete', methods=['POST'])
@@ -495,6 +690,11 @@ def add_task(rid):
 # @permission_required('manage_service')  # Commented out - function not available
 def delete_task(tid):
     task=_get_or_404(ServiceTask, tid); rid=task.service_id; service=_get_or_404(ServiceRequest, rid)
+    
+    if service.status == ServiceStatus.COMPLETED.value:
+        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        return redirect(url_for('service.view_request', rid=rid))
+    
     db.session.delete(task)
     try:
         service.updated_at=datetime.utcnow(); db.session.commit(); flash('✅ تم حذف المهمة','success')
@@ -694,25 +894,25 @@ def generate_service_receipt_pdf(service_request):
     y-=8*mm; c.drawString(20*mm,y,f"العميل: {service_request.customer.name if service_request.customer else (getattr(service_request,'name',None) or '-')}")
     c.drawString(120*mm,y,f"لوحة المركبة: {service_request.vehicle_vrn or ''}")
     y-=12*mm; c.setFont("Helvetica-Bold",11); c.drawString(20*mm,y,"القطع المُركّبة"); y-=6*mm; c.setFont("Helvetica",9)
-    headers=[("الصنف",20),("المخزن",70),("الكمية",110),("سعر",125),("خصم%",145),("ضريبة%",160),("الإجمالي",175)]
+    headers=[("الصنف",20),("المخزن",70),("الكمية",110),("سعر",125),("خصم ₪",145),("ضريبة%",160),("الإجمالي",175)]
     for h,x in headers: c.drawString(x*mm,y,h)
     y-=4*mm; c.line(20*mm,y,200*mm,y); y-=6*mm
     parts_total=0.0
     for part in getattr(service_request,"parts",[]) or []:
         qty=int(part.quantity or 0); u=float(part.unit_price or 0); disc=float(part.discount or 0); taxr=float(part.tax_rate or 0)
-        gross=qty*u; disc_amount=gross*(disc/100.0); taxable=gross-disc_amount; tax_amount=taxable*(taxr/100.0); line_total=taxable+tax_amount; parts_total+=line_total
+        gross=qty*u; disc_amount=disc; taxable=max(0, gross-disc_amount); tax_amount=taxable*(taxr/100.0); line_total=taxable+tax_amount; parts_total+=line_total
         c.drawString(20*mm,y,(getattr(part.part,'name','') or str(part.part_id))[:25]); c.drawString(70*mm,y,getattr(part.warehouse,'name','—') or '—')
         c.drawRightString(120*mm,y,str(qty)); c.drawRightString(140*mm,y,f"{u:.2f}"); c.drawRightString(155*mm,y,f"{disc:.0f}"); c.drawRightString(170*mm,y,f"{taxr:.0f}"); c.drawRightString(195*mm,y,f"{line_total:.2f}")
         y-=6*mm
         if y<40*mm: c.showPage(); y=height-20*mm; c.setFont("Helvetica",9)
     y-=8*mm; c.setFont("Helvetica-Bold",11); c.drawString(20*mm,y,"المهام"); y-=6*mm; c.setFont("Helvetica",9)
-    headers=[("الوصف",20),("الكمية",110),("سعر",125),("خصم%",145),("ضريبة%",160),("الإجمالي",175)]
+    headers=[("الوصف",20),("الكمية",110),("سعر",125),("خصم ₪",145),("ضريبة%",160),("الإجمالي",175)]
     for h,x in headers: c.drawString(x*mm,y,h)
     y-=4*mm; c.line(20*mm,y,200*mm,y); y-=6*mm
     tasks_total=0.0
     for task in getattr(service_request,"tasks",[]) or []:
         qty=int(task.quantity or 1); u=float(task.unit_price or 0); disc=float(task.discount or 0); taxr=float(task.tax_rate or 0)
-        gross=qty*u; disc_amount=gross*(disc/100.0); taxable=gross-disc_amount; tax_amount=taxable*(taxr/100.0); line_total=taxable+tax_amount; tasks_total+=line_total
+        gross=qty*u; disc_amount=disc; taxable=max(0, gross-disc_amount); tax_amount=taxable*(taxr/100.0); line_total=taxable+tax_amount; tasks_total+=line_total
         c.drawString(20*mm,y,(task.description or '')[:40]); c.drawRightString(120*mm,y,str(qty)); c.drawRightString(140*mm,y,f"{u:.2f}"); c.drawRightString(155*mm,y,f"{disc:.0f}"); c.drawRightString(170*mm,y,f"{taxr:.0f}"); c.drawRightString(195*mm,y,f"{line_total:.2f}")
         y-=6*mm
         if y<40*mm: c.showPage(); y=height-20*mm; c.setFont("Helvetica",9)

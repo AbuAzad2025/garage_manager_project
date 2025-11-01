@@ -152,7 +152,6 @@ def employees_list():
 # @permission_required("manage_expenses")  # Commented out
 def add_employee():
     form = EmployeeForm()
-    # فروع ومواقع
     try:
         from models import Branch, Site
         form.branch_id.choices = [(b.id, f"{b.code} - {b.name}") for b in Branch.query.filter_by(is_active=True).order_by(Branch.name).all()]
@@ -209,19 +208,15 @@ def employee_statement(emp_id):
     
     e = _get_or_404(Employee, emp_id, joinedload(Employee.branch), joinedload(Employee.site))
     
-    # السلف
     advance_type = ExpenseType.query.filter_by(code='EMPLOYEE_ADVANCE').first()
     advances = []
     if advance_type:
         advances = Expense.query.filter_by(employee_id=emp_id, type_id=advance_type.id).order_by(Expense.date.desc()).all()
-        # إضافة الأقساط لكل سلفة
         for adv in advances:
             adv.installments = EmployeeAdvanceInstallment.query.filter_by(advance_expense_id=adv.id).order_by(EmployeeAdvanceInstallment.installment_number).all()
     
-    # الخصومات الشهرية
     deductions = EmployeeDeduction.query.filter_by(employee_id=emp_id).order_by(EmployeeDeduction.start_date.desc()).all()
     
-    # الرواتب المدفوعة
     salary_type = ExpenseType.query.filter_by(code='SALARY').first()
     salaries = []
     if salary_type:
@@ -236,11 +231,283 @@ def employee_statement(emp_id):
     )
 
 
+@expenses_bp.route("/employees/<int:emp_id>/installments-due", methods=["GET"], endpoint="get_installments_due")
+@login_required
+def get_installments_due(emp_id):
+    """API: جلب الأقساط المستحقة في شهر معين"""
+    from models import EmployeeAdvanceInstallment
+    from flask import jsonify
+    from calendar import monthrange
+    
+    month = int(request.args.get('month', datetime.now().month))
+    year = int(request.args.get('year', datetime.now().year))
+    
+    period_start = _date(year, month, 1)
+    if month == 12:
+        period_end = _date(year, 12, 31)
+    else:
+        last_day = monthrange(year, month)[1]
+        period_end = _date(year, month, last_day)
+    
+    installments = EmployeeAdvanceInstallment.query.filter(
+        EmployeeAdvanceInstallment.employee_id == emp_id,
+        EmployeeAdvanceInstallment.paid == False,
+        EmployeeAdvanceInstallment.due_date >= period_start,
+        EmployeeAdvanceInstallment.due_date <= period_end
+    ).all()
+    
+    total = sum(float(inst.amount or 0) for inst in installments)
+    
+    return jsonify({
+        'installments': [{
+            'id': inst.id,
+            'installment_number': inst.installment_number,
+            'total_installments': inst.total_installments,
+            'amount': float(inst.amount or 0),
+            'due_date': inst.due_date.strftime('%Y-%m-%d') if inst.due_date else '',
+            'currency': inst.currency
+        } for inst in installments],
+        'total': round(total, 2),
+        'count': len(installments)
+    })
+
+
+@expenses_bp.route("/employees/<int:emp_id>/generate-salary", methods=["POST"], endpoint="generate_salary")
+@login_required
+# @permission_required("manage_expenses")  # Commented out
+def generate_salary(emp_id):
+    """توليد راتب شهري تلقائياً مع دعم الدفع الجزئي"""
+    from models import ExpenseType, EmployeeAdvanceInstallment
+    from datetime import date, datetime
+    from decimal import Decimal
+    
+    employee = _get_or_404(Employee, emp_id)
+    
+    # Get form data
+    month = int(request.form.get('month', date.today().month))
+    year = int(request.form.get('year', date.today().year))
+    
+    if year < 1900 or year > 2100:
+        year = date.today().year
+    
+    base_salary = Decimal(request.form.get('base_salary', employee.salary))
+    payment_method = request.form.get('payment_method', 'BANK_TRANSFER')
+    payment_date = request.form.get('payment_date', date.today().isoformat())
+    notes = request.form.get('notes', '')
+    
+    check_number = request.form.get('check_number', '').strip()
+    check_bank = request.form.get('check_bank', '').strip()
+    check_due_date = request.form.get('check_due_date', '')
+    check_payee = request.form.get('check_payee', employee.name).strip()
+    bank_transfer_ref = request.form.get('transfer_reference', '').strip()
+    bank_name = request.form.get('bank_name', '').strip()
+    account_number = request.form.get('account_number', '').strip()
+    account_holder = request.form.get('account_holder', employee.name).strip()
+    payment_details = request.form.get('payment_details', '').strip()
+    
+    monthly_deductions = Decimal(str(employee.total_deductions))
+    social_insurance_emp = Decimal(str(employee.social_insurance_employee_amount))
+    income_tax = Decimal(str(employee.income_tax_amount))
+    
+    net_salary_before_advances = base_salary - monthly_deductions - social_insurance_emp - income_tax
+    
+    period_start = _date(year, month, 1)
+    if month == 12:
+        period_end = _date(year, 12, 31)
+    else:
+        from calendar import monthrange
+        last_day = monthrange(year, month)[1]
+        period_end = _date(year, month, last_day)
+    
+    installments_due = EmployeeAdvanceInstallment.query.filter(
+        EmployeeAdvanceInstallment.employee_id == emp_id,
+        EmployeeAdvanceInstallment.paid == False,
+        EmployeeAdvanceInstallment.due_date >= period_start,
+        EmployeeAdvanceInstallment.due_date <= period_end
+    ).all()
+    
+    total_installments_amount = sum(Decimal(str(inst.amount or 0)) for inst in installments_due)
+    
+    net_salary = net_salary_before_advances - total_installments_amount
+    
+    actual_payment = Decimal(request.form.get('actual_payment', net_salary))
+    remaining_balance = net_salary - actual_payment
+    
+    if actual_payment > net_salary:
+        flash(f"❌ المبلغ المدفوع ({actual_payment}) أكبر من الراتب الصافي ({net_salary})", "danger")
+        return redirect(url_for('expenses_bp.employee_statement', emp_id=emp_id))
+    
+    if actual_payment < 0:
+        flash("❌ المبلغ المدفوع لا يمكن أن يكون سالباً", "danger")
+        return redirect(url_for('expenses_bp.employee_statement', emp_id=emp_id))
+    
+    
+    salary_type = ExpenseType.query.filter_by(code='SALARY').first()
+    if not salary_type:
+        flash("❌ نوع المصروف 'SALARY' غير موجود في النظام", "danger")
+        return redirect(url_for('expenses_bp.employee_statement', emp_id=emp_id))
+    
+    existing_salary = Expense.query.filter(
+        Expense.employee_id == emp_id,
+        Expense.type_id == salary_type.id,
+        Expense.period_start == period_start
+    ).first()
+    
+    if existing_salary:
+        flash(f"⚠️ راتب شهر {month}/{year} موجود مسبقاً للموظف {employee.name}", "warning")
+        return redirect(url_for('expenses_bp.employee_statement', emp_id=emp_id))
+    
+    payment_percentage = (actual_payment / net_salary * 100) if net_salary > 0 else 0
+    
+    detailed_notes = f"""الراتب الأساسي: {base_salary} {employee.currency}
+الخصومات الشهرية: -{monthly_deductions} {employee.currency}
+التأمينات (حصة الموظف): -{social_insurance_emp} {employee.currency}
+ضريبة الدخل: -{income_tax} {employee.currency}
+─────────────────
+الراتب بعد الاستقطاعات: {net_salary_before_advances} {employee.currency}"""
+    
+    if total_installments_amount > 0:
+        detailed_notes += f"""
+أقساط السلف المستحقة ({len(installments_due)} قسط): -{total_installments_amount} {employee.currency}"""
+        for inst in installments_due:
+            detailed_notes += f"\n  - قسط {inst.installment_number}/{inst.total_installments}: {inst.amount} {employee.currency}"
+    
+    detailed_notes += f"""
+─────────────────
+الراتب الصافي النهائي: {net_salary} {employee.currency}
+المبلغ المدفوع فعلياً: {actual_payment} {employee.currency} ({payment_percentage:.1f}%)"""
+    
+    if remaining_balance > 0:
+        detailed_notes += f"""
+المبلغ المتبقي (دين على الشركة): {remaining_balance} {employee.currency}
+
+⚠️ دفع جزئي - يجب متابعة المبلغ المتبقي في كشف حساب الموظف"""
+    
+    if notes:
+        detailed_notes += f"\n\nملاحظات إضافية: {notes}"
+    
+    salary_expense = Expense(
+        date=datetime.strptime(payment_date, '%Y-%m-%d').date(),
+        amount=net_salary,
+        currency=employee.currency,
+        type_id=salary_type.id,
+        employee_id=emp_id,
+        branch_id=employee.branch_id,
+        site_id=employee.site_id,
+        period_start=period_start,
+        period_end=period_end,
+        payment_method=payment_method.upper(),
+        description=f"راتب شهر {month}/{year} - {employee.name}" + (f" (دفع جزئي {payment_percentage:.0f}%)" if remaining_balance > 0 else ""),
+        notes=detailed_notes,
+        paid_to=employee.name,
+        beneficiary_name=employee.name,
+        payee_type='EMPLOYEE',
+        payee_entity_id=emp_id,
+        payee_name=employee.name,
+        check_number=check_number if check_number else None,
+        check_bank=check_bank if check_bank else None,
+        check_due_date=datetime.strptime(check_due_date, '%Y-%m-%d').date() if check_due_date else None,
+        check_payee=check_payee if check_payee else None,
+        bank_transfer_ref=bank_transfer_ref if bank_transfer_ref else None,
+        bank_name=bank_name if bank_name else None,
+        account_number=account_number if account_number else None,
+        account_holder=account_holder if account_holder else None
+    )
+    
+    try:
+        db.session.add(salary_expense)
+        db.session.flush()
+        
+        if actual_payment > 0:
+            from models import Payment
+            payment_notes = f"دفع {'جزئي' if remaining_balance > 0 else 'كامل'} للراتب"
+            if payment_method.upper() == 'CHECK' and check_number:
+                payment_notes += f" - شيك رقم {check_number}"
+            elif payment_method.upper() == 'BANK_TRANSFER' and transfer_reference:
+                payment_notes += f" - معاملة رقم {transfer_reference}"
+            
+            payment = Payment(
+                date=datetime.strptime(payment_date, '%Y-%m-%d'),
+                amount=actual_payment,
+                currency=employee.currency,
+                direction='OUT',
+                method=payment_method.upper(),
+                entity_type='EXPENSE',
+                entity_id=salary_expense.id,
+                reference=f"دفع راتب {month}/{year} - {employee.name}",
+                notes=payment_notes,
+                created_by=current_user.username if current_user.is_authenticated else 'system'
+            )
+            db.session.add(payment)
+        
+        for inst in installments_due:
+            inst.paid = True
+            inst.paid_date = datetime.strptime(payment_date, '%Y-%m-%d').date()
+            inst.paid_in_salary_expense_id = salary_expense.id
+            db.session.add(inst)
+        
+        if installments_due:
+            current_app.logger.info(f"✅ تم تحديث {len(installments_due)} قسط سلف للموظف {employee.name}")
+        
+        if payment_method.upper() == 'CHECK' and check_number and check_bank:
+            try:
+                from models import Check
+                check_date = datetime.strptime(payment_date, '%Y-%m-%d')
+                check_due = datetime.strptime(check_due_date, '%Y-%m-%d') if check_due_date else check_date
+                
+                check = Check(
+                    check_number=check_number,
+                    check_bank=check_bank,
+                    check_date=check_date,
+                    check_due_date=check_due,
+                    amount=actual_payment,
+                    currency=employee.currency or 'ILS',
+                    direction='OUT',
+                    status='PENDING',
+                    reference_number=f'SALARY-{salary_expense.id}',
+                    notes=f"شيك راتب {month}/{year} - {employee.name}",
+                    payee_name=check_payee or employee.name,
+                    created_by_id=current_user.id if current_user.is_authenticated else None
+                )
+                db.session.add(check)
+                current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check_number} لراتب الموظف {employee.name}")
+            except Exception as e:
+                current_app.logger.error(f"❌ فشل إنشاء سجل الشيك: {e}")
+        
+        db.session.commit()
+        
+        success_msg = f"✅ <strong>تم توليد وحفظ راتب شهر {month}/{year} بنجاح</strong><br><br>"
+        success_msg += f"👤 الموظف: <strong>{employee.name}</strong><br>"
+        success_msg += f"💰 الراتب الصافي الكامل: <strong>{net_salary} {employee.currency}</strong><br>"
+        success_msg += f"💵 المدفوع فعلياً: <strong>{actual_payment} {employee.currency}</strong> ({payment_percentage:.0f}%)<br>"
+        
+        if total_installments_amount > 0:
+            success_msg += f"📋 تم خصم <strong>{len(installments_due)} قسط سلف</strong> بقيمة {total_installments_amount} {employee.currency}<br>"
+        
+        if remaining_balance > 0:
+            success_msg += f"<br>⚠️ المبلغ المتبقي (دين على الشركة): <strong class='text-danger'>{remaining_balance} {employee.currency}</strong>"
+        
+        if payment_method.upper() == 'CHECK' and check_number:
+            success_msg += f"<br>📝 تم إنشاء سجل شيك رقم: <strong>{check_number}</strong> - البنك: {check_bank}"
+        elif payment_method.upper() == 'BANK_TRANSFER' and bank_transfer_ref:
+            success_msg += f"<br>🏦 رقم معاملة التحويل: <strong>{bank_transfer_ref}</strong>"
+        
+        flash(success_msg, "success")
+        
+        return redirect(url_for('expenses_bp.employee_statement', emp_id=emp_id, receipt_id=salary_expense.id))
+        
+    except Exception as err:
+        db.session.rollback()
+        current_app.logger.error(f"❌ خطأ في توليد الراتب: {err}")
+        flash(f"❌ خطأ في توليد الراتب: {err}", "danger")
+        return redirect(url_for('expenses_bp.employee_statement', emp_id=emp_id))
+
+
 @expenses_bp.route("/salary-receipt/<int:salary_exp_id>", methods=["GET"], endpoint="salary_receipt")
 @login_required
 def salary_receipt(salary_exp_id):
     """إيصال راتب قابل للطباعة - A4 Format"""
-    from models import EmployeeDeduction, EmployeeAdvanceInstallment, ExpenseType
+    from models import EmployeeDeduction, EmployeeAdvanceInstallment, ExpenseType, SystemSettings
     from datetime import date
     
     salary_expense = _get_or_404(Expense, salary_exp_id, joinedload(Expense.employee), joinedload(Expense.employee, Employee.branch))
@@ -251,7 +518,6 @@ def salary_receipt(salary_exp_id):
     
     employee = salary_expense.employee
     
-    # الخصومات النشطة في تاريخ الراتب
     sal_date = salary_expense.date.date() if isinstance(salary_expense.date, datetime) else salary_expense.date
     deductions = EmployeeDeduction.query.filter(
         EmployeeDeduction.employee_id == employee.id,
@@ -260,7 +526,6 @@ def salary_receipt(salary_exp_id):
         or_(EmployeeDeduction.end_date.is_(None), EmployeeDeduction.end_date >= sal_date)
     ).all()
     
-    # الأقساط المستحقة في شهر الراتب
     installments_due = []
     if salary_expense.period_start:
         month_start = salary_expense.period_start
@@ -272,12 +537,21 @@ def salary_receipt(salary_exp_id):
             EmployeeAdvanceInstallment.due_date <= month_end
         ).all()
     
+    company_info = {
+        'name': SystemSettings.get_setting('COMPANY_NAME', ''),
+        'address': SystemSettings.get_setting('COMPANY_ADDRESS', ''),
+        'phone': SystemSettings.get_setting('COMPANY_PHONE', ''),
+        'email': SystemSettings.get_setting('COMPANY_EMAIL', ''),
+        'tax_number': SystemSettings.get_setting('TAX_NUMBER', ''),
+    }
+    
     return render_template(
         "expenses/salary_receipt.html",
         employee=employee,
         salary_expense=salary_expense,
         deductions=deductions,
         installments_due=installments_due,
+        company_info=company_info,
     )
 
 @expenses_bp.route("/employees/delete/<int:emp_id>", methods=["POST"], endpoint="delete_employee")
@@ -369,7 +643,6 @@ def index():
     query, filt = _base_query_with_filters()
     expenses = query.all()
     
-    # حساب الملخصات الحقيقية مع تحويل العملات
     from models import fx_rate
     
     total_expenses = 0.0
@@ -379,7 +652,6 @@ def index():
     expenses_by_currency = {}
     
     for expense in expenses:
-        # تحويل للشيقل
         amount = float(expense.amount or 0)
         if expense.currency and expense.currency != 'ILS':
             try:
@@ -393,7 +665,6 @@ def index():
         
         total_expenses += amount
         
-        # حساب المدفوع والرصيد
         paid = float(expense.total_paid or 0)
         if expense.currency and expense.currency != 'ILS':
             try:
@@ -409,14 +680,12 @@ def index():
         balance = amount - paid
         total_balance += balance
         
-        # تصنيف حسب النوع
         expense_type = expense.type.name if expense.type else 'غير مصنف'
         if expense_type not in expenses_by_type:
             expenses_by_type[expense_type] = {'count': 0, 'amount': 0}
         expenses_by_type[expense_type]['count'] += 1
         expenses_by_type[expense_type]['amount'] += amount
         
-        # تصنيف حسب العملة
         currency = expense.currency or 'ILS'
         if currency not in expenses_by_currency:
             expenses_by_currency[currency] = {'count': 0, 'amount': 0, 'amount_ils': 0}
@@ -424,7 +693,6 @@ def index():
         expenses_by_currency[currency]['amount'] += float(expense.amount or 0)
         expenses_by_currency[currency]['amount_ils'] += amount
     
-    # ترتيب حسب الأكبر
     expenses_by_type_sorted = sorted(expenses_by_type.items(), key=lambda x: x[1]['amount'], reverse=True)
     
     summary = {
@@ -475,7 +743,6 @@ def add():
     from models import Branch, Site
     
     form = ExpenseForm()
-    # ✅ ملء جميع القوائم المنسدلة
     _types = ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()
     form.type_id.choices = [(t.id, t.name) for t in _types]
     try:
@@ -489,10 +756,10 @@ def add():
     form.employee_id.choices = [(0, '-- اختر موظفاً --')] + [(e.id, e.name) for e in Employee.query.order_by(Employee.name).limit(200).all()]
     form.utility_account_id.choices = [(0, '-- اختر حساب --')] + [(u.id, f"{u.provider} - {u.account_no or u.alias or u.utility_type}") for u in UtilityAccount.query.filter_by(is_active=True).order_by(UtilityAccount.provider).limit(100).all()]
     form.warehouse_id.choices = [(0, '-- اختر مستودع --')] + [(w.id, w.name) for w in Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).limit(100).all()]
+    form.partner_id.choices = [(0, '-- اختر شريك --')] + [(p.id, p.name) for p in Partner.query.filter_by(is_archived=False).order_by(Partner.name).limit(100).all()]
     form.shipment_id.choices = [(0, '-- اختر شحنة --')] + [(s.id, f"شحنة #{s.id}") for s in Shipment.query.order_by(Shipment.id.desc()).limit(50).all()]
     form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')] + [(sa.id, f"تسوية #{sa.id}") for sa in StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()]
     
-    # تمرير ميتاداتا الحقول إلى القالب ليتحكم بما يظهر ويُلزم
     types_meta = {t.id: (t.fields_meta or {}) for t in _types}
 
     if form.validate_on_submit():
@@ -505,7 +772,6 @@ def add():
                 dt = _to_datetime(form.date.data)
                 if dt:
                     exp.date = dt
-            # ✅ تحويل 0 إلى None للحقول الاختيارية
             if not getattr(form.employee_id, "data", None) or form.employee_id.data == 0:
                 exp.employee_id = None
             if not getattr(form, "utility_account_id", None) or form.utility_account_id.data == 0:
@@ -517,13 +783,11 @@ def add():
             if not getattr(form, "stock_adjustment_id", None) or form.stock_adjustment_id.data == 0:
                 exp.stock_adjustment_id = None
 
-        # ✅ تحقق خادمي حسب نوع المصروف: الحقول الإلزامية من fields_meta
         try:
             etype = ExpenseType.query.get(int(form.type_id.data)) if getattr(form, 'type_id', None) else None
             meta = (etype.fields_meta or {}) if etype else {}
             required = set((meta.get('required') or []))
             missing = []
-            # خرائط المفاتيح إلى قيم الكائن exp بعد populate
             def _is_empty(v):
                 return v in (None, '', 0, '0')
             if 'employee_id' in required and _is_empty(exp.employee_id):
@@ -544,21 +808,17 @@ def add():
                 flash(f"❌ حقول إلزامية مفقودة: {errs}", 'danger')
                 raise ValueError('missing required fields')
         except Exception:
-            # في حال فشل التحليل نعيد النموذج للمستخدم
             return render_template(
                 "expenses/expense_form.html",
                 form=form,
                 is_edit=False,
             ), 400
-        # ✅ حساب تلقائي للراتب الصافي (قبل الحفظ)
         try:
             etype = ExpenseType.query.get(exp.type_id) if exp.type_id else None
             if etype and etype.code == 'SALARY' and exp.employee_id:
                 emp = Employee.query.get(exp.employee_id)
                 if emp:
-                    # حساب الصافي: الراتب الأساسي - الخصومات الشهرية
                     suggested_net = float(emp.net_salary or 0)
-                    # إن كان المبلغ المُدخل يساوي الأساسي، نعدله للصافي تلقائياً
                     if abs(float(exp.amount) - float(emp.salary or 0)) < 0.01:
                         exp.amount = suggested_net
                         current_app.logger.info(f"✅ تم تعديل راتب الموظف #{emp.id} تلقائياً للصافي: {suggested_net}")
@@ -569,7 +829,6 @@ def add():
         try:
             db.session.commit()
             
-            # ✅ معالجة ذكية للسلف: إنشاء أقساط إن طُلب
             try:
                 from models import EmployeeAdvanceInstallment
                 from dateutil.relativedelta import relativedelta
@@ -598,7 +857,6 @@ def add():
             except Exception as e:
                 current_app.logger.error(f"❌ فشل إنشاء أقساط السلفة: {e}")
             
-            # ✅ معالجة ذكية: إنشاء خصم شهري تلقائي إن طُلب
             try:
                 from models import EmployeeDeduction
                 create_ded = getattr(form, 'create_deduction', None)
@@ -620,7 +878,6 @@ def add():
             except Exception as e:
                 current_app.logger.error(f"❌ فشل إنشاء خصم شهري: {e}")
             
-            # ✅ إنشاء سجل Check تلقائياً إذا كانت طريقة الدفع شيك
             try:
                 from models import Check
                 from flask_login import current_user
@@ -632,14 +889,12 @@ def add():
                     if not check_number or not check_bank:
                         current_app.logger.warning(f"⚠️ مصروف {exp.id} بطريقة شيك لكن بدون رقم شيك أو بنك")
                     else:
-                        # تحويل check_due_date من date إلى datetime إذا لزم الأمر
                         check_due_date = exp.check_due_date
                         if check_due_date and isinstance(check_due_date, date) and not isinstance(check_due_date, datetime):
                             check_due_date = datetime.combine(check_due_date, datetime.min.time())
                         elif not check_due_date:
                             check_due_date = exp.date or datetime.utcnow()
                         
-                        # إنشاء سجل الشيك
                         check = Check(
                             check_number=check_number,
                             check_bank=check_bank,
@@ -660,12 +915,9 @@ def add():
                         db.session.commit()
                         current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check.check_number} من مصروف رقم {exp.id}")
             except Exception as e:
-                # في حالة فشل إنشاء الشيك، لا نُفشل المصروف
                 current_app.logger.error(f"❌ فشل إنشاء سجل شيك من مصروف {exp.id}: {str(e)}")
                 import traceback
                 current_app.logger.error(traceback.format_exc())
-                # لا نعمل rollback لأن المصروف تم حفظه مسبقاً
-                # إعادة commit للمصروف فقط
                 db.session.commit()
             
             flash("✅ تمت إضافة المصروف", "success")
@@ -674,7 +926,6 @@ def add():
             db.session.rollback()
             flash(f"❌ خطأ في إضافة المصروف: {err}", "danger")
     
-    # تمرير metadata للقالب
     types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
     return render_template("expenses/expense_form.html", 
                          form=form, 
@@ -691,47 +942,40 @@ def edit(exp_id):
     exp = _get_or_404(Expense, exp_id)
     form = ExpenseForm(obj=exp)
     
-    # ✅ ملء جميع القوائم المنسدلة
     _types = ExpenseType.query.order_by(ExpenseType.name).all()
     form.type_id.choices = [(t.id, t.name) for t in _types]
     types_meta = {t.id: (t.fields_meta or {}) for t in _types}
     
-    # ✅ الموظفين (مع إضافة الموظف الحالي إذا لم يكن في القائمة)
     employees = Employee.query.order_by(Employee.name).limit(200).all()
     form.employee_id.choices = [(0, '-- اختر موظفاً --')]
     if exp.employee_id and exp.employee and exp.employee not in employees:
         form.employee_id.choices.append((exp.employee.id, f"✓ {exp.employee.name}"))
     form.employee_id.choices += [(e.id, e.name) for e in employees]
     
-    # ✅ حسابات المرافق (مع إضافة الحساب الحالي)
     utilities = UtilityAccount.query.filter_by(is_active=True).order_by(UtilityAccount.provider).limit(100).all()
     form.utility_account_id.choices = [(0, '-- اختر حساب --')]
     if exp.utility_account_id and exp.utility_account and exp.utility_account not in utilities:
         form.utility_account_id.choices.append((exp.utility_account.id, f"✓ {exp.utility_account.provider} - {exp.utility_account.account_no or exp.utility_account.alias}"))
     form.utility_account_id.choices += [(u.id, f"{u.provider} - {u.account_no or u.alias or u.utility_type}") for u in utilities]
     
-    # ✅ المستودعات (مع إضافة المستودع الحالي)
     warehouses = Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).limit(100).all()
     form.warehouse_id.choices = [(0, '-- اختر مستودع --')]
     if exp.warehouse_id and exp.warehouse and exp.warehouse not in warehouses:
         form.warehouse_id.choices.append((exp.warehouse.id, f"✓ {exp.warehouse.name}"))
     form.warehouse_id.choices += [(w.id, w.name) for w in warehouses]
     
-    # ✅ الشحنات (مع إضافة الشحنة الحالية)
     shipments = Shipment.query.order_by(Shipment.id.desc()).limit(50).all()
     form.shipment_id.choices = [(0, '-- اختر شحنة --')]
     if exp.shipment_id and exp.shipment and exp.shipment not in shipments:
         form.shipment_id.choices.append((exp.shipment.id, f"✓ شحنة #{exp.shipment.id}"))
     form.shipment_id.choices += [(s.id, f"شحنة #{s.id}") for s in shipments]
     
-    # ✅ الشركاء (مع إضافة الشريك الحالي)
     partners = Partner.query.filter_by(is_archived=False).order_by(Partner.name).limit(100).all()
     form.partner_id.choices = [(0, '-- اختر شريك --')]
     if exp.partner_id and exp.partner and exp.partner not in partners:
         form.partner_id.choices.append((exp.partner.id, f"✓ {exp.partner.name}"))
     form.partner_id.choices += [(p.id, p.name) for p in partners]
     
-    # ✅ تسويات المخزون (مع إضافة التسوية الحالية)
     adjustments = StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()
     form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')]
     if exp.stock_adjustment_id and exp.stock_adjustment and exp.stock_adjustment not in adjustments:
@@ -747,7 +991,6 @@ def edit(exp_id):
                 dt = _to_datetime(form.date.data)
                 if dt:
                     exp.date = dt
-            # ✅ تحويل 0 إلى None للحقول الاختيارية
             if not getattr(form, "employee_id", None) or not form.employee_id.data or form.employee_id.data == 0:
                 exp.employee_id = None
             if not getattr(form, "utility_account_id", None) or form.utility_account_id.data == 0:
@@ -768,7 +1011,6 @@ def edit(exp_id):
             db.session.rollback()
             flash(f"❌ خطأ في تعديل المصروف: {err}", "danger")
     
-    # تمرير metadata للقالب
     types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
     return render_template("expenses/expense_form.html", 
                          form=form, 
@@ -780,11 +1022,22 @@ def edit(exp_id):
 @login_required
 # @permission_required("manage_expenses")  # Commented out
 def delete(exp_id):
+    from models import EmployeeDeduction, EmployeeAdvance, EmployeeAdvanceInstallment, Payment
+    
     exp = _get_or_404(Expense, exp_id)
+    
     try:
+        EmployeeDeduction.query.filter_by(expense_id=exp_id).update({"expense_id": None})
+        EmployeeAdvance.query.filter_by(expense_id=exp_id).update({"expense_id": None})
+        EmployeeAdvanceInstallment.query.filter_by(advance_expense_id=exp_id).delete()
+        EmployeeAdvanceInstallment.query.filter_by(paid_in_salary_expense_id=exp_id).update({"paid_in_salary_expense_id": None})
+        
+        for payment in Payment.query.filter_by(expense_id=exp_id).all():
+            db.session.delete(payment)
+        
         db.session.delete(exp)
         db.session.commit()
-        flash("✅ تم حذف المصروف", "warning")
+        flash("✅ تم حذف المصروف", "success")
     except SQLAlchemyError as err:
         db.session.rollback()
         flash(f"❌ خطأ في حذف المصروف: {err}", "danger")
@@ -797,13 +1050,11 @@ def pay(exp_id):
     """إعادة توجيه لإنشاء دفعة للنفقة مع البيانات الكاملة"""
     exp = _get_or_404(Expense, exp_id)
     
-    # حساب المبلغ
     amount_src = getattr(exp, "balance", None)
     if amount_src is None:
         amount_src = getattr(exp, "amount", 0)
     amount = int(q0(amount_src))
     
-    # تجهيز المرجع والملاحظات
     payee = exp.payee_name or (exp.employee.name if exp.employee else None) or 'غير محدد'
     expense_type = exp.type.name if exp.type else 'مصروف'
     expense_ref = exp.tax_invoice_number or f'EXP-{exp.id}'
@@ -948,7 +1199,6 @@ def restore_expense(expense_id):
             flash('النفقة غير مؤرشفة', 'warning')
             return redirect(url_for('expenses_bp.list_expenses'))
         
-        # البحث عن الأرشيف
         from models import Archive
         archive = Archive.query.filter_by(
             record_type='expenses',

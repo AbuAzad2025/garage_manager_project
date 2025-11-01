@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+{% block title %}مركز التقارير والأداء{% endblock %}
+{% block page_title %}📊 مركز التقارير والأداء{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active"><i class="fas fa-chart-bar"></i> Reports Center</li>
+{% if active_tab %}
+<li class="breadcrumb-item active">{{ active_tab|title }}</li>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'security/_navigation.html' %}
+  
+  <div class="alert border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <i class="fas fa-chart-line"></i>
+        <strong>Reports & Performance Center:</strong>
+        <span class="badge bg-white text-info ms-2">4 أدوات في مكان واحد</span>
+      </div>
+      <small class="opacity-75">تقارير + مراقبة + أداء + Grafana</small>
+    </div>
+  </div>
+
+  <div class="card shadow">
+    <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+      <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Reports & Performance Center</h5>
+    </div>
+    
+    <div class="card-body p-0">
+      
+      <ul class="nav nav-tabs nav-fill" style="border-bottom: 2px solid #dee2e6;">
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'reports' %}active{% endif %}" 
+             href="{{ url_for('security.reports_center', tab='reports') }}">
+            <i class="fas fa-file-alt"></i> التقارير الإدارية
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'monitoring' %}active{% endif %}" 
+             href="{{ url_for('security.reports_center', tab='monitoring') }}">
+            <i class="fas fa-chart-area"></i> لوحة المراقبة
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'performance' %}active{% endif %}" 
+             href="{{ url_for('security.reports_center', tab='performance') }}">
+            <i class="fas fa-tachometer-alt"></i> مراقبة الأداء
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link {% if active_tab == 'grafana' %}active{% endif %}" 
+             href="{{ url_for('security.reports_center', tab='grafana') }}">
+            <i class="fas fa-chart-pie"></i> Grafana
+          </a>
+        </li>
+      </ul>
+
+      <div class="tab-content p-4">
+        
+        {% if active_tab == 'reports' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-file-alt text-primary"></i> التقارير الإدارية</h4>
+          
+          <div class="mb-3">
+            <button class="btn btn-success me-2" onclick="showCustomReportBuilder()">
+              <i class="fas fa-plus"></i> بناء تقرير مخصص
+            </button>
+          </div>
+          
+          <a href="{{ url_for('admin_reports.index') }}" class="btn btn-primary btn-lg" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح التقارير
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'monitoring' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-chart-area text-info"></i> لوحة المراقبة الشاملة</h4>
+          <a href="{{ url_for('security.monitoring_dashboard') }}" class="btn btn-info btn-lg" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح لوحة المراقبة
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'performance' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-tachometer-alt text-success"></i> مراقبة الأداء</h4>
+          
+          <div class="mb-3">
+            <button class="btn btn-warning me-2" onclick="analyzePerformance()">
+              <i class="fas fa-chart-line"></i> تحليل شامل للأداء
+            </button>
+          </div>
+          
+          <a href="{{ url_for('security.performance_monitor') }}" class="btn btn-success btn-lg" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح مراقبة الأداء
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if active_tab == 'grafana' %}
+        <div class="container-fluid">
+          <h4><i class="fas fa-chart-pie text-warning"></i> Grafana + Prometheus</h4>
+          <a href="{{ url_for('security.grafana_setup') }}" class="btn btn-warning btn-lg" target="_blank">
+            <i class="fas fa-external-link-alt"></i> فتح Grafana
+          </a>
+        </div>
+        {% endif %}
+        
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

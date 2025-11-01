@@ -1726,3 +1726,669 @@ def get_archive_stats():
         'monthly_archives': monthly_archives
     }
 
+
+# ==================== تحسينات بسيطة ====================
+
+class SimpleCache:
+    """تخزين مؤقت بسيط في الذاكرة"""
+    def __init__(self):
+        self._cache = {}
+        self._timestamps = {}
+    
+    def get(self, key):
+        if key in self._cache:
+            if datetime.now() < self._timestamps.get(key, datetime.now()):
+                return self._cache[key]
+            self.delete(key)
+        return None
+    
+    def set(self, key, value, timeout=300):
+        self._cache[key] = value
+        self._timestamps[key] = datetime.now() + timedelta(seconds=timeout)
+    
+    def delete(self, key):
+        self._cache.pop(key, None)
+        self._timestamps.pop(key, None)
+
+simple_cache = SimpleCache()
+
+
+def cache_result(timeout=300):
+    """Decorator للتخزين المؤقت"""
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            cache_key = f"{f.__name__}:{hash(str(args) + str(kwargs))}"
+            result = simple_cache.get(cache_key)
+            if result is None:
+                result = f(*args, **kwargs)
+                simple_cache.set(cache_key, result, timeout)
+            return result
+        return wrapper
+    return decorator
+
+
+# ========================================================================
+# System Constants Helpers
+# ========================================================================
+
+@cache_result(timeout=60)  # Cache for 1 minute
+def get_system_constant(key: str, default: Any = None) -> Any:
+    """
+    الحصول على ثابت من إعدادات النظام
+    
+    Args:
+        key: مفتاح الثابت (مثال: 'default_vat_rate')
+        default: القيمة الافتراضية إذا لم يتم إيجاد الثابت
+    
+    Returns:
+        قيمة الثابت
+    
+    Examples:
+        >>> get_system_constant('default_vat_rate', 16.0)
+        16.0
+        >>> get_system_constant('vat_enabled', True)
+        True
+    """
+    try:
+        from models import SystemSettings
+        return SystemSettings.get_setting(key, default)
+    except Exception as e:
+        current_app.logger.warning(f"⚠️ فشل جلب الثابت {key}: {e}")
+        return default
+
+
+def get_vat_rate() -> float:
+    """الحصول على نسبة VAT الافتراضية من إعدادات النظام"""
+    return float(get_system_constant('default_vat_rate', 16.0))
+
+
+def is_vat_enabled() -> bool:
+    """التحقق من تفعيل VAT في النظام"""
+    return bool(get_system_constant('vat_enabled', True))
+
+
+def get_income_tax_rate() -> float:
+    """نسبة ضريبة الدخل على الشركات"""
+    return float(get_system_constant('income_tax_rate', 15.0))
+
+
+def get_withholding_tax_rate() -> float:
+    """نسبة الخصم من المنبع"""
+    return float(get_system_constant('withholding_tax_rate', 5.0))
+
+
+def get_social_insurance_rates() -> dict:
+    """نسب التأمينات الاجتماعية"""
+    return {
+        'enabled': bool(get_system_constant('social_insurance_enabled', False)),
+        'company_rate': float(get_system_constant('social_insurance_company', 7.5)),
+        'employee_rate': float(get_system_constant('social_insurance_employee', 7.0))
+    }
+
+
+def get_overtime_rate() -> float:
+    """معدل العمل الإضافي"""
+    return float(get_system_constant('overtime_rate_normal', 1.5))
+
+
+def get_working_hours_per_day() -> int:
+    """ساعات العمل اليومية"""
+    return int(get_system_constant('working_hours_per_day', 8))
+
+
+def calculate_vat_amount(base_amount: float, vat_rate: Optional[float] = None) -> dict:
+    """
+    حساب ضريبة VAT
+    
+    Args:
+        base_amount: المبلغ الأساسي (قبل الضريبة)
+        vat_rate: نسبة VAT (اختياري، يستخدم من الإعدادات إذا لم يُحدد)
+    
+    Returns:
+        dict: {
+            'base_amount': المبلغ الأساسي,
+            'vat_rate': نسبة VAT,
+            'vat_amount': مبلغ الضريبة,
+            'total_with_vat': المجموع شامل الضريبة
+        }
+    """
+    if not is_vat_enabled():
+        return {
+            'base_amount': base_amount,
+            'vat_rate': 0.0,
+            'vat_amount': 0.0,
+            'total_with_vat': base_amount
+        }
+    
+    if vat_rate is None:
+        vat_rate = get_vat_rate()
+    
+    vat_amount = base_amount * (vat_rate / 100.0)
+    total_with_vat = base_amount + vat_amount
+    
+    return {
+        'base_amount': round(base_amount, 2),
+        'vat_rate': vat_rate,
+        'vat_amount': round(vat_amount, 2),
+        'total_with_vat': round(total_with_vat, 2)
+    }
+
+
+def get_all_business_constants() -> dict:
+    """الحصول على جميع ثوابت الأعمال"""
+    return {
+        # Tax
+        'tax': {
+            'default_vat_rate': get_vat_rate(),
+            'vat_enabled': is_vat_enabled(),
+            'income_tax_rate': get_income_tax_rate(),
+            'withholding_tax_rate': get_withholding_tax_rate()
+        },
+        # Payroll
+        'payroll': get_social_insurance_rates() | {
+            'overtime_rate': get_overtime_rate(),
+            'working_hours_per_day': get_working_hours_per_day()
+        },
+        # Assets
+        'assets': {
+            'auto_depreciation': bool(get_system_constant('asset_auto_depreciation', True)),
+            'threshold_amount': float(get_system_constant('asset_threshold_amount', 500))
+        },
+        # Accounting
+        'accounting': {
+            'cost_centers_enabled': bool(get_system_constant('cost_centers_enabled', False)),
+            'budgeting_enabled': bool(get_system_constant('budgeting_enabled', False)),
+            'fiscal_year_start_month': int(get_system_constant('fiscal_year_start_month', 1))
+        },
+        # Notifications
+        'notifications': {
+            'service_complete': bool(get_system_constant('notify_on_service_complete', True)),
+            'payment_due': bool(get_system_constant('notify_on_payment_due', True)),
+            'low_stock': bool(get_system_constant('notify_on_low_stock', True)),
+            'payment_reminder_days': int(get_system_constant('payment_reminder_days', 3))
+        },
+        # Business Rules
+        'business_rules': {
+            'allow_negative_stock': bool(get_system_constant('allow_negative_stock', False)),
+            'require_approval_above': float(get_system_constant('require_approval_for_sales_above', 10000)),
+            'discount_max_percent': float(get_system_constant('discount_max_percent', 50)),
+            'credit_limit_check': bool(get_system_constant('credit_limit_check', True))
+        },
+        # Multi-Tenancy
+        'multi_tenancy': {
+            'enabled': bool(get_system_constant('multi_tenancy_enabled', False)),
+            'trial_period_days': int(get_system_constant('trial_period_days', 30))
+        }
+    }
+
+
+# ========================================================================
+# Notifications System - نظام الإشعارات
+# ========================================================================
+
+def send_notification_sms(to: str, message: str, metadata: dict = None) -> dict:
+    """
+    إرسال SMS عبر Twilio
+    
+    Args:
+        to: رقم الهاتف مع كود الدولة (+970...)
+        message: نص الرسالة
+        metadata: بيانات إضافية (customer_id, invoice_id, etc)
+    
+    Returns:
+        dict: {'success': bool, 'message_sid': str, 'error': str}
+    
+    Example:
+        >>> send_notification_sms('+970562150193', 'تم إتمام الخدمة')
+        {'success': True, 'message_sid': 'SM...'}
+    """
+    from models import NotificationLog, db
+    from datetime import datetime, timezone
+    
+    # التحقق من إعدادات Twilio
+    account_sid = get_system_constant('twilio_account_sid', '')
+    auth_token = get_system_constant('twilio_auth_token', '')
+    from_number = get_system_constant('twilio_phone_number', '')
+    
+    if not all([account_sid, auth_token, from_number]):
+        current_app.logger.warning('⚠️ Twilio not configured')
+        return {'success': False, 'error': 'Twilio not configured'}
+    
+    try:
+        from twilio.rest import Client
+        client = Client(account_sid, auth_token)
+        
+        # إرسال الرسالة
+        twilio_msg = client.messages.create(
+            body=message,
+            from_=from_number,
+            to=to
+        )
+        
+        # تسجيل في قاعدة البيانات
+        log = NotificationLog(
+            type='sms',
+            recipient=to,
+            content=message[:500],
+            status='sent',
+            provider_id=twilio_msg.sid,
+            sent_at=datetime.now(timezone.utc)
+        )
+        if metadata:
+            log.data = metadata
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        current_app.logger.info(f'✅ SMS sent to {to}')
+        return {
+            'success': True,
+            'message_sid': twilio_msg.sid,
+            'status': twilio_msg.status
+        }
+        
+    except ImportError:
+        error = 'Twilio library not installed. Run: pip install twilio'
+        current_app.logger.error(f'❌ {error}')
+        return {'success': False, 'error': error}
+    except Exception as e:
+        current_app.logger.error(f'❌ SMS failed to {to}: {e}')
+        
+        # تسجيل الفشل
+        log = NotificationLog(
+            type='sms',
+            recipient=to,
+            content=message[:500],
+            status='failed',
+            error_message=str(e)
+        )
+        if metadata:
+            log.data = metadata
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        return {'success': False, 'error': str(e)}
+
+
+def send_notification_email(
+    to: str,
+    subject: str,
+    body_html: str = None,
+    body_text: str = None,
+    metadata: dict = None
+) -> dict:
+    """
+    إرسال Email عبر Flask-Mail
+    
+    Args:
+        to: البريد الإلكتروني
+        subject: الموضوع
+        body_html: محتوى HTML
+        body_text: محتوى نصي (fallback)
+        metadata: بيانات إضافية
+    
+    Returns:
+        dict: {'success': bool, 'error': str}
+    
+    Example:
+        >>> send_notification_email(
+        ...     'customer@example.com',
+        ...     'تم إتمام الخدمة',
+        ...     body_html='<h1>شكراً</h1>'
+        ... )
+        {'success': True}
+    """
+    from models import NotificationLog, db
+    from flask_mail import Message
+    from extensions import mail
+    from datetime import datetime, timezone
+    
+    try:
+        msg = Message(
+            subject=subject,
+            recipients=[to],
+            html=body_html,
+            body=body_text
+        )
+        
+        mail.send(msg)
+        
+        # تسجيل النجاح
+        log = NotificationLog(
+            type='email',
+            recipient=to,
+            subject=subject,
+            content=(body_html or body_text or '')[:500],
+            status='sent',
+            sent_at=datetime.now(timezone.utc)
+        )
+        if metadata:
+            log.data = metadata
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        current_app.logger.info(f'✅ Email sent to {to}')
+        return {'success': True}
+        
+    except Exception as e:
+        current_app.logger.error(f'❌ Email failed to {to}: {e}')
+        
+        # تسجيل الفشل
+        log = NotificationLog(
+            type='email',
+            recipient=to,
+            subject=subject,
+            content=(body_html or body_text or '')[:500],
+            status='failed',
+            error_message=str(e)
+        )
+        if metadata:
+            log.data = metadata
+        
+        db.session.add(log)
+        db.session.commit()
+        
+        return {'success': False, 'error': str(e)}
+
+
+def notify_service_completed(service_id: int) -> dict:
+    """
+    إشعار تلقائي عند إتمام خدمة
+    
+    يستخدم الثابت: notify_on_service_complete
+    
+    Args:
+        service_id: رقم الخدمة
+    
+    Returns:
+        dict: نتيجة الإرسال
+    """
+    from models import Service
+    
+    # التحقق من التفعيل
+    if not get_system_constant('notify_on_service_complete', True):
+        return {'success': False, 'reason': 'Notifications disabled'}
+    
+    try:
+        service = Service.query.get(service_id)
+        if not service or not service.customer:
+            return {'success': False, 'error': 'Service or customer not found'}
+        
+        customer = service.customer
+        message = (
+            f"✅ تم إتمام خدمة {service.reference}\n"
+            f"المجموع: {service.total:.2f} ₪\n"
+            f"شكراً لتعاملكم - AZAD Garage"
+        )
+        
+        results = {}
+        
+        # SMS
+        if customer.phone:
+            results['sms'] = send_notification_sms(
+                to=customer.phone,
+                message=message,
+                metadata={
+                    'service_id': service_id,
+                    'customer_id': customer.id,
+                    'type': 'service_complete'
+                }
+            )
+        
+        # Email (إذا كان موجوداً)
+        if customer.email:
+            html = f"""
+            <h2>✅ تم إتمام الخدمة</h2>
+            <p>عزيزنا {customer.name}</p>
+            <p>تم إتمام خدمة <strong>{service.reference}</strong></p>
+            <p>المجموع: <strong>{service.total:.2f} ₪</strong></p>
+            <br>
+            <p>شكراً لتعاملكم معنا</p>
+            <p>AZAD Garage</p>
+            """
+            
+            results['email'] = send_notification_email(
+                to=customer.email,
+                subject=f'✅ تم إتمام خدمة {service.reference}',
+                body_html=html,
+                body_text=message,
+                metadata={
+                    'service_id': service_id,
+                    'customer_id': customer.id,
+                    'type': 'service_complete'
+                }
+            )
+        
+        return {'success': True, 'results': results}
+        
+    except Exception as e:
+        current_app.logger.error(f'❌ notify_service_completed failed: {e}')
+        return {'success': False, 'error': str(e)}
+
+
+def notify_payment_reminder(days_before: int = None) -> dict:
+    """
+    إشعارات تذكير بالدفع
+    
+    يستخدم الثوابت:
+    - notify_on_payment_due
+    - payment_reminder_days
+    
+    Args:
+        days_before: عدد الأيام قبل الاستحقاق (None = من الثوابت)
+    
+    Returns:
+        dict: عدد الإشعارات المُرسلة
+    """
+    from models import Invoice
+    from datetime import datetime, timedelta
+    
+    # التحقق من التفعيل
+    if not get_system_constant('notify_on_payment_due', True):
+        return {'success': False, 'reason': 'Notifications disabled'}
+    
+    try:
+        # عدد الأيام
+        if days_before is None:
+            days_before = int(get_system_constant('payment_reminder_days', 3))
+        
+        # تاريخ الاستحقاق
+        target_date = datetime.now().date() + timedelta(days=days_before)
+        
+        # الفواتير المستحقة
+        invoices = Invoice.query.filter(
+            Invoice.due_date == target_date,
+            Invoice.balance_due > 0
+        ).all()
+        
+        results = {
+            'total': len(invoices),
+            'sent': 0,
+            'failed': 0
+        }
+        
+        for invoice in invoices:
+            if not invoice.customer:
+                continue
+            
+            customer = invoice.customer
+            message = (
+                f"🔔 تذكير: الفاتورة {invoice.reference}\n"
+                f"المبلغ المستحق: {invoice.balance_due:.2f} ₪\n"
+                f"تاريخ الاستحقاق: {invoice.due_date}\n"
+                f"AZAD Garage"
+            )
+            
+            if customer.phone:
+                result = send_notification_sms(
+                    to=customer.phone,
+                    message=message,
+                    metadata={
+                        'invoice_id': invoice.id,
+                        'customer_id': customer.id,
+                        'type': 'payment_reminder'
+                    }
+                )
+                
+                if result['success']:
+                    results['sent'] += 1
+                else:
+                    results['failed'] += 1
+        
+        return {'success': True, **results}
+        
+    except Exception as e:
+        current_app.logger.error(f'❌ notify_payment_reminder failed: {e}')
+        return {'success': False, 'error': str(e)}
+
+
+# ========================================================================
+# Tax System - نظام الضرائب
+# ========================================================================
+
+def create_tax_entry(
+    entry_type: str,
+    transaction_type: str,
+    transaction_id: int,
+    base_amount: float,
+    tax_rate: float = None,
+    **kwargs
+) -> dict:
+    """
+    إنشاء سجل ضريبة
+    
+    Args:
+        entry_type: INPUT_VAT, OUTPUT_VAT, INCOME_TAX, WITHHOLDING
+        transaction_type: SALE, PURCHASE, SERVICE, PAYMENT
+        transaction_id: رقم المعاملة
+        base_amount: المبلغ الأساسي
+        tax_rate: نسبة الضريبة (None = من الثوابت)
+        **kwargs: حقول إضافية
+    
+    Returns:
+        dict: {'success': bool, 'tax_entry_id': int}
+    
+    Example:
+        >>> create_tax_entry('OUTPUT_VAT', 'SALE', 123, 1000.0)
+        {'success': True, 'tax_entry_id': 45}
+    """
+    from models import TaxEntry, db
+    from datetime import datetime
+    
+    try:
+        # نسبة الضريبة من الثوابت إذا لم تُحدد
+        if tax_rate is None:
+            tax_rate = get_vat_rate()
+        
+        # حساب الضريبة
+        tax_amount = base_amount * (tax_rate / 100)
+        total_amount = base_amount + tax_amount
+        
+        # التاريخ المالي
+        now = datetime.now()
+        
+        # إنشاء السجل
+        tax_entry = TaxEntry(
+            entry_type=entry_type,
+            transaction_type=transaction_type,
+            transaction_id=transaction_id,
+            transaction_reference=kwargs.get('reference'),
+            tax_rate=tax_rate,
+            base_amount=base_amount,
+            tax_amount=tax_amount,
+            total_amount=total_amount,
+            currency=kwargs.get('currency', 'ILS'),
+            fiscal_year=now.year,
+            fiscal_month=now.month,
+            tax_period=now.strftime('%Y-%m'),
+            customer_id=kwargs.get('customer_id'),
+            supplier_id=kwargs.get('supplier_id'),
+            notes=kwargs.get('notes')
+        )
+        
+        db.session.add(tax_entry)
+        db.session.commit()
+        
+        current_app.logger.info(f'✅ Tax entry created: {entry_type} - {tax_amount} {tax_entry.currency}')
+        
+        return {
+            'success': True,
+            'tax_entry_id': tax_entry.id,
+            'tax_amount': tax_amount,
+            'total_amount': total_amount
+        }
+        
+    except Exception as e:
+        current_app.logger.error(f'❌ create_tax_entry failed: {e}')
+        db.session.rollback()
+        return {'success': False, 'error': str(e)}
+
+
+def get_tax_summary(period: str = None) -> dict:
+    """
+    ملخص الضرائب لفترة معينة
+    
+    Args:
+        period: YYYY-MM (None = الشهر الحالي)
+    
+    Returns:
+        dict: ملخص الضرائب
+    
+    Example:
+        >>> get_tax_summary('2025-10')
+        {
+            'period': '2025-10',
+            'input_vat': 1600.0,
+            'output_vat': 3200.0,
+            'net_vat': 1600.0,
+            'income_tax': 750.0
+        }
+    """
+    from models import TaxEntry
+    from sqlalchemy import func
+    from datetime import datetime
+    
+    try:
+        # الفترة الافتراضية
+        if period is None:
+            period = datetime.now().strftime('%Y-%m')
+        
+        # استعلام ملخص
+        summary = db.session.query(
+            TaxEntry.entry_type,
+            func.sum(TaxEntry.tax_amount).label('total')
+        ).filter(
+            TaxEntry.tax_period == period
+        ).group_by(
+            TaxEntry.entry_type
+        ).all()
+        
+        result = {
+            'period': period,
+            'input_vat': 0.0,
+            'output_vat': 0.0,
+            'income_tax': 0.0,
+            'withholding': 0.0
+        }
+        
+        for entry_type, total in summary:
+            if entry_type == 'INPUT_VAT':
+                result['input_vat'] = float(total or 0)
+            elif entry_type == 'OUTPUT_VAT':
+                result['output_vat'] = float(total or 0)
+            elif entry_type == 'INCOME_TAX':
+                result['income_tax'] = float(total or 0)
+            elif entry_type == 'WITHHOLDING':
+                result['withholding'] = float(total or 0)
+        
+        # صافي VAT (المستحق للحكومة)
+        result['net_vat'] = result['output_vat'] - result['input_vat']
+        
+        return {'success': True, **result}
+        
+    except Exception as e:
+        current_app.logger.error(f'❌ get_tax_summary failed: {e}')
+        return {'success': False, 'error': str(e)}

@@ -257,7 +257,7 @@
     <div class="modal-content">
       <div class="modal-header" style="background: linear-gradient(135deg, #4776E6 0%, #8E54E9 100%); color: white;">
         <h5 class="modal-title"><i class="fas fa-edit"></i> تعديل Tenant</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal"></button>
       </div>
       <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -297,7 +297,7 @@
         </div>
         
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
           <button type="submit" class="btn btn-primary">
             <i class="fas fa-save"></i> حفظ التعديلات
           </button>
@@ -328,7 +328,7 @@ function editTenant(name, domain, logo, maxUsers, modules) {
     document.querySelectorAll('.edit-module-checkbox').forEach(cb => cb.checked = true);
   }
   
-  new bootstrap.Modal(document.getElementById('editModal')).show();
+  $('#editModal').modal('show');
 }
 
 function deleteTenant(name) {

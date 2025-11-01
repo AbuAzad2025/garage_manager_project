@@ -238,8 +238,7 @@
     alerts.forEach(function(alert) {
       setTimeout(function() {
         if (alert && alert.classList.contains('alert-success')) {
-          const bsAlert = new bootstrap.Alert(alert);
-          bsAlert.close();
+          $(alert).alert('close');
         }
       }, 5000);
     });

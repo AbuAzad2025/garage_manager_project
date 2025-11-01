@@ -1,0 +1,172 @@
+{
+  "policy_version": "1.0.0",
+  "created_at": "2025-10-10T23:40:00Z",
+  "created_by": "Ahmed Ghannam - المهندس أحمد غنام",
+  "location": "Ramallah, Palestine",
+  "system": "Azad Garage Manager v4.0.0",
+  
+  "mission": {
+    "ar": "تدريب المساعد الذكي ليصبح واعياً بالنظام، دقيقاً في التحليل، وموثوقاً في الردود",
+    "en": "Train the AI assistant to be system-aware, analytically precise, and reliable in responses"
+  },
+  
+  "core_rules": {
+    "no_guessing": {
+      "enabled": true,
+      "severity": "critical",
+      "description": "ممنوع التخمين أو الافتراض - البيانات الفعلية فقط"
+    },
+    "data_verification": {
+      "enabled": true,
+      "severity": "high",
+      "description": "التحقق من كل بيانة قبل استخدامها في الرد"
+    },
+    "confidence_threshold": {
+      "minimum": 30,
+      "warning_threshold": 70,
+      "excellent_threshold": 90,
+      "description": "درجة الثقة الدنيا للرد = 30%"
+    },
+    "persistent_memory": {
+      "enabled": true,
+      "auto_save": true,
+      "description": "حفظ المعرفة بين الجلسات"
+    }
+  },
+  
+  "training_phases": {
+    "phase_1_developmental": {
+      "name": "التدريب التطويري",
+      "frequency": "weekly",
+      "tasks": [
+        "فحص بنية النظام الكاملة",
+        "تحليل العلاقات بين الجداول",
+        "توثيق النقص أو التضارب",
+        "إعادة بناء قاعدة المعرفة"
+      ],
+      "auto_trigger": true,
+      "log_to": "ai_training_log.json"
+    },
+    "phase_2_validation": {
+      "name": "التدريب التأكيدي",
+      "frequency": "daily",
+      "tasks": [
+        "التحقق من صحة الأرقام",
+        "مطابقة الصيغ المحاسبية",
+        "فحص درجة الثقة في الردود"
+      ],
+      "confidence_target": 95,
+      "validation_required": true
+    },
+    "phase_3_enhancement": {
+      "name": "التدريب التحسيني",
+      "frequency": "continuous",
+      "specializations": [
+        {
+          "domain": "automotive_diagnostics",
+          "enabled": true,
+          "data_sources": ["engineer_notes", "diagnosis", "resolution"],
+          "link_to_parts": true
+        },
+        {
+          "domain": "accounting_taxation",
+          "enabled": true,
+          "data_sources": ["ai_knowledge_finance.py"],
+          "countries": ["Palestine", "Israel"],
+          "currencies": ["ILS", "USD", "JOD", "EUR"]
+        },
+        {
+          "domain": "customs_trade",
+          "enabled": true,
+          "hs_codes": ["8703", "8704", "8708", "8507"],
+          "tariff_rules": true
+        }
+      ]
+    },
+    "phase_4_self_review": {
+      "name": "المراقبة الذاتية",
+      "frequency": "hourly",
+      "tasks": [
+        "تحليل آخر 100 تفاعل",
+        "تقييم نقاط الضعف",
+        "توليد تقرير المراجعة الذاتية"
+      ],
+      "output_file": "ai_self_audit.json",
+      "alert_on_failure": true
+    }
+  },
+  
+  "mandatory_commands": {
+    "persistent_memory_always_on": true,
+    "no_delete_without_permission": true,
+    "use_groq_api_only": true,
+    "refuse_answer_without_verification": true,
+    "log_every_learning_event": true
+  },
+  
+  "knowledge_domains": {
+    "system_structure": {
+      "models_count": 15,
+      "routes_count": 13,
+      "templates_count": 195,
+      "relationships_count": 22,
+      "business_rules_count": 9
+    },
+    "technical": {
+      "service_fields": ["engineer_notes", "diagnosis", "problem_description", "resolution"],
+      "link_to_parts": true,
+      "cost_analysis": true
+    },
+    "financial": {
+      "palestine_vat": 16,
+      "israel_vat": 17,
+      "income_tax_brackets": true,
+      "multi_currency": true,
+      "fx_rates": true
+    },
+    "customs": {
+      "hs_codes_enabled": true,
+      "tariff_calculation": true,
+      "country_specific_rules": true
+    }
+  },
+  
+  "quality_metrics": {
+    "target_accuracy": 95,
+    "minimum_confidence": 30,
+    "warning_confidence": 70,
+    "excellent_confidence": 90,
+    "max_response_time_seconds": 10
+  },
+  
+  "logging": {
+    "training_log": "instance/ai_training_log.json",
+    "self_audit_log": "instance/ai_self_audit.json",
+    "knowledge_cache": "instance/ai_knowledge_cache.json",
+    "interaction_log": "instance/ai_interactions.json",
+    "max_log_size_mb": 10,
+    "rotate_logs": true
+  },
+  
+  "alert_rules": {
+    "confidence_below_30": {
+      "action": "refuse_answer",
+      "notify": true
+    },
+    "training_failure": {
+      "action": "retry_with_correction",
+      "log_to_sentry": true
+    },
+    "data_mismatch": {
+      "action": "flag_for_review",
+      "severity": "high"
+    }
+  },
+  
+  "reminder": {
+    "ar": "المساعد ليس روبوت بل كيان معرفي حي. عليه الفهم، التحقق، والتطوير الذاتي.",
+    "en": "The assistant is not a robot but a living knowledge entity. It must understand, verify, and self-develop.",
+    "final_note": "أي تكرار للردود الجاهزة أو التظاهر بالتنفيذ = فشل في الوعي البرمجي"
+  }
+}
+

@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+
+{% block title %}📧 مركز الإشعارات{% endblock %}
+
+{% block content %}
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1 class="m-0">📧 مركز الإشعارات <small class="badge badge-info">Notifications Center</small></h1>
+      </div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="/"><i class="fas fa-home"></i> الرئيسية</a></li>
+          <li class="breadcrumb-item"><a href="/security/"><i class="fas fa-shield-alt"></i> الوحدة السرية</a></li>
+          <li class="breadcrumb-item active">مركز الإشعارات</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="content">
+  <div class="container-fluid">
+    
+    <!-- إحصائيات سريعة -->
+    <div class="row">
+      <div class="col-lg-3 col-6">
+        <div class="small-box bg-info">
+          <div class="inner">
+            <h3>{{ stats.total }}</h3>
+            <p>إجمالي الإشعارات</p>
+          </div>
+          <div class="icon">
+            <i class="fas fa-envelope"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-6">
+        <div class="small-box bg-success">
+          <div class="inner">
+            <h3>{{ stats.sent }}</h3>
+            <p>تم إرسالها</p>
+          </div>
+          <div class="icon">
+            <i class="fas fa-check"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-6">
+        <div class="small-box bg-danger">
+          <div class="inner">
+            <h3>{{ stats.failed }}</h3>
+            <p>فشل الإرسال</p>
+          </div>
+          <div class="icon">
+            <i class="fas fa-times"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-3 col-6">
+        <div class="small-box bg-warning">
+          <div class="inner">
+            <h3>{{ stats.today }}</h3>
+            <p>اليوم</p>
+          </div>
+          <div class="icon">
+            <i class="fas fa-calendar-day"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- أدوات سريعة -->
+    <div class="row">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-vial"></i> اختبار الإرسال</h3>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <!-- SMS Test -->
+              <div class="col-md-6">
+                <div class="card card-outline card-primary">
+                  <div class="card-header">
+                    <h3 class="card-title">📱 اختبار SMS</h3>
+                  </div>
+                  <div class="card-body">
+                    <form id="testSmsForm">
+                      <div class="form-group">
+                        <label>رقم الهاتف (مع كود الدولة)</label>
+                        <input type="text" name="recipient" class="form-control" 
+                               placeholder="+970562150193" required>
+                        <small class="text-muted">مثال: +970562150193</small>
+                      </div>
+                      <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> إرسال SMS تجريبي
+                      </button>
+                    </form>
+                    <div id="smsResult" class="mt-3"></div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Email Test -->
+              <div class="col-md-6">
+                <div class="card card-outline card-success">
+                  <div class="card-header">
+                    <h3 class="card-title">📧 اختبار Email</h3>
+                  </div>
+                  <div class="card-body">
+                    <form id="testEmailForm">
+                      <div class="form-group">
+                        <label>البريد الإلكتروني</label>
+                        <input type="email" name="recipient" class="form-control" 
+                               placeholder="example@email.com" required>
+                      </div>
+                      <button type="submit" class="btn btn-success">
+                        <i class="fas fa-envelope"></i> إرسال Email تجريبي
+                      </button>
+                    </form>
+                    <div id="emailResult" class="mt-3"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- التوزيع حسب النوع -->
+    <div class="row">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-chart-pie"></i> التوزيع حسب النوع</h3>
+          </div>
+          <div class="card-body">
+            <canvas id="typeChart" height="200"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-link"></i> روابط سريعة</h3>
+          </div>
+          <div class="card-body">
+            <a href="{{ url_for('security.integrations') }}" class="btn btn-primary">
+              <i class="fas fa-cog"></i> إعدادات Twilio/Email
+            </a>
+            <a href="{{ url_for('security.system_settings', tab='business') }}" class="btn btn-info">
+              <i class="fas fa-sliders-h"></i> ثوابت الإشعارات
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- سجل الإشعارات -->
+    <div class="row">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-list"></i> سجل الإشعارات (آخر 50)</h3>
+          </div>
+          <div class="card-body">
+            <table class="table table-sm table-hover">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>النوع</th>
+                  <th>المستلم</th>
+                  <th>الموضوع/الرسالة</th>
+                  <th>الحالة</th>
+                  <th>التاريخ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for log in recent_logs %}
+                <tr>
+                  <td>{{ log.id }}</td>
+                  <td>
+                    {% if log.type == 'sms' %}
+                      <span class="badge badge-primary"><i class="fas fa-sms"></i> SMS</span>
+                    {% elif log.type == 'email' %}
+                      <span class="badge badge-success"><i class="fas fa-envelope"></i> Email</span>
+                    {% elif log.type == 'whatsapp' %}
+                      <span class="badge badge-info"><i class="fab fa-whatsapp"></i> WhatsApp</span>
+                    {% endif %}
+                  </td>
+                  <td><small>{{ log.recipient }}</small></td>
+                  <td>
+                    <small>{{ (log.subject or log.content or '')[:60] }}...</small>
+                  </td>
+                  <td>
+                    {% if log.status == 'sent' %}
+                      <span class="badge badge-success">✅ تم الإرسال</span>
+                    {% elif log.status == 'failed' %}
+                      <span class="badge badge-danger" title="{{ log.error_message }}">❌ فشل</span>
+                    {% else %}
+                      <span class="badge badge-secondary">{{ log.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td><small>{{ log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '-' }}</small></td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="6" class="text-center text-muted">
+                    <i class="fas fa-inbox"></i> لا توجد إشعارات بعد
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</section>
+
+<!-- Chart.js for type distribution -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3"></script>
+<script>
+$(document).ready(function() {
+    // Test SMS
+    $('#testSmsForm').on('submit', function(e) {
+        e.preventDefault();
+        const recipient = $(this).find('[name="recipient"]').val();
+        
+        $.post('{{ url_for("security.test_notification") }}', {
+            type: 'sms',
+            recipient: recipient
+        }, function(data) {
+            if (data.success) {
+                $('#smsResult').html('<div class="alert alert-success">✅ تم إرسال SMS بنجاح!</div>');
+            } else {
+                $('#smsResult').html('<div class="alert alert-danger">❌ فشل: ' + data.error + '</div>');
+            }
+        });
+    });
+    
+    // Test Email
+    $('#testEmailForm').on('submit', function(e) {
+        e.preventDefault();
+        const recipient = $(this).find('[name="recipient"]').val();
+        
+        $.post('{{ url_for("security.test_notification") }}', {
+            type: 'email',
+            recipient: recipient
+        }, function(data) {
+            if (data.success) {
+                $('#emailResult').html('<div class="alert alert-success">✅ تم إرسال Email بنجاح!</div>');
+            } else {
+                $('#emailResult').html('<div class="alert alert-danger">❌ فشل: ' + data.error + '</div>');
+            }
+        });
+    });
+    
+    // Type Chart
+    const ctx = document.getElementById('typeChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: {{ (type_stats.keys()|list)|tojson }},
+            datasets: [{
+                data: {{ (type_stats.values()|list)|tojson }},
+                backgroundColor: ['#007bff', '#28a745', '#17a2b8']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+});
+</script>
+{% endblock %}
+

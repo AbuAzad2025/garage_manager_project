@@ -216,12 +216,10 @@
     const el = document.getElementById(id);
     if (!el) return;
     try {
-      if (window.bootstrap && bootstrap.Modal) {
-        let m = bootstrap.Modal.getInstance(el);
-        if (!m) m = bootstrap.Modal.getOrCreateInstance(el);
-        m.hide();
+      if (window.jQuery && $.fn.modal) {
+        $(el).modal('hide');
         setTimeout(() => {
-          m.dispose && m.dispose();
+          // Modal cleanup
           document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
           document.body.classList.remove('modal-open');
           document.body.style.removeProperty('padding-right');
@@ -675,7 +673,7 @@
     
     document.querySelectorAll('.alert').forEach(el => {
       setTimeout(() => {
-        try { new bootstrap.Alert(el).close(); } catch { }
+        try { $(el).alert('close'); } catch { }
       }, 5000);
     });
   });

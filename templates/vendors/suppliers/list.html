@@ -18,7 +18,7 @@
       <button type="button" class="btn btn-sm btn-danger" onclick="showUnpricedModal()">
         <i class="fas fa-tag me-1"></i> تسعير القطع
       </button>
-      <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="alert">
+      <button type="button" class="btn btn-sm btn-secondary" data-dismiss="alert">
         <i class="fas fa-times me-1"></i> تجاهل
       </button>
     </div>
@@ -33,7 +33,7 @@
     <p class="mb-0">
       <strong>🧮 تسوية ذكية لمورد:</strong> انقر على زر <span class="badge bg-success"><i class="fas fa-calculator"></i> تسوية ذكية</span> في سطر المورد - تشمل جميع المعاملات (قطع، مبيعات، صيانة، دفعات)
     </p>
-    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+    <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق"></button>
   </div>
 
   <div class="row mb-4 g-3">
@@ -201,7 +201,7 @@
     <div class="modal-content rounded-4">
       <div class="modal-header bg-light">
         <h5 class="modal-title"><i class="fas fa-scale-balanced me-2"></i> تسوية رصيد</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"></button>
       </div>
       <div class="modal-body">
         <div class="mb-2 text-muted small">الجهة: <span id="stlName"></span></div>
@@ -335,7 +335,7 @@ function showUnpricedModal() {
       <div class="modal-content">
         <div class="modal-header bg-warning">
           <h5 class="modal-title"><i class="fas fa-tag me-2"></i> قطع الموردين غير المسعّرة</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          <button type="button" class="close" data-dismiss="modal"></button>
         </div>
         <div class="modal-body">
           <div class="alert alert-info">
@@ -344,15 +344,14 @@ function showUnpricedModal() {
           ${html}
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">إغلاق</button>
         </div>
       </div>
     </div>
   `;
   
   document.body.appendChild(modal);
-  const modalInstance = new bootstrap.Modal(modal);
-  modalInstance.show();
+  $(modal).modal('show');
   
   // حذف Modal عند الإغلاق
   modal.addEventListener('hidden.bs.modal', () => {

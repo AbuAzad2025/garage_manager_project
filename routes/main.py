@@ -435,24 +435,37 @@ def restore_db():
     is_prod = (current_app.config.get("ENV") == "production" or current_app.config.get("FLASK_ENV") == "production")
     role_name = str(getattr(getattr(current_user, "role", None), "name", "")).lower()
     if is_prod and role_name != "super_admin":
+        if request.is_json or request.headers.get('Accept') == 'application/json':
+            return jsonify({"success": False, "message": "غير مسموح بالاستعادة في بيئة الإنتاج إلا لمستخدم super_admin فقط"}), 403
         flash("❌ غير مسموح بالاستعادة في بيئة الإنتاج إلا لمستخدم super_admin فقط.", "danger")
         return redirect(url_for("main.dashboard"))
 
     form = RestoreForm()
-    if form.validate_on_submit():
+    if form.validate_on_submit() or (request.method == 'POST' and 'db_file' in request.files):
         uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
         if not uri.startswith("sqlite:///"):
+            if request.is_json or request.headers.get('Accept') == 'application/json':
+                return jsonify({"success": False, "message": "قاعدة البيانات ليست SQLite"}), 400
             flash("قاعدة البيانات ليست SQLite.", "warning")
             return redirect(url_for("main.restore_db"))
         db_path = uri.replace("sqlite:///", "")
         try:
+            db_file = form.db_file.data if form.validate_on_submit() else request.files.get('db_file')
+            if not db_file:
+                raise ValueError("لم يتم تحديد ملف")
+            
             db.session.commit()
             db.session.remove()
             db.engine.dispose()
-            form.db_file.data.save(db_path)
+            db_file.save(db_path)
+            
+            if request.is_json or request.headers.get('Accept') == 'application/json':
+                return jsonify({"success": True, "message": "تمت الاستعادة بنجاح"}), 200
             flash("✅ تمت الاستعادة بنجاح. قد تحتاج لإعادة تشغيل التطبيق.", "success")
             return redirect(url_for("main.dashboard"))
-        except Exception:
+        except Exception as e:
+            if request.is_json or request.headers.get('Accept') == 'application/json':
+                return jsonify({"success": False, "message": f"خطأ أثناء الاستعادة: {str(e)}"}), 500
             flash("❌ خطأ أثناء الاستعادة.", "danger")
             return redirect(url_for("main.restore_db"))
     return render_template("restore_db.html", form=form)

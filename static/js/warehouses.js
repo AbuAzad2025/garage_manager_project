@@ -19,10 +19,8 @@
     var el = document.createElement('div');
     el.className = 'alert alert-' + type + ' alert-dismissible fade show shadow-sm mb-2';
     el.setAttribute('role', 'alert');
-    var isBS5 = !!(window.bootstrap && window.bootstrap.Modal);
-    var closeBtn = isBS5
-      ? '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>'
-      : '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>';
+    // Bootstrap 4 close button
+    var closeBtn = '<button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>';
     el.innerHTML = message + closeBtn;
     c.appendChild(el);
     setTimeout(function () {

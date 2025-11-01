@@ -1,0 +1,582 @@
+{% extends 'base.html' %}
+{% block title %}💬 المساعد الذكي{% endblock %}
+{% block page_title %}🤖 AI Assistant{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --ai-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --ai-success: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  --ai-gradient-light: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+}
+
+.chat-container {
+  height: calc(100vh - 300px);
+  min-height: 500px;
+  background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+
+.chat-messages {
+  height: calc(100% - 80px);
+  overflow-y: auto;
+  padding: 30px;
+  scroll-behavior: smooth;
+}
+
+.chat-message {
+  display: flex;
+  margin-bottom: 20px;
+  animation: messageSlide 0.3s ease;
+}
+
+@keyframes messageSlide {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chat-message.user {
+  justify-content: flex-end;
+}
+
+.chat-message.ai {
+  justify-content: flex-start;
+}
+
+.message-bubble {
+  max-width: 70%;
+  padding: 15px 20px;
+  border-radius: 18px;
+  position: relative;
+  word-wrap: break-word;
+}
+
+.chat-message.user .message-bubble {
+  background: var(--ai-primary);
+  color: white;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.chat-message.ai .message-bubble {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.message-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 12px;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.chat-message.user .message-avatar {
+  background: var(--ai-primary);
+  color: white;
+  order: 2;
+}
+
+.chat-message.ai .message-avatar {
+  background: var(--ai-success);
+  color: white;
+}
+
+.chat-input-area {
+  padding: 20px;
+  background: white;
+  border-top: 2px solid #e9ecef;
+}
+
+.chat-input-wrapper {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.chat-input {
+  flex: 1;
+  border: 2px solid #e9ecef;
+  border-radius: 25px;
+  padding: 12px 20px;
+  font-size: 15px;
+  transition: all 0.3s ease;
+}
+
+.chat-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  outline: none;
+}
+
+.btn-send {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: var(--ai-primary);
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.btn-send:hover {
+  transform: scale(1.1);
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-send:active {
+  transform: scale(0.95);
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 5px;
+  padding: 10px;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #667eea;
+  animation: typing 1.4s infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  30% {
+    transform: translateY(-10px);
+    opacity: 1;
+  }
+}
+
+.suggestions-panel {
+  background: white;
+  border-radius: 15px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.suggestion-chip {
+  display: inline-block;
+  padding: 8px 16px;
+  margin: 5px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 20px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.suggestion-chip:hover {
+  background: var(--ai-primary);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.3);
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.quick-action-card {
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  border: 2px solid #e9ecef;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.quick-action-card:hover {
+  border-color: #667eea;
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+}
+
+.quick-action-card i {
+  font-size: 30px;
+  margin-bottom: 10px;
+  display: block;
+  background: var(--ai-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.message-time {
+  font-size: 11px;
+  opacity: 0.6;
+  margin-top: 5px;
+}
+
+.confidence-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.confidence-high {
+  background: #38ef7d;
+  color: white;
+}
+
+.confidence-medium {
+  background: #f5576c;
+  color: white;
+}
+
+.confidence-low {
+  background: #6c757d;
+  color: white;
+}
+
+.welcome-screen {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.welcome-icon {
+  font-size: 80px;
+  background: var(--ai-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20px;
+}
+
+.feature-list {
+  text-align: right;
+  max-width: 600px;
+  margin: 30px auto;
+}
+
+.feature-item {
+  padding: 10px;
+  margin: 10px 0;
+  background: white;
+  border-radius: 10px;
+  border-right: 4px solid #667eea;
+}
+</style>
+{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{{ url_for('ai.hub') }}"><i class="fas fa-brain"></i> AI Hub</a></li>
+<li class="breadcrumb-item active">المساعد الذكي</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="row g-3">
+    <!-- Main Chat Area -->
+    <div class="col-lg-8">
+      <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+          <!-- Welcome Screen -->
+          <div class="welcome-screen" id="welcomeScreen">
+            <div class="welcome-icon">
+              <i class="fas fa-robot"></i>
+            </div>
+            <h2 class="mb-3">مرحباً! أنا مساعدك الذكي 🤖</h2>
+            <p class="text-muted mb-4">أفهم كل شيء في نظام إدارة الكراج ويمكنني مساعدتك في أي استفسار</p>
+            
+            <div class="feature-list">
+              <div class="feature-item">
+                <i class="fas fa-route text-primary"></i>
+                <strong>التنقل:</strong> أرشدك لأي صفحة في النظام
+              </div>
+              <div class="feature-item">
+                <i class="fas fa-database text-success"></i>
+                <strong>البيانات:</strong> أجيب عن أي سؤال عن بياناتك
+              </div>
+              <div class="feature-item">
+                <i class="fas fa-calculator text-info"></i>
+                <strong>الحسابات:</strong> أحسب VAT، ضرائب، وأي عملية مالية
+              </div>
+              <div class="feature-item">
+                <i class="fas fa-question-circle text-warning"></i>
+                <strong>المساعدة:</strong> أشرح كيفية استخدام أي ميزة
+              </div>
+            </div>
+            
+            <p class="text-muted mt-4">
+              <small>جرب الآن: "صباح الخير" • "وين صفحة الصيانة؟" • "احسب VAT لـ 1000"</small>
+            </p>
+          </div>
+        </div>
+        
+        <div class="chat-input-area">
+          <div class="chat-input-wrapper">
+            <input type="text" 
+                   class="chat-input" 
+                   id="chatInput" 
+                   placeholder="اكتب سؤالك هنا... (مثال: كيف أضيف عميل جديد؟)"
+                   autocomplete="off">
+            <button class="btn-send" id="sendBtn" type="button">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+          <div class="text-center mt-2">
+            <small class="text-muted">
+              <i class="fas fa-keyboard"></i> اضغط Enter للإرسال • 
+              <i class="fas fa-lightbulb"></i> أنا أتعلم من كل محادثة
+            </small>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+      <!-- Quick Actions -->
+      <div class="suggestions-panel mb-3">
+        <h6 class="mb-3"><i class="fas fa-bolt text-warning"></i> إجراءات سريعة</h6>
+        <div class="quick-actions">
+          <div class="quick-action-card" onclick="quickAsk('صباح الخير')">
+            <i class="fas fa-sun"></i>
+            <div><small>صباح الخير</small></div>
+          </div>
+          <div class="quick-action-card" onclick="quickAsk('وين صفحة الصيانة؟')">
+            <i class="fas fa-tools"></i>
+            <div><small>صفحة الصيانة</small></div>
+          </div>
+          <div class="quick-action-card" onclick="quickAsk('كيف أضيف عميل؟')">
+            <i class="fas fa-user-plus"></i>
+            <div><small>إضافة عميل</small></div>
+          </div>
+          <div class="quick-action-card" onclick="quickAsk('احسب VAT لـ 1000')">
+            <i class="fas fa-calculator"></i>
+            <div><small>حساب VAT</small></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Suggestions -->
+      <div class="suggestions-panel mb-3">
+        <h6 class="mb-3"><i class="fas fa-lightbulb text-warning"></i> اقتراحات ذكية</h6>
+        <div id="suggestionsArea">
+          <div class="suggestion-chip" onclick="quickAsk('ما هي التقارير المتاحة؟')">
+            📊 التقارير المتاحة
+          </div>
+          <div class="suggestion-chip" onclick="quickAsk('كيف أعمل نسخة احتياطية؟')">
+            💾 نسخ احتياطي
+          </div>
+          <div class="suggestion-chip" onclick="quickAsk('شرح دفتر الأستاذ')">
+            📖 دفتر الأستاذ
+          </div>
+          <div class="suggestion-chip" onclick="quickAsk('كيف أدير الصلاحيات؟')">
+            🔐 الصلاحيات
+          </div>
+        </div>
+      </div>
+      
+      <!-- Stats -->
+      <div class="suggestions-panel">
+        <h6 class="mb-3"><i class="fas fa-chart-line text-success"></i> إحصائيات</h6>
+        <div class="d-flex justify-content-between mb-2">
+          <span><i class="fas fa-comments"></i> محادثات اليوم</span>
+          <strong class="text-primary" id="todayCount">0</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span><i class="fas fa-check-circle"></i> معدل النجاح</span>
+          <strong class="text-success" id="successRate">95%</strong>
+        </div>
+        <div class="d-flex justify-content-between">
+          <span><i class="fas fa-bolt"></i> متوسط الاستجابة</span>
+          <strong class="text-info" id="avgResponse">0.8s</strong>
+        </div>
+      </div>
+      
+      <!-- Links -->
+      <div class="suggestions-panel mt-3">
+        <h6 class="mb-3"><i class="fas fa-link"></i> روابط سريعة</h6>
+        <a href="{{ url_for('ai.hub') }}" class="btn btn-sm btn-outline-primary w-100 mb-2">
+          <i class="fas fa-home"></i> AI Hub
+        </a>
+        <a href="{{ url_for('ai.system_map') }}" class="btn btn-sm btn-outline-success w-100 mb-2">
+          <i class="fas fa-map"></i> خريطة النظام
+        </a>
+        <a href="{{ url_for('ai.hub', tab='training') }}" class="btn btn-sm btn-outline-warning w-100">
+          <i class="fas fa-graduation-cap"></i> تدريب النماذج
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// CSRF Token
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const welcomeScreen = document.getElementById('welcomeScreen');
+
+let messageCount = 0;
+
+// Send message
+function sendMessage() {
+  const message = chatInput.value.trim();
+  if (!message) return;
+  
+  // Hide welcome screen
+  if (welcomeScreen) {
+    welcomeScreen.style.display = 'none';
+  }
+  
+  // Add user message
+  addMessage(message, 'user');
+  chatInput.value = '';
+  
+  // Show typing indicator
+  const typingId = showTyping();
+  
+  // Send to AI
+  fetch('{{ url_for("ai.chat") }}', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({ message })
+  })
+  .then(res => res.json())
+  .then(data => {
+    removeTyping(typingId);
+    
+    if (data.success) {
+      addMessage(data.response, 'ai', data.confidence);
+      messageCount++;
+      updateStats();
+    } else {
+      addMessage('عذراً، حدث خطأ: ' + (data.error || 'غير معروف'), 'ai', 0);
+    }
+  })
+  .catch(err => {
+    removeTyping(typingId);
+    addMessage('⚠️ خطأ في الاتصال. الرجاء المحاولة مرة أخرى.', 'ai', 0);
+  });
+}
+
+// Add message to chat
+function addMessage(text, sender, confidence = null) {
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `chat-message ${sender}`;
+  
+  const now = new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+  
+  let confidenceBadge = '';
+  if (confidence !== null && sender === 'ai') {
+    const confClass = confidence > 80 ? 'high' : confidence > 50 ? 'medium' : 'low';
+    confidenceBadge = `<span class="confidence-badge confidence-${confClass}">ثقة: ${confidence}%</span>`;
+  }
+  
+  messageDiv.innerHTML = `
+    <div class="message-avatar">
+      <i class="fas fa-${sender === 'user' ? 'user' : 'robot'}"></i>
+    </div>
+    <div class="message-bubble">
+      <div>${text}</div>
+      <div class="message-time">${confidenceBadge}${now}</div>
+    </div>
+  `;
+  
+  chatMessages.appendChild(messageDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Show typing indicator
+function showTyping() {
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'chat-message ai';
+  typingDiv.id = 'typing-' + Date.now();
+  
+  typingDiv.innerHTML = `
+    <div class="message-avatar">
+      <i class="fas fa-robot"></i>
+    </div>
+    <div class="message-bubble">
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+  `;
+  
+  chatMessages.appendChild(typingDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  
+  return typingDiv.id;
+}
+
+// Remove typing indicator
+function removeTyping(id) {
+  const typing = document.getElementById(id);
+  if (typing) typing.remove();
+}
+
+// Quick ask
+function quickAsk(question) {
+  chatInput.value = question;
+  sendMessage();
+}
+
+// Update stats
+function updateStats() {
+  document.getElementById('todayCount').textContent = messageCount;
+}
+
+// Event listeners
+sendBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') sendMessage();
+});
+
+// Focus on input
+chatInput.focus();
+</script>
+
+{% endblock %}

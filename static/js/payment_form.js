@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const htmlTable = table.outerHTML;
       const title = 'كشف حساب - ' + (ctx.entity_type || '') + ' #' + (ctx.entity_id || '');
       const w = window.open('', 'stmt');
-      w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title + '</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"><style>body{padding:24px}h3{margin-bottom:16px}table{font-size:12px}</style></head><body><h3>' + title + '</h3>' + htmlTable + '<script>window.onload=function(){window.print();}</script></body></html>');
+      w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title + '</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"><style>body{padding:24px}h3{margin-bottom:16px}table{font-size:12px}</style></head><body><h3>' + title + '</h3>' + htmlTable + '<script>window.onload=function(){window.print();}</script></body></html>');
       w.document.close();
     } catch (e) {
       alert('تعذر الطباعة الآن.');

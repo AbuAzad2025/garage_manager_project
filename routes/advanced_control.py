@@ -591,7 +591,7 @@ def feature_flags():
         return redirect(url_for('advanced.feature_flags'))
     
     flags = [
-        {'key': 'ai_assistant', 'name': 'المساعد الذكي', 'description': 'تفعيل AI في دفتر الأستاذ'},
+        # {'key': 'ai_assistant', 'name': 'المساعد الذكي', 'description': 'تفعيل AI في دفتر الأستاذ'},  # تم نقله للوحدة السرية
         {'key': 'auto_backup', 'name': 'نسخ احتياطي تلقائي', 'description': 'نسخ يومية تلقائية'},
         {'key': 'email_notifications', 'name': 'إشعارات البريد', 'description': 'إرسال تنبيهات بالبريد'},
         {'key': 'whatsapp_notifications', 'name': 'إشعارات واتساب', 'description': 'إرسال رسائل واتساب'},
@@ -621,7 +621,7 @@ def system_health():
         if action == 'fix_permissions':
             try:
                 # إصلاح صلاحيات المجلدات
-                dirs_to_fix = ['instance', 'instance/backups', 'instance/ai', 'static/uploads']
+                dirs_to_fix = ['instance', 'instance/backups', 'AI', 'static/uploads']  # AI تم نقله من instance/ai
                 for dir_path in dirs_to_fix:
                     full_path = os.path.join(current_app.root_path, dir_path)
                     os.makedirs(full_path, exist_ok=True)
@@ -948,7 +948,7 @@ def system_cloner():
             'dependencies': ['core'],
             'files': {
                 'models': ['GLBatch', 'GLEntry', 'Account'],
-                'routes': ['ledger_blueprint', 'ledger_ai_assistant'],
+                'routes': ['ledger_blueprint'],  # ledger_ai_assistant تم حذفه ودمجه في security.ai_hub
                 'templates': ['ledger/*'],
                 'static': []
             }

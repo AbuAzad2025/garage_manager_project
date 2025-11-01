@@ -1367,81 +1367,193 @@ def get_receivables_detailed_summary():
         
         customers = Customer.query.all()
         for customer in customers:
-            # حساب المبيعات للعميل
-            sales_query = Sale.query.filter(
-                Sale.customer_id == customer.id,
-                Sale.status == 'CONFIRMED'
-            )
+            from decimal import Decimal
+            from models import convert_amount, SaleReturn, PreOrder, OnlinePreOrder, ServiceRequest, Invoice
+            
+            total_receivable = Decimal('0.00')
+            total_paid = Decimal('0.00')
+            oldest_date = None
+            last_payment_date = None
+            
+            sales_query = Sale.query.filter(Sale.customer_id == customer.id, Sale.status == 'CONFIRMED')
             if from_date:
                 sales_query = sales_query.filter(Sale.sale_date >= from_date)
             if to_date:
                 sales_query = sales_query.filter(Sale.sale_date <= to_date)
             
-            total_sales = 0.0
-            oldest_sale_date = None
-            
-            for sale in sales_query.all():
-                amount = float(sale.total_amount or 0)
-                if sale.currency and sale.currency != 'ILS':
+            for s in sales_query.all():
+                amt = Decimal(str(s.total_amount or 0))
+                if s.currency == "ILS":
+                    total_receivable += amt
+                else:
                     try:
-                        rate = fx_rate(sale.currency, 'ILS', sale.sale_date, raise_on_missing=False)
-                        if rate > 0:
-                            amount = float(amount * float(rate))
+                        total_receivable += convert_amount(amt, s.currency, "ILS", s.sale_date)
                     except:
                         pass
-                total_sales += amount
-                
-                # تسجيل أقدم تاريخ بيع
-                if not oldest_sale_date or sale.sale_date < oldest_sale_date:
-                    oldest_sale_date = sale.sale_date
+                if oldest_date is None or (s.sale_date and s.sale_date < oldest_date):
+                    oldest_date = s.sale_date
             
-            # حساب الدفعات من العميل
-            payments_query = Payment.query.filter(
-                Payment.customer_id == customer.id,
-                Payment.direction == 'IN',
-                Payment.status == 'COMPLETED'  # ✅ فلترة الدفعات المكتملة فقط
-            )
+            invoices_query = Invoice.query.filter(Invoice.customer_id == customer.id, Invoice.cancelled_at.is_(None))
             if from_date:
-                payments_query = payments_query.filter(Payment.payment_date >= from_date)
+                invoices_query = invoices_query.filter(Invoice.invoice_date >= from_date)
             if to_date:
-                payments_query = payments_query.filter(Payment.payment_date <= to_date)
+                invoices_query = invoices_query.filter(Invoice.invoice_date <= to_date)
             
-            total_payments = 0.0
-            last_payment_date = None
-            
-            for payment in payments_query.all():
-                amount = float(payment.total_amount or 0)
-                if payment.currency and payment.currency != 'ILS':
+            for inv in invoices_query.all():
+                amt = Decimal(str(inv.total_amount or 0))
+                if inv.currency == "ILS":
+                    total_receivable += amt
+                else:
                     try:
-                        rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
-                        if rate > 0:
-                            amount = float(amount * float(rate))
+                        total_receivable += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
                     except:
                         pass
-                total_payments += amount
+                ref_dt = inv.invoice_date or inv.created_at
+                if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+                    oldest_date = ref_dt
+            
+            services_query = ServiceRequest.query.filter(ServiceRequest.customer_id == customer.id)
+            if from_date:
+                services_query = services_query.filter(ServiceRequest.received_at >= from_date)
+            if to_date:
+                services_query = services_query.filter(ServiceRequest.received_at <= to_date)
+            
+            for srv in services_query.all():
+                amt = Decimal(str(srv.total_amount or 0))
+                if srv.currency == "ILS":
+                    total_receivable += amt
+                else:
+                    try:
+                        total_receivable += convert_amount(amt, srv.currency, "ILS", srv.received_at)
+                    except:
+                        pass
+                ref_dt = srv.received_at or srv.created_at
+                if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+                    oldest_date = ref_dt
+            
+            preorders_query = PreOrder.query.filter(PreOrder.customer_id == customer.id, PreOrder.status != 'CANCELLED')
+            if from_date:
+                preorders_query = preorders_query.filter(PreOrder.preorder_date >= from_date)
+            if to_date:
+                preorders_query = preorders_query.filter(PreOrder.preorder_date <= to_date)
+            
+            for p in preorders_query.all():
+                amt = Decimal(str(p.total_amount or 0))
+                if p.currency == "ILS":
+                    total_receivable += amt
+                else:
+                    try:
+                        total_receivable += convert_amount(amt, p.currency, "ILS", p.preorder_date)
+                    except:
+                        pass
+                ref_dt = p.preorder_date or p.created_at
+                if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+                    oldest_date = ref_dt
+            
+            online_orders_query = OnlinePreOrder.query.filter(OnlinePreOrder.customer_id == customer.id, OnlinePreOrder.payment_status != 'CANCELLED')
+            if from_date:
+                online_orders_query = online_orders_query.filter(OnlinePreOrder.created_at >= from_date)
+            if to_date:
+                online_orders_query = online_orders_query.filter(OnlinePreOrder.created_at <= to_date)
+            
+            for oo in online_orders_query.all():
+                amt = Decimal(str(oo.total_amount or 0))
+                if oo.currency == "ILS":
+                    total_receivable += amt
+                else:
+                    try:
+                        total_receivable += convert_amount(amt, oo.currency, "ILS", oo.created_at)
+                    except:
+                        pass
+                if oldest_date is None or (oo.created_at and oo.created_at < oldest_date):
+                    oldest_date = oo.created_at
+            
+            returns_query = SaleReturn.query.filter(SaleReturn.customer_id == customer.id, SaleReturn.status == 'CONFIRMED')
+            if from_date:
+                returns_query = returns_query.filter(SaleReturn.created_at >= from_date)
+            if to_date:
+                returns_query = returns_query.filter(SaleReturn.created_at <= to_date)
+            
+            for r in returns_query.all():
+                amt = Decimal(str(r.total_amount or 0))
+                if r.currency == "ILS":
+                    total_receivable -= amt
+                else:
+                    try:
+                        total_receivable -= convert_amount(amt, r.currency, "ILS", r.created_at)
+                    except:
+                        pass
+            
+            payments_in_direct = Payment.query.filter(Payment.customer_id == customer.id, Payment.direction == 'IN', Payment.status.in_(['COMPLETED', 'PENDING']))
+            payments_in_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(Sale.customer_id == customer.id, Payment.direction == 'IN', Payment.status.in_(['COMPLETED', 'PENDING']))
+            payments_in_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(Invoice.customer_id == customer.id, Payment.direction == 'IN', Payment.status.in_(['COMPLETED', 'PENDING']))
+            payments_in_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(ServiceRequest.customer_id == customer.id, Payment.direction == 'IN', Payment.status.in_(['COMPLETED', 'PENDING']))
+            payments_in_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(PreOrder.customer_id == customer.id, Payment.direction == 'IN', Payment.status.in_(['COMPLETED', 'PENDING']))
+            payments_out_direct = Payment.query.filter(Payment.customer_id == customer.id, Payment.direction == 'OUT', Payment.status.in_(['COMPLETED', 'PENDING']))
+            payments_out_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(Sale.customer_id == customer.id, Payment.direction == 'OUT', Payment.status.in_(['COMPLETED', 'PENDING']))
+            
+            if from_date:
+                payments_in_direct = payments_in_direct.filter(Payment.payment_date >= from_date)
+                payments_in_from_sales = payments_in_from_sales.filter(Payment.payment_date >= from_date)
+                payments_in_from_invoices = payments_in_from_invoices.filter(Payment.payment_date >= from_date)
+                payments_in_from_services = payments_in_from_services.filter(Payment.payment_date >= from_date)
+                payments_in_from_preorders = payments_in_from_preorders.filter(Payment.payment_date >= from_date)
+                payments_out_direct = payments_out_direct.filter(Payment.payment_date >= from_date)
+                payments_out_from_sales = payments_out_from_sales.filter(Payment.payment_date >= from_date)
+            if to_date:
+                payments_in_direct = payments_in_direct.filter(Payment.payment_date <= to_date)
+                payments_in_from_sales = payments_in_from_sales.filter(Payment.payment_date <= to_date)
+                payments_in_from_invoices = payments_in_from_invoices.filter(Payment.payment_date <= to_date)
+                payments_in_from_services = payments_in_from_services.filter(Payment.payment_date <= to_date)
+                payments_in_from_preorders = payments_in_from_preorders.filter(Payment.payment_date <= to_date)
+                payments_out_direct = payments_out_direct.filter(Payment.payment_date <= to_date)
+                payments_out_from_sales = payments_out_from_sales.filter(Payment.payment_date <= to_date)
+            
+            seen_payment_ids = set()
+            payments_all = []
+            for p in (payments_in_direct.all() + payments_in_from_sales.all() + payments_in_from_invoices.all() + payments_in_from_services.all() + payments_in_from_preorders.all() + payments_out_direct.all() + payments_out_from_sales.all()):
+                if p.id not in seen_payment_ids:
+                    seen_payment_ids.add(p.id)
+                    payments_all.append(p)
+            
+            for p in payments_all:
+                amt = Decimal(str(p.total_amount or 0))
+                if p.currency == "ILS":
+                    converted = amt
+                else:
+                    try:
+                        converted = convert_amount(amt, p.currency, "ILS", p.payment_date)
+                    except:
+                        continue
                 
-                if not last_payment_date or payment.payment_date > last_payment_date:
-                    last_payment_date = payment.payment_date
+                if p.direction == 'IN':
+                    total_paid += converted
+                elif p.direction == 'OUT':
+                    total_paid -= converted
+                
+                if not last_payment_date or (p.payment_date and p.payment_date > last_payment_date):
+                    last_payment_date = p.payment_date
             
-            # حساب عمر الدين
+            balance = total_receivable - total_paid
+            if balance == 0:
+                continue
+            
             days_overdue = 0
-            if total_sales > total_payments and oldest_sale_date:
-                days_overdue = (today - oldest_sale_date).days
+            if balance > 0 and oldest_date:
+                days_overdue = (today - oldest_date).days
             
-            # آخر حركة
-            last_transaction = last_payment_date if last_payment_date else oldest_sale_date
+            last_transaction = last_payment_date if last_payment_date else oldest_date
             last_transaction_str = last_transaction.strftime('%Y-%m-%d') if last_transaction else None
             
-            if total_sales > 0 or total_payments > 0:
-                receivables.append({
-                    "name": customer.name,
-                    "type": "customer",
-                    "type_ar": "عميل",
-                    "debit": total_sales,
-                    "credit": total_payments,
-                    "days_overdue": days_overdue,
-                    "last_transaction": last_transaction_str
-                })
+            receivables.append({
+                "name": customer.name,
+                "type": "customer",
+                "type_ar": "عميل",
+                "debit": float(total_receivable),
+                "credit": float(total_paid),
+                "days_overdue": days_overdue,
+                "last_transaction": last_transaction_str
+            })
         
         # 2. الموردين (Suppliers) مع أعمار الديون
         suppliers = Supplier.query.all()
@@ -1867,17 +1979,6 @@ def get_receivables_summary():
         print(f"Error in get_receivables_summary: {str(e)}")
         print(traceback.format_exc())
         return jsonify([]), 500
-
-@ledger_bp.route("/smart-assistant", methods=["POST"], endpoint="smart_assistant")
-@login_required
-# @permission_required("manage_ledger")  # Commented out
-def smart_assistant():
-    """
-    المساعد المحاسبي الذكي - نقطة وصول موحدة
-    يعيد التوجيه إلى المساعد الذكي المنفصل
-    """
-    from routes.ledger_ai_assistant import ask_question
-    return ask_question()
 
 @ledger_bp.route("/export", methods=["GET"], endpoint="export_ledger")
 @login_required

@@ -1,0 +1,4895 @@
+{
+  "generated_at": "2025-10-11T00:21:14.646304",
+  "models_count": 28,
+  "models": {
+    "User": {
+      "table_name": "users",
+      "class_name": "User",
+      "columns_count": 14,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(120)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "password_hash",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "role_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "last_login",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "last_seen",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "last_login_ip",
+          "type": "VARCHAR(64)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "login_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "avatar_url",
+          "type": "VARCHAR(500)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes_text",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 12,
+      "relationships": [
+        {
+          "name": "role",
+          "target": "Role",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "extra_permissions",
+          "target": "Permission",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "mechanic_service_requests",
+          "target": "ServiceRequest",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "cancelled_service_requests",
+          "target": "ServiceRequest",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "sales",
+          "target": "Sale",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "cancelled_sales",
+          "target": "Sale",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "deletions_made",
+          "target": "DeletionLog",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "deletions_restored",
+          "target": "DeletionLog",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "auth_events",
+          "target": "AuthAudit",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "import_runs",
+          "target": "ImportRun",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "payments_created",
+          "target": "Payment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "notes",
+          "target": "Note",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "Customer": {
+      "table_name": "customers",
+      "class_name": "Customer",
+      "columns_count": 17,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "phone",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "whatsapp",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(120)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "address",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "password_hash",
+          "type": "VARCHAR(128)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR(20)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_online",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_archived",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "credit_limit",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "discount_rate",
+          "type": "NUMERIC(5, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 10,
+      "relationships": [
+        {
+          "name": "sales",
+          "target": "Sale",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "preorders",
+          "target": "PreOrder",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "invoices",
+          "target": "Invoice",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "payments",
+          "target": "Payment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "service_requests",
+          "target": "ServiceRequest",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "online_carts",
+          "target": "OnlineCart",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "online_preorders",
+          "target": "OnlinePreOrder",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "product_ratings",
+          "target": "ProductRating",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "loyalty",
+          "target": "CustomerLoyalty",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "loyalty_points",
+          "target": "CustomerLoyaltyPoints",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "Supplier": {
+      "table_name": "suppliers",
+      "class_name": "Supplier",
+      "columns_count": 14,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_local",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "identity_number",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "contact",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "phone",
+          "type": "VARCHAR(20)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(120)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "address",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "balance",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "payment_terms",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 7,
+      "relationships": [
+        {
+          "name": "payments",
+          "target": "Payment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "invoices",
+          "target": "Invoice",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "preorders",
+          "target": "PreOrder",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "warehouses",
+          "target": "Warehouse",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "loan_settlements",
+          "target": "SupplierLoanSettlement",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "settlements",
+          "target": "SupplierSettlement",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "loaned_products",
+          "target": "ProductSupplierLoan",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "Product": {
+      "table_name": "products",
+      "class_name": "Product",
+      "columns_count": 44,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "sku",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "part_number",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "brand",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "commercial_name",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "chassis_number",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "serial_no",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "barcode",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "unit",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "category_name",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "purchase_price",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "selling_price",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "cost_before_shipping",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "cost_after_shipping",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "unit_price_before_tax",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "price",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "min_price",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "max_price",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tax_rate",
+          "type": "NUMERIC(5, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "min_qty",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "reorder_point",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "image",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "condition",
+          "type": "VARCHAR(11)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "origin_country",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "warranty_period",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "weight",
+          "type": "NUMERIC(10, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "dimensions",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_digital",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_exchange",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_published",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "vehicle_type_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "category_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "supplier_international_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "supplier_local_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "online_name",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "online_price",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "online_image",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 19,
+      "relationships": [
+        {
+          "name": "category",
+          "target": "ProductCategory",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "vehicle_type",
+          "target": "EquipmentType",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "supplier_general",
+          "target": "Supplier",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "supplier_international",
+          "target": "Supplier",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "supplier_local",
+          "target": "Supplier",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "partners",
+          "target": "ProductPartner",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "partner_shares",
+          "target": "ProductPartnerShare",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "supplier_loans",
+          "target": "ProductSupplierLoan",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "transfers",
+          "target": "Transfer",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "preorders",
+          "target": "PreOrder",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "shipment_items",
+          "target": "ShipmentItem",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "exchange_transactions",
+          "target": "ExchangeTransaction",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "sale_lines",
+          "target": "SaleLine",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "service_parts",
+          "target": "ServicePart",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "online_cart_items",
+          "target": "OnlineCartItem",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "online_preorder_items",
+          "target": "OnlinePreOrderItem",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "stock_levels",
+          "target": "StockLevel",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "stock_adjustment_items",
+          "target": "StockAdjustmentItem",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "ratings",
+          "target": "ProductRating",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "ServiceRequest": {
+      "table_name": "service_requests",
+      "class_name": "ServiceRequest",
+      "columns_count": 42,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "service_number",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "customer_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "mechanic_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "vehicle_type_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(11)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "priority",
+          "type": "VARCHAR(6)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "vehicle_vrn",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "vehicle_model",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "chassis_number",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "engineer_notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "estimated_duration",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "actual_duration",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "estimated_cost",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_cost",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "start_time",
+          "type": "DATE",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "end_time",
+          "type": "DATE",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "problem_description",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "diagnosis",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "resolution",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "received_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "started_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "expected_delivery",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "completed_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tax_rate",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "discount_total",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "parts_total",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "labor_total",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_amount",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "consume_stock",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "warranty_days",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "refunded_total",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "refund_of_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "VARCHAR(64)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "cancelled_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "cancelled_by",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "cancel_reason",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 10,
+      "relationships": [
+        {
+          "name": "customer",
+          "target": "Customer",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "mechanic",
+          "target": "User",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "cancelled_by_user",
+          "target": "User",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "vehicle_type",
+          "target": "EquipmentType",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "invoice",
+          "target": "Invoice",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "payments",
+          "target": "Payment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "parts",
+          "target": "ServicePart",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "tasks",
+          "target": "ServiceTask",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "gl_batches",
+          "target": "GLBatch",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "refund_of",
+          "target": "ServiceRequest",
+          "uselist": false,
+          "type": "many-to-one"
+        }
+      ]
+    },
+    "Invoice": {
+      "table_name": "invoices",
+      "class_name": "Invoice",
+      "columns_count": 28,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "invoice_number",
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "invoice_date",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "due_date",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "customer_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "partner_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "sale_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "service_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "preorder_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "source",
+          "type": "VARCHAR(8)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(9)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR(11)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "credit_for_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "refund_of_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_amount",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tax_amount",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "discount_amount",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "terms",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "refunded_total",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "idempotency_key",
+          "type": "VARCHAR(64)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "cancelled_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "cancelled_by",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "cancel_reason",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 14,
+      "relationships": [
+        {
+          "name": "customer",
+          "target": "Customer",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "supplier",
+          "target": "Supplier",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "partner",
+          "target": "Partner",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "sale",
+          "target": "Sale",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "service",
+          "target": "ServiceRequest",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "preorder",
+          "target": "PreOrder",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "cancelled_by_user",
+          "target": "User",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "refund_of",
+          "target": "Invoice",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "credit_for",
+          "target": "Invoice",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "lines",
+          "target": "InvoiceLine",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "payments",
+          "target": "Payment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "gl_batches",
+          "target": "GLBatch",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "refunds",
+          "target": "Invoice",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "credit_notes",
+          "target": "Invoice",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "Payment": {
+      "table_name": "payments",
+      "class_name": "Payment",
+      "columns_count": 40,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "payment_number",
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "payment_date",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "subtotal",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tax_rate",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tax_amount",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_amount",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "fx_rate_used",
+          "type": "NUMERIC(10, 6)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "fx_rate_source",
+          "type": "VARCHAR(20)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "fx_rate_timestamp",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "fx_base_currency",
+          "type": "VARCHAR(10)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "fx_quote_currency",
+          "type": "VARCHAR(10)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "method",
+          "type": "VARCHAR(6)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(9)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "direction",
+          "type": "VARCHAR(3)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "entity_type",
+          "type": "VARCHAR(8)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "reference",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "receipt_number",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "check_number",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "check_bank",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "check_due_date",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "card_holder",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "card_expiry",
+          "type": "VARCHAR(10)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "card_last4",
+          "type": "VARCHAR(4)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "bank_transfer_ref",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_by",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "customer_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "partner_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "shipment_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "expense_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "loan_settlement_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "sale_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "invoice_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "preorder_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "service_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "refund_of_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "VARCHAR(64)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 14,
+      "relationships": [
+        {
+          "name": "creator",
+          "target": "User",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "customer",
+          "target": "Customer",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "supplier",
+          "target": "Supplier",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "partner",
+          "target": "Partner",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "shipment",
+          "target": "Shipment",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "expense",
+          "target": "Expense",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "loan_settlement",
+          "target": "SupplierLoanSettlement",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "sale",
+          "target": "Sale",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "invoice",
+          "target": "Invoice",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "preorder",
+          "target": "PreOrder",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "service",
+          "target": "ServiceRequest",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "refund_of",
+          "target": "Payment",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "splits",
+          "target": "PaymentSplit",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "gl_batches",
+          "target": "GLBatch",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "Warehouse": {
+      "table_name": "warehouses",
+      "class_name": "Warehouse",
+      "columns_count": 16,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "warehouse_type",
+          "type": "VARCHAR(9)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "location",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "parent_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "partner_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "share_percent",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "capacity",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "current_occupancy",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "online_slug",
+          "type": "VARCHAR(150)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "online_is_default",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 17,
+      "relationships": [
+        {
+          "name": "parent",
+          "target": "Warehouse",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "supplier",
+          "target": "Supplier",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "partner",
+          "target": "Partner",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "stock_levels",
+          "target": "StockLevel",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "transfers_source",
+          "target": "Transfer",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "transfers_destination",
+          "target": "Transfer",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "sale_lines",
+          "target": "SaleLine",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "service_parts",
+          "target": "ServicePart",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "exchange_transactions",
+          "target": "ExchangeTransaction",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "shipment_items",
+          "target": "ShipmentItem",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "shipments_received",
+          "target": "Shipment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "preorders",
+          "target": "PreOrder",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "partner_shares",
+          "target": "WarehousePartnerShare",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "expenses",
+          "target": "Expense",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "stock_adjustments",
+          "target": "StockAdjustment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "children",
+          "target": "Warehouse",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "import_runs",
+          "target": "ImportRun",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "StockLevel": {
+      "table_name": "stock_levels",
+      "class_name": "StockLevel",
+      "columns_count": 9,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "product_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "warehouse_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "quantity",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "reserved_quantity",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "min_stock",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "max_stock",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 2,
+      "relationships": [
+        {
+          "name": "product",
+          "target": "Product",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "warehouse",
+          "target": "Warehouse",
+          "uselist": false,
+          "type": "many-to-one"
+        }
+      ]
+    },
+    "Note": {
+      "table_name": "notes",
+      "class_name": "Note",
+      "columns_count": 14,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "content",
+          "type": "TEXT",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "author_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "entity_type",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "entity_id",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_pinned",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "priority",
+          "type": "VARCHAR(6)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "target_type",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "target_ids",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notification_type",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notification_date",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_sent",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 1,
+      "relationships": [
+        {
+          "name": "author",
+          "target": "User",
+          "uselist": false,
+          "type": "many-to-one"
+        }
+      ]
+    },
+    "Shipment": {
+      "table_name": "shipments",
+      "class_name": "Shipment",
+      "columns_count": 36,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "number",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "shipment_number",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "date",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "shipment_date",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "expected_arrival",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "actual_arrival",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "delivered_date",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "origin",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "destination",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "destination_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "value_before",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "shipping_cost",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "customs",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "vat",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "insurance",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_cost",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "carrier",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tracking_number",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "sale_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "weight",
+          "type": "NUMERIC(10, 3)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "dimensions",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "package_count",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "priority",
+          "type": "VARCHAR(20)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "delivery_method",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "delivery_instructions",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "customs_declaration",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "customs_cleared_date",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "delivery_attempts",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "last_delivery_attempt",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "return_reason",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 7,
+      "relationships": [
+        {
+          "name": "items",
+          "target": "ShipmentItem",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "partners",
+          "target": "ShipmentPartner",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "payments",
+          "target": "Payment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "sale",
+          "target": "Sale",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "destination_warehouse",
+          "target": "Warehouse",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "expenses",
+          "target": "Expense",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "gl_batches",
+          "target": "GLBatch",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "AuditLog": {
+      "table_name": "audit_logs",
+      "class_name": "AuditLog",
+      "columns_count": 12,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "model_name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "record_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "customer_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "user_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "action",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "old_data",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "new_data",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "ip_address",
+          "type": "VARCHAR(45)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "user_agent",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 0,
+      "relationships": []
+    },
+    "Role": {
+      "table_name": "roles",
+      "class_name": "Role",
+      "columns_count": 4,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(50)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_default",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 2,
+      "relationships": [
+        {
+          "name": "permissions",
+          "target": "Permission",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "users",
+          "target": "User",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "Permission": {
+      "table_name": "permissions",
+      "class_name": "Permission",
+      "columns_count": 8,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "code",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "name_ar",
+          "type": "VARCHAR(120)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "module",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_protected",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "aliases",
+          "type": "JSON",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 2,
+      "relationships": [
+        {
+          "name": "extra_users",
+          "target": "User",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "role_permissions",
+          "target": "Role",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "ExchangeTransaction": {
+      "table_name": "exchange_transactions",
+      "class_name": "ExchangeTransaction",
+      "columns_count": 12,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "product_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "warehouse_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "partner_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "quantity",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "direction",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "unit_cost",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_priced",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 5,
+      "relationships": [
+        {
+          "name": "product",
+          "target": "Product",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "warehouse",
+          "target": "Warehouse",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "supplier",
+          "target": "Supplier",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "partner",
+          "target": "Partner",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "gl_batches",
+          "target": "GLBatch",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "Expense": {
+      "table_name": "expenses",
+      "class_name": "Expense",
+      "columns_count": 34,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "date",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "amount",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "type_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "employee_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "warehouse_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "partner_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "shipment_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "utility_account_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "stock_adjustment_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "payee_type",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "payee_entity_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "payee_name",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "beneficiary_name",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "paid_to",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "period_start",
+          "type": "DATE",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "period_end",
+          "type": "DATE",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "payment_method",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "payment_details",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tax_invoice_number",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "check_number",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "check_bank",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "check_due_date",
+          "type": "DATE",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "bank_transfer_ref",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "card_number",
+          "type": "VARCHAR(8)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "card_holder",
+          "type": "VARCHAR(120)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "card_expiry",
+          "type": "VARCHAR(10)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "online_gateway",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "online_ref",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 9,
+      "relationships": [
+        {
+          "name": "employee",
+          "target": "Employee",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "type",
+          "target": "ExpenseType",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "warehouse",
+          "target": "Warehouse",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "partner",
+          "target": "Partner",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "shipment",
+          "target": "Shipment",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "utility_account",
+          "target": "UtilityAccount",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "stock_adjustment",
+          "target": "StockAdjustment",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "payments",
+          "target": "Payment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "gl_batches",
+          "target": "GLBatch",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "ExpenseType": {
+      "table_name": "expense_types",
+      "class_name": "ExpenseType",
+      "columns_count": 6,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 1,
+      "relationships": [
+        {
+          "name": "expenses",
+          "target": "Expense",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "Account": {
+      "table_name": "accounts",
+      "class_name": "Account",
+      "columns_count": 7,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "code",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "type",
+          "type": "VARCHAR(9)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 0,
+      "relationships": []
+    },
+    "Partner": {
+      "table_name": "partners",
+      "class_name": "Partner",
+      "columns_count": 13,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "contact_info",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "identity_number",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "phone_number",
+          "type": "VARCHAR(20)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(120)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "address",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "balance",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "share_percentage",
+          "type": "NUMERIC(5, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 13,
+      "relationships": [
+        {
+          "name": "warehouses",
+          "target": "Warehouse",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "payments",
+          "target": "Payment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "preorders",
+          "target": "PreOrder",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "invoices",
+          "target": "Invoice",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "shipment_partners",
+          "target": "ShipmentPartner",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "warehouse_shares",
+          "target": "WarehousePartnerShare",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "shares",
+          "target": "WarehousePartnerShare",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "product_shares",
+          "target": "ProductPartnerShare",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "product_links",
+          "target": "ProductPartner",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "service_parts",
+          "target": "ServicePart",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "service_tasks",
+          "target": "ServiceTask",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "expenses",
+          "target": "Expense",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "settlements",
+          "target": "PartnerSettlement",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "PartnerSettlement": {
+      "table_name": "partner_settlements",
+      "class_name": "PartnerSettlement",
+      "columns_count": 14,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "code",
+          "type": "VARCHAR(40)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "partner_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "from_date",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "to_date",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(9)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_gross",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_share",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_costs",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_due",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 2,
+      "relationships": [
+        {
+          "name": "partner",
+          "target": "Partner",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "lines",
+          "target": "PartnerSettlementLine",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "SupplierSettlement": {
+      "table_name": "supplier_settlements",
+      "class_name": "SupplierSettlement",
+      "columns_count": 13,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "code",
+          "type": "VARCHAR(40)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "from_date",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "to_date",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(9)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "mode",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_gross",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "total_due",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 2,
+      "relationships": [
+        {
+          "name": "supplier",
+          "target": "Supplier",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "lines",
+          "target": "SupplierSettlementLine",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "PreOrder": {
+      "table_name": "preorders",
+      "class_name": "PreOrder",
+      "columns_count": 24,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "reference",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "preorder_date",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "expected_date",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "customer_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "partner_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "product_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "warehouse_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "quantity",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "prepaid_amount",
+          "type": "NUMERIC(12, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tax_rate",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(9)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "payment_method",
+          "type": "VARCHAR(6)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "refunded_total",
+          "type": "NUMERIC(12, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "refund_of_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "idempotency_key",
+          "type": "VARCHAR(64)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "cancelled_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "cancelled_by",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "cancel_reason",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 10,
+      "relationships": [
+        {
+          "name": "customer",
+          "target": "Customer",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "supplier",
+          "target": "Supplier",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "partner",
+          "target": "Partner",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "product",
+          "target": "Product",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "warehouse",
+          "target": "Warehouse",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "cancelled_by_user",
+          "target": "User",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "refund_of",
+          "target": "PreOrder",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "payments",
+          "target": "Payment",
+          "uselist": true,
+          "type": "one-to-many"
+        },
+        {
+          "name": "sale",
+          "target": "Sale",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "invoice",
+          "target": "Invoice",
+          "uselist": false,
+          "type": "many-to-one"
+        }
+      ]
+    },
+    "OnlineCart": {
+      "table_name": "online_carts",
+      "class_name": "OnlineCart",
+      "columns_count": 8,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "cart_id",
+          "type": "VARCHAR(50)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "customer_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "session_id",
+          "type": "VARCHAR(100)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(9)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "expires_at",
+          "type": "DATETIME",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 2,
+      "relationships": [
+        {
+          "name": "customer",
+          "target": "Customer",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "items",
+          "target": "OnlineCartItem",
+          "uselist": true,
+          "type": "one-to-many"
+        }
+      ]
+    },
+    "ServicePart": {
+      "table_name": "service_parts",
+      "class_name": "ServicePart",
+      "columns_count": 14,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "service_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "part_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "warehouse_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "quantity",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "unit_price",
+          "type": "NUMERIC(10, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "discount",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tax_rate",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "note",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "partner_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "share_percentage",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 4,
+      "relationships": [
+        {
+          "name": "request",
+          "target": "ServiceRequest",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "part",
+          "target": "Product",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "warehouse",
+          "target": "Warehouse",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "partner",
+          "target": "Partner",
+          "uselist": false,
+          "type": "many-to-one"
+        }
+      ]
+    },
+    "ServiceTask": {
+      "table_name": "service_tasks",
+      "class_name": "ServiceTask",
+      "columns_count": 12,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "service_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "partner_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "share_percentage",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR(200)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "quantity",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "unit_price",
+          "type": "NUMERIC(10, 2)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "discount",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "tax_rate",
+          "type": "NUMERIC(5, 2)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "note",
+          "type": "VARCHAR(200)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 2,
+      "relationships": [
+        {
+          "name": "request",
+          "target": "ServiceRequest",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "partner",
+          "target": "Partner",
+          "uselist": false,
+          "type": "many-to-one"
+        }
+      ]
+    },
+    "Currency": {
+      "table_name": "currencies",
+      "class_name": "Currency",
+      "columns_count": 5,
+      "columns": [
+        {
+          "name": "code",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "symbol",
+          "type": "VARCHAR(10)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "decimals",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 0,
+      "relationships": []
+    },
+    "ProductRating": {
+      "table_name": "product_ratings",
+      "class_name": "ProductRating",
+      "columns_count": 11,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "product_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "customer_id",
+          "type": "INTEGER",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": true
+        },
+        {
+          "name": "rating",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "title",
+          "type": "VARCHAR(255)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "comment",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_verified_purchase",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_approved",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "helpful_count",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 2,
+      "relationships": [
+        {
+          "name": "product",
+          "target": "Product",
+          "uselist": false,
+          "type": "many-to-one"
+        },
+        {
+          "name": "customer",
+          "target": "Customer",
+          "uselist": false,
+          "type": "many-to-one"
+        }
+      ]
+    },
+    "SystemSettings": {
+      "table_name": "system_settings",
+      "class_name": "SystemSettings",
+      "columns_count": 8,
+      "columns": [
+        {
+          "name": "id",
+          "type": "INTEGER",
+          "nullable": false,
+          "primary_key": true,
+          "foreign_key": false
+        },
+        {
+          "name": "key",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "value",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "data_type",
+          "type": "VARCHAR(20)",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "is_public",
+          "type": "BOOLEAN",
+          "nullable": true,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "created_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        },
+        {
+          "name": "updated_at",
+          "type": "DATETIME",
+          "nullable": false,
+          "primary_key": false,
+          "foreign_key": false
+        }
+      ],
+      "relationships_count": 0,
+      "relationships": []
+    }
+  },
+  "functional_mapping": {
+    "الصيانة": {
+      "models": [
+        "ServiceRequest",
+        "ServicePart",
+        "ServiceTask"
+      ],
+      "primary_table": "service_request",
+      "purpose": "إدارة طلبات الصيانة وقطع الغيار والمهام",
+      "keywords": [
+        "صيانة",
+        "إصلاح",
+        "عطل",
+        "تشخيص",
+        "workshop",
+        "service"
+      ]
+    },
+    "النفقات": {
+      "models": [
+        "Expense",
+        "ExpenseType"
+      ],
+      "primary_table": "expense",
+      "purpose": "تتبع المصاريف والنفقات",
+      "keywords": [
+        "نفقة",
+        "مصروف",
+        "مصاريف",
+        "expense"
+      ]
+    },
+    "المحاسبة": {
+      "models": [
+        "Account",
+        "ExchangeTransaction"
+      ],
+      "primary_table": "account",
+      "purpose": "إدارة دفتر الأستاذ والحسابات",
+      "keywords": [
+        "دفتر",
+        "حساب",
+        "محاسبة",
+        "ledger",
+        "accounting"
+      ]
+    },
+    "المتجر": {
+      "models": [
+        "Product",
+        "OnlineCart",
+        "PreOrder",
+        "ProductRating"
+      ],
+      "primary_table": "product",
+      "purpose": "المبيعات والمتجر الإلكتروني",
+      "keywords": [
+        "متجر",
+        "منتج",
+        "طلب",
+        "سلة",
+        "shop",
+        "store",
+        "product"
+      ]
+    },
+    "المبيعات": {
+      "models": [
+        "Invoice",
+        "Payment"
+      ],
+      "primary_table": "invoice",
+      "purpose": "إدارة الفواتير والمدفوعات",
+      "keywords": [
+        "فاتورة",
+        "دفع",
+        "مبيعات",
+        "invoice",
+        "payment",
+        "sales"
+      ]
+    },
+    "العملاء": {
+      "models": [
+        "Customer"
+      ],
+      "primary_table": "customer",
+      "purpose": "إدارة بيانات العملاء",
+      "keywords": [
+        "عميل",
+        "زبون",
+        "customer",
+        "client"
+      ]
+    },
+    "الموردين": {
+      "models": [
+        "Supplier",
+        "SupplierSettlement"
+      ],
+      "primary_table": "supplier",
+      "purpose": "إدارة الموردين والمشتريات",
+      "keywords": [
+        "مورد",
+        "شراء",
+        "supplier",
+        "vendor"
+      ]
+    },
+    "المخازن": {
+      "models": [
+        "Warehouse",
+        "StockLevel",
+        "Shipment"
+      ],
+      "primary_table": "warehouse",
+      "purpose": "إدارة المخزون والشحنات",
+      "keywords": [
+        "مخزن",
+        "مخزون",
+        "شحنة",
+        "warehouse",
+        "stock",
+        "inventory"
+      ]
+    },
+    "الشركاء": {
+      "models": [
+        "Partner",
+        "PartnerSettlement"
+      ],
+      "primary_table": "partner",
+      "purpose": "إدارة الشراكات والتسويات",
+      "keywords": [
+        "شريك",
+        "شراكة",
+        "تسوية",
+        "partner",
+        "settlement"
+      ]
+    },
+    "الضرائب والعملات": {
+      "models": [
+        "ExchangeTransaction",
+        "Currency"
+      ],
+      "primary_table": "exchange_transaction",
+      "purpose": "إدارة أسعار الصرف والضرائب",
+      "keywords": [
+        "ضريبة",
+        "صرف",
+        "عملة",
+        "دولار",
+        "tax",
+        "exchange",
+        "currency"
+      ]
+    },
+    "المستخدمين والأمان": {
+      "models": [
+        "User",
+        "Role",
+        "Permission",
+        "AuditLog"
+      ],
+      "primary_table": "user",
+      "purpose": "إدارة المستخدمين والصلاحيات",
+      "keywords": [
+        "مستخدم",
+        "صلاحية",
+        "دور",
+        "user",
+        "role",
+        "permission",
+        "audit"
+      ]
+    },
+    "الملاحظات": {
+      "models": [
+        "Note"
+      ],
+      "primary_table": "note",
+      "purpose": "إدارة الملاحظات والمذكرات",
+      "keywords": [
+        "ملاحظة",
+        "مذكرة",
+        "note"
+      ]
+    }
+  },
+  "language_mapping": {
+    "مبيعات": [
+      "sales",
+      "invoice",
+      "payment"
+    ],
+    "دفتر": [
+      "ledger",
+      "account"
+    ],
+    "نفقات": [
+      "expense",
+      "expenses"
+    ],
+    "ضرائب": [
+      "tax",
+      "vat"
+    ],
+    "سعر الدولار": [
+      "exchange",
+      "usd",
+      "ils"
+    ],
+    "عملاء": [
+      "customer",
+      "client"
+    ],
+    "موردين": [
+      "supplier",
+      "vendor"
+    ],
+    "متجر": [
+      "shop",
+      "store",
+      "product"
+    ],
+    "صيانة": [
+      "service",
+      "workshop",
+      "repair"
+    ],
+    "مخازن": [
+      "warehouse",
+      "inventory",
+      "stock"
+    ],
+    "شركاء": [
+      "partner",
+      "partnership"
+    ]
+  },
+  "statistics": {
+    "total_tables": 28,
+    "total_columns": 479,
+    "total_relationships": 169
+  }
+}
