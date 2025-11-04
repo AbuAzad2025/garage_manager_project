@@ -34,7 +34,7 @@
 
   <div class="alert alert-primary mb-3">
     <div class="d-flex align-items-center">
-      <i class="fas fa-warehouse fa-2x me-3"></i>
+      <i class="fas fa-warehouse fa-2x ml-3"></i>
       <div>
         <strong>نوع المستودع: {{ wtype }}</strong>
         <div class="small">الحقول المعلّمة بـ <span class="text-danger">*</span> إلزامية</div>
@@ -45,7 +45,7 @@
   <!-- القسم 1: المعلومات الأساسية -->
   <div class="card mb-3 shadow-sm border-primary">
     <div class="card-header bg-primary text-white">
-      <i class="fas fa-info-circle me-1"></i> المعلومات الأساسية
+      <i class="fas fa-info-circle ml-1"></i> المعلومات الأساسية
     </div>
     <div class="card-body">
       <div class="row g-3">
@@ -89,7 +89,7 @@
   <!-- القسم 2: التصنيف -->
   <div class="card mb-3 shadow-sm">
     <div class="card-header bg-secondary text-white">
-      <i class="fas fa-tags me-1"></i> التصنيف والنوع
+      <i class="fas fa-tags ml-1"></i> التصنيف والنوع
     </div>
     <div class="card-body">
       <div class="row g-3">
@@ -132,14 +132,14 @@
   <!-- القسم 3: التسعير والكمية -->
   <div class="card mb-3 shadow-sm border-success">
     <div class="card-header bg-success text-white">
-      <i class="fas fa-dollar-sign me-1"></i> التسعير والكمية
+      <i class="fas fa-dollar-sign ml-1"></i> التسعير والكمية
     </div>
     <div class="card-body">
       <div class="row g-3">
         <!-- الصف الأول: العملة والأسعار الأساسية -->
         <div class="col-md-3">
           <label class="form-label fw-bold">{{ product_form.currency.label.text }} <span class="text-danger">*</span></label>
-          {{ product_form.currency(class_="form-select", id="product_currency", required=True) }}
+          {{ product_form.currency(class_="custom-select", id="product_currency", required=True) }}
           <small class="text-muted"><i class="fas fa-globe text-info"></i> عملة كل الأسعار أدناه</small>
         </div>
         <div class="col-md-3">
@@ -202,7 +202,7 @@
   <div class="card mb-3 shadow-sm border-warning {% if (wtype|upper) == 'PARTNER' %}{% else %}d-none{% endif %}" id="partner-section">
     <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
       <div>
-        <i class="fas fa-handshake me-1"></i> مساهمات الشركاء
+        <i class="fas fa-handshake ml-1"></i> مساهمات الشركاء
         <small class="ms-2">(خاص بمستودعات الشراكة)</small>
       </div>
       <div class="d-flex gap-2">
@@ -257,7 +257,7 @@
   <div class="card mb-3 shadow-sm border-info {% if (wtype|upper) == 'EXCHANGE' %}{% else %}d-none{% endif %}" id="exchange-section">
     <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
       <div>
-        <i class="fas fa-truck-loading me-1"></i> معلومات المورّد/التاجر
+        <i class="fas fa-truck-loading ml-1"></i> معلومات المورّد/التاجر
         <small class="ms-2">(خاص بمستودعات التبادل)</small>
       </div>
       <button type="button" id="add-vendor-btn" class="btn btn-sm btn-light">
@@ -333,7 +333,7 @@
   <!-- القسم 5: تفاصيل إضافية (قابل للطي) -->
   <div class="card mb-3 shadow-sm">
     <div class="card-header" style="cursor: pointer;" data-toggle="collapse" data-target="#additionalDetails" aria-expanded="false">
-      <i class="fas fa-angle-down me-2"></i>
+      <i class="fas fa-angle-down ml-2"></i>
       <strong>تفاصيل إضافية</strong>
       <span class="text-muted small">(اضغط لعرض 21 حقل إضافي)</span>
     </div>
@@ -370,7 +370,7 @@
           </div>
           <div class="col-md-2">
             <label class="form-label">{{ product_form.condition.label.text }}</label>
-            {{ product_form.condition(class_="form-select") }}
+            {{ product_form.condition(class_="custom-select") }}
             <small class="text-muted">جديد/مستعمل/معاد تصنيع</small>
           </div>
           <div class="col-md-2">
@@ -503,10 +503,10 @@
 
   <div class="mt-4 d-flex gap-2">
     <button type="submit" class="btn btn-primary btn-lg">
-      <i class="fas fa-check me-1"></i> حفظ المنتج
+      <i class="fas fa-check ml-1"></i> حفظ المنتج
     </button>
     <a href="{{ url_for('warehouse_bp.products', id=warehouse.id) }}" class="btn btn-secondary btn-lg">
-      <i class="fas fa-arrow-right me-1"></i> عودة
+      <i class="fas fa-arrow-right ml-1"></i> عودة
     </a>
   </div>
 </form>

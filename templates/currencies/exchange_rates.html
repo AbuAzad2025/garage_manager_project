@@ -30,28 +30,28 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
-                    <i class="fas fa-exchange-alt me-2"></i>
+                    <i class="fas fa-exchange-alt ml-2"></i>
                     أسعار الصرف
                 </h3>
                 <div class="card-tools">
-                    <button type="button" class="btn btn-info btn-sm me-2" onclick="updateRates()">
-                        <i class="fas fa-sync-alt me-1"></i>
+                    <button type="button" class="btn btn-info btn-sm ml-2" onclick="updateRates()">
+                        <i class="fas fa-sync-alt ml-1"></i>
                         تحديث من السيرفرات
                     </button>
-                    <button type="button" class="btn btn-warning btn-sm me-2" onclick="refreshMarketRates()">
-                        <i class="fas fa-chart-line me-1"></i>
+                    <button type="button" class="btn btn-warning btn-sm ml-2" onclick="refreshMarketRates()">
+                        <i class="fas fa-chart-line ml-1"></i>
                         تحديث أسعار السوق
                     </button>
-                    <button type="button" class="btn btn-warning btn-sm me-2" onclick="testRate()">
-                        <i class="fas fa-vial me-1"></i>
+                    <button type="button" class="btn btn-warning btn-sm ml-2" onclick="testRate()">
+                        <i class="fas fa-vial ml-1"></i>
                         اختبار سعر
                     </button>
-                    <a href="{{ url_for('currencies.new_exchange_rate') }}" class="btn btn-success btn-sm me-2">
-                        <i class="fas fa-plus me-1"></i>
+                    <a href="{{ url_for('currencies.new_exchange_rate') }}" class="btn btn-success btn-sm ml-2">
+                        <i class="fas fa-plus ml-1"></i>
                         إضافة سعر صرف
                     </a>
                     <a href="{{ url_for('currencies.list') }}" class="btn btn-secondary btn-sm">
-                        <i class="fas fa-coins me-1"></i>
+                        <i class="fas fa-coins ml-1"></i>
                         العملات
                     </a>
                 </div>
@@ -201,7 +201,7 @@
                     <h5 class="text-muted">لا توجد أسعار صرف</h5>
                     <p class="text-muted">ابدأ بإضافة أسعار الصرف للعملات المختلفة</p>
                     <a href="{{ url_for('currencies.new_exchange_rate') }}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i>
+                        <i class="fas fa-plus ml-1"></i>
                         إضافة سعر صرف
                     </a>
                 </div>
@@ -223,7 +223,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <label class="form-label">العملة الأساسية</label>
-                        <select class="form-select" id="testBaseCurrency">
+                        <select class="custom-select" id="testBaseCurrency">
                             <option value="USD">USD - الدولار الأمريكي</option>
                             <option value="EUR">EUR - اليورو</option>
                             <option value="ILS">ILS - الشيكل الإسرائيلي</option>
@@ -232,7 +232,7 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">العملة المقابلة</label>
-                        <select class="form-select" id="testQuoteCurrency">
+                        <select class="custom-select" id="testQuoteCurrency">
                             <option value="ILS">ILS - الشيكل الإسرائيلي</option>
                             <option value="USD">USD - الدولار الأمريكي</option>
                             <option value="EUR">EUR - اليورو</option>

@@ -152,15 +152,17 @@ def payment_summary_report_ils(start_date: date = None, end_date: date = None) -
         from models import convert_amount
         
         if start_date is None:
-            start_date = date.today().replace(day=1)
+            start_date = date.min
         if end_date is None:
             end_date = date.today()
         
-        # الحصول على المدفوعات في الفترة
+        start_dt = datetime.combine(start_date, datetime.min.time())
+        end_dt = datetime.combine(end_date, datetime.max.time())
+        
         payments = db.session.query(Payment).filter(
             and_(
                 Payment.status == PaymentStatus.COMPLETED.value,
-                cast(Payment.payment_date, Date).between(start_date, end_date)
+                Payment.payment_date.between(start_dt, end_dt)
             )
         ).all()
         
@@ -277,11 +279,15 @@ def advanced_report(
         if fld is None:
             raise ValueError(f"Invalid date field: {date_field}")
         if sd and ed:
-            q = q.filter(cast(fld, Date).between(sd, ed))
+            sd_dt = datetime.combine(sd, datetime.min.time())
+            ed_dt = datetime.combine(ed, datetime.max.time())
+            q = q.filter(fld.between(sd_dt, ed_dt))
         elif sd:
-            q = q.filter(cast(fld, Date) >= sd)
+            sd_dt = datetime.combine(sd, datetime.min.time())
+            q = q.filter(fld >= sd_dt)
         else:
-            q = q.filter(cast(fld, Date) <= ed)
+            ed_dt = datetime.combine(ed, datetime.max.time())
+            q = q.filter(fld <= ed_dt)
     if filters:
         for k, v in filters.items():
             fld = getattr(model, k, None)
@@ -523,11 +529,14 @@ def payment_summary_report(start_date, end_date):
     ed = _parse_date_like(end_date) or date.max
     if ed < sd:
         sd, ed = ed, sd
-    ref_date = Payment.payment_date
+    
+    sd_dt = datetime.combine(sd, datetime.min.time())
+    ed_dt = datetime.combine(ed, datetime.max.time())
+    
     base_filters = [
         Payment.status == PaymentStatus.COMPLETED.value,
         Payment.direction == PaymentDirection.IN.value,
-        cast(ref_date, Date).between(sd, ed),
+        Payment.payment_date.between(sd_dt, ed_dt),
     ]
     
     # جلب الدفعات مع Splits
@@ -590,7 +599,12 @@ def service_reports_report(start_date: date | None, end_date: date | None) -> di
     end_date = _parse_date_like(end_date) or date.max
     if end_date < start_date:
         start_date, end_date = end_date, start_date
-    date_cond = cast(ServiceRequest.received_at, Date).between(start_date, end_date)
+    
+    from datetime import datetime as dt
+    start_dt = dt.combine(start_date, dt.min.time())
+    end_dt = dt.combine(end_date, dt.max.time())
+    
+    date_cond = ServiceRequest.received_at.between(start_dt, end_dt)
     total = db.session.query(func.count(ServiceRequest.id)).filter(date_cond).scalar() or 0
     completed = (
         db.session.query(func.count(ServiceRequest.id))
@@ -635,6 +649,25 @@ def service_reports_report(start_date: date | None, end_date: date | None) -> di
         .order_by(ServiceRequest.received_at.desc(), ServiceRequest.id.desc())
     )
     data = []
+    customer_ids = set()
+    mechanic_ids = set()
+    for r in rows_q.all():
+        if r.customer_id:
+            customer_ids.add(r.customer_id)
+        if r.mechanic_id:
+            mechanic_ids.add(r.mechanic_id)
+    
+    from models import Customer, User
+    customers_map = {}
+    if customer_ids:
+        customers = db.session.query(Customer.id, Customer.name).filter(Customer.id.in_(customer_ids)).all()
+        customers_map = {c.id: c.name for c in customers}
+    
+    mechanics_map = {}
+    if mechanic_ids:
+        mechanics = db.session.query(User.id, User.username).filter(User.id.in_(mechanic_ids)).all()
+        mechanics_map = {m.id: m.username for m in mechanics}
+    
     for r in rows_q.all():
         rec_at = r.received_at.isoformat() if r.received_at else None
         data.append(
@@ -644,7 +677,9 @@ def service_reports_report(start_date: date | None, end_date: date | None) -> di
                 "priority": getattr(r.priority, "value", r.priority),
                 "received_at": rec_at,
                 "customer_id": r.customer_id,
+                "customer_name": customers_map.get(r.customer_id, '-'),
                 "mechanic_id": r.mechanic_id,
+                "mechanic_name": mechanics_map.get(r.mechanic_id, '-'),
                 "total": float(r.total or 0),
             }
         )
@@ -763,11 +798,13 @@ def ar_aging_report(start_date=None, end_date=None):
                 except:
                     pass
         
+        as_of_dt = datetime.combine(as_of, datetime.max.time())
+        
         payments_in_direct = db.session.query(Payment).filter(
             Payment.customer_id == cust.id,
             Payment.direction == PaymentDirection.IN.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         payments_in_from_sales = db.session.query(Payment).join(
@@ -776,7 +813,7 @@ def ar_aging_report(start_date=None, end_date=None):
             Sale.customer_id == cust.id,
             Payment.direction == PaymentDirection.IN.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         payments_in_from_invoices = db.session.query(Payment).join(
@@ -785,7 +822,7 @@ def ar_aging_report(start_date=None, end_date=None):
             Invoice.customer_id == cust.id,
             Payment.direction == PaymentDirection.IN.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         payments_in_from_services = db.session.query(Payment).join(
@@ -794,7 +831,7 @@ def ar_aging_report(start_date=None, end_date=None):
             ServiceRequest.customer_id == cust.id,
             Payment.direction == PaymentDirection.IN.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         payments_in_from_preorders = db.session.query(Payment).join(
@@ -803,14 +840,14 @@ def ar_aging_report(start_date=None, end_date=None):
             PreOrder.customer_id == cust.id,
             Payment.direction == PaymentDirection.IN.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         payments_out_direct = db.session.query(Payment).filter(
             Payment.customer_id == cust.id,
             Payment.direction == PaymentDirection.OUT.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         payments_out_from_sales = db.session.query(Payment).join(
@@ -819,7 +856,7 @@ def ar_aging_report(start_date=None, end_date=None):
             Sale.customer_id == cust.id,
             Payment.direction == PaymentDirection.OUT.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         seen_payment_ids = set()
@@ -918,11 +955,13 @@ def ap_aging_report(start_date=None, end_date=None):
             if oldest_date is None or (ref_dt and ref_dt < oldest_date):
                 oldest_date = ref_dt
         
+        as_of_dt = datetime.combine(as_of, datetime.max.time())
+        
         payments_out_direct = db.session.query(Payment).filter(
             Payment.supplier_id == sup.id,
             Payment.direction == PaymentDirection.OUT.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         payments_out_from_invoices = db.session.query(Payment).join(
@@ -931,14 +970,14 @@ def ap_aging_report(start_date=None, end_date=None):
             Invoice.supplier_id == sup.id,
             Payment.direction == PaymentDirection.OUT.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         payments_in_direct = db.session.query(Payment).filter(
             Payment.supplier_id == sup.id,
             Payment.direction == PaymentDirection.IN.value,
             Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            cast(Payment.payment_date, Date) <= as_of
+            Payment.payment_date <= as_of_dt
         ).all()
         
         seen_payment_ids = set()

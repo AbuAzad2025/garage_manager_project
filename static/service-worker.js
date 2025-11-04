@@ -2,9 +2,9 @@
 // 📱 Service Worker for Garage Manager System - PWA Support
 // ═══════════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'garage-manager-v1.0.0';
-const STATIC_CACHE = 'garage-static-v1';
-const DYNAMIC_CACHE = 'garage-dynamic-v1';
+const CACHE_NAME = 'garage-manager-v1.1.0';
+const STATIC_CACHE = 'garage-static-v2';
+const DYNAMIC_CACHE = 'garage-dynamic-v2';
 
 // الملفات المهمة للتخزين المسبق
 const STATIC_FILES = [

@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}الفرق الهندسية{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-users text-info"></i> الفرق الهندسية</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="row mb-3">
+    <div class="col-12">
+        <a href="{{ url_for('engineering.add_team') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> إضافة فريق
+        </a>
+        <a href="{{ url_for('engineering.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> لوحة التحكم
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-info text-white">
+        <h3 class="card-title"><i class="fas fa-list"></i> قائمة الفرق</h3>
+        <div class="card-tools">
+            <button class="btn btn-tool btn-light" onclick="window.print()">
+                <i class="fas fa-print"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>الرمز</th>
+                    <th>اسم الفريق</th>
+                    <th>القائد</th>
+                    <th>التخصص</th>
+                    <th>عدد الأعضاء</th>
+                    <th>المهام النشطة</th>
+                    <th>مركز التكلفة</th>
+                    <th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in teams_data %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.team.code }}</td>
+                    <td>{{ item.team.name }}</td>
+                    <td>{{ item.team.team_leader.name if item.team.team_leader else '-' }}</td>
+                    <td>{{ item.team.specialty }}</td>
+                    <td>{{ item.members_count }}</td>
+                    <td>{{ item.active_tasks }}</td>
+                    <td>{{ item.team.cost_center.name if item.team.cost_center else '-' }}</td>
+                    <td>
+                        {% if item.team.is_active %}
+                            <span class="badge badge-success">نشط</span>
+                        {% else %}
+                            <span class="badge badge-secondary">غير نشط</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+</section>
+{% endblock %}
+
+

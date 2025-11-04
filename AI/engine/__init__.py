@@ -52,6 +52,47 @@ from .ai_conversation import (
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
+# HYBRID ENGINE - المحرك الهجين (Groq + Local)
+# ═══════════════════════════════════════════════════════════════════════════
+
+from .ai_hybrid_engine import (
+    HybridAIEngine,
+    get_hybrid_engine,
+    GROQ_API_KEY,
+    GROQ_ENABLED
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ACTION EXECUTOR - محرك تنفيذ العمليات
+# ═══════════════════════════════════════════════════════════════════════════
+
+from .ai_action_executor import (
+    ActionExecutor,
+    parse_user_request
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# REAL-TIME MONITOR - المراقب الفوري
+# ═══════════════════════════════════════════════════════════════════════════
+
+RealtimeMonitor = None
+ProactiveAssistant = None
+get_realtime_monitor = lambda: None
+get_system_health_status = lambda: {}
+
+from .ai_event_listeners import register_ai_listeners
+
+# ═══════════════════════════════════════════════════════════════════════════
+# AUTO-LEARNING - التعلم التلقائي
+# ═══════════════════════════════════════════════════════════════════════════
+
+from .ai_auto_learning import (
+    AutoLearningEngine,
+    get_auto_learning_engine,
+    schedule_daily_scan
+)
+
+# ═══════════════════════════════════════════════════════════════════════════
 # KNOWLEDGE BASES - قواعد المعرفة
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -122,11 +163,141 @@ from .ai_data_awareness import (
     load_data_schema
 )
 
+from .ai_integrated_intelligence import (
+    IntegratedIntelligence,
+    get_integrated_intelligence
+)
+
+from .ai_learning_system import (
+    LearningSystem,
+    get_learning_system
+)
+
+from .ai_performance_tracker import (
+    PerformanceTracker,
+    get_performance_tracker
+)
+
+from .ai_python_expert import (
+    PythonExpert,
+    get_python_expert
+)
+
+from .ai_database_expert import (
+    DatabaseExpert,
+    get_database_expert
+)
+
+from .ai_web_expert import (
+    WebExpert,
+    get_web_expert
+)
+
+from .ai_user_guide_master import (
+    UserGuideMaster,
+    get_user_guide_master
+)
+
+from .ai_training_engine import (
+    AITrainingEngine,
+    get_training_engine
+)
+
+from .ai_code_quality_monitor import (
+    CodeQualityMonitor,
+    get_code_monitor
+)
+
+from .ai_permissions import (
+    is_ai_enabled,
+    is_ai_visible_to_role,
+    can_ai_execute_action,
+    get_ai_access_level
+)
+
+from .ai_self_evolution import (
+    SelfEvolutionEngine,
+    get_evolution_engine
+)
+
+from .ai_unified_mind import (
+    UnifiedMind,
+    get_unified_mind
+)
+
+from .ai_accounting_auditor import (
+    AccountingAuditor,
+    get_accounting_auditor
+)
+
+from .ai_reasoning_engine import (
+    ReasoningEngine,
+    get_reasoning_engine
+)
+
+from .ai_master_controller import (
+    MasterController,
+    get_master_controller
+)
+
+from .ai_continuous_learner import (
+    ContinuousLearner,
+    get_continuous_learner
+)
+
+from .ai_book_reader import (
+    BookReader,
+    get_book_reader
+)
+
+from .ai_deep_memory import (
+    DeepMemory,
+    get_deep_memory
+)
+
+from .ai_comprehension_engine import (
+    ComprehensionEngine,
+    get_comprehension_engine
+)
+
+from .ai_intensive_trainer import (
+    IntensiveTrainer,
+    get_intensive_trainer
+)
+
+from .ai_specialized_training import (
+    SpecializedTraining,
+    get_specialized_training
+)
+
 # ═══════════════════════════════════════════════════════════════════════════
 # EXPORTS - التصدير الشامل
 # ═══════════════════════════════════════════════════════════════════════════
 
 __all__ = [
+    'get_master_controller',
+    'get_continuous_learner',
+    'get_book_reader',
+    'get_deep_memory',
+    'get_comprehension_engine',
+    'get_intensive_trainer',
+    'get_specialized_training',
+    'get_unified_mind',
+    'get_reasoning_engine',
+    'get_accounting_auditor',
+    'get_integrated_intelligence',
+    'get_learning_system',
+    'get_performance_tracker',
+    'get_evolution_engine',
+    'get_python_expert',
+    'get_database_expert',
+    'get_web_expert',
+    'get_user_guide_master',
+    'get_training_engine',
+    'get_code_monitor',
+    'is_ai_enabled',
+    'is_ai_visible_to_role',
+    'can_ai_execute_action',
     # Core Services
     'ai_chat_with_search',
     'gather_system_context',
@@ -146,6 +317,28 @@ __all__ = [
     'get_local_faq_responses',
     'match_local_response',
     'get_conversation_stats',
+    
+    # Hybrid Engine
+    'HybridAIEngine',
+    'get_hybrid_engine',
+    'GROQ_API_KEY',
+    'GROQ_ENABLED',
+    
+    # Action Executor
+    'ActionExecutor',
+    'parse_user_request',
+    
+    # Real-time Monitor
+    'RealtimeMonitor',
+    'ProactiveAssistant',
+    'get_realtime_monitor',
+    'get_system_health_status',
+    'register_ai_listeners',
+    
+    # Auto-Learning
+    'AutoLearningEngine',
+    'get_auto_learning_engine',
+    'schedule_daily_scan',
     
     # Knowledge Bases
     'get_knowledge_base',

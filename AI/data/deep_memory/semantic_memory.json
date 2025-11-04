@@ -1,0 +1,5270 @@
+{
+  "461158be1f45fd8fbbf69f5b050d4dc4": {
+    "concept": "Model: AuthAudit",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "user"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:25.477947",
+    "mastery_level": 0
+  },
+  "d264487da456b90043305f28e37e25fe": {
+    "concept": "Model: Branch",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "manager_user",
+      "manager_employee",
+      "archived_by_user",
+      "sites",
+      "employees",
+      "expenses",
+      "warehouses",
+      "user_branches",
+      "budgets",
+      "assets",
+      "bank_accounts",
+      "projects"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:25.548482",
+    "mastery_level": 0
+  },
+  "3d775f9556a44eab87c527d06ea37fee": {
+    "concept": "Model: ShipmentPartner",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "partner",
+      "shipment"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:26.026381",
+    "mastery_level": 0
+  },
+  "6e8cb3ed2527eb7ab8d9a398d520df0a": {
+    "concept": "Model: SaaSPlan",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "subscriptions"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:26.126545",
+    "mastery_level": 0
+  },
+  "4c61e84bd4813b55fd68b4edce65a0ee": {
+    "concept": "Model: Customer",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "sales",
+      "preorders",
+      "invoices",
+      "payments",
+      "service_requests",
+      "online_carts",
+      "online_preorders",
+      "archived_by_user",
+      "notifications",
+      "tax_entries",
+      "supplier_link",
+      "partner_link",
+      "product_ratings",
+      "loyalty",
+      "loyalty_points",
+      "independent_checks",
+      "saas_subscriptions",
+      "projects"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:26.185886",
+    "mastery_level": 0
+  },
+  "706a1af68c8e556696a8b95277fa4470": {
+    "concept": "Model: OnlinePreOrder",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "warehouse",
+      "customer",
+      "cart",
+      "items",
+      "payments"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:26.663128",
+    "mastery_level": 0
+  },
+  "bfc3db744e4c13077edd54747f9e532e": {
+    "concept": "Model: NotificationLog",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "user"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.861665",
+    "mastery_level": 0
+  },
+  "e52504f7286eac7d033330e3d9f139b5": {
+    "concept": "Model: PartnerSettlement",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "partner",
+      "lines"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:26.799242",
+    "mastery_level": 0
+  },
+  "e150215ad4fb9a58d6c7ee33f64934d2": {
+    "concept": "Model: Sale",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "seller",
+      "cancelled_by_user",
+      "archived_by_user",
+      "preorder",
+      "refund_of",
+      "lines",
+      "payments",
+      "invoice",
+      "shipments",
+      "gl_batches"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:24.024493",
+    "mastery_level": 0
+  },
+  "2ce678f54c81b3c762fc64075b847f55": {
+    "concept": "Model: ExpenseType",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "expenses"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.519200",
+    "mastery_level": 0
+  },
+  "f072241c6bb1ed1c6193990951b208b9": {
+    "concept": "Model: CostCenter",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "parent",
+      "manager",
+      "children",
+      "allocations",
+      "projects"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:25.267859",
+    "mastery_level": 0
+  },
+  "1e588205e7dbb732a53b8d00d2c1c49a": {
+    "concept": "Model: EquipmentType",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "products",
+      "service_requests"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:26.846081",
+    "mastery_level": 0
+  },
+  "f29520d87d0859092cc7584b52c59d62": {
+    "concept": "Model: ExchangeTransaction",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "product",
+      "warehouse",
+      "supplier",
+      "partner",
+      "gl_batches"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:19.686594",
+    "mastery_level": 0
+  },
+  "6bb42302949a3a43bfbb76c955a03844": {
+    "concept": "Model: AssetDepreciation",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "asset",
+      "gl_batch"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:19.760977",
+    "mastery_level": 0
+  },
+  "6afa5d33c0f82bb57fb2853d4ec61efb": {
+    "concept": "Model: ProductSupplierLoan",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "product",
+      "supplier",
+      "settlements"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:19.794354",
+    "mastery_level": 0
+  },
+  "81bde86b0df09656c83ab5f9997bad65": {
+    "concept": "Model: ProductRating",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "product",
+      "customer"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:19.836243",
+    "mastery_level": 0
+  },
+  "9f2bcc1d6a68c5243a305c8b430a0322": {
+    "concept": "Model: DeletionLog",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "deleted_by_user",
+      "restored_by_user"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:25.071326",
+    "mastery_level": 0
+  },
+  "85c186195636d77a9ad9a37f9bc3e7f8": {
+    "concept": "Model: User",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "role",
+      "extra_permissions",
+      "mechanic_service_requests",
+      "cancelled_service_requests",
+      "sales",
+      "cancelled_sales",
+      "archived_records",
+      "archives",
+      "notifications_sent",
+      "tax_entries_created",
+      "deletions_made",
+      "deletions_restored",
+      "auth_events",
+      "user_branches",
+      "import_runs",
+      "payments_created",
+      "notes",
+      "checks_created",
+      "imported_statements",
+      "reconciliations_done",
+      "reconciliations_approved",
+      "managed_cost_centers",
+      "managed_projects"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:19.867347",
+    "mastery_level": 0
+  },
+  "c6443039134cef4621dd0ca563b707d8": {
+    "concept": "Model: Site",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "branch",
+      "manager_user",
+      "manager_employee",
+      "archived_by_user",
+      "employees",
+      "expenses",
+      "budgets",
+      "assets"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.134152",
+    "mastery_level": 0
+  },
+  "3892952941d4a053254599f7ac9b3971": {
+    "concept": "Model: ServiceRequest",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "mechanic",
+      "cancelled_by_user",
+      "archived_by_user",
+      "vehicle_type",
+      "invoice",
+      "payments",
+      "parts",
+      "tasks",
+      "gl_batches",
+      "refund_of"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.235878",
+    "mastery_level": 0
+  },
+  "eb67d8b604021a45c1a5acfda9e9fdc2": {
+    "concept": "Model: SaaSSubscription",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "plan",
+      "cancelled_by_user",
+      "invoices"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.379072",
+    "mastery_level": 0
+  },
+  "02d6f98c7441a43cef7eb8c1d0dff2f1": {
+    "concept": "Model: Supplier",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "payments",
+      "invoices",
+      "preorders",
+      "warehouses",
+      "loan_settlements",
+      "archived_by_user",
+      "tax_entries",
+      "settlements",
+      "loaned_products",
+      "independent_checks"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.430469",
+    "mastery_level": 0
+  },
+  "3d91e9ca0879faf3cd7e16ff0fc9f0e5": {
+    "concept": "Model: OnlinePreOrderItem",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "order",
+      "product"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.562856",
+    "mastery_level": 0
+  },
+  "7b2c74f367722d03077cb16eb9057960": {
+    "concept": "Model: PartnerSettlementLine",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "settlement",
+      "product",
+      "warehouse"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.595115",
+    "mastery_level": 0
+  },
+  "cab2d7356d5186aefbe15352dc7eb517": {
+    "concept": "Model: Expense",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "employee",
+      "branch",
+      "site",
+      "type",
+      "warehouse",
+      "partner",
+      "shipment",
+      "utility_account",
+      "stock_adjustment",
+      "archived_by_user",
+      "payments",
+      "gl_batches",
+      "asset_maintenance"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.636315",
+    "mastery_level": 0
+  },
+  "c41d489cd398bdf18e8f31e7177cadf2": {
+    "concept": "Model: CostCenterAllocation",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "cost_center"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.800800",
+    "mastery_level": 0
+  },
+  "fff6a11038f6c6e8f52c865571b625d6": {
+    "concept": "Model: ProductCategory",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "parent",
+      "products",
+      "subcategories"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.819267",
+    "mastery_level": 0
+  },
+  "88438e8576325aaef65b75874de7e33b": {
+    "concept": "Model: WarehousePartnerShare",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "partner",
+      "warehouse",
+      "product"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.892429",
+    "mastery_level": 0
+  },
+  "48e7f3a3046d366ef81b32546827de20": {
+    "concept": "Model: AssetMaintenance",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "asset",
+      "expense"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.933513",
+    "mastery_level": 0
+  },
+  "36a139a667a73499718cf957cfa5447c": {
+    "concept": "Model: TaxEntry",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "supplier",
+      "creator"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:20.965380",
+    "mastery_level": 0
+  },
+  "84418d09e47004a1f771278dd32ce40b": {
+    "concept": "Model: Payment",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "creator",
+      "customer",
+      "supplier",
+      "partner",
+      "shipment",
+      "expense",
+      "loan_settlement",
+      "sale",
+      "invoice",
+      "preorder",
+      "service",
+      "refund_of",
+      "archived_by_user",
+      "splits",
+      "gl_batches",
+      "related_check",
+      "bank_transactions"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.007904",
+    "mastery_level": 0
+  },
+  "57a04f537e7d3600f114923178f03684": {
+    "concept": "Model: ProductRatingHelpful",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "rating",
+      "customer"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.210099",
+    "mastery_level": 0
+  },
+  "19dcd21fc77927b3ea2fd6c1e98e53dd": {
+    "concept": "Model: Permission",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "extra_users",
+      "role_permissions"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.243469",
+    "mastery_level": 0
+  },
+  "3cba11c32fbc3ce7bb2fecb640c1fd89": {
+    "concept": "Model: UserBranch",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "user",
+      "branch"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.274209",
+    "mastery_level": 0
+  },
+  "dc64f05be807bee8ea7adcca9aecc34c": {
+    "concept": "Model: SaaSInvoice",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "subscription"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.310732",
+    "mastery_level": 0
+  },
+  "4d03d2d264c0546a26a1fa956d5945de": {
+    "concept": "Model: SaleLine",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "sale",
+      "product",
+      "warehouse"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.337417",
+    "mastery_level": 0
+  },
+  "383dc6cf13fe7489984c3a9567fdb5ae": {
+    "concept": "Model: AuditLog",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.383793",
+    "mastery_level": 0
+  },
+  "f92231a14b4094817e5e79a16e735038": {
+    "concept": "Model: Project",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "client",
+      "cost_center",
+      "manager",
+      "branch",
+      "phases",
+      "costs",
+      "revenues"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.391931",
+    "mastery_level": 0
+  },
+  "720d623ec3deab3d165316d041b5b497": {
+    "concept": "Model: ServicePart",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "request",
+      "part",
+      "warehouse",
+      "partner"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.477065",
+    "mastery_level": 0
+  },
+  "eb96d7c1bd6fe446e624887e84a937b5": {
+    "concept": "Model: SupplierSettlement",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "supplier",
+      "lines"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.529901",
+    "mastery_level": 0
+  },
+  "828e042fc85d99e61aaf056d22b06baf": {
+    "concept": "Model: ProductPartnerShare",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "partner",
+      "warehouse",
+      "product"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.560277",
+    "mastery_level": 0
+  },
+  "bae4060f09792b4f1e770ae0a2ee1f6d": {
+    "concept": "Model: OnlinePayment",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "order"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.602895",
+    "mastery_level": 0
+  },
+  "e730226896a773402f581ffe4c79c95c": {
+    "concept": "Model: BankAccount",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "branch",
+      "gl_account",
+      "statements",
+      "transactions",
+      "reconciliations"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.622551",
+    "mastery_level": 0
+  },
+  "baaea7f0ac2d929dae9a0efc80aa1368": {
+    "concept": "Model: Employee",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "expenses",
+      "branch",
+      "site",
+      "deductions",
+      "advances",
+      "advance_installments"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.690776",
+    "mastery_level": 0
+  },
+  "23477c231fc639e47793daad297c1f2e": {
+    "concept": "Model: ExchangeRate",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.771811",
+    "mastery_level": 0
+  },
+  "9c0a0bc369b7ec91fb10fda72f829b0d": {
+    "concept": "Model: PaymentSplit",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "payment"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.780702",
+    "mastery_level": 0
+  },
+  "dc4af4e3eeaa3bff461f7fe26244599a": {
+    "concept": "Model: CustomerLoyalty",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.801506",
+    "mastery_level": 0
+  },
+  "d87a73a851cf6a1dc5931dacae2d404b": {
+    "concept": "Model: Role",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "permissions",
+      "users"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.875197",
+    "mastery_level": 0
+  },
+  "bcc689bebbcd3749c4834dd85c2382be": {
+    "concept": "Model: Warehouse",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "parent",
+      "supplier",
+      "branch",
+      "partner",
+      "stock_levels",
+      "transfers_source",
+      "transfers_destination",
+      "sale_lines",
+      "service_parts",
+      "exchange_transactions",
+      "shipment_items",
+      "shipments_received",
+      "preorders",
+      "partner_shares",
+      "expenses",
+      "stock_adjustments",
+      "children",
+      "import_runs"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.906097",
+    "mastery_level": 0
+  },
+  "1260fdeb1e60d42baf98fb52629a5a93": {
+    "concept": "Model: Budget",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "account",
+      "branch",
+      "site",
+      "commitments"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:21.821744",
+    "mastery_level": 0
+  },
+  "4e0337cb00b4f4662bc5b978a58397f1": {
+    "concept": "Model: SaleReturn",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "sale",
+      "customer",
+      "warehouse",
+      "credit_note",
+      "lines"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.116713",
+    "mastery_level": 0
+  },
+  "26512b2857587f995519dbfa13e10eb6": {
+    "concept": "Model: Note",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "author"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.181416",
+    "mastery_level": 0
+  },
+  "f2fc2de5db0e2b8885d5644a202b53df": {
+    "concept": "Model: ProjectPhase",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "costs",
+      "revenues"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.201326",
+    "mastery_level": 0
+  },
+  "a00be3240d954fcf6c45f73ff89d3361": {
+    "concept": "Model: ServiceTask",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "request",
+      "partner"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.249979",
+    "mastery_level": 0
+  },
+  "a47bb6a5434f124c3fdd0c7b0cd3f0e9": {
+    "concept": "Model: SupplierSettlementLine",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "settlement",
+      "product"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.284447",
+    "mastery_level": 0
+  },
+  "3400b137ff1518b0f145faefd1074f77": {
+    "concept": "Model: ProductPartner",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "product",
+      "partner"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.314191",
+    "mastery_level": 0
+  },
+  "fa1e199df4d63f7a387aa0d625b3e69e": {
+    "concept": "Model: UtilityAccount",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "expenses"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.344717",
+    "mastery_level": 0
+  },
+  "faa413fef46ce37847771111738cf98b": {
+    "concept": "Model: BankStatement",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "bank_account",
+      "importer",
+      "transactions"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.369032",
+    "mastery_level": 0
+  },
+  "114c295da0b8987ecb33c34b6e4a7e92": {
+    "concept": "Model: Currency",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.418889",
+    "mastery_level": 0
+  },
+  "ff1c113fe0e297ae56fcb05fcc0a6f30": {
+    "concept": "Model: EmployeeDeduction",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "employee",
+      "expense"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.427121",
+    "mastery_level": 0
+  },
+  "32d6b31bba60e55ecb274414d38c0f41": {
+    "concept": "Model: ShipmentItem",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "shipment",
+      "product",
+      "warehouse"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.458598",
+    "mastery_level": 0
+  },
+  "6f365ae68b7d84a5aa11f6b57ec1cb6d": {
+    "concept": "Model: CustomerLoyaltyPoints",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.500822",
+    "mastery_level": 0
+  },
+  "fe3f33f65d58319fd923113548fb45b2": {
+    "concept": "Model: StockLevel",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "product",
+      "warehouse"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.538827",
+    "mastery_level": 0
+  },
+  "badcd87bc691c1806afece68ac2d1786": {
+    "concept": "Model: BudgetCommitment",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "budget"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.569861",
+    "mastery_level": 0
+  },
+  "5c943c7ccf33024de6792369fc2c6864": {
+    "concept": "Model: SaleReturnLine",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "sale_return",
+      "product",
+      "warehouse"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.589762",
+    "mastery_level": 0
+  },
+  "24bab2a51d0ea5b6a3932d265504f90b": {
+    "concept": "Model: Account",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "budgets",
+      "asset_categories",
+      "depreciation_categories",
+      "bank_accounts"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.631349",
+    "mastery_level": 0
+  },
+  "7798a9f5029832c231c447a9f5a4332f": {
+    "concept": "Model: ProjectCost",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "phase",
+      "gl_batch"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.688223",
+    "mastery_level": 0
+  },
+  "8a3cf1aa216a293adc9f69ccf5c94b20": {
+    "concept": "Model: OnlineCart",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "items"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.734373",
+    "mastery_level": 0
+  },
+  "e5f79da2562c58db2f6e159e11d8d4e7": {
+    "concept": "Model: SystemSettings",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.775390",
+    "mastery_level": 0
+  },
+  "543be6c1afd4b534cdbdfb31932dbd5c": {
+    "concept": "Model: SupplierLoanSettlement",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "loan",
+      "supplier",
+      "payment"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.784118",
+    "mastery_level": 0
+  },
+  "6d8f0fe0639b71eb37437d42c3dba10d": {
+    "concept": "Model: PreOrder",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "supplier",
+      "partner",
+      "product",
+      "warehouse",
+      "cancelled_by_user",
+      "refund_of",
+      "payments",
+      "sale",
+      "invoice"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.826894",
+    "mastery_level": 0
+  },
+  "fdc230fe84ff4f573d00ba674087740e": {
+    "concept": "Model: StockAdjustment",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "warehouse",
+      "items",
+      "expense"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.950648",
+    "mastery_level": 0
+  },
+  "10d51aab2a09a39c6fb76faf36b2b7b0": {
+    "concept": "Model: EmployeeAdvance",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "employee",
+      "expense"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:22.991434",
+    "mastery_level": 0
+  },
+  "be2e6614e3a49d4b4fafe7f5bf3f2a6a": {
+    "concept": "Model: BankTransaction",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "bank_account",
+      "statement",
+      "payment",
+      "gl_batch"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.022436",
+    "mastery_level": 0
+  },
+  "64a675b32757f654f507e389909397c5": {
+    "concept": "Model: Shipment",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "items",
+      "partners",
+      "payments",
+      "sale",
+      "destination_warehouse",
+      "expenses",
+      "archived_by_user",
+      "gl_batches"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.076148",
+    "mastery_level": 0
+  },
+  "05ec812ab8bf2775ac255dff923fb181": {
+    "concept": "Model: Check",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "supplier",
+      "partner",
+      "payment",
+      "created_by",
+      "archived_by_user"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.174926",
+    "mastery_level": 0
+  },
+  "ca41a077b379951e0595b52ebac47f3e": {
+    "concept": "Model: InvoiceLine",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "invoice",
+      "product"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:25.112981",
+    "mastery_level": 0
+  },
+  "d06f99c58b28d7b35bd40bb316d68b44": {
+    "concept": "Model: ImportRun",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "warehouse",
+      "user"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.252422",
+    "mastery_level": 0
+  },
+  "4cb9ed28bafe19a6635addc5c663ede5": {
+    "concept": "Model: FixedAssetCategory",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "account",
+      "depreciation_account",
+      "assets"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.283354",
+    "mastery_level": 0
+  },
+  "55ac64cfed54d105ee8388c06c7710be": {
+    "concept": "Model: Archive",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "user",
+      "archiver"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:25.023390",
+    "mastery_level": 0
+  },
+  "c9f99499ca0652dc2d8184719104b0d9": {
+    "concept": "Model: Invoice",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "supplier",
+      "partner",
+      "sale",
+      "service",
+      "preorder",
+      "cancelled_by_user",
+      "refund_of",
+      "credit_for",
+      "lines",
+      "payments",
+      "gl_batches",
+      "refunds",
+      "credit_notes"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.326778",
+    "mastery_level": 0
+  },
+  "5068be8380dcf4179394677d8613e3b6": {
+    "concept": "Model: GLBatch",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "entries",
+      "asset_depreciations",
+      "bank_transactions",
+      "project_costs",
+      "project_revenues"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.502609",
+    "mastery_level": 0
+  },
+  "0ffb620ed12e7fa17b7d0e47609b687a": {
+    "concept": "Model: ProjectRevenue",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "phase",
+      "gl_batch"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.575357",
+    "mastery_level": 0
+  },
+  "e96ac5ad9fc75f8b812e0525b9f10fbf": {
+    "concept": "Model: Product",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "category",
+      "vehicle_type",
+      "supplier_general",
+      "supplier_international",
+      "supplier_local",
+      "partners",
+      "partner_shares",
+      "supplier_loans",
+      "transfers",
+      "preorders",
+      "shipment_items",
+      "exchange_transactions",
+      "sale_lines",
+      "service_parts",
+      "online_cart_items",
+      "online_preorder_items",
+      "stock_levels",
+      "stock_adjustment_items",
+      "ratings"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.629861",
+    "mastery_level": 0
+  },
+  "02fd0912467ba5c4192ed9ae98293096": {
+    "concept": "Model: OnlineCartItem",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "cart",
+      "product"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:23.979509",
+    "mastery_level": 0
+  },
+  "1ca42297ea0319bcb45aad8d34588f96": {
+    "concept": "Model: Partner",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "warehouses",
+      "payments",
+      "preorders",
+      "invoices",
+      "shipment_partners",
+      "archived_by_user",
+      "warehouse_shares",
+      "shares",
+      "product_shares",
+      "product_links",
+      "service_parts",
+      "service_tasks",
+      "expenses",
+      "settlements",
+      "independent_checks",
+      "supplied_assets"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:24.239484",
+    "mastery_level": 0
+  },
+  "0ab8d098d7597a0d925356c17acbeb3f": {
+    "concept": "Model: StockAdjustmentItem",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "adjustment",
+      "product",
+      "warehouse"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:24.589124",
+    "mastery_level": 0
+  },
+  "54461fc152fb1c814dc61e3ee1c003f8": {
+    "concept": "Model: BankReconciliation",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "bank_account",
+      "reconciler",
+      "approver"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:24.664635",
+    "mastery_level": 0
+  },
+  "62c76654166bcd5199e25e011b230536": {
+    "concept": "Model: EmployeeAdvanceInstallment",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "employee",
+      "advance_expense",
+      "salary_expense"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:24.730898",
+    "mastery_level": 0
+  },
+  "2ec630a080c7b124c56efaeb73ce25c5": {
+    "concept": "Model: Transfer",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "product",
+      "source_warehouse",
+      "destination_warehouse",
+      "user"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:24.801209",
+    "mastery_level": 0
+  },
+  "fdd598109d0ffece3e80c2b57088dbe9": {
+    "concept": "Model: FixedAsset",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "category",
+      "branch",
+      "site",
+      "supplier",
+      "depreciations",
+      "maintenance_records"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:24.893134",
+    "mastery_level": 0
+  },
+  "2795dcbafd518795fb7d3ac5ded1d359": {
+    "concept": "Model: GLEntry",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "batch"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-02T04:17:25.189079",
+    "mastery_level": 0
+  },
+  "d8e1f0da77ba60877af482e6d57c8a9e": {
+    "concept": "Form: ArchiveForm",
+    "definition": "نموذج إدخال في ملف archive.py",
+    "examples": [],
+    "related_concepts": [
+      "forms",
+      "validation"
+    ],
+    "created_at": "2025-11-02T04:17:46.624189",
+    "mastery_level": 0
+  },
+  "3f5e3e77790e504a56ab02febe604bf6": {
+    "concept": "Form: ArchiveSearchForm",
+    "definition": "نموذج إدخال في ملف archive.py",
+    "examples": [],
+    "related_concepts": [
+      "forms",
+      "validation"
+    ],
+    "created_at": "2025-11-02T04:17:46.645919",
+    "mastery_level": 0
+  },
+  "a8d91a8ad4b5f09a2162defba2962c01": {
+    "concept": "Form: BulkArchiveForm",
+    "definition": "نموذج إدخال في ملف archive.py",
+    "examples": [],
+    "related_concepts": [
+      "forms",
+      "validation"
+    ],
+    "created_at": "2025-11-02T04:17:46.666932",
+    "mastery_level": 0
+  },
+  "b3efb05db41ed744689069c26357a791": {
+    "concept": "Form: ArchiveRestoreForm",
+    "definition": "نموذج إدخال في ملف archive.py",
+    "examples": [],
+    "related_concepts": [
+      "forms",
+      "validation"
+    ],
+    "created_at": "2025-11-02T04:17:46.689315",
+    "mastery_level": 0
+  },
+  "2026947675cf4e9b4bd2431fe839eec8": {
+    "concept": "قيد محاسبي",
+    "definition": "تسجيل عملية مالية في دفاتر الشركة يوضح الحسابات المدينة والدائنة",
+    "examples": [
+      "قيد بيع: مدين 1300 (ذمم) 1000 ₪، دائن 4000 (مبيعات) 862 ₪، دائن 2100 (VAT) 138 ₪",
+      "قيد دفع: مدين 1100 (صندوق) 500 ₪، دائن 1300 (ذمم) 500 ₪",
+      "قيد مشتريات: مدين 5100 (مشتريات) 1000 ₪، دائن 2300 (ذمم موردين) 1000 ₪"
+    ],
+    "related_concepts": [
+      "يرتبط بـ: دليل الحسابات، الميزانية، قائمة الدخل",
+      "يتأثر بـ: كل عملية مالية في النظام",
+      "يؤثر على: أرصدة الحسابات، التقارير المالية"
+    ],
+    "created_at": "2025-11-02T04:17:13.254051",
+    "mastery_level": 0
+  },
+  "7a62dc90e98521e367d1368e8e4c20b6": {
+    "concept": "دفتر الأستاذ",
+    "definition": "تجميع حسب الحساب",
+    "examples": [],
+    "related_concepts": [
+      "GL",
+      "accounting"
+    ],
+    "created_at": "2025-11-02T04:17:47.231646",
+    "mastery_level": 0
+  },
+  "5d459a95c6513df1aa4a239ef13ee58b": {
+    "concept": "رصيد",
+    "definition": "المبلغ المالي المستحق لشخص أو على شخص في لحظة معينة",
+    "examples": [
+      "رصيد موجب +500 ₪ = العميل عليه (مدين)",
+      "رصيد سالب -300 ₪ = العميل له (دائن - دفع زيادة)",
+      "رصيد صفر 0 ₪ = الحساب متعادل"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:13.271997",
+    "mastery_level": 0
+  },
+  "e0cdc5ed14a6319cd7fc8132c8e40c9c": {
+    "concept": "مدين",
+    "definition": "مدين هو مفهوم يحتاج لمزيد من الدراسة",
+    "examples": [
+      "مثال على مدين"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:13.281656",
+    "mastery_level": 0
+  },
+  "d0a529500f472a9bc6c433d1a8cbf935": {
+    "concept": "دائن",
+    "definition": "دائن هو مفهوم يحتاج لمزيد من الدراسة",
+    "examples": [
+      "مثال على دائن"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:13.291310",
+    "mastery_level": 0
+  },
+  "43183e955e3019bf7f8c942e016b7b13": {
+    "concept": "VAT",
+    "definition": "ضريبة القيمة المضافة - ضريبة تفرض على المبيعات والمشتريات",
+    "examples": [
+      "مثال على VAT"
+    ],
+    "related_concepts": [
+      "يرتبط بـ: المبيعات، المشتريات، الفواتير",
+      "يؤثر على: حساب ضريبة القيمة المضافة (2100)",
+      "يتأثر بـ: نسبة الضريبة (16% أو 17%)"
+    ],
+    "created_at": "2025-11-02T04:17:13.300817",
+    "mastery_level": 0
+  },
+  "06d4210056daeccc0220ba69a167240a": {
+    "concept": "ذمم العملاء",
+    "definition": "ذمم العملاء هو مفهوم يحتاج لمزيد من الدراسة",
+    "examples": [
+      "مثال على ذمم العملاء"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:13.308799",
+    "mastery_level": 0
+  },
+  "32285fb65e269025e4323551506bf028": {
+    "concept": "ذمم الموردين",
+    "definition": "ذمم الموردين هو مفهوم يحتاج لمزيد من الدراسة",
+    "examples": [
+      "مثال على ذمم الموردين"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:13.317605",
+    "mastery_level": 0
+  },
+  "f155c092273b85be02fc1a41b64cc1e8": {
+    "concept": "المبيعات",
+    "definition": "المبيعات هو مفهوم يحتاج لمزيد من الدراسة",
+    "examples": [
+      "مثال على المبيعات"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:13.325463",
+    "mastery_level": 0
+  },
+  "fdebedd80490a659783355f2221360c0": {
+    "concept": "المشتريات",
+    "definition": "المشتريات هو مفهوم يحتاج لمزيد من الدراسة",
+    "examples": [
+      "مثال على المشتريات"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:13.333903",
+    "mastery_level": 0
+  },
+  "48b7766d922a0a60c5566286c63901be": {
+    "concept": "الخصم",
+    "definition": "الخصم هو مفهوم يحتاج لمزيد من الدراسة",
+    "examples": [
+      "مثال على الخصم"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:13.342256",
+    "mastery_level": 0
+  },
+  "f95919d11875f6037d0d5f3ed95c41b9": {
+    "concept": "فاتورة",
+    "definition": "فاتورة هو مفهوم يحتاج لمزيد من الدراسة",
+    "examples": [
+      "مثال على فاتورة"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:13.350035",
+    "mastery_level": 0
+  },
+  "8be3d1e4fd0df25df46a69162efaa29a": {
+    "concept": "عميل_مبيعات",
+    "definition": "العميل مرتبط بالمبيعات عبر customer_id",
+    "examples": [],
+    "related_concepts": [
+      "عميل",
+      "مبيعات"
+    ],
+    "created_at": "2025-11-02T04:17:13.438760",
+    "mastery_level": 0
+  },
+  "5089a62762f54315c3dcc423fb97b4b8": {
+    "concept": "عميل_دفعات",
+    "definition": "العميل مرتبط بالدفعات لتسديد رصيده",
+    "examples": [],
+    "related_concepts": [
+      "عميل",
+      "دفعات"
+    ],
+    "created_at": "2025-11-02T04:17:13.446742",
+    "mastery_level": 0
+  },
+  "87171a7626ddebf5fae58ae274c56533": {
+    "concept": "عميل_سيارات",
+    "definition": "العميل يملك سيارة أو أكثر",
+    "examples": [],
+    "related_concepts": [
+      "عميل",
+      "سيارات"
+    ],
+    "created_at": "2025-11-02T04:17:13.456408",
+    "mastery_level": 0
+  },
+  "c35c33b6a9cf17507a3e7734224713b9": {
+    "concept": "عميل_رصيد",
+    "definition": "رصيد العميل = (الدفعات) - (المبيعات)",
+    "examples": [],
+    "related_concepts": [
+      "عميل",
+      "رصيد"
+    ],
+    "created_at": "2025-11-02T04:17:13.465600",
+    "mastery_level": 0
+  },
+  "d0edeaedf06203f06a643c78b2669504": {
+    "concept": "بيع_قيد",
+    "definition": "البيع يُنشئ قيد محاسبي تلقائياً",
+    "examples": [],
+    "related_concepts": [
+      "بيع",
+      "قيد"
+    ],
+    "created_at": "2025-11-02T04:17:13.475212",
+    "mastery_level": 0
+  },
+  "4235f56377ea4bcdaee49f0f040c0939": {
+    "concept": "بيع_vat",
+    "definition": "البيع يحسب VAT تلقائياً (16%)",
+    "examples": [],
+    "related_concepts": [
+      "بيع",
+      "vat"
+    ],
+    "created_at": "2025-11-02T04:17:13.483919",
+    "mastery_level": 0
+  },
+  "35be18db490139fbbfd893d769c21d45": {
+    "concept": "دفعة_رصيد",
+    "definition": "الدفعة تحدث رصيد العميل فوراً",
+    "examples": [],
+    "related_concepts": [
+      "دفعة",
+      "رصيد"
+    ],
+    "created_at": "2025-11-02T04:17:13.492092",
+    "mastery_level": 0
+  },
+  "8cc6914c838b22b3ff738d3fd0b52d45": {
+    "concept": "منتج_مخزون",
+    "definition": "المنتج له رصيد في المخزون",
+    "examples": [],
+    "related_concepts": [
+      "منتج",
+      "مخزون"
+    ],
+    "created_at": "2025-11-02T04:17:13.501430",
+    "mastery_level": 0
+  },
+  "2ccfdd1a07335165f55b945e8dc4e98b": {
+    "concept": "بيع_مخزون",
+    "definition": "البيع يخصم من المخزون",
+    "examples": [],
+    "related_concepts": [
+      "بيع",
+      "مخزون"
+    ],
+    "created_at": "2025-11-02T04:17:13.510464",
+    "mastery_level": 0
+  },
+  "f0c63fe2fc3e56362d29b4aa6bd30d2b": {
+    "concept": "قيد_حسابات",
+    "definition": "القيد يؤثر على حسابات دفتر الأستاذ",
+    "examples": [],
+    "related_concepts": [
+      "قيد",
+      "حسابات"
+    ],
+    "created_at": "2025-11-02T04:17:13.518848",
+    "mastery_level": 0
+  },
+  "d0f0375cf926a4f9ea614cab9ad27d50": {
+    "concept": "نظرية الملكية",
+    "definition": "المنشأة منفصلة عن المالك",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.444480",
+    "mastery_level": 0
+  },
+  "9c133152fd29cba0b0e96e85be6adc81": {
+    "concept": "نظرية الوحدة المحاسبية",
+    "definition": "المنشأة وحدة اقتصادية مستقلة",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.454409",
+    "mastery_level": 0
+  },
+  "5e056c6d99d565cc0a4ca4835c21bc16": {
+    "concept": "نظرية الاستمرارية",
+    "definition": "المنشأة مستمرة إلى أجل غير مسمى",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.464143",
+    "mastery_level": 0
+  },
+  "09e9832afa5f435caf559b013ddd9d75": {
+    "concept": "نظرية الفترة المحاسبية",
+    "definition": "تقسيم عمر المنشأة لفترات",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.474991",
+    "mastery_level": 0
+  },
+  "ab04b29f4aa8463f503bee07882ae8ef": {
+    "concept": "نظرية القياس النقدي",
+    "definition": "استخدام النقود كوحدة قياس",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.485300",
+    "mastery_level": 0
+  },
+  "0b87f374586ead87323c65443ac331fb": {
+    "concept": "نظرية التكلفة التاريخية",
+    "definition": "تسجيل الأصول بتكلفة الشراء",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.496053",
+    "mastery_level": 0
+  },
+  "5c7e0ad5fd90d12a540ba21b3ae66512": {
+    "concept": "نظرية الإفصاح",
+    "definition": "الشفافية في القوائم المالية",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.506742",
+    "mastery_level": 0
+  },
+  "20786432e34a83109f8bf1e49c12493b": {
+    "concept": "نظرية الثبات",
+    "definition": "استخدام نفس الطرق في كل الفترات",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.516454",
+    "mastery_level": 0
+  },
+  "08b9715650b0e6a209857594a44a117c": {
+    "concept": "نظرية الحيطة والحذر",
+    "definition": "عدم المبالغة في الأرباح",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.526736",
+    "mastery_level": 0
+  },
+  "a6fe38548561b970b0decc4e8663473c": {
+    "concept": "نظرية الأهمية النسبية",
+    "definition": "التركيز على البنود المهمة",
+    "examples": [],
+    "related_concepts": [
+      "accounting_theory",
+      "GAAP"
+    ],
+    "created_at": "2025-11-02T04:17:15.536697",
+    "mastery_level": 0
+  },
+  "cc027d7459a6115f8fc8a78241e6418f": {
+    "concept": "التحليل الأفقي",
+    "definition": "مقارنة نفس البند عبر عدة فترات",
+    "examples": [],
+    "related_concepts": [
+      "financial_analysis"
+    ],
+    "created_at": "2025-11-02T04:17:16.479721",
+    "mastery_level": 0
+  },
+  "a60c379845ced6c152194888a996b3ae": {
+    "concept": "التحليل الرأسي",
+    "definition": "تحليل البنود كنسبة من الإجمالي",
+    "examples": [],
+    "related_concepts": [
+      "financial_analysis"
+    ],
+    "created_at": "2025-11-02T04:17:16.489001",
+    "mastery_level": 0
+  },
+  "9cb2749b5b41a139a25a1cd551046f59": {
+    "concept": "تحليل الاتجاه",
+    "definition": "دراسة اتجاه البند عبر الزمن",
+    "examples": [],
+    "related_concepts": [
+      "financial_analysis"
+    ],
+    "created_at": "2025-11-02T04:17:16.497162",
+    "mastery_level": 0
+  },
+  "9e49891a278732c8b364ba5241aa9f8b": {
+    "concept": "تحليل النسب",
+    "definition": "استخدام النسب المالية",
+    "examples": [],
+    "related_concepts": [
+      "financial_analysis"
+    ],
+    "created_at": "2025-11-02T04:17:16.504894",
+    "mastery_level": 0
+  },
+  "3f7d803a6a6769c7446007342716f9b4": {
+    "concept": "تحليل التعادل",
+    "definition": "نقطة تساوي الإيرادات والتكاليف",
+    "examples": [],
+    "related_concepts": [
+      "financial_analysis"
+    ],
+    "created_at": "2025-11-02T04:17:16.513055",
+    "mastery_level": 0
+  },
+  "c17b20f361a80f2debcd2971989161eb": {
+    "concept": "تحليل الحساسية",
+    "definition": "أثر تغير متغير على النتائج",
+    "examples": [],
+    "related_concepts": [
+      "financial_analysis"
+    ],
+    "created_at": "2025-11-02T04:17:16.520444",
+    "mastery_level": 0
+  },
+  "92061a0377e0034d7aa6632c6b2e1fdb": {
+    "concept": "تحليل السيناريوهات",
+    "definition": "دراسة نتائج سيناريوهات مختلفة",
+    "examples": [],
+    "related_concepts": [
+      "financial_analysis"
+    ],
+    "created_at": "2025-11-02T04:17:16.529227",
+    "mastery_level": 0
+  },
+  "f8129b88367b9472a6e3bc2355862681": {
+    "concept": "التكلفة المباشرة",
+    "definition": "تكلفة يمكن ربطها مباشرة بالمنتج",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.537222",
+    "mastery_level": 0
+  },
+  "76f7c06d91165b0a2bf4c32103dba47d": {
+    "concept": "التكلفة غير المباشرة",
+    "definition": "تكلفة لا يمكن ربطها مباشرة",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.545749",
+    "mastery_level": 0
+  },
+  "2d3f5532f3d2f39621bd69d63181cd64": {
+    "concept": "التكلفة الثابتة",
+    "definition": "لا تتغير بتغير حجم الإنتاج",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.554045",
+    "mastery_level": 0
+  },
+  "23c0935211a0ed302b49eaa30104fb61": {
+    "concept": "التكلفة المتغيرة",
+    "definition": "تتغير بتغير حجم الإنتاج",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.564329",
+    "mastery_level": 0
+  },
+  "7218a4f02ba761181bb08bd9bf233de9": {
+    "concept": "التكلفة المختلطة",
+    "definition": "جزء ثابت وجزء متغير",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.573113",
+    "mastery_level": 0
+  },
+  "2c47ed38d4f9e7425d5ec8bd012cf56d": {
+    "concept": "تكلفة الفرصة البديلة",
+    "definition": "العائد المفقود من البديل الأفضل",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.583390",
+    "mastery_level": 0
+  },
+  "39a2b5af5fa7bc6e05b81387cd644094": {
+    "concept": "التكلفة الغارقة",
+    "definition": "تكلفة سابقة لا يمكن استردادها",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.591785",
+    "mastery_level": 0
+  },
+  "02531a7062cd69a7d44d7d8f3dab8aa0": {
+    "concept": "التكلفة الحدية",
+    "definition": "تكلفة إنتاج وحدة إضافية",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.599529",
+    "mastery_level": 0
+  },
+  "854e21ce6cdc67a7f4d7d988d9e1b7ce": {
+    "concept": "التكلفة المعيارية",
+    "definition": "التكلفة المخططة أو المستهدفة",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.608288",
+    "mastery_level": 0
+  },
+  "1d5fb4fc79f95142e322bb842c189327": {
+    "concept": "التكلفة الفعلية",
+    "definition": "التكلفة الحقيقية المتحققة",
+    "examples": [],
+    "related_concepts": [
+      "cost_accounting",
+      "managerial_accounting"
+    ],
+    "created_at": "2025-11-02T04:17:16.617544",
+    "mastery_level": 0
+  },
+  "d98124dd3158a3aaf7cebbb79130bfb2": {
+    "concept": "المراجعة الخارجية",
+    "definition": "مراجع مستقل يفحص القوائم المالية",
+    "examples": [],
+    "related_concepts": [
+      "auditing",
+      "internal_control"
+    ],
+    "created_at": "2025-11-02T04:17:16.901768",
+    "mastery_level": 0
+  },
+  "23cde6ead8b8fecb4ca83c2991489eee": {
+    "concept": "المراجعة الداخلية",
+    "definition": "موظف داخلي يراجع العمليات",
+    "examples": [],
+    "related_concepts": [
+      "auditing",
+      "internal_control"
+    ],
+    "created_at": "2025-11-02T04:17:16.912177",
+    "mastery_level": 0
+  },
+  "c7aefb617971688425f0d59daa6c7ae0": {
+    "concept": "المراجعة الإدارية",
+    "definition": "تقييم كفاءة وفعالية الإدارة",
+    "examples": [],
+    "related_concepts": [
+      "auditing",
+      "internal_control"
+    ],
+    "created_at": "2025-11-02T04:17:16.923132",
+    "mastery_level": 0
+  },
+  "6a71383da3f1ec00885520ccca1063d6": {
+    "concept": "المراجعة التشغيلية",
+    "definition": "فحص كفاءة العمليات",
+    "examples": [],
+    "related_concepts": [
+      "auditing",
+      "internal_control"
+    ],
+    "created_at": "2025-11-02T04:17:16.933619",
+    "mastery_level": 0
+  },
+  "8217befd6ba193835f177e63d31dd554": {
+    "concept": "مراجعة الامتثال",
+    "definition": "التحقق من الالتزام بالقوانين",
+    "examples": [],
+    "related_concepts": [
+      "auditing",
+      "internal_control"
+    ],
+    "created_at": "2025-11-02T04:17:16.944098",
+    "mastery_level": 0
+  },
+  "4509902cfbdc6e14956c6ca8630e76c4": {
+    "concept": "القيمة الزمنية للنقود",
+    "definition": "النقود اليوم أكثر قيمة من الغد",
+    "examples": [],
+    "related_concepts": [
+      "financial_management",
+      "investment"
+    ],
+    "created_at": "2025-11-02T04:17:17.175402",
+    "mastery_level": 0
+  },
+  "97f976699434a66fa32262e3ac1ef57d": {
+    "concept": "القيمة الحالية",
+    "definition": "قيمة التدفقات المستقبلية اليوم",
+    "examples": [],
+    "related_concepts": [
+      "financial_management",
+      "investment"
+    ],
+    "created_at": "2025-11-02T04:17:17.184773",
+    "mastery_level": 0
+  },
+  "77baaaaf8cb20e671e576d99dab33806": {
+    "concept": "القيمة المستقبلية",
+    "definition": "قيمة النقود في المستقبل",
+    "examples": [],
+    "related_concepts": [
+      "financial_management",
+      "investment"
+    ],
+    "created_at": "2025-11-02T04:17:17.194360",
+    "mastery_level": 0
+  },
+  "fbccdf2898a2ee234bfdf6540b0c74f8": {
+    "concept": "معدل الخصم",
+    "definition": "معدل لحساب القيمة الحالية",
+    "examples": [],
+    "related_concepts": [
+      "financial_management",
+      "investment"
+    ],
+    "created_at": "2025-11-02T04:17:17.202396",
+    "mastery_level": 0
+  },
+  "6e254ebbb7112440a0b007921681635e": {
+    "concept": "صافي القيمة الحالية NPV",
+    "definition": "القيمة الحالية - الاستثمار",
+    "examples": [],
+    "related_concepts": [
+      "financial_management",
+      "investment"
+    ],
+    "created_at": "2025-11-02T04:17:17.210667",
+    "mastery_level": 0
+  },
+  "911dc5489e73c1e6037be4f650c9db90": {
+    "concept": "معدل العائد الداخلي IRR",
+    "definition": "معدل يجعل NPV = صفر",
+    "examples": [],
+    "related_concepts": [
+      "financial_management",
+      "investment"
+    ],
+    "created_at": "2025-11-02T04:17:17.219909",
+    "mastery_level": 0
+  },
+  "39b3f6efa1afbe3bf54b9478fe40f000": {
+    "concept": "فترة الاسترداد",
+    "definition": "الوقت لاستعادة الاستثمار",
+    "examples": [],
+    "related_concepts": [
+      "financial_management",
+      "investment"
+    ],
+    "created_at": "2025-11-02T04:17:17.229788",
+    "mastery_level": 0
+  },
+  "2918e8e5724a6a8c64f70a6225e5f4c0": {
+    "concept": "المفاضلة بين المخاطرة والعائد",
+    "definition": "عائد أعلى يتطلب مخاطرة أكبر",
+    "examples": [],
+    "related_concepts": [
+      "financial_management",
+      "investment"
+    ],
+    "created_at": "2025-11-02T04:17:17.237687",
+    "mastery_level": 0
+  },
+  "a830463325b6de61b5d85a58810b9b6a": {
+    "concept": "رأس المال العامل",
+    "definition": "الأصول المتداولة - الخصوم المتداولة",
+    "examples": [],
+    "related_concepts": [
+      "working_capital_management"
+    ],
+    "created_at": "2025-11-02T04:17:17.246600",
+    "mastery_level": 0
+  },
+  "7bd83fe0ed346f58fcd566e3c4f37a1c": {
+    "concept": "إدارة النقدية",
+    "definition": "الحفاظ على سيولة مناسبة",
+    "examples": [],
+    "related_concepts": [
+      "working_capital_management"
+    ],
+    "created_at": "2025-11-02T04:17:17.254658",
+    "mastery_level": 0
+  },
+  "9f25df6667799338ba9864e1c7588c4c": {
+    "concept": "إدارة المخزون",
+    "definition": "تحديد المستوى الأمثل للمخزون",
+    "examples": [],
+    "related_concepts": [
+      "working_capital_management"
+    ],
+    "created_at": "2025-11-02T04:17:17.263348",
+    "mastery_level": 0
+  },
+  "39ad8d432e66c93935818411edc84229": {
+    "concept": "إدارة الذمم",
+    "definition": "سياسات الائتمان والتحصيل",
+    "examples": [],
+    "related_concepts": [
+      "working_capital_management"
+    ],
+    "created_at": "2025-11-02T04:17:17.271376",
+    "mastery_level": 0
+  },
+  "b1be33535d17ab589d918fd01bd50d37": {
+    "concept": "تحليل SWOT",
+    "definition": "القوة، الضعف، الفرص، التهديدات",
+    "examples": [],
+    "related_concepts": [
+      "business_analysis",
+      "strategy"
+    ],
+    "created_at": "2025-11-02T04:17:17.280637",
+    "mastery_level": 0
+  },
+  "05ad2708ae01f7b2e53144be5fb755e6": {
+    "concept": "تحليل PESTEL",
+    "definition": "سياسي، اقتصادي، اجتماعي، تقني، بيئي، قانوني",
+    "examples": [],
+    "related_concepts": [
+      "business_analysis",
+      "strategy"
+    ],
+    "created_at": "2025-11-02T04:17:17.297856",
+    "mastery_level": 0
+  },
+  "ed09d2d2315a6cf28e6e58d9f361c52d": {
+    "concept": "قوى بورتر الخمس",
+    "definition": "تحليل التنافسية في الصناعة",
+    "examples": [],
+    "related_concepts": [
+      "business_analysis",
+      "strategy"
+    ],
+    "created_at": "2025-11-02T04:17:17.307763",
+    "mastery_level": 0
+  },
+  "578a732c23799f3eea084c5d206d82cd": {
+    "concept": "سلسلة القيمة",
+    "definition": "الأنشطة التي تضيف قيمة",
+    "examples": [],
+    "related_concepts": [
+      "business_analysis",
+      "strategy"
+    ],
+    "created_at": "2025-11-02T04:17:17.317780",
+    "mastery_level": 0
+  },
+  "9446c1825a6a1c9a017620467cfaa849": {
+    "concept": "تحليل الفجوة",
+    "definition": "الفرق بين الوضع الحالي والمرغوب",
+    "examples": [],
+    "related_concepts": [
+      "business_analysis",
+      "strategy"
+    ],
+    "created_at": "2025-11-02T04:17:17.327974",
+    "mastery_level": 0
+  },
+  "49583f0e30d0781ad0ddca9011e64d70": {
+    "concept": "مصفوفة BCG",
+    "definition": "تحليل المحفظة الاستثمارية",
+    "examples": [],
+    "related_concepts": [
+      "business_analysis",
+      "strategy"
+    ],
+    "created_at": "2025-11-02T04:17:17.335756",
+    "mastery_level": 0
+  },
+  "fa67f239ce9df759e7e6cea6181e9af2": {
+    "concept": "دراسة الجدوى الاقتصادية",
+    "definition": "تقييم جدوى المشروع",
+    "examples": [],
+    "related_concepts": [
+      "engineering_economics"
+    ],
+    "created_at": "2025-11-02T04:17:17.344627",
+    "mastery_level": 0
+  },
+  "446c1991fe5b6368a5aadbe1828e4954": {
+    "concept": "تحليل التكلفة والعائد",
+    "definition": "مقارنة التكاليف بالعوائد",
+    "examples": [],
+    "related_concepts": [
+      "engineering_economics"
+    ],
+    "created_at": "2025-11-02T04:17:17.354261",
+    "mastery_level": 0
+  },
+  "955a78f19dc40a549fecbfd62a298b9c": {
+    "concept": "الاستهلاك الهندسي",
+    "definition": "تقدير عمر الأصول الإنتاجية",
+    "examples": [],
+    "related_concepts": [
+      "engineering_economics"
+    ],
+    "created_at": "2025-11-02T04:17:17.363390",
+    "mastery_level": 0
+  },
+  "2be74c4da534eb12144620de8e57cdbc": {
+    "concept": "تحليل البدائل",
+    "definition": "المفاضلة بين خيارات المشروع",
+    "examples": [],
+    "related_concepts": [
+      "engineering_economics"
+    ],
+    "created_at": "2025-11-02T04:17:17.372893",
+    "mastery_level": 0
+  },
+  "3141bd2d08efceefec027d2dfb096c7e": {
+    "concept": "القيمة الهندسية",
+    "definition": "تحسين القيمة بأقل تكلفة",
+    "examples": [],
+    "related_concepts": [
+      "engineering_economics"
+    ],
+    "created_at": "2025-11-02T04:17:17.382993",
+    "mastery_level": 0
+  },
+  "5f11086dcf50eaef5b4bc42761b642cc": {
+    "concept": "إدارة النطاق",
+    "definition": "إدارة النطاق - مجال معرفي في إدارة المشاريع",
+    "examples": [],
+    "related_concepts": [
+      "project_management",
+      "PMBOK"
+    ],
+    "created_at": "2025-11-02T04:17:17.504381",
+    "mastery_level": 0
+  },
+  "3e8fb1359381fd8acc32823fedac6e9c": {
+    "concept": "إدارة الجدول الزمني",
+    "definition": "إدارة الجدول الزمني - مجال معرفي في إدارة المشاريع",
+    "examples": [],
+    "related_concepts": [
+      "project_management",
+      "PMBOK"
+    ],
+    "created_at": "2025-11-02T04:17:17.512793",
+    "mastery_level": 0
+  },
+  "4c21fe512e31150f5cfbfd6bf49151d4": {
+    "concept": "إدارة التكلفة",
+    "definition": "إدارة التكلفة - مجال معرفي في إدارة المشاريع",
+    "examples": [],
+    "related_concepts": [
+      "project_management",
+      "PMBOK"
+    ],
+    "created_at": "2025-11-02T04:17:17.520619",
+    "mastery_level": 0
+  },
+  "c119f82dc16911f14a1df024162c8ddc": {
+    "concept": "إدارة الجودة",
+    "definition": "إدارة الجودة - مجال معرفي في إدارة المشاريع",
+    "examples": [],
+    "related_concepts": [
+      "project_management",
+      "PMBOK"
+    ],
+    "created_at": "2025-11-02T04:17:17.528491",
+    "mastery_level": 0
+  },
+  "dc48e3e93e95b47df28f0f8068850ea3": {
+    "concept": "إدارة الموارد",
+    "definition": "إدارة الموارد - مجال معرفي في إدارة المشاريع",
+    "examples": [],
+    "related_concepts": [
+      "project_management",
+      "PMBOK"
+    ],
+    "created_at": "2025-11-02T04:17:17.537377",
+    "mastery_level": 0
+  },
+  "45fb48bc203a22be9e9637ad1f2d7203": {
+    "concept": "إدارة الاتصالات",
+    "definition": "إدارة الاتصالات - مجال معرفي في إدارة المشاريع",
+    "examples": [],
+    "related_concepts": [
+      "project_management",
+      "PMBOK"
+    ],
+    "created_at": "2025-11-02T04:17:17.545716",
+    "mastery_level": 0
+  },
+  "6ebcfc4b5a621dd4779d92c84e4b8ecf": {
+    "concept": "إدارة المخاطر",
+    "definition": "إدارة المخاطر - مجال معرفي في إدارة المشاريع",
+    "examples": [],
+    "related_concepts": [
+      "project_management",
+      "PMBOK"
+    ],
+    "created_at": "2025-11-02T04:17:17.555032",
+    "mastery_level": 0
+  },
+  "39d4d505dacead19ae11505fee723627": {
+    "concept": "إدارة المشتريات",
+    "definition": "إدارة المشتريات - مجال معرفي في إدارة المشاريع",
+    "examples": [],
+    "related_concepts": [
+      "project_management",
+      "PMBOK"
+    ],
+    "created_at": "2025-11-02T04:17:17.563567",
+    "mastery_level": 0
+  },
+  "62ee2e2afbdc9815623544eb8471f9fa": {
+    "concept": "إدارة أصحاب المصلحة",
+    "definition": "إدارة أصحاب المصلحة - مجال معرفي في إدارة المشاريع",
+    "examples": [],
+    "related_concepts": [
+      "project_management",
+      "PMBOK"
+    ],
+    "created_at": "2025-11-02T04:17:17.571786",
+    "mastery_level": 0
+  },
+  "78e57b7ba39666b15420cc54f932aef4": {
+    "concept": "إدارة الطاقة الإنتاجية",
+    "definition": "تحديد الحد الأقصى للإنتاج",
+    "examples": [],
+    "related_concepts": [
+      "operations_management",
+      "lean"
+    ],
+    "created_at": "2025-11-02T04:17:17.580651",
+    "mastery_level": 0
+  },
+  "8f0b528b4e828d6c2c7cd2eddf0fb0cb": {
+    "concept": "الإنتاج في الوقت المحدد JIT",
+    "definition": "تقليل المخزون",
+    "examples": [],
+    "related_concepts": [
+      "operations_management",
+      "lean"
+    ],
+    "created_at": "2025-11-02T04:17:17.588819",
+    "mastery_level": 0
+  },
+  "331ab3e0979065859ac6b34da037196a": {
+    "concept": "الصيانة الإنتاجية الشاملة",
+    "definition": "الحفاظ على المعدات",
+    "examples": [],
+    "related_concepts": [
+      "operations_management",
+      "lean"
+    ],
+    "created_at": "2025-11-02T04:17:17.598524",
+    "mastery_level": 0
+  },
+  "f494894f1c14e2d71b9068a533a2cd01": {
+    "concept": "التحسين المستمر Kaizen",
+    "definition": "تطوير عمليات الصيانة",
+    "examples": [],
+    "related_concepts": [
+      "advanced_maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.629776",
+    "mastery_level": 0
+  },
+  "65742b3ab85a723ec0fe5930074bd62a": {
+    "concept": "ستة سيجما",
+    "definition": "تقليل العيوب إلى أدنى حد",
+    "examples": [],
+    "related_concepts": [
+      "operations_management",
+      "lean"
+    ],
+    "created_at": "2025-11-02T04:17:17.615183",
+    "mastery_level": 0
+  },
+  "f088c67dea0d81c9d22d1e0fef43efdf": {
+    "concept": "سلسلة التوريد: التخطيط",
+    "definition": "توقع الطلب وتخطيط الموارد",
+    "examples": [],
+    "related_concepts": [
+      "supply_chain",
+      "logistics"
+    ],
+    "created_at": "2025-11-02T04:17:17.790506",
+    "mastery_level": 0
+  },
+  "31696e9d45612ea4fa4fdfa5fa9ce168": {
+    "concept": "سلسلة التوريد: الشراء",
+    "definition": "الحصول على المواد",
+    "examples": [],
+    "related_concepts": [
+      "supply_chain",
+      "logistics"
+    ],
+    "created_at": "2025-11-02T04:17:17.798870",
+    "mastery_level": 0
+  },
+  "deb32797212f1ae493f039097479641a": {
+    "concept": "سلسلة التوريد: الإنتاج",
+    "definition": "تحويل المواد لمنتجات",
+    "examples": [],
+    "related_concepts": [
+      "supply_chain",
+      "logistics"
+    ],
+    "created_at": "2025-11-02T04:17:17.806819",
+    "mastery_level": 0
+  },
+  "6b28eb11112ff9915e7c0bfff5a8e672": {
+    "concept": "سلسلة التوريد: التوزيع",
+    "definition": "إيصال المنتجات للعملاء",
+    "examples": [],
+    "related_concepts": [
+      "supply_chain",
+      "logistics"
+    ],
+    "created_at": "2025-11-02T04:17:17.814462",
+    "mastery_level": 0
+  },
+  "e87d11fbd7e32895686a4f423f208998": {
+    "concept": "سلسلة التوريد: العودة",
+    "definition": "التعامل مع المرتجعات",
+    "examples": [],
+    "related_concepts": [
+      "supply_chain",
+      "logistics"
+    ],
+    "created_at": "2025-11-02T04:17:17.823392",
+    "mastery_level": 0
+  },
+  "045e7c35bd90d463505296fc800a4321": {
+    "concept": "الرؤية",
+    "definition": "الصورة المستقبلية المرغوبة",
+    "examples": [],
+    "related_concepts": [
+      "strategic_planning",
+      "management"
+    ],
+    "created_at": "2025-11-02T04:17:17.933635",
+    "mastery_level": 0
+  },
+  "4da41c2513749636e7c9404c96243d93": {
+    "concept": "الرسالة",
+    "definition": "سبب وجود المنظمة",
+    "examples": [],
+    "related_concepts": [
+      "strategic_planning",
+      "management"
+    ],
+    "created_at": "2025-11-02T04:17:17.943091",
+    "mastery_level": 0
+  },
+  "6e23d87fea1fe01ab3cf5bf0921d883a": {
+    "concept": "القيم",
+    "definition": "المبادئ الأساسية",
+    "examples": [],
+    "related_concepts": [
+      "strategic_planning",
+      "management"
+    ],
+    "created_at": "2025-11-02T04:17:17.952458",
+    "mastery_level": 0
+  },
+  "a96436d73aae4d7341e304ffc9a7fdb1": {
+    "concept": "الأهداف الاستراتيجية",
+    "definition": "أهداف طويلة المدى",
+    "examples": [],
+    "related_concepts": [
+      "strategic_planning",
+      "management"
+    ],
+    "created_at": "2025-11-02T04:17:17.961997",
+    "mastery_level": 0
+  },
+  "f3153d218f93fb7b259dd944d8202fb8": {
+    "concept": "الاستراتيجيات",
+    "definition": "الطرق لتحقيق الأهداف",
+    "examples": [],
+    "related_concepts": [
+      "strategic_planning",
+      "management"
+    ],
+    "created_at": "2025-11-02T04:17:17.969919",
+    "mastery_level": 0
+  },
+  "3448c88f7ea72412589ca01375e2ff01": {
+    "concept": "الخطط التكتيكية",
+    "definition": "خطط متوسطة المدى",
+    "examples": [],
+    "related_concepts": [
+      "strategic_planning",
+      "management"
+    ],
+    "created_at": "2025-11-02T04:17:17.978387",
+    "mastery_level": 0
+  },
+  "e96fe46295f103dcd22c9da375435229": {
+    "concept": "الخطط التشغيلية",
+    "definition": "خطط قصيرة المدى",
+    "examples": [],
+    "related_concepts": [
+      "strategic_planning",
+      "management"
+    ],
+    "created_at": "2025-11-02T04:17:17.986129",
+    "mastery_level": 0
+  },
+  "75d79e2bed4637c2ae4d6fdb27219db5": {
+    "concept": "مؤشرات مالية",
+    "definition": "الربحية، السيولة، النمو",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "balanced_scorecard"
+    ],
+    "created_at": "2025-11-02T04:17:17.994981",
+    "mastery_level": 0
+  },
+  "31f49ee16cbd2626ba27c203c2eb0470": {
+    "concept": "مؤشرات العملاء",
+    "definition": "الرضا، الولاء، الاحتفاظ",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "balanced_scorecard"
+    ],
+    "created_at": "2025-11-02T04:17:18.003983",
+    "mastery_level": 0
+  },
+  "92affaa59f4fb46eb599d6d7df61b99e": {
+    "concept": "مؤشرات العمليات",
+    "definition": "الكفاءة، الجودة، الوقت",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "balanced_scorecard"
+    ],
+    "created_at": "2025-11-02T04:17:18.012950",
+    "mastery_level": 0
+  },
+  "2a64a2ab45b747ad7608e4e2aa68efb8": {
+    "concept": "مؤشرات التعلم والنمو",
+    "definition": "التدريب، الابتكار، الرضا الوظيفي",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "balanced_scorecard"
+    ],
+    "created_at": "2025-11-02T04:17:18.021654",
+    "mastery_level": 0
+  },
+  "a84f7f1b2e5f559c82b120696d7c9507": {
+    "concept": "منظور: المالية",
+    "definition": "المالية - منظور في بطاقة الأداء المتوازن",
+    "examples": [],
+    "related_concepts": [
+      "balanced_scorecard"
+    ],
+    "created_at": "2025-11-02T04:17:18.031549",
+    "mastery_level": 0
+  },
+  "6d2019edf5f3be9e350c0fbcdb54d932": {
+    "concept": "منظور: العملاء",
+    "definition": "العملاء - منظور في بطاقة الأداء المتوازن",
+    "examples": [],
+    "related_concepts": [
+      "balanced_scorecard"
+    ],
+    "created_at": "2025-11-02T04:17:18.039628",
+    "mastery_level": 0
+  },
+  "74db17aa1a668f3b104be064404e2c19": {
+    "concept": "منظور: العمليات الداخلية",
+    "definition": "العمليات الداخلية - منظور في بطاقة الأداء المتوازن",
+    "examples": [],
+    "related_concepts": [
+      "balanced_scorecard"
+    ],
+    "created_at": "2025-11-02T04:17:18.048199",
+    "mastery_level": 0
+  },
+  "de2235f1c1044f7440f0d9169e04da57": {
+    "concept": "منظور: التعلم والنمو",
+    "definition": "التعلم والنمو - منظور في بطاقة الأداء المتوازن",
+    "examples": [],
+    "related_concepts": [
+      "balanced_scorecard"
+    ],
+    "created_at": "2025-11-02T04:17:18.056116",
+    "mastery_level": 0
+  },
+  "43d7a1fa53ec398905fbde0a30b28e31": {
+    "concept": "مبادرة المحادثة",
+    "definition": "هل تواجه أي صعوبة؟ دعني أساعدك.",
+    "examples": [
+      "استخدام عند بداية المحادثة",
+      "لفتح المجال للمستخدم"
+    ],
+    "related_concepts": [
+      "greeting",
+      "customer_service"
+    ],
+    "created_at": "2025-11-02T04:17:13.763503",
+    "mastery_level": 0
+  },
+  "5f20bcb4178b9d978c276d8edfd57fc9": {
+    "concept": "شركة أزاد",
+    "definition": "شركة رائدة في الحلول البرمجية العربية المتخصصة في إدارة الأعمال",
+    "examples": [
+      "نظام محاسبي متكامل",
+      "إدارة المخزون الذكية",
+      "تتبع العملاء والموردين"
+    ],
+    "related_concepts": [
+      "Garage Manager",
+      "نظام محاسبي",
+      "ذكاء صناعي"
+    ],
+    "created_at": "2025-11-02T04:17:13.837142",
+    "mastery_level": 0
+  },
+  "94f48d02b78fb7cae18c810b236950d5": {
+    "concept": "وحدة: وحدة العملاء والموردين",
+    "definition": "وحدة العملاء والموردين - جزء من نظام Garage Manager",
+    "examples": [],
+    "related_concepts": [
+      "Garage Manager",
+      "شركة أزاد"
+    ],
+    "created_at": "2025-11-02T04:17:13.974814",
+    "mastery_level": 0
+  },
+  "2c1c13417a63e79efa663332a3e0748e": {
+    "concept": "وحدة: وحدة المبيعات",
+    "definition": "وحدة المبيعات - جزء من نظام Garage Manager",
+    "examples": [],
+    "related_concepts": [
+      "Garage Manager",
+      "شركة أزاد"
+    ],
+    "created_at": "2025-11-02T04:17:13.984744",
+    "mastery_level": 0
+  },
+  "78a2278642e25d1fd8c717ca3cc874ef": {
+    "concept": "وحدة: وحدة المشتريات",
+    "definition": "وحدة المشتريات - جزء من نظام Garage Manager",
+    "examples": [],
+    "related_concepts": [
+      "Garage Manager",
+      "شركة أزاد"
+    ],
+    "created_at": "2025-11-02T04:17:13.994537",
+    "mastery_level": 0
+  },
+  "4262ed16e5372b8f8c0f48c34aa707dd": {
+    "concept": "وحدة: وحدة المخازن",
+    "definition": "وحدة المخازن - جزء من نظام Garage Manager",
+    "examples": [],
+    "related_concepts": [
+      "Garage Manager",
+      "شركة أزاد"
+    ],
+    "created_at": "2025-11-02T04:17:14.004451",
+    "mastery_level": 0
+  },
+  "dd2573037c3119b01251205219b64f7d": {
+    "concept": "وحدة: وحدة المحاسبة (GL)",
+    "definition": "وحدة المحاسبة (GL) - جزء من نظام Garage Manager",
+    "examples": [],
+    "related_concepts": [
+      "Garage Manager",
+      "شركة أزاد"
+    ],
+    "created_at": "2025-11-02T04:17:14.011785",
+    "mastery_level": 0
+  },
+  "cced276f5f0c601036dfae37a8fad8b4": {
+    "concept": "وحدة: وحدة الصيانة",
+    "definition": "وحدة الصيانة - جزء من نظام Garage Manager",
+    "examples": [],
+    "related_concepts": [
+      "Garage Manager",
+      "شركة أزاد"
+    ],
+    "created_at": "2025-11-02T04:17:14.019396",
+    "mastery_level": 0
+  },
+  "604f0854e0572d929acf9e43bfbc602e": {
+    "concept": "وحدة: وحدة التقارير",
+    "definition": "وحدة التقارير - جزء من نظام Garage Manager",
+    "examples": [],
+    "related_concepts": [
+      "Garage Manager",
+      "شركة أزاد"
+    ],
+    "created_at": "2025-11-02T04:17:14.027619",
+    "mastery_level": 0
+  },
+  "9ec531c39745f01315812cefb43c7062": {
+    "concept": "وحدة: وحدة المستخدمين والصلاحيات",
+    "definition": "وحدة المستخدمين والصلاحيات - جزء من نظام Garage Manager",
+    "examples": [],
+    "related_concepts": [
+      "Garage Manager",
+      "شركة أزاد"
+    ],
+    "created_at": "2025-11-02T04:17:14.035405",
+    "mastery_level": 0
+  },
+  "4ccd81e18bc66da67bc3da2a06c7300b": {
+    "concept": "وحدة: وحدة الذكاء الصناعي",
+    "definition": "وحدة الذكاء الصناعي - جزء من نظام Garage Manager",
+    "examples": [],
+    "related_concepts": [
+      "Garage Manager",
+      "شركة أزاد"
+    ],
+    "created_at": "2025-11-02T04:17:14.043583",
+    "mastery_level": 0
+  },
+  "d685c60dca733b3dba9a58f5298959cd": {
+    "concept": "مبدأ التواصل: الوضوح",
+    "definition": "استخدام لغة بسيطة ومباشرة",
+    "examples": [
+      "استخدام لغة بسيطة ومباشرة"
+    ],
+    "related_concepts": [
+      "communication_skills",
+      "customer_service"
+    ],
+    "created_at": "2025-11-02T04:17:14.077099",
+    "mastery_level": 0
+  },
+  "a302f5fb88208a6f9b56404657b64195": {
+    "concept": "مبدأ التواصل: اللطف",
+    "definition": "الرد بأسلوب ودود ومحترم",
+    "examples": [
+      "الرد بأسلوب ودود ومحترم"
+    ],
+    "related_concepts": [
+      "communication_skills",
+      "customer_service"
+    ],
+    "created_at": "2025-11-02T04:17:14.085402",
+    "mastery_level": 0
+  },
+  "78d986e7026bb52796787f716feea032": {
+    "concept": "مبدأ التواصل: الصبر",
+    "definition": "شرح الأمور بهدوء دون استعجال",
+    "examples": [
+      "شرح الأمور بهدوء دون استعجال"
+    ],
+    "related_concepts": [
+      "communication_skills",
+      "customer_service"
+    ],
+    "created_at": "2025-11-02T04:17:14.094394",
+    "mastery_level": 0
+  },
+  "c29152e26cf86ba47b5a8b368b1d06e1": {
+    "concept": "مبدأ التواصل: الاستماع",
+    "definition": "فهم السؤال جيداً قبل الإجابة",
+    "examples": [
+      "فهم السؤال جيداً قبل الإجابة"
+    ],
+    "related_concepts": [
+      "communication_skills",
+      "customer_service"
+    ],
+    "created_at": "2025-11-02T04:17:14.102450",
+    "mastery_level": 0
+  },
+  "b1b7d958c277492874d4ebadc6dcd267": {
+    "concept": "مبدأ التواصل: التعاطف",
+    "definition": "فهم مشاعر المستخدم ومشاكله",
+    "examples": [
+      "فهم مشاعر المستخدم ومشاكله"
+    ],
+    "related_concepts": [
+      "communication_skills",
+      "customer_service"
+    ],
+    "created_at": "2025-11-02T04:17:14.110908",
+    "mastery_level": 0
+  },
+  "5b91caa5de79c20547fbd8d3c9ccc7ad": {
+    "concept": "مبدأ التواصل: الإيجابية",
+    "definition": "التركيز على الحلول لا المشاكل",
+    "examples": [
+      "التركيز على الحلول لا المشاكل"
+    ],
+    "related_concepts": [
+      "communication_skills",
+      "customer_service"
+    ],
+    "created_at": "2025-11-02T04:17:14.118966",
+    "mastery_level": 0
+  },
+  "fb05102e5c56fd2e861d1d49eac9281c": {
+    "concept": "مبدأ التواصل: الاحترافية",
+    "definition": "الحفاظ على مستوى راقي من التواصل",
+    "examples": [
+      "الحفاظ على مستوى راقي من التواصل"
+    ],
+    "related_concepts": [
+      "communication_skills",
+      "customer_service"
+    ],
+    "created_at": "2025-11-02T04:17:14.130276",
+    "mastery_level": 0
+  },
+  "3b4cb865daff3dac08e86f1c95d68ff2": {
+    "concept": "حد احترافي: الخصوصية",
+    "definition": "عدم طلب معلومات شخصية حساسة",
+    "examples": [],
+    "related_concepts": [
+      "ethics",
+      "professionalism"
+    ],
+    "created_at": "2025-11-02T04:17:14.559756",
+    "mastery_level": 0
+  },
+  "34a142c07f719262457f3a48a872ab63": {
+    "concept": "حد احترافي: السرية",
+    "definition": "عدم مشاركة بيانات المستخدمين",
+    "examples": [],
+    "related_concepts": [
+      "ethics",
+      "professionalism"
+    ],
+    "created_at": "2025-11-02T04:17:14.568339",
+    "mastery_level": 0
+  },
+  "3b41849b8f9e4940e380ecf608e7afa5": {
+    "concept": "حد احترافي: الحيادية",
+    "definition": "عدم إبداء آراء شخصية سياسية أو دينية",
+    "examples": [],
+    "related_concepts": [
+      "ethics",
+      "professionalism"
+    ],
+    "created_at": "2025-11-02T04:17:14.576884",
+    "mastery_level": 0
+  },
+  "c1385215225c8fad7bf879dab543ce0b": {
+    "concept": "حد احترافي: التركيز",
+    "definition": "البقاء ضمن نطاق مساعدة النظام",
+    "examples": [],
+    "related_concepts": [
+      "ethics",
+      "professionalism"
+    ],
+    "created_at": "2025-11-02T04:17:14.587436",
+    "mastery_level": 0
+  },
+  "8c138de2fc5dfdc5f327b2f2e9e40708": {
+    "concept": "حد احترافي: الأمان",
+    "definition": "عدم تنفيذ أوامر خطيرة على البيانات",
+    "examples": [],
+    "related_concepts": [
+      "ethics",
+      "professionalism"
+    ],
+    "created_at": "2025-11-02T04:17:14.595803",
+    "mastery_level": 0
+  },
+  "3f2ef3213b3ed76c1d9324ea05942ef2": {
+    "concept": "المحاسبة",
+    "definition": "علم تسجيل وتبويب وتلخيص المعاملات المالية",
+    "examples": [
+      "مثال على المحاسبة"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.662715",
+    "mastery_level": 0
+  },
+  "d9ab0d6e6e7f896d03bb623d0155fd2e": {
+    "concept": "دفتر اليومية",
+    "definition": "تسجيل زمني للقيود",
+    "examples": [],
+    "related_concepts": [
+      "GL",
+      "accounting"
+    ],
+    "created_at": "2025-11-02T04:17:47.216698",
+    "mastery_level": 0
+  },
+  "59e937591861ff3d5662d4861be7b4ca": {
+    "concept": "الميزان المراجعة",
+    "definition": "قائمة بأرصدة جميع الحسابات",
+    "examples": [
+      "مثال على الميزان المراجعة"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.690686",
+    "mastery_level": 0
+  },
+  "4fbaafc039977d0ac1cd5118d2467a31": {
+    "concept": "الميزانية العمومية",
+    "definition": "قائمة الأصول والخصوم وحقوق الملكية",
+    "examples": [
+      "مثال على الميزانية العمومية"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.700023",
+    "mastery_level": 0
+  },
+  "78cc3d744ef9faf7659e6a1d97f8d153": {
+    "concept": "قائمة الدخل",
+    "definition": "الإيرادات - المصروفات",
+    "examples": [],
+    "related_concepts": [
+      "GL",
+      "accounting"
+    ],
+    "created_at": "2025-11-02T04:17:47.277997",
+    "mastery_level": 0
+  },
+  "b9f6009311c09bcb5ddc3f9e46ebedd3": {
+    "concept": "قائمة التدفقات النقدية",
+    "definition": "حركة النقد (تشغيلي، استثماري، تمويلي)",
+    "examples": [
+      "مثال على قائمة التدفقات النقدية"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.717752",
+    "mastery_level": 0
+  },
+  "306deec4c1dc8e67d4172054a798b8de": {
+    "concept": "الأصول",
+    "definition": "ما تملكه المنشأة (نقد، مخزون، أثاث)",
+    "examples": [
+      "مثال على الأصول"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.725829",
+    "mastery_level": 0
+  },
+  "4437820d591aabf615d6eba73a8e762d": {
+    "concept": "الخصوم",
+    "definition": "ما على المنشأة (قروض، ذمم دائنة)",
+    "examples": [
+      "مثال على الخصوم"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.733604",
+    "mastery_level": 0
+  },
+  "b63f4e8e7b043c1b4a5a6ecd48a34476": {
+    "concept": "حقوق الملكية",
+    "definition": "رأس المال + الأرباح المحتجزة",
+    "examples": [
+      "مثال على حقوق الملكية"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.741754",
+    "mastery_level": 0
+  },
+  "cd39bdf8d5780ab52677d99464789fcc": {
+    "concept": "الإيرادات",
+    "definition": "الدخل من العمليات (مبيعات، خدمات)",
+    "examples": [
+      "مثال على الإيرادات"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.749819",
+    "mastery_level": 0
+  },
+  "698fe744a6b64ae7a66fb0d0796df58c": {
+    "concept": "المصروفات",
+    "definition": "النفقات (رواتب، إيجار، كهرباء)",
+    "examples": [
+      "مثال على المصروفات"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.758241",
+    "mastery_level": 0
+  },
+  "275928e9e1d22f6b13c3faa731649a20": {
+    "concept": "الاستحقاق",
+    "definition": "تسجيل المعاملة عند حدوثها لا عند الدفع",
+    "examples": [
+      "مثال على الاستحقاق"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.766493",
+    "mastery_level": 0
+  },
+  "ac8697877059cb13e6d01138f474d946": {
+    "concept": "النقدية",
+    "definition": "تسجيل المعاملة عند الدفع الفعلي",
+    "examples": [
+      "مثال على النقدية"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.774867",
+    "mastery_level": 0
+  },
+  "fd4825b1550085e0677ed08b76111d78": {
+    "concept": "الإهلاك",
+    "definition": "توزيع تكلفة الأصل على عمره الإنتاجي",
+    "examples": [
+      "مثال على الإهلاك"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.782873",
+    "mastery_level": 0
+  },
+  "cc12d25ec425e01365f94cad5daa32f4": {
+    "concept": "المخصصات",
+    "definition": "احتياطي لمواجهة خسائر متوقعة",
+    "examples": [
+      "مثال على المخصصات"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.791434",
+    "mastery_level": 0
+  },
+  "d0b207d2372c869c05047bfe5803c36a": {
+    "concept": "الجرد",
+    "definition": "حصر المخزون الفعلي",
+    "examples": [
+      "مثال على الجرد"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.800929",
+    "mastery_level": 0
+  },
+  "e0419204714bc9e5f66e01ac2950c1ab": {
+    "concept": "التسوية",
+    "definition": "تصحيح الفروقات بين الدفاتر والواقع",
+    "examples": [
+      "مثال على التسوية"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.809066",
+    "mastery_level": 0
+  },
+  "b26b0cc6ccee490d13c3d659d9d5681d": {
+    "concept": "الإقفال",
+    "definition": "ترحيل الحسابات المؤقتة للدائمة",
+    "examples": [
+      "مثال على الإقفال"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.817709",
+    "mastery_level": 0
+  },
+  "5d3208cd4308fe57125ddfe438a1c0ae": {
+    "concept": "الترحيل",
+    "definition": "نقل القيد من اليومية للأستاذ",
+    "examples": [
+      "مثال على الترحيل"
+    ],
+    "related_concepts": [],
+    "created_at": "2025-11-02T04:17:14.826043",
+    "mastery_level": 0
+  },
+  "dfa3421542f8440cb4564c3ac0ce43d9": {
+    "concept": "إدارة: التخطيط",
+    "definition": "وضع الأهداف والاستراتيجيات",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "business"
+    ],
+    "created_at": "2025-11-02T04:17:15.105868",
+    "mastery_level": 0
+  },
+  "cc27e111e99b763664a845a535ea7746": {
+    "concept": "إدارة: التنظيم",
+    "definition": "ترتيب الموارد والمهام",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "business"
+    ],
+    "created_at": "2025-11-02T04:17:15.115044",
+    "mastery_level": 0
+  },
+  "f32fa484e82447f6e9404e2fe1136eeb": {
+    "concept": "إدارة: التوجيه",
+    "definition": "قيادة الفريق نحو الأهداف",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "business"
+    ],
+    "created_at": "2025-11-02T04:17:15.123512",
+    "mastery_level": 0
+  },
+  "915f08832d45dacc78c414ddaec42e11": {
+    "concept": "إدارة: الرقابة",
+    "definition": "متابعة الأداء وتصحيح الانحرافات",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "business"
+    ],
+    "created_at": "2025-11-02T04:17:15.131626",
+    "mastery_level": 0
+  },
+  "a72c96dd5bb08f199a42ca99719dfb52": {
+    "concept": "إدارة: اتخاذ القرار",
+    "definition": "اختيار البديل الأفضل بناءً على البيانات",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "business"
+    ],
+    "created_at": "2025-11-02T04:17:15.139943",
+    "mastery_level": 0
+  },
+  "27958bc61564a1071f26efca6f61c54c": {
+    "concept": "إدارة: إدارة الوقت",
+    "definition": "تنظيم الوقت لتحقيق أقصى إنتاجية",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "business"
+    ],
+    "created_at": "2025-11-02T04:17:15.147486",
+    "mastery_level": 0
+  },
+  "694a49f83116a5c9bf9977799208e44b": {
+    "concept": "إدارة: إدارة المخاطر",
+    "definition": "تحديد وتقييم ومعالجة المخاطر",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "business"
+    ],
+    "created_at": "2025-11-02T04:17:15.155107",
+    "mastery_level": 0
+  },
+  "dc2b5982fbdeb5b8dba1f53ba9402117": {
+    "concept": "إدارة: إدارة الجودة",
+    "definition": "ضمان المعايير في المنتجات والخدمات",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "business"
+    ],
+    "created_at": "2025-11-02T04:17:15.165702",
+    "mastery_level": 0
+  },
+  "614f72a5c958569bc68aec67c3828d45": {
+    "concept": "قرار: التسعير",
+    "definition": "التكلفة + هامش الربح المستهدف",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "finance",
+      "decision_making"
+    ],
+    "created_at": "2025-11-02T04:17:15.391800",
+    "mastery_level": 0
+  },
+  "143b6b2eaee459e6d174fdd933fffab5": {
+    "concept": "قرار: الائتمان",
+    "definition": "تقييم الجدارة الائتمانية للعميل",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "finance",
+      "decision_making"
+    ],
+    "created_at": "2025-11-02T04:17:15.403664",
+    "mastery_level": 0
+  },
+  "7f8894a6636cfd73cf9e39dc791afc71": {
+    "concept": "قرار: الاستثمار",
+    "definition": "مقارنة العائد المتوقع بالمخاطر",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "finance",
+      "decision_making"
+    ],
+    "created_at": "2025-11-02T04:17:15.414036",
+    "mastery_level": 0
+  },
+  "8523ec855907cb53eed16f08b272d6e5": {
+    "concept": "قرار: التمويل",
+    "definition": "اختيار بين التمويل الذاتي والخارجي",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "finance",
+      "decision_making"
+    ],
+    "created_at": "2025-11-02T04:17:15.424343",
+    "mastery_level": 0
+  },
+  "213deed5978d36a810ffe2049aba02f7": {
+    "concept": "قرار: التوسع",
+    "definition": "دراسة الجدوى والتدفقات النقدية",
+    "examples": [],
+    "related_concepts": [
+      "management",
+      "finance",
+      "decision_making"
+    ],
+    "created_at": "2025-11-02T04:17:15.433975",
+    "mastery_level": 0
+  },
+  "a6bb154f38675bd50a8e4a8466db8191": {
+    "concept": "فئة المعدات: معدات الحفر والتجريف",
+    "definition": "تصنيف رئيسي للمعدات الثقيلة",
+    "examples": [
+      "الحفارات Excavators",
+      "اللوادر Loaders",
+      "البلدوزرات Bulldozers",
+      "الجرافات Graders"
+    ],
+    "related_concepts": [
+      "heavy_equipment",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.064683",
+    "mastery_level": 0
+  },
+  "96f3eb57facf6681f0fd2fd82027bee7": {
+    "concept": "الحفارات Excavators",
+    "definition": "معدات حفر وتحميل التربة والصخور",
+    "examples": [],
+    "related_concepts": [
+      "معدات الحفر والتجريف",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.072110",
+    "mastery_level": 0
+  },
+  "7fea47336b8ca28e3b0c0596e15b13a4": {
+    "concept": "اللوادر Loaders",
+    "definition": "معدات تحميل المواد",
+    "examples": [],
+    "related_concepts": [
+      "معدات الحفر والتجريف",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.081535",
+    "mastery_level": 0
+  },
+  "e58ac26f04045102f125b8645bfc93de": {
+    "concept": "البلدوزرات Bulldozers",
+    "definition": "معدات تسوية ودفع التربة",
+    "examples": [],
+    "related_concepts": [
+      "معدات الحفر والتجريف",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.090771",
+    "mastery_level": 0
+  },
+  "546ec196c41e1339bc69009dea8da433": {
+    "concept": "الجرافات Graders",
+    "definition": "معدات تسوية وتشكيل الأسطح",
+    "examples": [],
+    "related_concepts": [
+      "معدات الحفر والتجريف",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.100546",
+    "mastery_level": 0
+  },
+  "d66511231e148df617e603f6bd53b933": {
+    "concept": "فئة المعدات: معدات الرفع",
+    "definition": "تصنيف رئيسي للمعدات الثقيلة",
+    "examples": [
+      "الرافعات Cranes",
+      "الرافعات الشوكية Forklifts",
+      "الرافعات البرجية Tower Cranes"
+    ],
+    "related_concepts": [
+      "heavy_equipment",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.110764",
+    "mastery_level": 0
+  },
+  "441606d092154ab6f03845e33bde69eb": {
+    "concept": "الرافعات Cranes",
+    "definition": "معدات رفع الأحمال الثقيلة",
+    "examples": [],
+    "related_concepts": [
+      "معدات الرفع",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.120980",
+    "mastery_level": 0
+  },
+  "22d058e6aee673257b1786e646f3cd90": {
+    "concept": "الرافعات الشوكية Forklifts",
+    "definition": "رفع ونقل البضائع",
+    "examples": [],
+    "related_concepts": [
+      "معدات الرفع",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.132354",
+    "mastery_level": 0
+  },
+  "94a344fb4d8857ec91f48b5362577af4": {
+    "concept": "الرافعات البرجية Tower Cranes",
+    "definition": "رفع في المباني العالية",
+    "examples": [],
+    "related_concepts": [
+      "معدات الرفع",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.143163",
+    "mastery_level": 0
+  },
+  "af9cb2399a7aa278aa7a598a0a6fb50d": {
+    "concept": "فئة المعدات: معدات الطرق",
+    "definition": "تصنيف رئيسي للمعدات الثقيلة",
+    "examples": [
+      "الرصافات Asphalt Pavers",
+      "الحفارات الأسفلتية Milling Machines",
+      "الدكاكات Compactors",
+      "خلاطات الإسفلت Asphalt Plants"
+    ],
+    "related_concepts": [
+      "heavy_equipment",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.153572",
+    "mastery_level": 0
+  },
+  "8af68b8262394f7eaea984188f360632": {
+    "concept": "الرصافات Asphalt Pavers",
+    "definition": "رصف الطرق بالإسفلت",
+    "examples": [],
+    "related_concepts": [
+      "معدات الطرق",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.164513",
+    "mastery_level": 0
+  },
+  "475cb2c465607086a2bbba0292da9fd9": {
+    "concept": "الحفارات الأسفلتية Milling Machines",
+    "definition": "إزالة طبقات الإسفلت",
+    "examples": [],
+    "related_concepts": [
+      "معدات الطرق",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.173859",
+    "mastery_level": 0
+  },
+  "44edfce9ee1a5ea0573edcef3f4f8b66": {
+    "concept": "الدكاكات Compactors",
+    "definition": "ضغط وتثبيت التربة والإسفلت",
+    "examples": [],
+    "related_concepts": [
+      "معدات الطرق",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.183261",
+    "mastery_level": 0
+  },
+  "bdda7f03506bad6df46d81a30b0e4bed": {
+    "concept": "خلاطات الإسفلت Asphalt Plants",
+    "definition": "إنتاج خلطة الإسفلت",
+    "examples": [],
+    "related_concepts": [
+      "معدات الطرق",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.194832",
+    "mastery_level": 0
+  },
+  "165438518dea7a031730a76f1aec7e44": {
+    "concept": "فئة المعدات: معدات النقل",
+    "definition": "تصنيف رئيسي للمعدات الثقيلة",
+    "examples": [
+      "الشاحنات القلابة Dump Trucks",
+      "الناقلات Conveyors",
+      "المقطورات Trailers"
+    ],
+    "related_concepts": [
+      "heavy_equipment",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.202703",
+    "mastery_level": 0
+  },
+  "020425423c203b78ccc5d541385a874c": {
+    "concept": "الشاحنات القلابة Dump Trucks",
+    "definition": "نقل المواد السائبة",
+    "examples": [],
+    "related_concepts": [
+      "معدات النقل",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.210998",
+    "mastery_level": 0
+  },
+  "be8aebc7ab919624ed18026375e0e64b": {
+    "concept": "الناقلات Conveyors",
+    "definition": "نقل المواد المستمر",
+    "examples": [],
+    "related_concepts": [
+      "معدات النقل",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.218706",
+    "mastery_level": 0
+  },
+  "bd07cdd2ab0459b4d0b03dfb22b29382": {
+    "concept": "المقطورات Trailers",
+    "definition": "نقل المعدات والبضائع",
+    "examples": [],
+    "related_concepts": [
+      "معدات النقل",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.226930",
+    "mastery_level": 0
+  },
+  "9ee552eb020731ab79a58f740549f8c4": {
+    "concept": "فئة المعدات: معدات التكسير",
+    "definition": "تصنيف رئيسي للمعدات الثقيلة",
+    "examples": [
+      "الكسارات Crushers",
+      "المطاحن Mills",
+      "الناخلات Screens"
+    ],
+    "related_concepts": [
+      "heavy_equipment",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.234811",
+    "mastery_level": 0
+  },
+  "907b983b89b1847e839cee8ca41a3487": {
+    "concept": "الكسارات Crushers",
+    "definition": "تكسير الصخور والخرسانة",
+    "examples": [],
+    "related_concepts": [
+      "معدات التكسير",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.243464",
+    "mastery_level": 0
+  },
+  "22d393e028260968f1476ac150ea55a8": {
+    "concept": "المطاحن Mills",
+    "definition": "طحن المواد",
+    "examples": [],
+    "related_concepts": [
+      "معدات التكسير",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.251257",
+    "mastery_level": 0
+  },
+  "5e234566ec4feb94991a7fef18cb3467": {
+    "concept": "الناخلات Screens",
+    "definition": "فصل المواد حسب الحجم",
+    "examples": [],
+    "related_concepts": [
+      "معدات التكسير",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.259736",
+    "mastery_level": 0
+  },
+  "9a926173297a990e1745fbc374a1d326": {
+    "concept": "الصيانة الوقائية Preventive",
+    "definition": "صيانة منتظمة لمنع الأعطال",
+    "examples": [],
+    "related_concepts": [
+      "maintenance",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.381194",
+    "mastery_level": 1
+  },
+  "4ed494c779768e46858b7d80c9761818": {
+    "concept": "الصيانة التنبؤية Predictive",
+    "definition": "صيانة بناءً على مراقبة الأداء",
+    "examples": [],
+    "related_concepts": [
+      "maintenance",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.389176",
+    "mastery_level": 0
+  },
+  "91c23074b6821f2bda2ee66fc91bbafb": {
+    "concept": "الصيانة التصحيحية Corrective",
+    "definition": "إصلاح بعد حدوث العطل",
+    "examples": [],
+    "related_concepts": [
+      "maintenance",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.399108",
+    "mastery_level": 0
+  },
+  "c0cd1e493184ee7876ee97665e92b6da": {
+    "concept": "الصيانة الطارئة Emergency",
+    "definition": "إصلاح فوري لعطل مفاجئ",
+    "examples": [],
+    "related_concepts": [
+      "maintenance",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.407671",
+    "mastery_level": 0
+  },
+  "d9831da65d2abf4970cd542aff0637be": {
+    "concept": "الصيانة المخططة Scheduled",
+    "definition": "صيانة حسب جدول زمني",
+    "examples": [],
+    "related_concepts": [
+      "maintenance",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.418438",
+    "mastery_level": 0
+  },
+  "4ca420d3a7aa9ce5ff84abe27e5dccff": {
+    "concept": "الصيانة القائمة على الحالة Condition-based",
+    "definition": "صيانة حسب حالة المعدة",
+    "examples": [],
+    "related_concepts": [
+      "maintenance",
+      "heavy_equipment"
+    ],
+    "created_at": "2025-11-02T04:17:18.428092",
+    "mastery_level": 0
+  },
+  "b372024e3143ed4ab67833131ef7647e": {
+    "concept": "تشخيص: الفحص البصري",
+    "definition": "فحص بالعين للتسريبات، التآكل، التلف",
+    "examples": [],
+    "related_concepts": [
+      "diagnostic",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.859189",
+    "mastery_level": 0
+  },
+  "df3b5b4a06d63d818aee4d7c8fbc0b42": {
+    "concept": "تشخيص: الاستماع",
+    "definition": "الكشف عن الأصوات غير الطبيعية",
+    "examples": [],
+    "related_concepts": [
+      "diagnostic",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.868580",
+    "mastery_level": 0
+  },
+  "d425e2c21ac4e7d2174f6c6bd89e6d83": {
+    "concept": "تشخيص: قياس الضغط",
+    "definition": "فحص ضغط المحرك، الهيدروليك، الإطارات",
+    "examples": [],
+    "related_concepts": [
+      "diagnostic",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.877784",
+    "mastery_level": 0
+  },
+  "9860ad5c8c9153e1b8cb4f215639ce3a": {
+    "concept": "تشخيص: قياس درجة الحرارة",
+    "definition": "استخدام ثيرمومتر أو كاميرا حرارية",
+    "examples": [],
+    "related_concepts": [
+      "diagnostic",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.886974",
+    "mastery_level": 0
+  },
+  "1783c37d78769d5079f635044bbe346e": {
+    "concept": "تشخيص: تحليل الاهتزازات",
+    "definition": "كشف عدم التوازن أو التلف",
+    "examples": [],
+    "related_concepts": [
+      "diagnostic",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.896489",
+    "mastery_level": 0
+  },
+  "9f01c64ea2c316fce3918915cf500e37": {
+    "concept": "تشخيص: تحليل الزيت",
+    "definition": "فحص مخبري لحالة المحرك",
+    "examples": [],
+    "related_concepts": [
+      "diagnostic",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.904505",
+    "mastery_level": 0
+  },
+  "753d42f766ec549804788d6806e7e266": {
+    "concept": "تشخيص: الاختبار الكهربائي",
+    "definition": "فحص الدوائر والبطارية",
+    "examples": [],
+    "related_concepts": [
+      "diagnostic",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.912678",
+    "mastery_level": 0
+  },
+  "f4d11d0d8c4105ccd4b23118d3d6a864": {
+    "concept": "تشخيص: الفحص بالكمبيوتر",
+    "definition": "قراءة أكواد الأعطال",
+    "examples": [],
+    "related_concepts": [
+      "diagnostic",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:18.920089",
+    "mastery_level": 0
+  },
+  "69f8ed6c9af2b648b0966a681e08e78a": {
+    "concept": "قطع الغيار: قطع الاستهلاك السريع",
+    "definition": "فلاتر، زيوت، شحوم، أحزمة",
+    "examples": [
+      "فلاتر",
+      "زيوت",
+      "شحوم",
+      "أحزمة"
+    ],
+    "related_concepts": [
+      "parts",
+      "inventory"
+    ],
+    "created_at": "2025-11-02T04:17:18.928712",
+    "mastery_level": 0
+  },
+  "313f8e08622ad9947f3eea96bc484ac0": {
+    "concept": "قطع الغيار: قطع الصيانة الدورية",
+    "definition": "فلاتر هواء، بطاريات، إطارات",
+    "examples": [
+      "فلاتر هواء",
+      "بطاريات",
+      "إطارات"
+    ],
+    "related_concepts": [
+      "parts",
+      "inventory"
+    ],
+    "created_at": "2025-11-02T04:17:18.936775",
+    "mastery_level": 0
+  },
+  "8d3742839f6698ead971d10971d7d31e": {
+    "concept": "قطع الغيار: قطع الأمان الحرجة",
+    "definition": "فرامل، توجيه، إضاءة",
+    "examples": [
+      "فرامل",
+      "توجيه",
+      "إضاءة"
+    ],
+    "related_concepts": [
+      "parts",
+      "inventory"
+    ],
+    "created_at": "2025-11-02T04:17:18.946326",
+    "mastery_level": 0
+  },
+  "836ff713d5cadcc5736501db1d4d4792": {
+    "concept": "قطع الغيار: قطع الإصلاح الكبرى",
+    "definition": "محركات، ناقل حركة، مضخات",
+    "examples": [
+      "محركات",
+      "ناقل حركة",
+      "مضخات"
+    ],
+    "related_concepts": [
+      "parts",
+      "inventory"
+    ],
+    "created_at": "2025-11-02T04:17:18.954493",
+    "mastery_level": 0
+  },
+  "e4ad70a7a120de5259313464ebcb16ab": {
+    "concept": "ABC Analysis",
+    "definition": "تصنيف القطع حسب الأهمية والقيمة",
+    "examples": [],
+    "related_concepts": [
+      "inventory_management"
+    ],
+    "created_at": "2025-11-02T04:17:18.963803",
+    "mastery_level": 0
+  },
+  "bca4f4b5ddd94de36084f80b0a833ba7": {
+    "concept": "EOQ",
+    "definition": "كمية الطلب الاقتصادية",
+    "examples": [],
+    "related_concepts": [
+      "inventory_management"
+    ],
+    "created_at": "2025-11-02T04:17:18.972220",
+    "mastery_level": 0
+  },
+  "01f139824b8f93ad7d144b7506318d7d": {
+    "concept": "Safety Stock",
+    "definition": "مخزون الأمان للطوارئ",
+    "examples": [],
+    "related_concepts": [
+      "inventory_management"
+    ],
+    "created_at": "2025-11-02T04:17:18.981509",
+    "mastery_level": 0
+  },
+  "4e6c733a2c8e55e823e4869494d7fdd7": {
+    "concept": "Lead Time",
+    "definition": "وقت التوريد",
+    "examples": [],
+    "related_concepts": [
+      "inventory_management"
+    ],
+    "created_at": "2025-11-02T04:17:18.989780",
+    "mastery_level": 0
+  },
+  "c589858dbe1d06c46544266ae4cd2c6f": {
+    "concept": "FIFO",
+    "definition": "الوارد أولاً يصرف أولاً",
+    "examples": [],
+    "related_concepts": [
+      "inventory_management"
+    ],
+    "created_at": "2025-11-02T04:17:18.998023",
+    "mastery_level": 0
+  },
+  "2167fde22a2f305e4418d1e9f593e3bb": {
+    "concept": "Min-Max Levels",
+    "definition": "الحد الأدنى والأقصى للمخزون",
+    "examples": [],
+    "related_concepts": [
+      "inventory_management"
+    ],
+    "created_at": "2025-11-02T04:17:19.006029",
+    "mastery_level": 0
+  },
+  "1cd6e1d02c57049f25d604eaf22cd25d": {
+    "concept": "تكلفة العمالة",
+    "definition": "أجور الفنيين والمشرفين",
+    "examples": [],
+    "related_concepts": [
+      "maintenance_cost",
+      "budget"
+    ],
+    "created_at": "2025-11-02T04:17:19.297576",
+    "mastery_level": 0
+  },
+  "49a96a3b7c7725c56d501d871a7a53cb": {
+    "concept": "تكلفة قطع الغيار",
+    "definition": "قيمة القطع المستبدلة",
+    "examples": [],
+    "related_concepts": [
+      "maintenance_cost",
+      "budget"
+    ],
+    "created_at": "2025-11-02T04:17:19.305757",
+    "mastery_level": 0
+  },
+  "2ddf8fd3984823f82d291af71776042b": {
+    "concept": "تكلفة المواد الاستهلاكية",
+    "definition": "زيوت، شحوم، مواد تنظيف",
+    "examples": [],
+    "related_concepts": [
+      "maintenance_cost",
+      "budget"
+    ],
+    "created_at": "2025-11-02T04:17:19.316153",
+    "mastery_level": 0
+  },
+  "258240691b6a7921ea54981aaec824c8": {
+    "concept": "تكلفة الأدوات",
+    "definition": "شراء وصيانة الأدوات",
+    "examples": [],
+    "related_concepts": [
+      "maintenance_cost",
+      "budget"
+    ],
+    "created_at": "2025-11-02T04:17:19.323807",
+    "mastery_level": 0
+  },
+  "30d81bdd797c48fd094cdbbd89d01685": {
+    "concept": "تكلفة التوقف",
+    "definition": "خسارة الإنتاج أثناء العطل",
+    "examples": [],
+    "related_concepts": [
+      "maintenance_cost",
+      "budget"
+    ],
+    "created_at": "2025-11-02T04:17:19.333486",
+    "mastery_level": 0
+  },
+  "f61eaaeec22f71b6337758bf492cd672": {
+    "concept": "تكلفة الخدمات الخارجية",
+    "definition": "الاستعانة بمقاولين",
+    "examples": [],
+    "related_concepts": [
+      "maintenance_cost",
+      "budget"
+    ],
+    "created_at": "2025-11-02T04:17:19.341901",
+    "mastery_level": 0
+  },
+  "6f3bba0e1901e0b0d5e2a4f7f34a989e": {
+    "concept": "تكلفة التدريب",
+    "definition": "تدريب الفنيين",
+    "examples": [],
+    "related_concepts": [
+      "maintenance_cost",
+      "budget"
+    ],
+    "created_at": "2025-11-02T04:17:19.350161",
+    "mastery_level": 0
+  },
+  "43ab7072fcd6c34d9decc981fbf82499": {
+    "concept": "جدولة: جدولة حسب الساعات",
+    "definition": "صيانة كل X ساعة تشغيل",
+    "examples": [],
+    "related_concepts": [
+      "scheduling",
+      "planning"
+    ],
+    "created_at": "2025-11-02T04:17:19.358577",
+    "mastery_level": 0
+  },
+  "43d477d946eb2e3777dd3b1434bf64c9": {
+    "concept": "جدولة: جدولة حسب التقويم",
+    "definition": "صيانة شهرية، ربع سنوية، سنوية",
+    "examples": [],
+    "related_concepts": [
+      "scheduling",
+      "planning"
+    ],
+    "created_at": "2025-11-02T04:17:19.366733",
+    "mastery_level": 0
+  },
+  "4b53c43128a22a8fb26d26719c4db8f3": {
+    "concept": "جدولة: جدولة حسب الحالة",
+    "definition": "عند ظهور مؤشرات التآكل",
+    "examples": [],
+    "related_concepts": [
+      "scheduling",
+      "planning"
+    ],
+    "created_at": "2025-11-02T04:17:19.377655",
+    "mastery_level": 0
+  },
+  "d859e87fc948d96e4e48a7cada0557fd": {
+    "concept": "جدولة: جدولة الطوارئ",
+    "definition": "استجابة فورية للأعطال",
+    "examples": [],
+    "related_concepts": [
+      "scheduling",
+      "planning"
+    ],
+    "created_at": "2025-11-02T04:17:19.387139",
+    "mastery_level": 0
+  },
+  "5cbf98f8f4db2810b6ee3306060dab7d": {
+    "concept": "أدوات يدوية",
+    "definition": "مفكات، مفاتيح ربط، كماشات",
+    "examples": [
+      "مفكات",
+      "مفاتيح ربط",
+      "كماشات"
+    ],
+    "related_concepts": [
+      "tools",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.397155",
+    "mastery_level": 0
+  },
+  "0fab2b311d0153c796d7ad4264982295": {
+    "concept": "أدوات كهربائية",
+    "definition": "دريل، صاروخ، مطحنة",
+    "examples": [
+      "دريل",
+      "صاروخ",
+      "مطحنة"
+    ],
+    "related_concepts": [
+      "tools",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.405468",
+    "mastery_level": 0
+  },
+  "1dedce1e3231020258a4ecdbfd5b1840": {
+    "concept": "أدوات قياس",
+    "definition": "مقياس ضغط، ثيرمومتر، ميزان",
+    "examples": [
+      "مقياس ضغط",
+      "ثيرمومتر",
+      "ميزان"
+    ],
+    "related_concepts": [
+      "tools",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.415027",
+    "mastery_level": 0
+  },
+  "7438328492e5b6b979c7bb46ada41dee": {
+    "concept": "أدوات رفع",
+    "definition": "رافعة، ونش، جاك",
+    "examples": [
+      "رافعة",
+      "ونش",
+      "جاك"
+    ],
+    "related_concepts": [
+      "tools",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.423463",
+    "mastery_level": 0
+  },
+  "cd045f673c4aad747101bf5f549e1c78": {
+    "concept": "أدوات تشخيص",
+    "definition": "ماسح أعطال، ملتيميتر",
+    "examples": [
+      "ماسح أعطال",
+      "ملتيميتر"
+    ],
+    "related_concepts": [
+      "tools",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.433341",
+    "mastery_level": 0
+  },
+  "dacf1ef325073d9a5273f4ecb26e048f": {
+    "concept": "معدات اللحام",
+    "definition": "لحام كهربائي، أكسجين",
+    "examples": [
+      "لحام كهربائي",
+      "أكسجين"
+    ],
+    "related_concepts": [
+      "tools",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.443377",
+    "mastery_level": 0
+  },
+  "d0ecb43345c08dbe7cd420e0c2fd2047": {
+    "concept": "MTBF - Mean Time Between Failures",
+    "definition": "متوسط الوقت بين الأعطال",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "performance",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.480243",
+    "mastery_level": 0
+  },
+  "577a963dedd579981a044cd04adfbf26": {
+    "concept": "MTTR - Mean Time To Repair",
+    "definition": "متوسط وقت الإصلاح",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "performance",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.490465",
+    "mastery_level": 0
+  },
+  "faeaec9eda6bc4c8cb6e1a9156a858be": {
+    "concept": "Availability",
+    "definition": "نسبة جاهزية المعدة",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "performance",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.501332",
+    "mastery_level": 0
+  },
+  "bb98c1e8803e751e5c1c2b304393db7e": {
+    "concept": "OEE - Overall Equipment Effectiveness",
+    "definition": "الفعالية الإجمالية",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "performance",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.510152",
+    "mastery_level": 0
+  },
+  "38cdd01e4383b69438e323df0e89462d": {
+    "concept": "Maintenance Cost per Hour",
+    "definition": "تكلفة الصيانة لكل ساعة تشغيل",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "performance",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.519006",
+    "mastery_level": 0
+  },
+  "655be38f97c01e7a186e55e8a8431b89": {
+    "concept": "PM Compliance",
+    "definition": "نسبة الالتزام بالصيانة الوقائية",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "performance",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.527647",
+    "mastery_level": 0
+  },
+  "221a0be35cbc8bcd4d6849d4ecec19f6": {
+    "concept": "Parts Inventory Turnover",
+    "definition": "معدل دوران قطع الغيار",
+    "examples": [],
+    "related_concepts": [
+      "KPI",
+      "performance",
+      "maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.536635",
+    "mastery_level": 0
+  },
+  "ec77ddbb2f86fb6ce5ad6cdb24232901": {
+    "concept": "الصيانة بالاعتماد على الموثوقية RCM",
+    "definition": "استراتيجية صيانة متقدمة",
+    "examples": [],
+    "related_concepts": [
+      "advanced_maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.619198",
+    "mastery_level": 0
+  },
+  "f1063e3341f758bbbbe72cd417763681": {
+    "concept": "الصيانة الإنتاجية الشاملة TPM",
+    "definition": "إشراك الجميع في الصيانة",
+    "examples": [],
+    "related_concepts": [
+      "advanced_maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.637521",
+    "mastery_level": 0
+  },
+  "0526d50fd58c9898a307b0fb9ac0bc43": {
+    "concept": "التحليل الجذري للأعطال RCA",
+    "definition": "منع تكرار الأعطال",
+    "examples": [],
+    "related_concepts": [
+      "advanced_maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.648381",
+    "mastery_level": 0
+  },
+  "7c493a975c6bd5edd301cb53d0ee61f2": {
+    "concept": "إدارة دورة حياة الأصول",
+    "definition": "من الشراء للتخلص",
+    "examples": [],
+    "related_concepts": [
+      "advanced_maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.658252",
+    "mastery_level": 0
+  },
+  "fed1713226747c4f8d9f2a560ee0adc1": {
+    "concept": "الصيانة الذكية",
+    "definition": "استخدام IoT والذكاء الصناعي",
+    "examples": [],
+    "related_concepts": [
+      "advanced_maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.669031",
+    "mastery_level": 0
+  },
+  "95477e69428547632a8a9e03118d2935": {
+    "concept": "التوأم الرقمي Digital Twin",
+    "definition": "محاكاة أداء المعدة",
+    "examples": [],
+    "related_concepts": [
+      "advanced_maintenance"
+    ],
+    "created_at": "2025-11-02T04:17:19.677955",
+    "mastery_level": 0
+  },
+  "1d9239b0dd9aa8a07c8f63c9e0985306": {
+    "concept": "Module: auth",
+    "definition": "وحدة في النظام تحتوي على 5 مسار",
+    "examples": [
+      "/auth/login",
+      "/auth/logout",
+      "/auth/register/customer",
+      "/auth/customer_password_reset_request",
+      "/auth/customer_password_reset/<token>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.280418",
+    "mastery_level": 0
+  },
+  "b3bcaa0689233c0369993338f95b3d69": {
+    "concept": "Module: main",
+    "definition": "وحدة في النظام تحتوي على 6 مسار",
+    "examples": [
+      "/favicon.ico",
+      "/",
+      "/backup_db",
+      "/restore_db",
+      "/automated-backup-status"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.292808",
+    "mastery_level": 0
+  },
+  "75bfaf8695144a77eeefe6c0a6f3d799": {
+    "concept": "Module: users_bp",
+    "definition": "وحدة في النظام تحتوي على 9 مسار",
+    "examples": [
+      "/users/profile",
+      "/users/edit-profile",
+      "/users/change-password",
+      "/users/",
+      "/users/<int:user_id>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.304833",
+    "mastery_level": 0
+  },
+  "c9c70b0e2ede82b863979c85f72d1138": {
+    "concept": "Module: service",
+    "definition": "وحدة في النظام تحتوي على 29 مسار",
+    "examples": [
+      "/service/api/statuses",
+      "/service/api/priorities",
+      "/service/api/options",
+      "/service/list",
+      "/service/"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.346748",
+    "mastery_level": 0
+  },
+  "b17443e22d9499338b86d79fec37a7eb": {
+    "concept": "Module: customers_bp",
+    "definition": "وحدة في النظام تحتوي على 16 مسار",
+    "examples": [
+      "/customers/",
+      "/customers/<int:customer_id>",
+      "/customers/<int:customer_id>/analytics",
+      "/customers/create",
+      "/customers/create"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.372993",
+    "mastery_level": 0
+  },
+  "6d214370e69c15c49857e9eba2e540a2": {
+    "concept": "Module: sales_bp",
+    "definition": "وحدة في النظام تحتوي على 14 مسار",
+    "examples": [
+      "/sales/dashboard",
+      "/sales/",
+      "/sales/",
+      "/sales/new",
+      "/sales/<int:id>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.417771",
+    "mastery_level": 0
+  },
+  "904a15a5501894078a59878ee90191e3": {
+    "concept": "Module: returns",
+    "definition": "وحدة في النظام تحتوي على 10 مسار",
+    "examples": [
+      "/returns/",
+      "/returns/create/<int:sale_id>",
+      "/returns/create",
+      "/returns/<int:return_id>",
+      "/returns/<int:return_id>/edit"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.442136",
+    "mastery_level": 0
+  },
+  "7e57ade0a5bbb8088fe05ead59001a2c": {
+    "concept": "Module: notes_bp",
+    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "examples": [
+      "/notes/",
+      "/notes/new",
+      "/notes/<int:note_id>",
+      "/notes/<int:note_id>/edit",
+      "/notes/<int:note_id>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.478831",
+    "mastery_level": 0
+  },
+  "8aaaa3773944aa14c62da90e5b469d02": {
+    "concept": "Module: reports_bp",
+    "definition": "وحدة في النظام تحتوي على 25 مسار",
+    "examples": [
+      "/reports",
+      "/reports/",
+      "/reports/dynamic",
+      "/reports/below_min_stock",
+      "/reports/shipments"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.522240",
+    "mastery_level": 0
+  },
+  "bda62506d6cea5775f7b99d5f683e4c3": {
+    "concept": "Module: shop",
+    "definition": "وحدة في النظام تحتوي على 25 مسار",
+    "examples": [
+      "/shop/webhook/<gateway>",
+      "/shop/",
+      "/shop/product/<int:product_id>",
+      "/shop/products",
+      "/shop/api/products"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.562262",
+    "mastery_level": 0
+  },
+  "daebea08933c3e32796db21372fb3f74": {
+    "concept": "Module: expenses_bp",
+    "definition": "وحدة في النظام تحتوي على 22 مسار",
+    "examples": [
+      "/expenses/employees",
+      "/expenses/employees/add",
+      "/expenses/employees/edit/<int:emp_id>",
+      "/expenses/employees/<int:emp_id>/statement",
+      "/expenses/employees/<int:emp_id>/installments-due"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.590364",
+    "mastery_level": 0
+  },
+  "1dd0ddc92b873eb04668914179bf8835": {
+    "concept": "Module: vendors_bp",
+    "definition": "وحدة في النظام تحتوي على 16 مسار",
+    "examples": [
+      "/vendors/suppliers",
+      "/vendors/suppliers/new",
+      "/vendors/suppliers/<int:id>/edit",
+      "/vendors/suppliers/<int:id>/delete",
+      "/vendors/suppliers/<int:supplier_id>/statement"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.627670",
+    "mastery_level": 0
+  },
+  "a94b76f6344c4aad58dea83bb74f64bc": {
+    "concept": "Module: shipments_bp",
+    "definition": "وحدة في النظام تحتوي على 14 مسار",
+    "examples": [
+      "/shipments/",
+      "/shipments/",
+      "/shipments/data",
+      "/shipments/create",
+      "/shipments/<int:id>/edit"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.648382",
+    "mastery_level": 0
+  },
+  "f98ed906fcec713e3407a7fcb706a806": {
+    "concept": "Module: warehouse_bp",
+    "definition": "وحدة في النظام تحتوي على 50 مسار",
+    "examples": [
+      "/warehouses/api/warehouse-info",
+      "/warehouses/api/upload_product_image",
+      "/warehouses/api/prepare_online_fields",
+      "/warehouses/api/apply_online_defaults",
+      "/warehouses/"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.685812",
+    "mastery_level": 0
+  },
+  "445caa9f61feee26f700533802b1aba3": {
+    "concept": "Module: branches_bp",
+    "definition": "وحدة في النظام تحتوي على 14 مسار",
+    "examples": [
+      "/branches/",
+      "/branches/create",
+      "/branches/<int:branch_id>/edit",
+      "/branches/<int:branch_id>/archive",
+      "/branches/<int:branch_id>/restore"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.719155",
+    "mastery_level": 0
+  },
+  "50aa09ee6128986f6d974743b557caf8": {
+    "concept": "Module: payments",
+    "definition": "وحدة في النظام تحتوي على 21 مسار",
+    "examples": [
+      "/payments/entity-search",
+      "/payments/",
+      "/payments/create",
+      "/payments/expense/<int:exp_id>/create",
+      "/payments/split/<int:split_id>/delete"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.741832",
+    "mastery_level": 0
+  },
+  "886b91752fe115fd6bd37581b0bd4404": {
+    "concept": "Module: permissions",
+    "definition": "وحدة في النظام تحتوي على 4 مسار",
+    "examples": [
+      "/permissions/",
+      "/permissions/create",
+      "/permissions/<int:permission_id>/edit",
+      "/permissions/<int:permission_id>/delete"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.768025",
+    "mastery_level": 0
+  },
+  "7d025067a64642c42487b1a6d8dc2c23": {
+    "concept": "Module: roles",
+    "definition": "وحدة في النظام تحتوي على 4 مسار",
+    "examples": [
+      "/roles/",
+      "/roles/create",
+      "/roles/<int:role_id>/edit",
+      "/roles/<int:role_id>/delete"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.806013",
+    "mastery_level": 0
+  },
+  "263d95e1716fe6a2bc3d83c5899423a9": {
+    "concept": "Module: parts_bp",
+    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "examples": [
+      "/parts/",
+      "/parts/create",
+      "/parts/<int:id>/edit",
+      "/parts/<int:id>/stock",
+      "/parts/<int:id>/delete"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.834808",
+    "mastery_level": 0
+  },
+  "6382511af3e9e0515ead70962bae1453": {
+    "concept": "Module: admin_reports",
+    "definition": "وحدة في النظام تحتوي على 4 مسار",
+    "examples": [
+      "/admin/reports/",
+      "/admin/reports/cards",
+      "/admin/reports/cards/<int:pid>/reveal",
+      "/admin/reports/preorders"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.860285",
+    "mastery_level": 0
+  },
+  "96823bd88bd5deb92aca7325415b791a": {
+    "concept": "Module: bp_barcode",
+    "definition": "وحدة في النظام تحتوي على 1 مسار",
+    "examples": [
+      "/api/barcode/validate"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.891534",
+    "mastery_level": 0
+  },
+  "89faf88ed86cf5dc8971d016fb426be3": {
+    "concept": "Module: partner_settlements_bp",
+    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "examples": [
+      "/partners/unpriced-items",
+      "/partners/settlements",
+      "/partners/<int:partner_id>/settlements/preview",
+      "/partners/<int:partner_id>/settlements/create",
+      "/partners/settlements/<int:settlement_id>/confirm"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.924113",
+    "mastery_level": 0
+  },
+  "2112a8f6095cc8320c92dce740de7a86": {
+    "concept": "Module: supplier_settlements_bp",
+    "definition": "وحدة في النظام تحتوي على 9 مسار",
+    "examples": [
+      "/suppliers/unpriced-items",
+      "/suppliers/settlements",
+      "/suppliers/<int:supplier_id>/settlements/preview",
+      "/suppliers/<int:supplier_id>/settlements/create",
+      "/suppliers/settlements/<int:settlement_id>/confirm"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.948441",
+    "mastery_level": 0
+  },
+  "10745afe127f7955e1a1530bb10aa27c": {
+    "concept": "Module: api",
+    "definition": "وحدة في النظام تحتوي على 100 مسار",
+    "examples": [
+      "/api/",
+      "/api/docs",
+      "/api/health",
+      "/api/exchange-rates",
+      "/api/me"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:45.970267",
+    "mastery_level": 0
+  },
+  "fb1d1d5cd2b8b073ee2e4a0ee6f4de9b": {
+    "concept": "Module: ledger",
+    "definition": "وحدة في النظام تحتوي على 14 مسار",
+    "examples": [
+      "/ledger/",
+      "/ledger/chart-of-accounts",
+      "/ledger/accounts",
+      "/ledger/manual-entry",
+      "/ledger/data"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.004381",
+    "mastery_level": 0
+  },
+  "393c2ecf0c9fd39e5a7f12591bc4bbfc": {
+    "concept": "Module: currencies",
+    "definition": "وحدة في النظام تحتوي على 14 مسار",
+    "examples": [
+      "/currencies/",
+      "/currencies/new",
+      "/currencies/exchange-rates",
+      "/currencies/exchange-rates/new",
+      "/currencies/exchange-rates/<int:rate_id>/edit"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.030260",
+    "mastery_level": 0
+  },
+  "ddda6068059a3cb5f4cbf2448e45bbca": {
+    "concept": "Module: hard_delete_bp",
+    "definition": "وحدة في النظام تحتوي على 14 مسار",
+    "examples": [
+      "/hard-delete/customer/<int:customer_id>",
+      "/hard-delete/logs",
+      "/hard-delete/restore/<int:deletion_id>",
+      "/hard-delete/api/delete-customer/<int:customer_id>",
+      "/hard-delete/api/delete-sale/<int:sale_id>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.061284",
+    "mastery_level": 0
+  },
+  "c349182a4459fd4e8ec2ea14e932f42b": {
+    "concept": "Module: barcode_scanner",
+    "definition": "وحدة في النظام تحتوي على 15 مسار",
+    "examples": [
+      "/barcode/",
+      "/barcode/scan",
+      "/barcode/generate",
+      "/barcode/print/<int:product_id>",
+      "/barcode/bulk-generate"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.097419",
+    "mastery_level": 0
+  },
+  "afe25081382bdd158c888d39443ae70b": {
+    "concept": "Module: ledger_control",
+    "definition": "وحدة في النظام تحتوي على 33 مسار",
+    "examples": [
+      "/security/ledger-control/",
+      "/security/ledger-control/accounts",
+      "/security/ledger-control/accounts/create",
+      "/security/ledger-control/accounts/<int:account_id>/update",
+      "/security/ledger-control/accounts/<int:account_id>/delete"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.123150",
+    "mastery_level": 0
+  },
+  "940d1467ba6ecd04e6acb64e87bda844": {
+    "concept": "Module: ai",
+    "definition": "وحدة في النظام تحتوي على 10 مسار",
+    "examples": [
+      "/ai/hub",
+      "/ai/assistant",
+      "/ai/chat",
+      "/ai/system-map",
+      "/ai/training/start"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.154175",
+    "mastery_level": 0
+  },
+  "a3f3cc1cd0ea1d242cfaff8b2b3c9e7e": {
+    "concept": "Module: ai_alerts",
+    "definition": "وحدة في النظام تحتوي على 5 مسار",
+    "examples": [
+      "/api/ai-alerts/pending",
+      "/api/ai-alerts/dismiss/<alert_id>",
+      "/api/ai-alerts/system-health",
+      "/api/ai-alerts/suggestions",
+      "/api/ai-alerts/stats"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.178618",
+    "mastery_level": 0
+  },
+  "417ae3df40ef1ed64644c98b5cba04d1": {
+    "concept": "Module: ai_admin",
+    "definition": "وحدة في النظام تحتوي على 15 مسار",
+    "examples": [
+      "/ai-admin/settings",
+      "/ai-admin/toggle-visibility",
+      "/ai-admin/reset-knowledge",
+      "/ai-admin/training-status",
+      "/ai-admin/training-log"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.198737",
+    "mastery_level": 0
+  },
+  "c78b0e11fa7a5f2f66525391576084fd": {
+    "concept": "Module: user_guide",
+    "definition": "وحدة في النظام تحتوي على 1 مسار",
+    "examples": [
+      "/user-guide/"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.228908",
+    "mastery_level": 0
+  },
+  "74187918860b3bf67e4fd47ec4eb17c1": {
+    "concept": "Module: other_systems",
+    "definition": "وحدة في النظام تحتوي على 1 مسار",
+    "examples": [
+      "/other-systems/"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.252673",
+    "mastery_level": 0
+  },
+  "cacc7099887bdb1e05aba823a7cadf19": {
+    "concept": "Module: pricing",
+    "definition": "وحدة في النظام تحتوي على 1 مسار",
+    "examples": [
+      "/pricing/"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.284136",
+    "mastery_level": 0
+  },
+  "03bd6433989c62386bb4bc58cd641049": {
+    "concept": "Module: checks",
+    "definition": "وحدة في النظام تحتوي على 11 مسار",
+    "examples": [
+      "/checks/",
+      "/checks/api/checks",
+      "/checks/api/statistics",
+      "/checks/api/check-lifecycle/<int:check_id>/<check_type>",
+      "/checks/api/update-status/<check_id>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.303831",
+    "mastery_level": 0
+  },
+  "1ef14ab1a090b5f1c403cc7b32520a08": {
+    "concept": "Module: health",
+    "definition": "وحدة في النظام تحتوي على 6 مسار",
+    "examples": [
+      "/health/status",
+      "/health/",
+      "/health/ping",
+      "/health/ready",
+      "/health/live"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.327211",
+    "mastery_level": 0
+  },
+  "a3b869eabf3327cfa89b1f05a3e14d7d": {
+    "concept": "Module: security",
+    "definition": "وحدة في النظام تحتوي على 97 مسار",
+    "examples": [
+      "/security/saas-manager",
+      "/security/api/saas/plans",
+      "/security/api/saas/subscriptions",
+      "/security/api/saas/invoices/<int:invoice_id>/mark-paid",
+      "/security/api/saas/subscriptions/<int:sub_id>/cancel"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.356966",
+    "mastery_level": 0
+  },
+  "18e35a894aba4fa120d40338fab51154": {
+    "concept": "Module: advanced",
+    "definition": "وحدة في النظام تحتوي على 21 مسار",
+    "examples": [
+      "/advanced/db-merger",
+      "/advanced/multi-tenant",
+      "/advanced/dashboard-links",
+      "/advanced/version-control",
+      "/advanced/licensing"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.379754",
+    "mastery_level": 0
+  },
+  "b2974f5c0d625b20f424fa82a0a8a484": {
+    "concept": "Module: security_control",
+    "definition": "وحدة في النظام تحتوي على 2 مسار",
+    "examples": [
+      "/advanced/security-control",
+      "/advanced/api/check-ip/<ip>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.415690",
+    "mastery_level": 0
+  },
+  "3e6309319bd51cab274edac901facf97": {
+    "concept": "Module: archive",
+    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "examples": [
+      "/archive/",
+      "/archive/search",
+      "/archive/bulk-archive",
+      "/archive/view/<int:archive_id>",
+      "/archive/restore/<int:archive_id>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.436823",
+    "mastery_level": 0
+  },
+  "cef1d3bcd834cd98f9b00fdce83fd504": {
+    "concept": "Module: archive_routes",
+    "definition": "وحدة في النظام تحتوي على 2 مسار",
+    "examples": [
+      "/shipments/archive/<int:shipment_id>",
+      "/checks/archive/<int:check_id>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.452773",
+    "mastery_level": 0
+  },
+  "1c7d1de53acca2a264869436e3053965": {
+    "concept": "Module: financial_reports",
+    "definition": "وحدة في النظام تحتوي على 11 مسار",
+    "examples": [
+      "/reports/financial/",
+      "/reports/financial/income-statement",
+      "/reports/financial/balance-sheet",
+      "/reports/financial/cash-flow",
+      "/reports/financial/balances-summary"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.464801",
+    "mastery_level": 0
+  },
+  "fc2f51b7a69b95e09ef4b1299793f1d9": {
+    "concept": "Module: accounting_validation",
+    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "examples": [
+      "/validation/accounting/",
+      "/validation/accounting/balance-check",
+      "/validation/accounting/account-consistency",
+      "/validation/accounting/entity-balance-verification",
+      "/validation/accounting/transaction-integrity"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.475886",
+    "mastery_level": 0
+  },
+  "65446a584cfcf73eef2a6b9748a0906e": {
+    "concept": "Module: accounting_docs",
+    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "examples": [
+      "/docs/accounting/",
+      "/docs/accounting/chart-of-accounts",
+      "/docs/accounting/accounting-standards",
+      "/docs/accounting/audit-policies",
+      "/docs/accounting/correction-procedures"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.486964",
+    "mastery_level": 0
+  },
+  "27b44596a15ae6392795902f574d9fc8": {
+    "concept": "Module: budgets",
+    "definition": "وحدة في النظام تحتوي على 6 مسار",
+    "examples": [
+      "/budgets/",
+      "/budgets/add",
+      "/budgets/edit/<int:id>",
+      "/budgets/report/vs-actual",
+      "/budgets/report/variance"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.497873",
+    "mastery_level": 0
+  },
+  "a273076b203f465028bdb9367f551b57": {
+    "concept": "Module: assets",
+    "definition": "وحدة في النظام تحتوي على 6 مسار",
+    "examples": [
+      "/assets/",
+      "/assets/add",
+      "/assets/view/<int:id>",
+      "/assets/categories",
+      "/assets/report/register"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.509466",
+    "mastery_level": 0
+  },
+  "ee0830596c91ef13118a60ba910e91b2": {
+    "concept": "Module: bank",
+    "definition": "وحدة في النظام تحتوي على 9 مسار",
+    "examples": [
+      "/bank/accounts",
+      "/bank/accounts/add",
+      "/bank/accounts/<int:id>",
+      "/bank/statements",
+      "/bank/statements/<int:id>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.520819",
+    "mastery_level": 0
+  },
+  "a0c9e1a484ed26fe38c718acbf8a968b": {
+    "concept": "Module: cost_centers",
+    "definition": "وحدة في النظام تحتوي على 5 مسار",
+    "examples": [
+      "/cost-centers/",
+      "/cost-centers/add",
+      "/cost-centers/<int:id>",
+      "/cost-centers/reports/summary",
+      "/cost-centers/reports/comparison"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.548204",
+    "mastery_level": 0
+  },
+  "457c167d1a054ec9cc3f46ad299a6518": {
+    "concept": "Module: projects",
+    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "examples": [
+      "/projects/",
+      "/projects/add",
+      "/projects/<int:id>",
+      "/projects/<int:id>/pl",
+      "/projects/<int:id>/budget"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-02T04:17:46.574203",
+    "mastery_level": 0
+  },
+  "2344b62c41e4f6c6c1fcd7a56cc887d8": {
+    "concept": "دليل الحسابات",
+    "definition": "شجرة منظمة لكل الحسابات",
+    "examples": [],
+    "related_concepts": [
+      "GL",
+      "accounting"
+    ],
+    "created_at": "2025-11-02T04:17:47.175699",
+    "mastery_level": 0
+  },
+  "b7a029836b42bd61809e47fca1798565": {
+    "concept": "القيد المحاسبي",
+    "definition": "تسجيل المعاملة المالية",
+    "examples": [],
+    "related_concepts": [
+      "GL",
+      "accounting"
+    ],
+    "created_at": "2025-11-02T04:17:47.193793",
+    "mastery_level": 0
+  },
+  "1be8bacf4506c3c0ec2add93b90c3123": {
+    "concept": "ميزان المراجعة",
+    "definition": "قائمة الأرصدة",
+    "examples": [],
+    "related_concepts": [
+      "GL",
+      "accounting"
+    ],
+    "created_at": "2025-11-02T04:17:47.245584",
+    "mastery_level": 0
+  },
+  "8540e9461d0d0f38e4a412a8ae623ee7": {
+    "concept": "الميزانية",
+    "definition": "الأصول = الخصوم + الملكية",
+    "examples": [],
+    "related_concepts": [
+      "GL",
+      "accounting"
+    ],
+    "created_at": "2025-11-02T04:17:47.262227",
+    "mastery_level": 0
+  },
+  "f4bc6b05f901cd245b9d750fe5d41658": {
+    "concept": "صيانة المحرك",
+    "definition": "مجموعة من الإجراءات للحفاظ على كفاءة وأداء المحرك",
+    "examples": [
+      "فحص مستوى الزيت كل 8 ساعات",
+      "تغيير الزيت كل 250 ساعة تشغيل",
+      "فحص سائل التبريد أسبوعياً",
+      "تنظيف أو استبدال فلتر الهواء كل 100 ساعة"
+    ],
+    "related_concepts": [
+      "صيانة وقائية",
+      "محرك",
+      "معدات ثقيلة"
+    ],
+    "created_at": "2025-11-02T08:52:48.085634",
+    "mastery_level": 0
+  },
+  "b04472e5b48dc14c88fcffffe0f346e8": {
+    "concept": "نسبة السيولة السريعة",
+    "definition": "نسبة مالية تقيس قدرة الشركة على سداد التزاماتها قصيرة الأجل",
+    "examples": [
+      "المعادلة: (الأصول المتداولة - المخزون) / الخصوم المتداولة",
+      "مثال: إذا كانت الأصول المتداولة 50000 والمخزون 20000 والخصوم 25000",
+      "النسبة = (50000 - 20000) / 25000 = 1.2",
+      "نسبة 1.2 تعني قدرة جيدة على السداد"
+    ],
+    "related_concepts": [
+      "سيولة",
+      "نسب مالية",
+      "تحليل مالي",
+      "نسبة التداول"
+    ],
+    "created_at": "2025-11-02T08:52:48.182898",
+    "mastery_level": 0
+  },
+  "6d0f1db6f0004462e1dc1889c7923b6f": {
+    "concept": "نسبة التداول",
+    "definition": "نسبة مالية تقيس قدرة الشركة على سداد التزاماتها قصيرة الأجل بأصولها المتداولة",
+    "examples": [
+      "المعادلة: الأصول المتداولة / الخصوم المتداولة",
+      "مثال: أصول متداولة 100000 / خصوم متداولة 60000 = 1.67",
+      "نسبة 2 تعتبر جيدة في أغلب الصناعات"
+    ],
+    "related_concepts": [
+      "سيولة",
+      "نسب مالية"
+    ],
+    "created_at": "2025-11-02T08:52:48.252929",
+    "mastery_level": 0
+  },
+  "16d5e67d32433c0c0fb8c57824cfbf52": {
+    "concept": "الصيانة الوقائية",
+    "definition": "صيانة منتظمة بتعملها قبل ما يصير عطل عشان تمنع المشاكل",
+    "examples": [
+      "فحص الزيت كل يوم قبل ما تشغل المعدة",
+      "تغيير الفلاتر كل 100 ساعة",
+      "فحص الأحزمة كل أسبوع",
+      "تشحيم النقاط المهمة كل 50 ساعة"
+    ],
+    "related_concepts": [
+      "صيانة",
+      "منع الأعطال",
+      "جدولة"
+    ],
+    "created_at": "2025-11-02T10:52:28.137879",
+    "mastery_level": 0
+  },
+  "5214beb7a5ee8f320345f2b45803757b": {
+    "concept": "أنواع الصيانة",
+    "definition": "الصيانة تنقسم لعدة أنواع حسب التوقيت والهدف",
+    "examples": [
+      "الصيانة الوقائية: صيانة منتظمة لمنع الأعطال",
+      "الصيانة التصحيحية: إصلاح بعد حدوث العطل",
+      "الصيانة التنبؤية: صيانة بناءً على مراقبة الأداء",
+      "الصيانة الطارئة: إصلاح فوري لعطل مفاجئ",
+      "الصيانة المخططة: صيانة حسب جدول زمني",
+      "الصيانة القائمة على الحالة: صيانة حسب حالة المعدة"
+    ],
+    "related_concepts": [
+      "صيانة",
+      "معدات",
+      "منع الأعطال"
+    ],
+    "created_at": "2025-11-02T10:31:50.889142",
+    "mastery_level": 0
+  },
+  "c7bfb94e987da7abe5873d347e56e3dd": {
+    "concept": "عطل الخلاطات",
+    "definition": "مشكلة في معدات الخلط (خلاطات الخرسانة أو الإسفلت)",
+    "examples": [
+      "عدم دوران الخلاط: فحص المحرك والكهرباء",
+      "صوت غير طبيعي: فحص التروس والمحامل",
+      "تسريب: فحص الجوانات والأختام",
+      "ضعف الخلط: فحص سرعة الدوران"
+    ],
+    "related_concepts": [
+      "صيانة",
+      "أعطال",
+      "معدات خلط"
+    ],
+    "created_at": "2025-11-02T10:31:50.920652",
+    "mastery_level": 1
+  },
+  "473da03ff5fa2bd75ac2a78f540adde1": {
+    "concept": "أنا أزاد",
+    "definition": "المساعد الذكي الاحترافي من شركة أزاد للحلول البرمجية - متخصص في المحاسبة والصيانة وإدارة الأعمال",
+    "examples": [
+      "أقدر أساعدك في المحاسبة والقيود",
+      "أقدر أشرحلك الصيانة خطوة بخطوة",
+      "أقدر أدلك على أي شي بالنظام",
+      "أقدر أحسبلك VAT وأي حسابات"
+    ],
+    "related_concepts": [
+      "مساعد",
+      "ذكاء صناعي",
+      "أزاد"
+    ],
+    "created_at": "2025-11-02T10:52:28.124511",
+    "mastery_level": 0
+  },
+  "2037bd4ac6a598311fb282db773b85a8": {
+    "concept": "القيد المحاسبي للبيع",
+    "definition": "لما تبيع شي بتعمل قيد: مدين ذمم العملاء (الإجمالي)، دائن المبيعات (الصافي) ودائن VAT (الضريبة)",
+    "examples": [
+      "بيع بـ1000 شيكل: مدين 1300 (ذمم) 1000، دائن 4000 (مبيعات) 862، دائن 2100 (VAT) 138",
+      "العميل صار عليه 1000 شيكل",
+      "المبيعات زادت 862 شيكل",
+      "الضريبة للحكومة 138 شيكل"
+    ],
+    "related_concepts": [
+      "محاسبة",
+      "قيد",
+      "مبيعات",
+      "VAT"
+    ],
+    "created_at": "2025-11-02T10:52:28.214387",
+    "mastery_level": 0
+  }
+}

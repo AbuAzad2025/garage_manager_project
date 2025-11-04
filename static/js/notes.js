@@ -50,7 +50,7 @@
           <div class="card-body">
             ${note.is_pinned ? `<div class="mb-2"><i class="fas fa-thumbtack text-warning" title="مثبّت"></i></div>` : ''}
             <p class="mb-3 pre-wrap">${note.content || ''}</p>
-            <div class="small text-muted d-flex flex-wrap gap-2">
+            <div class="small text-muted d-flex flex-wrap">
               <span><i class="fas fa-clock"></i> ${note.created_at || '-'}</span>
             </div>
           </div>

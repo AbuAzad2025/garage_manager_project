@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }} - المخاطر{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-exclamation-triangle"></i> مخاطر المشروع: {{ project.name }}</h1>
+            </div>
+            <div class="col-sm-6">
+                <button class="btn btn-danger float-left" data-toggle="modal" data-target="#addRiskModal">
+                    <i class="fas fa-plus"></i> تسجيل مخاطرة
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="info-box bg-secondary">
+                    <span class="info-box-icon"><i class="fas fa-list"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">إجمالي المخاطر</span>
+                        <span class="info-box-number">{{ stats.total }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-danger">
+                    <span class="info-box-icon"><i class="fas fa-skull-crossbones"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">حرجة</span>
+                        <span class="info-box-number">{{ stats.critical }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-warning">
+                    <span class="info-box-icon"><i class="fas fa-exclamation"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">عالية</span>
+                        <span class="info-box-number">{{ stats.high }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-info">
+                    <span class="info-box-icon"><i class="fas fa-eye"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">مفتوحة</span>
+                        <span class="info-box-number">{{ stats.open }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-shield-alt"></i> مصفوفة المخاطر (Risk Matrix)</h3>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">تصنيف المخاطر حسب الاحتمالية والأثر</p>
+                <table class="table table-bordered text-center">
+                    <thead>
+                        <tr>
+                            <th rowspan="2" class="align-middle">الاحتمالية</th>
+                            <th colspan="5">الأثر (Impact)</th>
+                        </tr>
+                        <tr>
+                            <th>ضئيل</th>
+                            <th>طفيف</th>
+                            <th>متوسط</th>
+                            <th>كبير</th>
+                            <th>حرج</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th>عالي جداً</th>
+                            <td class="bg-warning">5</td>
+                            <td class="bg-warning">10</td>
+                            <td class="bg-danger">15</td>
+                            <td class="bg-danger">20</td>
+                            <td class="bg-danger">25</td>
+                        </tr>
+                        <tr>
+                            <th>عالي</th>
+                            <td class="bg-success">4</td>
+                            <td class="bg-warning">8</td>
+                            <td class="bg-warning">12</td>
+                            <td class="bg-danger">16</td>
+                            <td class="bg-danger">20</td>
+                        </tr>
+                        <tr>
+                            <th>متوسط</th>
+                            <td class="bg-success">3</td>
+                            <td class="bg-success">6</td>
+                            <td class="bg-warning">9</td>
+                            <td class="bg-warning">12</td>
+                            <td class="bg-danger">15</td>
+                        </tr>
+                        <tr>
+                            <th>منخفض</th>
+                            <td class="bg-success">2</td>
+                            <td class="bg-success">4</td>
+                            <td class="bg-success">6</td>
+                            <td class="bg-warning">8</td>
+                            <td class="bg-warning">10</td>
+                        </tr>
+                        <tr>
+                            <th>منخفض جداً</th>
+                            <td class="bg-success">1</td>
+                            <td class="bg-success">2</td>
+                            <td class="bg-success">3</td>
+                            <td class="bg-success">4</td>
+                            <td class="bg-warning">5</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-exclamation-triangle"></i> سجل المخاطر</h3>
+                <div class="card-tools">
+                    <button class="btn btn-sm btn-success" onclick="window.print()">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>رقم المخاطرة</th>
+                            <th>العنوان</th>
+                            <th>الفئة</th>
+                            <th>الاحتمالية</th>
+                            <th>الأثر</th>
+                            <th>النقاط</th>
+                            <th>المستوى</th>
+                            <th>الحالة</th>
+                            <th>التكلفة الفعلية</th>
+                            <th>المسؤول</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for risk in risks %}
+                        <tr>
+                            <td><strong>{{ risk.risk_number }}</strong></td>
+                            <td>
+                                {{ risk.title }}
+                                <br><small class="text-muted">{{ risk.description[:100] }}...</small>
+                            </td>
+                            <td>
+                                {% if risk.category == 'FINANCIAL' %}
+                                    <span class="badge badge-success">مالية</span>
+                                {% elif risk.category == 'TECHNICAL' %}
+                                    <span class="badge badge-info">تقنية</span>
+                                {% elif risk.category == 'RESOURCE' %}
+                                    <span class="badge badge-warning">موارد</span>
+                                {% elif risk.category == 'SCHEDULE' %}
+                                    <span class="badge badge-primary">جدولة</span>
+                                {% elif risk.category == 'QUALITY' %}
+                                    <span class="badge badge-secondary">جودة</span>
+                                {% else %}
+                                    <span class="badge badge-dark">خارجية</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if risk.probability == 'VERY_HIGH' %}
+                                    <span class="badge badge-danger">عالي جداً</span>
+                                {% elif risk.probability == 'HIGH' %}
+                                    <span class="badge badge-warning">عالي</span>
+                                {% elif risk.probability == 'MEDIUM' %}
+                                    <span class="badge badge-info">متوسط</span>
+                                {% else %}
+                                    <span class="badge badge-success">منخفض</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if risk.impact == 'CRITICAL' %}
+                                    <span class="badge badge-danger">حرج</span>
+                                {% elif risk.impact == 'MAJOR' %}
+                                    <span class="badge badge-warning">كبير</span>
+                                {% elif risk.impact == 'MODERATE' %}
+                                    <span class="badge badge-info">متوسط</span>
+                                {% else %}
+                                    <span class="badge badge-success">طفيف</span>
+                                {% endif %}
+                            </td>
+                            <td><strong>{{ risk.risk_score }}</strong></td>
+                            <td>
+                                {% if risk.risk_level == 'CRITICAL' %}
+                                    <span class="badge badge-danger">حرج</span>
+                                {% elif risk.risk_level == 'HIGH' %}
+                                    <span class="badge badge-warning">عالي</span>
+                                {% elif risk.risk_level == 'MEDIUM' %}
+                                    <span class="badge badge-info">متوسط</span>
+                                {% else %}
+                                    <span class="badge badge-success">منخفض</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if risk.status == 'CLOSED' %}
+                                    <span class="badge badge-secondary">مغلقة</span>
+                                {% elif risk.status == 'MONITORING' %}
+                                    <span class="badge badge-info">قيد المراقبة</span>
+                                {% elif risk.status == 'MITIGATING' %}
+                                    <span class="badge badge-warning">قيد التخفيف</span>
+                                {% else %}
+                                    <span class="badge badge-danger">محددة</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ "%.2f"|format(risk.actual_impact_cost or 0) }} ₪</td>
+                            <td>{{ risk.owner.username if risk.owner else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="addRiskModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('project_advanced.add_risk', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-danger">
+                    <h5 class="modal-title"><i class="fas fa-plus"></i> تسجيل مخاطرة جديدة</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> عنوان المخاطرة:</label>
+                                <input type="text" name="title" class="form-control" required placeholder="عنوان واضح للمخاطرة">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> الفئة:</label>
+                                <select name="category" class="form-control" required>
+                                    <option value="FINANCIAL">مالية</option>
+                                    <option value="TECHNICAL">تقنية</option>
+                                    <option value="RESOURCE">موارد</option>
+                                    <option value="SCHEDULE">جدولة</option>
+                                    <option value="QUALITY">جودة</option>
+                                    <option value="EXTERNAL">خارجية</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> وصف المخاطرة:</label>
+                                <textarea name="description" class="form-control" rows="3" required placeholder="وصف تفصيلي للمخاطرة"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> الاحتمالية (Probability):</label>
+                                <select name="probability" class="form-control" required>
+                                    <option value="VERY_LOW">منخفض جداً (1)</option>
+                                    <option value="LOW">منخفض (2)</option>
+                                    <option value="MEDIUM">متوسط (3)</option>
+                                    <option value="HIGH">عالي (4)</option>
+                                    <option value="VERY_HIGH">عالي جداً (5)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> الأثر (Impact):</label>
+                                <select name="impact" class="form-control" required>
+                                    <option value="NEGLIGIBLE">ضئيل (1)</option>
+                                    <option value="MINOR">طفيف (2)</option>
+                                    <option value="MODERATE">متوسط (3)</option>
+                                    <option value="MAJOR">كبير (4)</option>
+                                    <option value="CRITICAL">حرج (5)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>خطة التخفيف (Mitigation Plan):</label>
+                                <textarea name="mitigation_plan" class="form-control" rows="2" placeholder="كيف سنقلل من احتمالية أو أثر المخاطرة؟"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>خطة الطوارئ (Contingency Plan):</label>
+                                <textarea name="contingency_plan" class="form-control" rows="2" placeholder="ماذا سنفعل إذا حدثت المخاطرة؟"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>مسؤول المخاطرة:</label>
+                                <select name="owner_id" class="form-control">
+                                    <option value="">-- اختر --</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}">{{ user.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-save"></i> تسجيل المخاطرة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

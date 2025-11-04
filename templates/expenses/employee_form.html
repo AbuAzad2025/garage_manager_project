@@ -72,21 +72,21 @@
 
           <div class="col-md-4">
             {{ form.branch_id.label(class="form-label") }}
-            {{ form.branch_id(class=("form-select is-invalid" if form.branch_id.errors else "form-select"), **{'data-use-api': 'true'}) }}
+            {{ form.branch_id(class=("custom-select is-invalid" if form.branch_id.errors else "custom-select"), **{'data-use-api': 'true'}) }}
             <small class="text-muted">الفرع التابع له (إلزامي)</small>
             {% for e in form.branch_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
           <div class="col-md-4">
             {{ form.site_id.label(class="form-label") }}
-            {{ form.site_id(class=("form-select is-invalid" if form.site_id.errors else "form-select"), disabled=true) }}
+            {{ form.site_id(class=("custom-select is-invalid" if form.site_id.errors else "custom-select"), disabled=true) }}
             <small class="text-muted">يُفلتر حسب الفرع</small>
             {% for e in form.site_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
           <div class="col-md-4">
             {{ form.currency.label(class="form-label") }}
-            {{ form.currency(class=("form-select is-invalid" if form.currency.errors else "form-select")) }}
+            {{ form.currency(class=("custom-select is-invalid" if form.currency.errors else "custom-select")) }}
             {% for e in form.currency.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
@@ -99,7 +99,7 @@
       </div>
 
       <div class="card-footer d-flex gap-2 justify-content-start">
-        <button class="btn btn-success">{{ is_edit and '💾 تحديث' or '💾 حفظ' }}</button>
+        <button type="submit" class="btn btn-success">{{ is_edit and '💾 تحديث' or '💾 حفظ' }}</button>
         <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-secondary">إلغاء</a>
       </div>
     </div>

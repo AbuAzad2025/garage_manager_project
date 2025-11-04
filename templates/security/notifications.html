@@ -1,27 +1,10 @@
-{% extends 'base.html' %}
-
-{% block title %}📧 مركز الإشعارات{% endblock %}
-
-{% block content %}
-<div class="content-header">
-  <div class="container-fluid">
-    <div class="row mb-2">
-      <div class="col-sm-6">
-        <h1 class="m-0">📧 مركز الإشعارات <small class="badge badge-info">Notifications Center</small></h1>
-      </div>
-      <div class="col-sm-6">
-        <ol class="breadcrumb float-sm-right">
-          <li class="breadcrumb-item"><a href="/"><i class="fas fa-home"></i> الرئيسية</a></li>
-          <li class="breadcrumb-item"><a href="/security/"><i class="fas fa-shield-alt"></i> الوحدة السرية</a></li>
-          <li class="breadcrumb-item active">مركز الإشعارات</li>
-        </ol>
-      </div>
-    </div>
-  </div>
-</div>
-
-<section class="content">
-  <div class="container-fluid">
+{% extends 'security/base_security.html' %}
+{% block tour_name %}notifications{% endblock %}
+{% block security_title %}Notifications Center{% endblock %}
+{% block security_icon %}<i class="fas fa-bell"></i>{% endblock %}
+{% block security_description %}مركز الإشعارات - Email • SMS • Push Notifications{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Notifications</li>{% endblock %}
+{% block security_content %}
     
     <!-- إحصائيات سريعة -->
     <div class="row">

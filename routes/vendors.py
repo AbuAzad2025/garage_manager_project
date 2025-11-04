@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from flask import abort, Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, and_
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import joinedload
 from extensions import db
@@ -1258,8 +1258,10 @@ def _calculate_supplier_incoming(supplier_id: int, date_from: datetime, date_to:
     
     # المشتريات (النفقات من نوع مشتريات) - مع تحويل العملات
     expenses = Expense.query.filter(
-        Expense.payee_type == "SUPPLIER",
-        Expense.payee_entity_id == supplier_id,
+        or_(
+            Expense.supplier_id == supplier_id,
+            and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == supplier_id)
+        ),
         Expense.date >= date_from,
         Expense.date <= date_to
     ).all()
@@ -1367,7 +1369,10 @@ def _calculate_partner_outgoing(partner_id: int, date_from: datetime, date_to: d
     
     # حصة الشريك من المشتريات - مع تحويل العملات
     expenses = Expense.query.filter(
-        Expense.partner_id == partner_id,
+        or_(
+            Expense.partner_id == partner_id,
+            and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner_id)
+        ),
         Expense.date >= date_from,
         Expense.date <= date_to
     ).all()

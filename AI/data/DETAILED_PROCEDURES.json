@@ -1,0 +1,1144 @@
+{
+  "metadata": {
+    "title": "إجراءات مفصلة خطوة بخطوة - كل عملية في النظام",
+    "version": "1.0",
+    "date": "2025-11-02",
+    "total_procedures": 50,
+    "difficulty": "advanced_expert"
+  },
+
+  "customer_management": {
+    "add_customer_complete": {
+      "title": "إضافة عميل - الإجراء الكامل",
+      "route": "/customers/add",
+      "method": "GET + POST",
+      "permissions_required": ["add_customer"],
+      "steps": [
+        {
+          "step": 1,
+          "action": "فتح صفحة إضافة عميل",
+          "url": "/customers/add",
+          "method": "GET",
+          "what_happens": "يتم عرض نموذج CustomerForm فارغ",
+          "form_fields_displayed": ["name", "phone", "whatsapp", "email", "is_company", "opening_balance", "notes"]
+        },
+        {
+          "step": 2,
+          "action": "ملء بيانات العميل",
+          "required_fields": {
+            "name": "اسم العميل (مطلوب)",
+            "phone": "رقم الهاتف (اختياري لكن يُفضل)",
+            "whatsapp": "واتساب (اختياري)",
+            "email": "البريد الإلكتروني (اختياري)",
+            "is_company": "هل هو شركة؟ (checkbox)",
+            "opening_balance": "الرصيد الافتتاحي (رقم، يمكن سالب أو موجب)",
+            "notes": "ملاحظات (اختياري)"
+          },
+          "validation": {
+            "name": "لا يمكن أن يكون فارغاً",
+            "phone": "يجب أن يكون رقماً صحيحاً إذا تم إدخاله",
+            "email": "يجب أن يكون بريد إلكتروني صحيح إذا تم إدخاله",
+            "opening_balance": "رقم فقط (يُحول إلى Decimal)"
+          }
+        },
+        {
+          "step": 3,
+          "action": "إرسال النموذج",
+          "method": "POST",
+          "url": "/customers/add",
+          "backend_processing": [
+            "1. التحقق من صحة البيانات (form.validate_on_submit())",
+            "2. إنشاء كائن Customer جديد",
+            "3. ملء البيانات من النموذج",
+            "4. حفظ في قاعدة البيانات (db.session.add + commit)",
+            "5. إنشاء قيد محاسبي للرصيد الافتتاحي إذا كان موجوداً",
+            "6. flash رسالة نجاح",
+            "7. إعادة توجيه إلى صفحة العميل أو قائمة العملاء"
+          ]
+        },
+        {
+          "step": 4,
+          "action": "القيد المحاسبي للرصيد الافتتاحي",
+          "condition": "إذا opening_balance != 0",
+          "gl_batch_created": {
+            "source_type": "OPENING",
+            "source_id": "customer.id",
+            "memo": "رصيد افتتاحي - {customer.name}",
+            "entries": [
+              {
+                "if": "opening_balance > 0 (له علينا)",
+                "debit": {"account": "3000_EQUITY", "amount": "abs(opening_balance)"},
+                "credit": {"account": "1100_AR", "amount": "abs(opening_balance)"}
+              },
+              {
+                "if": "opening_balance < 0 (عليه لنا)",
+                "debit": {"account": "1100_AR", "amount": "abs(opening_balance)"},
+                "credit": {"account": "3000_EQUITY", "amount": "abs(opening_balance)"}
+              }
+            ]
+          }
+        }
+      ],
+      "result": {
+        "database": "سجل جديد في جدول customers",
+        "gl": "قيد محاسبي في gl_batches و gl_entries إذا كان هناك رصيد افتتاحي",
+        "redirect": "/customers/{id} أو /customers",
+        "flash_message": "تم إضافة العميل بنجاح"
+      },
+      "common_errors": [
+        {
+          "error": "اسم العميل فارغ",
+          "solution": "ملء حقل الاسم - مطلوب"
+        },
+        {
+          "error": "البريد الإلكتروني غير صحيح",
+          "solution": "إدخال بريد صحيح بصيغة email@example.com"
+        },
+        {
+          "error": "الرصيد الافتتاحي ليس رقماً",
+          "solution": "إدخال رقم فقط (مثال: 1000 أو -500)"
+        }
+      ]
+    },
+
+    "customer_statement": {
+      "title": "كشف حساب العميل - التفاصيل الكاملة",
+      "route": "/customers/{id}/statement",
+      "method": "GET",
+      "permissions_required": ["view_customers"],
+      "steps": [
+        {
+          "step": 1,
+          "action": "فتح كشف الحساب",
+          "url": "/customers/{id}/statement",
+          "parameters": {
+            "id": "معرف العميل (مطلوب)",
+            "date_from": "من تاريخ (اختياري - افتراضي: أول يوم في الشهر)",
+            "date_to": "إلى تاريخ (اختياري - افتراضي: اليوم)"
+          }
+        },
+        {
+          "step": 2,
+          "action": "جلب البيانات من قاعدة البيانات",
+          "queries": [
+            {
+              "query": "جلب بيانات العميل",
+              "table": "customers",
+              "filter": "id = {id}"
+            },
+            {
+              "query": "جلب المبيعات",
+              "table": "sales",
+              "filter": "customer_id = {id} AND status = 'CONFIRMED' AND sale_date BETWEEN {date_from} AND {date_to}",
+              "order": "sale_date ASC"
+            },
+            {
+              "query": "جلب الفواتير",
+              "table": "invoices",
+              "filter": "customer_id = {id} AND cancelled_at IS NULL AND invoice_date BETWEEN {date_from} AND {date_to}",
+              "order": "invoice_date ASC"
+            },
+            {
+              "query": "جلب طلبات الصيانة",
+              "table": "service_requests",
+              "filter": "customer_id = {id} AND status = 'COMPLETED' AND completed_at BETWEEN {date_from} AND {date_to}",
+              "order": "completed_at ASC"
+            },
+            {
+              "query": "جلب المدفوعات",
+              "table": "payments",
+              "filter": "entity_type = 'CUSTOMER' AND entity_id = {id} AND payment_date BETWEEN {date_from} AND {date_to}",
+              "order": "payment_date ASC"
+            },
+            {
+              "query": "جلب المرتجعات",
+              "table": "sale_returns",
+              "filter": "customer_id = {id} AND status = 'CONFIRMED' AND created_at BETWEEN {date_from} AND {date_to}",
+              "order": "created_at ASC"
+            }
+          ]
+        },
+        {
+          "step": 3,
+          "action": "حساب الرصيد الافتتاحي للفترة",
+          "calculation": {
+            "formula": "الرصيد الافتتاحي + (المعاملات قبل date_from)",
+            "details": [
+              "1. جلب opening_balance من جدول customers",
+              "2. جلب كل المبيعات قبل date_from",
+              "3. جلب كل الفواتير قبل date_from",
+              "4. جلب كل الصيانة قبل date_from",
+              "5. جلب كل المدفوعات قبل date_from",
+              "6. جلب كل المرتجعات قبل date_from",
+              "7. حساب: opening_balance + payments_in - payments_out - sales - invoices - service + returns"
+            ]
+          }
+        },
+        {
+          "step": 4,
+          "action": "ترتيب المعاملات زمنياً",
+          "process": [
+            "1. جمع كل المعاملات في قائمة واحدة",
+            "2. ترتيبها حسب التاريخ (ASC)",
+            "3. حساب الرصيد التراكمي بعد كل معاملة",
+            "4. تلوين الرصيد (أحمر للسالب، أخضر للموجب)"
+          ]
+        },
+        {
+          "step": 5,
+          "action": "عرض الكشف",
+          "display_columns": [
+            "التاريخ",
+            "النوع (مبيعة/فاتورة/صيانة/دفعة/مرتجع)",
+            "رقم المستند",
+            "البيان/الوصف",
+            "مدين (عليه)",
+            "دائن (له)",
+            "الرصيد"
+          ],
+          "color_coding": {
+            "negative_balance": "red (عليه يدفع)",
+            "positive_balance": "green (له عندنا)",
+            "zero_balance": "gray (متساوي)"
+          }
+        }
+      ],
+      "example": {
+        "customer": "أحمد علي",
+        "opening_balance": 0,
+        "transactions": [
+          {
+            "date": "2025-01-05",
+            "type": "مبيعة",
+            "code": "S-2025-001",
+            "description": "قطع غيار",
+            "debit": 1000,
+            "credit": 0,
+            "balance": -1000,
+            "color": "red"
+          },
+          {
+            "date": "2025-01-10",
+            "type": "دفعة",
+            "code": "P-2025-001",
+            "description": "دفعة نقدية",
+            "debit": 0,
+            "credit": 600,
+            "balance": -400,
+            "color": "red"
+          },
+          {
+            "date": "2025-01-15",
+            "type": "مرتجع",
+            "code": "SR-2025-001",
+            "description": "مرتجع قطعة",
+            "debit": 0,
+            "credit": 200,
+            "balance": -200,
+            "color": "red"
+          },
+          {
+            "date": "2025-01-20",
+            "type": "دفعة",
+            "code": "P-2025-002",
+            "description": "دفعة نقدية",
+            "debit": 0,
+            "credit": 400,
+            "balance": 200,
+            "color": "green"
+          }
+        ],
+        "final_balance": 200,
+        "interpretation": "له عندنا 200 ₪ (دفع زيادة)"
+      }
+    }
+  },
+
+  "sales_management": {
+    "create_sale_complete": {
+      "title": "إنشاء مبيعة - الإجراء الكامل من البداية للنهاية",
+      "route": "/sales/add",
+      "permissions_required": ["manage_sales"],
+      "steps": [
+        {
+          "step": 1,
+          "action": "فتح صفحة إضافة مبيعة",
+          "url": "/sales/add",
+          "method": "GET",
+          "form_displayed": "SaleForm",
+          "fields": {
+            "customer_id": "اختيار العميل من القائمة",
+            "sale_date": "تاريخ البيع (افتراضي: اليوم)",
+            "currency": "العملة (افتراضي: ILS)",
+            "notes": "ملاحظات",
+            "discount": "خصم عام (اختياري)",
+            "tax_rate": "نسبة الضريبة (افتراضي: من الإعدادات)"
+          }
+        },
+        {
+          "step": 2,
+          "action": "ملء بيانات المبيعة",
+          "required": ["customer_id", "sale_date", "currency"],
+          "optional": ["notes", "discount", "tax_rate"],
+          "validation": {
+            "customer_id": "يجب اختيار عميل موجود",
+            "sale_date": "تاريخ صحيح",
+            "currency": "من القائمة المحددة (ILS, USD, EUR, ...)"
+          }
+        },
+        {
+          "step": 3,
+          "action": "إرسال النموذج - إنشاء المبيعة",
+          "method": "POST",
+          "backend_processing": [
+            "1. إنشاء Sale object بحالة DRAFT",
+            "2. توليد code تلقائي (S-YYYYMM-XXXX)",
+            "3. seller_id = current_user.id",
+            "4. total_amount = 0 (سيُحسب عند إضافة البنود)",
+            "5. حفظ في قاعدة البيانات",
+            "6. إعادة توجيه إلى /sales/{id}/edit (لإضافة البنود)"
+          ]
+        },
+        {
+          "step": 4,
+          "action": "إضافة بنود المبيعة (SaleLine)",
+          "url": "/sales/{id}/edit",
+          "method": "GET + POST",
+          "for_each_line": {
+            "fields": {
+              "product_id": "اختيار المنتج",
+              "quantity": "الكمية",
+              "price": "السعر (يُملأ تلقائياً من سعر المنتج)",
+              "discount": "خصم على البند (اختياري)",
+              "tax_rate": "نسبة الضريبة (افتراضي: من المبيعة)"
+            },
+            "calculation": {
+              "subtotal": "(price * quantity) - discount",
+              "tax_amount": "subtotal * (tax_rate / 100)",
+              "total": "subtotal + tax_amount"
+            },
+            "backend": [
+              "1. إنشاء SaleLine object",
+              "2. sale_id = {id}",
+              "3. حساب subtotal و total",
+              "4. حفظ في قاعدة البيانات",
+              "5. تحديث total_amount في Sale (مجموع كل البنود)"
+            ]
+          }
+        },
+        {
+          "step": 5,
+          "action": "مراجعة المبيعة",
+          "display": {
+            "header": "بيانات العميل + تاريخ + العملة",
+            "lines_table": [
+              "المنتج",
+              "الكمية",
+              "السعر",
+              "الخصم",
+              "الإجمالي"
+            ],
+            "totals": {
+              "subtotal": "مجموع البنود",
+              "discount": "الخصم العام",
+              "tax": "الضريبة",
+              "total": "الإجمالي النهائي"
+            }
+          },
+          "actions_available": [
+            "إضافة بند جديد",
+            "تعديل بند",
+            "حذف بند",
+            "تأكيد المبيعة",
+            "إلغاء المبيعة"
+          ]
+        },
+        {
+          "step": 6,
+          "action": "تأكيد المبيعة (CONFIRMED)",
+          "url": "/sales/{id}/confirm",
+          "method": "POST",
+          "critical_operations": [
+            {
+              "operation": "تحديث حالة المبيعة",
+              "from": "DRAFT",
+              "to": "CONFIRMED"
+            },
+            {
+              "operation": "خصم من المخزون",
+              "for_each_line": "تقليل Stock.quantity حسب warehouse_id",
+              "validation": "التحقق من توفر الكمية قبل الخصم",
+              "error_if": "quantity > stock → رسالة خطأ + منع التأكيد"
+            },
+            {
+              "operation": "إنشاء قيد محاسبي (GLBatch)",
+              "source_type": "SALE",
+              "source_id": "sale.id",
+              "memo": "مبيعة {sale.code} - {customer.name}",
+              "entries": [
+                {
+                  "account": "1100_AR",
+                  "debit": "total_amount_in_ILS",
+                  "credit": 0,
+                  "note": "حساب العميل - مدين"
+                },
+                {
+                  "account": "4000_SALES",
+                  "debit": 0,
+                  "credit": "total_amount_in_ILS",
+                  "note": "المبيعات - دائن"
+                }
+              ],
+              "currency_conversion": "إذا كانت المبيعة بعملة غير ILS، يتم التحويل باستخدام ExchangeRate"
+            },
+            {
+              "operation": "تحديث رصيد العميل",
+              "automatic": "يُحسب تلقائياً من GLBatch",
+              "formula": "balance = balance - total_amount"
+            }
+          ],
+          "result": {
+            "sale_status": "CONFIRMED",
+            "stock_updated": "نعم - خصم من المخزون",
+            "gl_created": "نعم - قيد محاسبي",
+            "customer_balance": "محدث - زيادة الدين",
+            "flash_message": "تم تأكيد المبيعة بنجاح",
+            "redirect": "/sales/{id}"
+          }
+        },
+        {
+          "step": 7,
+          "action": "طباعة الفاتورة",
+          "url": "/sales/{id}/print",
+          "method": "GET",
+          "output": "PDF أو HTML للطباعة",
+          "includes": [
+            "بيانات الشركة (من SystemSettings)",
+            "بيانات العميل",
+            "تاريخ ورقم الفاتورة",
+            "جدول البنود",
+            "الإجماليات",
+            "QR Code (اختياري)",
+            "Barcode لرقم الفاتورة",
+            "الشروط والأحكام",
+            "ختم وتوقيع"
+          ]
+        }
+      ],
+      "complete_example": {
+        "scenario": "مبيعة قطع غيار لعميل أحمد",
+        "customer": {
+          "id": 5,
+          "name": "أحمد علي",
+          "current_balance": -500
+        },
+        "sale_data": {
+          "code": "S-202501-045",
+          "date": "2025-01-15",
+          "currency": "ILS",
+          "lines": [
+            {
+              "product": "فلتر زيت",
+              "quantity": 2,
+              "price": 50,
+              "discount": 0,
+              "subtotal": 100,
+              "tax": 16,
+              "total": 116
+            },
+            {
+              "product": "بطارية 12V",
+              "quantity": 1,
+              "price": 300,
+              "discount": 20,
+              "subtotal": 280,
+              "tax": 44.8,
+              "total": 324.8
+            }
+          ],
+          "subtotal": 380,
+          "tax_total": 60.8,
+          "grand_total": 440.8
+        },
+        "after_confirm": {
+          "stock_before": {"فلتر زيت": 50, "بطارية 12V": 10},
+          "stock_after": {"فلتر زيت": 48, "بطارية 12V": 9},
+          "customer_balance_before": -500,
+          "customer_balance_after": -940.8,
+          "gl_batch_created": {
+            "code": "GL-202501-123",
+            "entries": [
+              {"account": "1100_AR", "debit": 440.8, "credit": 0},
+              {"account": "4000_SALES", "debit": 0, "credit": 440.8}
+            ]
+          }
+        }
+      },
+      "common_errors": [
+        {
+          "error": "الكمية المطلوبة أكبر من المتوفر في المخزون",
+          "message": "الكمية المتوفرة: X، الكمية المطلوبة: Y",
+          "solution": "تقليل الكمية أو إضافة شحنة جديدة للمخزون"
+        },
+        {
+          "error": "العميل غير موجود",
+          "solution": "إضافة العميل أولاً من /customers/add"
+        },
+        {
+          "error": "سعر الصرف غير موجود للعملة",
+          "solution": "إضافة ExchangeRate للعملة والتاريخ المطلوب"
+        }
+      ]
+    },
+
+    "cancel_sale": {
+      "title": "إلغاء مبيعة مؤكدة",
+      "route": "/sales/{id}/cancel",
+      "method": "POST",
+      "permissions_required": ["manage_sales"],
+      "warnings": [
+        "⚠️ عملية خطيرة - تعكس كل الإجراءات",
+        "⚠️ يجب التأكد من عدم وجود دفعات مرتبطة",
+        "⚠️ يُفضل استخدام المرتجعات بدلاً من الإلغاء"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "التحقق من الحالة",
+          "validation": "status = CONFIRMED",
+          "error_if_not": "لا يمكن إلغاء مبيعة غير مؤكدة أو ملغاة بالفعل"
+        },
+        {
+          "step": 2,
+          "action": "التحقق من الدفعات",
+          "check": "هل يوجد payments مرتبطة؟",
+          "if_yes": {
+            "warning": "يوجد دفعات مرتبطة بهذه المبيعة",
+            "options": [
+              "حذف الدفعات أولاً",
+              "أو استخدام مرتجعات بدلاً من الإلغاء"
+            ]
+          }
+        },
+        {
+          "step": 3,
+          "action": "إرجاع المخزون",
+          "for_each_line": {
+            "operation": "زيادة Stock.quantity",
+            "calculation": "stock.quantity += sale_line.quantity"
+          }
+        },
+        {
+          "step": 4,
+          "action": "عكس القيد المحاسبي",
+          "method": "إنشاء قيد معاكس",
+          "source_type": "SALE_REVERSAL",
+          "entries": [
+            {"account": "1100_AR", "debit": 0, "credit": "total_amount"},
+            {"account": "4000_SALES", "debit": "total_amount", "credit": 0}
+          ]
+        },
+        {
+          "step": 5,
+          "action": "تحديث حالة المبيعة",
+          "status": "CANCELLED",
+          "cancelled_at": "datetime.now()",
+          "cancelled_by": "current_user.id"
+        }
+      ]
+    }
+  },
+
+  "payment_processing": {
+    "record_payment_detailed": {
+      "title": "تسجيل دفعة - كل السيناريوهات",
+      "route": "/payments/add",
+      "permissions_required": ["manage_payments"],
+      "scenarios": [
+        {
+          "scenario": "دفعة من عميل (IN)",
+          "description": "العميل يدفع لنا جزء من ديونه",
+          "steps": [
+            {
+              "step": 1,
+              "data": {
+                "entity_type": "CUSTOMER",
+                "entity_id": "customer.id",
+                "direction": "IN",
+                "amount": 500,
+                "currency": "ILS",
+                "payment_date": "2025-01-15",
+                "payment_method": "CASH",
+                "notes": "دفعة نقدية"
+              }
+            },
+            {
+              "step": 2,
+              "validation": "التحقق من وجود العميل",
+              "check": "Customer.query.get(entity_id)"
+            },
+            {
+              "step": 3,
+              "gl_entry": {
+                "memo": "دفعة من {customer.name}",
+                "entries": [
+                  {"account": "1000_CASH", "debit": 500, "credit": 0},
+                  {"account": "1100_AR", "debit": 0, "credit": 500}
+                ]
+              }
+            },
+            {
+              "step": 4,
+              "balance_effect": {
+                "before": -1000,
+                "payment": 500,
+                "after": -500,
+                "note": "قلّ الدين عليه من 1000 إلى 500"
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "دفعة لمورد (OUT)",
+          "description": "ندفع للمورد جزء من مستحقاته",
+          "steps": [
+            {
+              "step": 1,
+              "data": {
+                "entity_type": "SUPPLIER",
+                "entity_id": "supplier.id",
+                "direction": "OUT",
+                "amount": 2000,
+                "currency": "USD",
+                "payment_date": "2025-01-15",
+                "payment_method": "BANK",
+                "notes": "دفعة بنكية"
+              }
+            },
+            {
+              "step": 2,
+              "currency_conversion": {
+                "original_amount": 2000,
+                "original_currency": "USD",
+                "exchange_rate": 3.7,
+                "amount_in_ILS": 7400
+              }
+            },
+            {
+              "step": 3,
+              "gl_entry": {
+                "memo": "دفعة لـ {supplier.name}",
+                "entries": [
+                  {"account": "2100_AP", "debit": 7400, "credit": 0},
+                  {"account": "1050_BANK", "debit": 0, "credit": 7400}
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "مصروف (OUT فقط)",
+          "description": "تسجيل مصروف - دائماً صادر",
+          "steps": [
+            {
+              "step": 1,
+              "data": {
+                "entity_type": "EXPENSE",
+                "entity_id": "expense.id",
+                "direction": "OUT",
+                "amount": 300,
+                "currency": "ILS",
+                "payment_date": "2025-01-15",
+                "payment_method": "CASH"
+              }
+            },
+            {
+              "step": 2,
+              "validation": {
+                "check": "direction MUST be OUT",
+                "error_if_IN": "النفقات دائماً صادرة فقط"
+              }
+            },
+            {
+              "step": 3,
+              "gl_entry": {
+                "memo": "مصروف: {expense.description}",
+                "entries": [
+                  {"account": "6000_EXPENSE", "debit": 300, "credit": 0},
+                  {"account": "1000_CASH", "debit": 0, "credit": 300}
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "scenario": "راتب موظف (OUT)",
+          "description": "دفع راتب شهري",
+          "steps": [
+            {
+              "step": 1,
+              "data": {
+                "entity_type": "EMPLOYEE",
+                "entity_id": "employee.id",
+                "direction": "OUT",
+                "amount": 5000,
+                "currency": "ILS",
+                "payment_date": "2025-01-31",
+                "payment_method": "BANK",
+                "notes": "راتب يناير 2025"
+              }
+            },
+            {
+              "step": 2,
+              "calculation": {
+                "gross_salary": 5000,
+                "deductions": 200,
+                "net_salary": 4800,
+                "note": "الخصومات من EmployeeDeduction"
+              }
+            },
+            {
+              "step": 3,
+              "gl_entry": {
+                "entries": [
+                  {"account": "6100_SALARIES", "debit": 5000, "credit": 0},
+                  {"account": "2300_DEDUCTIONS", "debit": 0, "credit": 200},
+                  {"account": "1050_BANK", "debit": 0, "credit": 4800}
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    "payment_splits": {
+      "title": "تقسيم الدفعة على عدة فواتير",
+      "description": "عميل يدفع مبلغاً يوزع على عدة مبيعات/فواتير",
+      "route": "/payments/add",
+      "use_case": "عميل عليه 3 فواتير بمبالغ مختلفة، يدفع مبلغاً واحداً",
+      "example": {
+        "customer": "محمد أحمد",
+        "outstanding_invoices": [
+          {"code": "S-001", "amount": 500, "remaining": 500},
+          {"code": "S-002", "amount": 800, "remaining": 800},
+          {"code": "S-003", "amount": 300, "remaining": 300}
+        ],
+        "payment_amount": 1000,
+        "split_strategy": "تلقائي - من الأقدم للأحدث",
+        "result": [
+          {"code": "S-001", "paid": 500, "remaining": 0, "status": "fully_paid"},
+          {"code": "S-002", "paid": 500, "remaining": 300, "status": "partially_paid"},
+          {"code": "S-003", "paid": 0, "remaining": 300, "status": "unpaid"}
+        ]
+      },
+      "implementation": {
+        "table": "payment_splits",
+        "fields": {
+          "payment_id": "معرف الدفعة",
+          "source_type": "نوع المصدر (SALE, INVOICE, SERVICE)",
+          "source_id": "معرف المصدر",
+          "amount": "المبلغ المخصص"
+        }
+      }
+    }
+  },
+
+  "inventory_operations": {
+    "stock_transfer_detailed": {
+      "title": "تحويل مخزني - الإجراء الكامل",
+      "route": "/warehouses/transfer",
+      "permissions_required": ["warehouse_transfer"],
+      "steps": [
+        {
+          "step": 1,
+          "action": "اختيار البيانات",
+          "fields": {
+            "product_id": "المنتج المراد تحويله",
+            "source_id": "المستودع المصدر",
+            "destination_id": "المستودع الوجهة",
+            "quantity": "الكمية"
+          },
+          "validation": {
+            "source != destination": "يجب أن يكون المستودعان مختلفين",
+            "quantity > 0": "الكمية يجب أن تكون موجبة",
+            "stock_available": "التحقق من توفر الكمية في المصدر"
+          }
+        },
+        {
+          "step": 2,
+          "action": "التحقق من المخزون",
+          "query": "SELECT quantity FROM stocks WHERE product_id = ? AND warehouse_id = ?",
+          "check": "stock.quantity >= transfer.quantity",
+          "error_if_not": "الكمية المتوفرة: X، الكمية المطلوبة: Y"
+        },
+        {
+          "step": 3,
+          "action": "تنفيذ التحويل",
+          "atomic_operations": [
+            {
+              "operation": 1,
+              "description": "إنشاء سجل Transfer",
+              "fields": {
+                "product_id": "product_id",
+                "source_id": "source_id",
+                "destination_id": "destination_id",
+                "quantity": "quantity",
+                "transfer_date": "datetime.now()",
+                "user_id": "current_user.id"
+              }
+            },
+            {
+              "operation": 2,
+              "description": "تحديث المخزون في المصدر",
+              "query": "UPDATE stocks SET quantity = quantity - ? WHERE product_id = ? AND warehouse_id = ?",
+              "trigger": "event listener: Transfer.after_insert"
+            },
+            {
+              "operation": 3,
+              "description": "تحديث/إنشاء المخزون في الوجهة",
+              "logic": [
+                "IF stock exists في الوجهة:",
+                "  UPDATE quantity = quantity + ?",
+                "ELSE:",
+                "  INSERT new stock record"
+              ]
+            }
+          ],
+          "transaction": "كل العمليات في transaction واحدة - إما تنجح كلها أو تفشل كلها"
+        },
+        {
+          "step": 4,
+          "action": "التأكيد والسجلات",
+          "audit_trail": {
+            "table": "transfers",
+            "logged_data": [
+              "من قام بالتحويل (user_id)",
+              "متى (transfer_date)",
+              "من أين (source_id)",
+              "إلى أين (destination_id)",
+              "ما هو (product_id)",
+              "كم (quantity)"
+            ]
+          }
+        }
+      ],
+      "example": {
+        "scenario": "تحويل 10 فلاتر من المخزن الرئيسي إلى الفرع",
+        "before": {
+          "main_warehouse": {
+            "product": "فلتر زيت",
+            "quantity": 50
+          },
+          "branch_warehouse": {
+            "product": "فلتر زيت",
+            "quantity": 5
+          }
+        },
+        "transfer": {
+          "product": "فلتر زيت",
+          "from": "المخزن الرئيسي",
+          "to": "مخزن الفرع",
+          "quantity": 10
+        },
+        "after": {
+          "main_warehouse": {
+            "product": "فلتر زيت",
+            "quantity": 40
+          },
+          "branch_warehouse": {
+            "product": "فلتر زيت",
+            "quantity": 15
+          }
+        }
+      }
+    },
+
+    "stock_adjustment": {
+      "title": "تسوية المخزون (Inventory Adjustment)",
+      "route": "/warehouses/adjustment",
+      "use_cases": [
+        "تلف/فقدان",
+        "جرد فعلي مختلف عن النظام",
+        "هدايا/عينات",
+        "تصحيح أخطاء"
+      ],
+      "steps": [
+        {
+          "step": 1,
+          "action": "اختيار البيانات",
+          "fields": {
+            "product_id": "المنتج",
+            "warehouse_id": "المستودع",
+            "adjustment_type": "نوع التسوية (INCREASE/DECREASE)",
+            "quantity": "الكمية",
+            "reason": "السبب (مطلوب)",
+            "notes": "ملاحظات"
+          }
+        },
+        {
+          "step": 2,
+          "action": "تطبيق التسوية",
+          "if_increase": "stock.quantity += quantity",
+          "if_decrease": "stock.quantity -= quantity",
+          "validation": "عند DECREASE: التحقق من عدم سلبية المخزون"
+        },
+        {
+          "step": 3,
+          "action": "القيد المحاسبي",
+          "if_increase": {
+            "debit": "1200_INVENTORY",
+            "credit": "3000_EQUITY أو 4100_OTHER_INCOME"
+          },
+          "if_decrease": {
+            "debit": "5100_LOSS أو 6200_DAMAGE",
+            "credit": "1200_INVENTORY"
+          }
+        }
+      ]
+    }
+  },
+
+  "service_management": {
+    "complete_service_workflow": {
+      "title": "سير عمل طلب صيانة كامل",
+      "stages": [
+        {
+          "stage": "1. الاستقبال",
+          "status": "NEW",
+          "actions": [
+            "إنشاء طلب جديد",
+            "تسجيل بيانات العميل",
+            "وصف المشكلة",
+            "نوع المعدة",
+            "تقدير أولي للتكلفة (اختياري)"
+          ]
+        },
+        {
+          "stage": "2. التقييم الفني",
+          "status": "IN_PROGRESS",
+          "actions": [
+            "تعيين ميكانيكي",
+            "فحص المعدة",
+            "تحديد القطع المطلوبة",
+            "تحديد ساعات العمل",
+            "حساب التكلفة الفعلية"
+          ]
+        },
+        {
+          "stage": "3. التنفيذ",
+          "status": "IN_PROGRESS",
+          "actions": [
+            "طلب القطع من المخزون",
+            "خصم القطع من Stock",
+            "تسجيل ساعات العمل",
+            "تحديث التكلفة الجارية"
+          ]
+        },
+        {
+          "stage": "4. الإنهاء",
+          "status": "COMPLETED",
+          "actions": [
+            "حساب التكلفة النهائية",
+            "إنشاء قيد محاسبي",
+            "تحديث رصيد العميل",
+            "طباعة الفاتورة",
+            "تسليم المعدة"
+          ]
+        }
+      ],
+      "cost_calculation": {
+        "parts_cost": "SUM(parts.cost * quantity)",
+        "labor_cost": "hours * hourly_rate",
+        "total_cost": "parts_cost + labor_cost",
+        "markup": "total_cost * markup_percentage",
+        "final_price": "total_cost + markup"
+      },
+      "example": {
+        "customer": "علي محمود",
+        "equipment": "حفار CAT 320",
+        "problem": "تسريب زيت من المحرك",
+        "diagnosis": "تغيير جوان غطاء المحرك + فلتر زيت",
+        "parts_used": [
+          {"name": "جوان غطاء", "quantity": 1, "cost": 200},
+          {"name": "فلتر زيت", "quantity": 1, "cost": 50}
+        ],
+        "labor": {
+          "hours": 3,
+          "rate_per_hour": 100,
+          "total": 300
+        },
+        "calculation": {
+          "parts_total": 250,
+          "labor_total": 300,
+          "subtotal": 550,
+          "markup_20%": 110,
+          "total_before_tax": 660,
+          "tax_16%": 105.6,
+          "grand_total": 765.6
+        }
+      }
+    }
+  },
+
+  "multi_currency": {
+    "exchange_rate_management": {
+      "title": "إدارة أسعار الصرف",
+      "importance": "أساسي لكل المعاملات بعملات متعددة",
+      "table": "exchange_rates",
+      "fields": {
+        "from_currency": "من عملة (مثال: USD)",
+        "to_currency": "إلى عملة (مثال: ILS)",
+        "rate": "سعر الصرف (decimal)",
+        "date": "تاريخ السعر"
+      },
+      "usage": {
+        "automatic_conversion": "يُستخدم تلقائياً عند:",
+        "scenarios": [
+          "تأكيد مبيعة بعملة أجنبية",
+          "حساب رصيد عميل بعملات متعددة",
+          "تقارير مالية موحدة",
+          "عرض الأرصدة في العملة الأساسية"
+        ]
+      },
+      "example": {
+        "date": "2025-01-15",
+        "rates": [
+          {"from": "USD", "to": "ILS", "rate": 3.7},
+          {"from": "EUR", "to": "ILS", "rate": 4.1},
+          {"from": "JOD", "to": "ILS", "rate": 5.2}
+        ],
+        "conversion_example": {
+          "amount": 1000,
+          "currency": "USD",
+          "rate": 3.7,
+          "amount_in_ILS": 3700
+        }
+      },
+      "best_practices": [
+        "تحديث الأسعار يومياً",
+        "الاحتفاظ بسجل تاريخي",
+        "استخدام API خارجي للأسعار الحية (اختياري)",
+        "إشعار عند تغير الأسعار بنسبة > 5%"
+      ]
+    }
+  },
+
+  "reporting": {
+    "financial_reports_generation": {
+      "title": "توليد التقارير المالية",
+      "types": [
+        {
+          "report": "كشف حساب عميل",
+          "route": "/customers/{id}/statement",
+          "parameters": ["date_from", "date_to"],
+          "output": "HTML + PDF + Excel"
+        },
+        {
+          "report": "تقرير المبيعات",
+          "route": "/reports/sales",
+          "parameters": ["date_from", "date_to", "customer_id", "currency"],
+          "grouping": ["by_date", "by_customer", "by_product"],
+          "totals": ["subtotal", "tax", "discount", "grand_total"]
+        },
+        {
+          "report": "قائمة الدخل (P&L)",
+          "route": "/reports/profit_loss",
+          "parameters": ["period_start", "period_end"],
+          "sections": {
+            "revenue": ["مبيعات", "خدمات", "إيرادات أخرى"],
+            "cogs": ["تكلفة المبيعات"],
+            "gross_profit": "الإيرادات - التكاليف",
+            "operating_expenses": ["رواتب", "إيجار", "مصاريف إدارية"],
+            "net_profit": "الربح الإجمالي - المصاريف التشغيلية"
+          }
+        },
+        {
+          "report": "الميزانية العمومية (Balance Sheet)",
+          "route": "/reports/balance_sheet",
+          "as_of_date": "تاريخ محدد",
+          "sections": {
+            "assets": {
+              "current": ["نقد", "حسابات عملاء", "مخزون"],
+              "fixed": ["معدات", "سيارات", "مباني"]
+            },
+            "liabilities": {
+              "current": ["حسابات موردين", "قروض قصيرة"],
+              "long_term": ["قروض طويلة"]
+            },
+            "equity": ["رأس المال", "الأرباح المحتجزة"]
+          },
+          "equation": "الأصول = الالتزامات + حقوق الملكية"
+        }
+      ]
+    }
+  },
+
+  "best_practices": {
+    "data_entry": [
+      "دائماً ابدأ بإضافة العملاء/الموردين أولاً",
+      "تأكد من وجود المنتجات في المخزون قبل البيع",
+      "لا تؤكد مبيعة بدون التحقق من المخزون",
+      "استخدم العملة الأساسية (ILS) للعمليات اليومية",
+      "سجل الدفعات فوراً عند الاستلام/الدفع"
+    ],
+    "accounting": [
+      "راجع القيود المحاسبية شهرياً",
+      "تأكد من توازن المدين والدائن",
+      "لا تحذف القيود - استخدم قيود عكسية",
+      "احتفظ بنسخ احتياطية يومية",
+      "استخدم الأرشيف بدلاً من الحذف النهائي"
+    ],
+    "inventory": [
+      "جرد دوري (شهري على الأقل)",
+      "تسوية فورية عند اكتشاف اختلافات",
+      "تحديد مستويات إعادة الطلب",
+      "تتبع القطع السريعة الحركة",
+      "فصل المخزون التالف"
+    ],
+    "security": [
+      "منح الصلاحيات حسب الحاجة فقط",
+      "مراجعة سجلات التدقيق (AuthAudit) دورياً",
+      "تغيير كلمات المرور كل 3 أشهر",
+      "عدم مشاركة حسابات المستخدمين",
+      "تفعيل النسخ الاحتياطي التلقائي"
+    ]
+  },
+
+  "troubleshooting_advanced": {
+    "balance_reconciliation": {
+      "problem": "رصيد العميل لا يطابق الواقع",
+      "diagnosis_steps": [
+        "1. فحص opening_balance",
+        "2. جمع كل المبيعات المؤكدة",
+        "3. جمع كل الفواتير غير الملغاة",
+        "4. جمع كل الصيانة المكتملة",
+        "5. جمع كل الدفعات IN",
+        "6. طرح كل الدفعات OUT",
+        "7. طرح المرتجعات المؤكدة",
+        "8. مقارنة النتيجة مع customer.balance",
+        "9. إذا اختلف → فحص GLBatch للعميل",
+        "10. إعادة حساب يدوياً من GLEntry"
+      ],
+      "correction": "إذا وُجد خطأ، إنشاء adjustment entry في GL"
+    },
+    "stock_discrepancy": {
+      "problem": "المخزون في النظام لا يطابق الجرد الفعلي",
+      "causes": [
+        "تحويلات لم تُسجل",
+        "مبيعات ملغاة لم تُرجع للمخزون",
+        "تلف لم يُسجل",
+        "سرقة",
+        "خطأ في إدخال الشحنات"
+      ],
+      "solution_steps": [
+        "1. عمل جرد فعلي شامل",
+        "2. مقارنة مع stock.quantity في النظام",
+        "3. تسجيل الفروقات كـ StockAdjustment",
+        "4. توثيق السبب",
+        "5. إنشاء قيد محاسبي للتسوية"
+      ]
+    }
+  }
+}
+

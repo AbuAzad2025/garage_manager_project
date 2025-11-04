@@ -135,7 +135,7 @@
             <div class="row mb-4">
                 <div class="col-sm-6">
                     <h1 class="m-0">
-                        <i class="fas fa-chart-bar me-2"></i>
+                        <i class="fas fa-chart-bar ml-2"></i>
                         إحصائيات الباركود المتقدمة
                     </h1>
                     <p class="text-muted mt-2">تحليل شامل لتغطية الباركود في النظام</p>
@@ -217,7 +217,7 @@
                     <div class="card card-modern">
                         <div class="card-header-modern">
                             <h3>
-                                <i class="fas fa-chart-pie me-2"></i>
+                                <i class="fas fa-chart-pie ml-2"></i>
                                 توزيع الباركود
                             </h3>
                         </div>
@@ -229,13 +229,13 @@
                                 <div class="row">
                                     <div class="col-6">
                                         <div class="d-flex align-items-center justify-content-center">
-                                            <div class="bg-success rounded-circle me-2" style="width: 15px; height: 15px;"></div>
+                                            <div class="bg-success rounded-circle ml-2" style="width: 15px; height: 15px;"></div>
                                             <span>مع باركود ({{ stats.products_with_barcode }})</span>
                                         </div>
                                     </div>
                                     <div class="col-6">
                                         <div class="d-flex align-items-center justify-content-center">
-                                            <div class="bg-warning rounded-circle me-2" style="width: 15px; height: 15px;"></div>
+                                            <div class="bg-warning rounded-circle ml-2" style="width: 15px; height: 15px;"></div>
                                             <span>بدون باركود ({{ stats.products_without_barcode }})</span>
                                         </div>
                                     </div>
@@ -250,7 +250,7 @@
                     <div class="card card-modern">
                         <div class="card-header-modern">
                             <h3>
-                                <i class="fas fa-chart-bar me-2"></i>
+                                <i class="fas fa-chart-bar ml-2"></i>
                                 نسبة التغطية
                             </h3>
                         </div>
@@ -290,7 +290,7 @@
                     <div class="card card-modern">
                         <div class="card-header-modern">
                             <h3>
-                                <i class="fas fa-table me-2"></i>
+                                <i class="fas fa-table ml-2"></i>
                                 توزيع أطوال الباركود
                             </h3>
                         </div>
@@ -340,7 +340,7 @@
                     <div class="card card-modern">
                         <div class="card-header-modern">
                             <h3>
-                                <i class="fas fa-lightbulb me-2"></i>
+                                <i class="fas fa-lightbulb ml-2"></i>
                                 التوصيات والإجراءات
                             </h3>
                         </div>
@@ -349,10 +349,10 @@
                                 {% if stats.products_without_barcode > 0 %}
                                 <div class="col-lg-4 col-md-6 mb-3">
                                     <div class="alert alert-warning">
-                                        <h6><i class="fas fa-exclamation-triangle me-2"></i>إضافة باركود</h6>
+                                        <h6><i class="fas fa-exclamation-triangle ml-2"></i>إضافة باركود</h6>
                                         <p class="mb-2">يوجد {{ stats.products_without_barcode }} منتج بدون باركود</p>
                                         <a href="{{ url_for('barcode_scanner.index') }}" class="btn btn-warning btn-sm">
-                                            <i class="fas fa-plus me-1"></i>إضافة باركود
+                                            <i class="fas fa-plus ml-1"></i>إضافة باركود
                                         </a>
                                     </div>
                                 </div>
@@ -360,20 +360,20 @@
                                 
                                 <div class="col-lg-4 col-md-6 mb-3">
                                     <div class="alert alert-info">
-                                        <h6><i class="fas fa-chart-line me-2"></i>تحسين التغطية</h6>
+                                        <h6><i class="fas fa-chart-line ml-2"></i>تحسين التغطية</h6>
                                         <p class="mb-2">هدف التغطية: 100%</p>
                                         <a href="{{ url_for('barcode_scanner.bulk_scan_page') }}" class="btn btn-info btn-sm">
-                                            <i class="fas fa-layer-group me-1"></i>مسح جماعي
+                                            <i class="fas fa-layer-group ml-1"></i>مسح جماعي
                                         </a>
                                     </div>
                                 </div>
                                 
                                 <div class="col-lg-4 col-md-6 mb-3">
                                     <div class="alert alert-success">
-                                        <h6><i class="fas fa-check-circle me-2"></i>مراقبة الجودة</h6>
+                                        <h6><i class="fas fa-check-circle ml-2"></i>مراقبة الجودة</h6>
                                         <p class="mb-2">راجع المنتجات بانتظام</p>
                                         <a href="{{ url_for('barcode_scanner.index') }}" class="btn btn-success btn-sm">
-                                            <i class="fas fa-search me-1"></i>مراجعة المنتجات
+                                            <i class="fas fa-search ml-1"></i>مراجعة المنتجات
                                         </a>
                                     </div>
                                 </div>

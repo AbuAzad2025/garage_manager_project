@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% block title %}سجلات الحضور الهندسية{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-clock text-success"></i> سجلات الحضور الهندسية</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="row mb-3">
+    <div class="col-12">
+        <a href="{{ url_for('engineering.add_timesheet') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> تسجيل حضور
+        </a>
+        <a href="{{ url_for('engineering.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> لوحة التحكم
+        </a>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-2">
+        <div class="info-box bg-info">
+            <span class="info-box-icon"><i class="fas fa-list"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">إجمالي</span>
+                <span class="info-box-number">{{ stats.total }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="info-box bg-secondary">
+            <span class="info-box-icon"><i class="fas fa-edit"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">مسودة</span>
+                <span class="info-box-number">{{ stats.draft }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="info-box bg-primary">
+            <span class="info-box-icon"><i class="fas fa-paper-plane"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">مقدمة</span>
+                <span class="info-box-number">{{ stats.submitted }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="info-box bg-success">
+            <span class="info-box-icon"><i class="fas fa-check"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">معتمدة</span>
+                <span class="info-box-number">{{ stats.approved }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="info-box bg-warning">
+            <span class="info-box-icon"><i class="fas fa-clock"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">إجمالي الساعات</span>
+                <span class="info-box-number">{{ "{:,.1f}".format(stats.total_hours) }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="info-box bg-danger">
+            <span class="info-box-icon"><i class="fas fa-dollar-sign"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">إجمالي التكلفة</span>
+                <span class="info-box-number">{{ "{:,.0f}".format(stats.total_cost) }} ₪</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-success text-white">
+        <h3 class="card-title"><i class="fas fa-filter"></i> تصفية</h3>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="form-inline">
+            <div class="form-group mx-2">
+                <label class="mr-2">الموظف:</label>
+                <select name="employee" class="form-control">
+                    <option value="">الكل</option>
+                    {% for emp in employees %}
+                    <option value="{{ emp.id }}" {% if selected_employee == emp.id %}selected{% endif %}>
+                        {{ emp.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group mx-2">
+                <label class="mr-2">من:</label>
+                <input type="date" name="date_from" class="form-control" value="{{ date_from if date_from else '' }}">
+            </div>
+            <div class="form-group mx-2">
+                <label class="mr-2">إلى:</label>
+                <input type="date" name="date_to" class="form-control" value="{{ date_to if date_to else '' }}">
+            </div>
+            <div class="form-group mx-2">
+                <label class="mr-2">الحالة:</label>
+                <select name="status" class="form-control">
+                    <option value="">الكل</option>
+                    <option value="DRAFT" {% if selected_status == 'DRAFT' %}selected{% endif %}>مسودة</option>
+                    <option value="SUBMITTED" {% if selected_status == 'SUBMITTED' %}selected{% endif %}>مقدمة</option>
+                    <option value="APPROVED" {% if selected_status == 'APPROVED' %}selected{% endif %}>معتمدة</option>
+                    <option value="REJECTED" {% if selected_status == 'REJECTED' %}selected{% endif %}>مرفوضة</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary mx-2">
+                <i class="fas fa-filter"></i> تصفية
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-header bg-info text-white">
+        <h3 class="card-title"><i class="fas fa-list"></i> قائمة السجلات</h3>
+        <div class="card-tools">
+            <button class="btn btn-tool btn-light" onclick="window.print()">
+                <i class="fas fa-print"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>الموظف</th>
+                    <th>المهمة</th>
+                    <th>وقت البدء</th>
+                    <th>وقت الانتهاء</th>
+                    <th>الاستراحة (دقيقة)</th>
+                    <th>ساعات العمل</th>
+                    <th>ساعات قابلة للفوترة</th>
+                    <th>التكلفة (₪)</th>
+                    <th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ts in timesheets %}
+                <tr>
+                    <td>{{ ts.work_date.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ ts.employee.name if ts.employee else '-' }}</td>
+                    <td>{{ ts.task.task_number if ts.task else '-' }}</td>
+                    <td>{{ ts.start_time.strftime('%H:%M') if ts.start_time else '-' }}</td>
+                    <td>{{ ts.end_time.strftime('%H:%M') if ts.end_time else '-' }}</td>
+                    <td>{{ ts.break_duration_minutes or 0 }}</td>
+                    <td>{{ "{:.2f}".format(ts.actual_work_hours) if ts.actual_work_hours else 0 }}</td>
+                    <td>{{ "{:.2f}".format(ts.billable_hours) if ts.billable_hours else 0 }}</td>
+                    <td>{{ "{:,.2f}".format(ts.total_cost) if ts.total_cost else 0 }}</td>
+                    <td>
+                        <span class="badge badge-{% if ts.status == 'APPROVED' %}success{% elif ts.status == 'SUBMITTED' %}primary{% elif ts.status == 'REJECTED' %}danger{% else %}secondary{% endif %}">
+                            {{ ts.status }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+</section>
+{% endblock %}
+

@@ -19,7 +19,7 @@
 <body>
 <nav class="navbar navbar-expand-lg">
   <div class="container">
-    <span class="navbar-brand"><i class="fa-solid fa-shield-halved me-2"></i>تقرير معاملات البطاقات</span>
+    <span class="navbar-brand"><i class="fa-solid fa-shield-halved ml-2"></i>تقرير معاملات البطاقات</span>
     <div class="ms-auto">
       <a href="/" class="btn btn-sm btn-outline-light">الرئيسية</a>
     </div>
@@ -76,7 +76,7 @@
         </div>
         <div class="col-6 col-md-3">
           <label class="form-label fw-bold">الحالة</label>
-          <select class="form-select" name="status">
+          <select class="custom-select" name="status">
             <option value="">الكل</option>
             {% for s in ['PENDING','SUCCESS','FAILED','REFUNDED'] %}
             <option value="{{ s }}" {{ 'selected' if request.args.get('status')==s else '' }}>{{ s }}</option>
@@ -88,8 +88,8 @@
           <input type="text" class="form-control" name="q" placeholder="مرجع/اسم/هاتف" value="{{ request.args.get('q','') }}">
         </div>
         <div class="col-12 text-end">
-          <button class="btn btn-primary"><i class="fa-solid fa-magnifying-glass me-1"></i> تصفية</button>
-          <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-secondary"><i class="fa-solid fa-undo me-1"></i> إعادة تعيين</a>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass ml-1"></i> تصفية</button>
+          <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-secondary"><i class="fa-solid fa-undo ml-1"></i> إعادة تعيين</a>
         </div>
       </form>
     </div>

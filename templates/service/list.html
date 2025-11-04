@@ -182,7 +182,7 @@
 
         <div class="col-6 col-md-3 col-xl-2">
           <label for="mechanic" class="form-label"><i class="fas fa-user-cog"></i> الميكانيكي</label>
-          <select id="mechanic" name="mechanic" class="form-select">
+          <select id="mechanic" name="mechanic" class="custom-select">
             <option value="">الكل</option>
             {% for m in mechanics %}
               <option value="{{ m.username }}" {% if filter_values.mechanic==m.username %}selected{% endif %}>{{ m.username }}</option>
@@ -197,7 +197,7 @@
 
         <div class="col-6 col-md-3 col-xl-2">
           <label for="date" class="form-label"><i class="fas fa-calendar-day"></i> الزمن</label>
-          <select id="date" name="date" class="form-select">
+          <select id="date" name="date" class="custom-select">
             <option value="">الكل</option>
             <option value="today" {% if filter_values.date=='today' %}selected{% endif %}>اليوم</option>
             <option value="week"  {% if filter_values.date=='week' %}selected{% endif %}>هذا الأسبوع</option>
@@ -207,7 +207,7 @@
 
         <div class="col-6 col-md-3 col-xl-2">
           <label for="sort" class="form-label"><i class="fas fa-sort-amount-down"></i> ترتيب حسب</label>
-          <select id="sort" name="sort" class="form-select">
+          <select id="sort" name="sort" class="custom-select">
             <option value="received_at" {% if filter_values.sort=='received_at' or not filter_values.sort %}selected{% endif %}>تاريخ الاستلام</option>
             <option value="priority" {% if filter_values.sort=='priority' %}selected{% endif %}>الأولوية</option>
             <option value="status" {% if filter_values.sort=='status' %}selected{% endif %}>الحالة</option>
@@ -216,7 +216,7 @@
 
         <div class="col-6 col-md-3 col-xl-2">
           <label for="order" class="form-label"><i class="fas fa-exchange-alt"></i> الاتجاه</label>
-          <select id="order" name="order" class="form-select">
+          <select id="order" name="order" class="custom-select">
             <option value="desc" {% if filter_values.order=='desc' or not filter_values.order %}selected{% endif %}>تنازلي</option>
             <option value="asc" {% if filter_values.order=='asc' %}selected{% endif %}>تصاعدي</option>
           </select>

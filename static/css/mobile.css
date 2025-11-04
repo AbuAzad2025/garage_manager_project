@@ -341,13 +341,22 @@ img {
   }
   
   /* ═══ 9. Modal - النوافذ المنبثقة ═══ */
+  .modal-backdrop {
+    pointer-events: none !important;
+    z-index: 1040 !important;
+  }
+  
   .modal-dialog {
     margin: 0.5rem !important;
     max-width: calc(100% - 1rem) !important;
+    z-index: 2000 !important;
+    position: relative;
   }
   
   .modal-content {
     border-radius: 1rem !important;
+    z-index: 2001 !important;
+    pointer-events: all !important;
   }
   
   .modal-header {
@@ -369,6 +378,19 @@ img {
   .modal-footer .btn {
     width: 100% !important;
     margin: 0 0 0.5rem 0 !important;
+  }
+  
+  .modal input,
+  .modal select,
+  .modal textarea,
+  .modal button,
+  .modal label,
+  .modal .form-control,
+  .modal .custom-select,
+  .modal .custom-control-input {
+    z-index: 2002 !important;
+    pointer-events: all !important;
+    position: relative;
   }
   
   /* ═══ 10. Dropdown - القوائم المنسدلة ═══ */

@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}خزنة الكروت{% endblock %}
-{% block page_title %}🔒 خزنة الكروت - Visa/Mastercard{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}card_vault{% endblock %}
+{% block security_title %}Card Vault{% endblock %}
+{% block security_icon %}<i class="fas fa-credit-card"></i>{% endblock %}
+{% block security_description %}خزنة آمنة لبطاقات الائتمان - Visa/Mastercard{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Card Vault</li>{% endblock %}
+{% block security_content %}
   
   <div class="alert alert-danger border-0 shadow-sm">
     <i class="fas fa-shield-alt"></i> <strong>تحذير أمني:</strong> هذه الصفحة تحتوي على بيانات حساسة للغاية!

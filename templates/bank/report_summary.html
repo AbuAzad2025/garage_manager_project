@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}ملخص التقارير البنكية{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-chart-bar text-success"></i> ملخص التقارير البنكية</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('bank.accounts') }}">البنوك</a></li>
+                    <li class="breadcrumb-item active">ملخص التقارير</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <div class="info-box bg-success">
+        <span class="info-box-icon"><i class="fas fa-university"></i></span>
+        <div class="info-box-content">
+          <span class="info-box-text">إجمالي الحسابات</span>
+          <span class="info-box-number">{{ summary.total_accounts or 0 }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="info-box bg-info">
+        <span class="info-box-icon"><i class="fas fa-money-bill"></i></span>
+        <div class="info-box-content">
+          <span class="info-box-text">إجمالي الأرصدة</span>
+          <span class="info-box-number">{{ "{:,.2f}".format(summary.total_balance or 0) }} ₪</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="info-box bg-warning">
+        <span class="info-box-icon"><i class="fas fa-arrow-down"></i></span>
+        <div class="info-box-content">
+          <span class="info-box-text">المصروفات</span>
+          <span class="info-box-number">{{ "{:,.2f}".format(summary.total_expenses or 0) }} ₪</span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="info-box bg-primary">
+        <span class="info-box-icon"><i class="fas fa-arrow-up"></i></span>
+        <div class="info-box-content">
+          <span class="info-box-text">الإيرادات</span>
+          <span class="info-box-number">{{ "{:,.2f}".format(summary.total_income or 0) }} ₪</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-success">
+      <h3 class="card-title">تفاصيل الحسابات البنكية</h3>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-bordered table-hover">
+        <thead>
+          <tr class="bg-light">
+            <th>اسم الحساب</th>
+            <th>رقم الحساب</th>
+            <th>البنك</th>
+            <th class="text-center">الرصيد الحالي</th>
+            <th class="text-center">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if accounts %}
+            {% for account in accounts %}
+            <tr>
+              <td>{{ account.name }}</td>
+              <td>{{ account.account_number }}</td>
+              <td>{{ account.bank_name }}</td>
+              <td class="text-end {% if account.balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ "{:,.2f}".format(account.balance or 0) }} ₪
+              </td>
+              <td class="text-center">
+                {% if account.is_active %}
+                  <span class="badge bg-success">نشط</span>
+                {% else %}
+                  <span class="badge bg-secondary">معطل</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="text-center">لا توجد حسابات بنكية</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
+{% endblock %}
+

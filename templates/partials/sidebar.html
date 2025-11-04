@@ -1,7 +1,6 @@
 <!-- templates/_sidebar.html -->
 <aside class="main-sidebar sidebar-dark-primary elevation-4" dir="rtl">
   
-  <!-- لوجو الكراج في أعلى السايدبار -->
   <div class="garage-brand-area">
     <a href="{{ url_for('main.dashboard') }}" class="garage-brand-link">
       <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Garage Logo" class="garage-brand-image">
@@ -24,202 +23,410 @@
     <nav class="mt-2">
       <ul class="nav nav-pills nav-sidebar flex-column text-right" data-widget="treeview" role="menu" data-accordion="false">
 
-        <!-- 🏠 لوحة التحكم -->
         <li class="nav-item">
           <a href="{{ url_for('main.dashboard') }}" class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
-            <i class="nav-icon fas fa-tachometer-alt"></i>
+            <i class="nav-icon fas fa-tachometer-alt text-info"></i>
             <p>لوحة التحكم</p>
           </a>
         </li>
 
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <!-- 📊 العمليات اليومية -->
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-
-        {% if has_perm('manage_customers') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('customers_bp.list_customers') }}" class="nav-link {% if request.blueprint == 'customers_bp' %}active{% endif %}">
-            <i class="nav-icon fas fa-users"></i>
-            <p>العملاء</p>
+        {% if has_perm('manage_customers') or has_perm('manage_service') or has_perm('manage_sales') or shop_is_super_admin %}
+        <li class="nav-item has-treeview {% if request.blueprint in ['customers_bp', 'service', 'sales_bp', 'recurring'] %}menu-open{% endif %}">
+          <a href="#" class="nav-link {% if request.blueprint in ['customers_bp', 'service', 'sales_bp', 'recurring'] %}active{% endif %}">
+            <i class="nav-icon fas fa-briefcase text-primary"></i>
+            <p>
+              العمليات التشغيلية
+              <i class="right fas fa-angle-left"></i>
+            </p>
           </a>
+          <ul class="nav nav-treeview">
+            {% if has_perm('manage_customers') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('customers_bp.list_customers') }}" class="nav-link {% if request.blueprint == 'customers_bp' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-success"></i>
+                <p>العملاء</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_perm('manage_service') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('service.list_requests') }}" class="nav-link {% if request.blueprint == 'service' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-warning"></i>
+                <p>الصيانة</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_perm('manage_sales') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('sales_bp.list_sales') }}" class="nav-link {% if request.blueprint == 'sales_bp' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-info"></i>
+                <p>المبيعات</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_perm('manage_sales') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('recurring.index') }}" class="nav-link {% if request.blueprint == 'recurring' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-primary"></i>
+                <p>الفواتير المتكررة</p>
+              </a>
+            </li>
+            {% endif %}
+          </ul>
         </li>
         {% endif %}
 
-        {% if has_perm('manage_service') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('service.list_requests') }}" class="nav-link {% if request.blueprint == 'service' %}active{% endif %}">
-            <i class="nav-icon fas fa-tools"></i>
-            <p>الصيانة</p>
+        {% if has_perm('view_warehouses') or has_perm('manage_warehouses') or has_perm('manage_vendors') or has_perm('manage_shipments') or shop_is_super_admin %}
+        <li class="nav-item has-treeview {% if request.blueprint in ['warehouse_bp', 'vendors_bp', 'shipments_bp'] %}menu-open{% endif %}">
+          <a href="#" class="nav-link {% if request.blueprint in ['warehouse_bp', 'vendors_bp', 'shipments_bp'] %}active{% endif %}">
+            <i class="nav-icon fas fa-boxes text-success"></i>
+            <p>
+              المخزون والشحن
+              <i class="right fas fa-angle-left"></i>
+            </p>
           </a>
+          <ul class="nav nav-treeview">
+            {% if has_perm('view_warehouses') or has_perm('manage_warehouses') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('warehouse_bp.list') }}" class="nav-link {% if request.blueprint == 'warehouse_bp' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-primary"></i>
+                <p>المستودعات</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_perm('manage_vendors') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('vendors_bp.suppliers_list') }}" class="nav-link {% if request.endpoint == 'vendors_bp.suppliers_list' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-info"></i>
+                <p>الموردين</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_for('vendors_bp.partners_list') }}" class="nav-link {% if request.endpoint == 'vendors_bp.partners_list' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-warning"></i>
+                <p>الشركاء</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_perm('manage_shipments') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('shipments_bp.list_shipments') }}" class="nav-link {% if request.blueprint == 'shipments_bp' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-danger"></i>
+                <p>الشحنات</p>
+              </a>
+            </li>
+            {% endif %}
+          </ul>
         </li>
         {% endif %}
 
-        {% if has_perm('manage_sales') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('sales_bp.list_sales') }}" class="nav-link {% if request.blueprint == 'sales_bp' %}active{% endif %}">
-            <i class="nav-icon fas fa-shopping-cart"></i>
-            <p>المبيعات</p>
+        {% if has_perm('manage_payments') or has_perm('view_payments') or has_perm('manage_expenses') or has_perm('manage_ledger') or has_perm('manage_currencies') or shop_is_super_admin %}
+        <li class="nav-item has-treeview {% if request.blueprint in ['payments', 'checks', 'expenses_bp', 'ledger', 'currencies'] %}menu-open{% endif %}">
+          <a href="#" class="nav-link {% if request.blueprint in ['payments', 'checks', 'expenses_bp', 'ledger', 'currencies'] %}active{% endif %}">
+            <i class="nav-icon fas fa-calculator text-warning"></i>
+            <p>
+              المحاسبة
+              <i class="right fas fa-angle-left"></i>
+            </p>
           </a>
+          <ul class="nav nav-treeview">
+            {% if has_perm('manage_payments') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('payments.index') }}" class="nav-link {% if request.blueprint == 'payments' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-success"></i>
+                <p>الدفعات</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_perm('view_payments') or has_perm('manage_payments') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('checks.index') }}" class="nav-link {% if request.blueprint == 'checks' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-info"></i>
+                <p>الشيكات</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_perm('manage_expenses') or shop_is_super_admin %}
+            <li class="nav-item has-treeview {% if request.blueprint == 'expenses_bp' %}menu-open{% endif %}">
+              <a href="#" class="nav-link {% if request.blueprint == 'expenses_bp' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-danger"></i>
+                <p>
+                  النفقات
+                  <i class="right fas fa-angle-left"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a href="{{ url_for('expenses_bp.list_expenses') }}" class="nav-link {% if request.endpoint == 'expenses_bp.list_expenses' %}active{% endif %}">
+                    <i class="fas fa-wallet nav-icon text-muted" style="font-size: 0.7rem;"></i>
+                    <p>جميع النفقات</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{{ url_for('expenses_bp.employees_list') }}" class="nav-link {% if request.endpoint == 'expenses_bp.employees_list' %}active{% endif %}">
+                    <i class="fas fa-users nav-icon text-muted" style="font-size: 0.7rem;"></i>
+                    <p>الموظفين</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{{ url_for('expenses_bp.payroll_monthly') }}" class="nav-link {% if request.endpoint == 'expenses_bp.payroll_monthly' %}active{% endif %}">
+                    <i class="fas fa-money-check-alt nav-icon text-success" style="font-size: 0.7rem;"></i>
+                    <p>كشف الرواتب</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{{ url_for('expenses_bp.payroll_summary') }}" class="nav-link {% if request.endpoint == 'expenses_bp.payroll_summary' %}active{% endif %}">
+                    <i class="fas fa-chart-bar nav-icon text-info" style="font-size: 0.7rem;"></i>
+                    <p>تقرير الرواتب</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            {% endif %}
+            {% if has_perm('manage_ledger') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('ledger.index') }}" class="nav-link {% if request.blueprint == 'ledger' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-primary"></i>
+                <p>دفتر الأستاذ</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_perm('manage_currencies') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('currencies.list') }}" class="nav-link {% if request.blueprint == 'currencies' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-warning"></i>
+                <p>العملات</p>
+              </a>
+            </li>
+            {% endif %}
+          </ul>
         </li>
         {% endif %}
 
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <!-- 📦 إدارة المخزون -->
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-
-        {% if has_perm('view_warehouses') or has_perm('manage_warehouses') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('warehouse_bp.list') }}" class="nav-link {% if request.blueprint == 'warehouse_bp' %}active{% endif %}">
-            <i class="nav-icon fas fa-warehouse"></i>
-            <p>المستودعات</p>
-          </a>
-        </li>
-        {% endif %}
-
-        {% if has_perm('manage_vendors') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('vendors_bp.suppliers_list') }}" class="nav-link {% if request.endpoint == 'vendors_bp.suppliers_list' %}active{% endif %}">
-            <i class="nav-icon fas fa-truck"></i>
-            <p>الموردين</p>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="{{ url_for('vendors_bp.partners_list') }}" class="nav-link {% if request.endpoint == 'vendors_bp.partners_list' %}active{% endif %}">
-            <i class="nav-icon fas fa-handshake"></i>
-            <p>الشركاء</p>
-          </a>
-        </li>
-        {% endif %}
-
-        {% if has_perm('manage_shipments') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('shipments_bp.list_shipments') }}" class="nav-link {% if request.blueprint == 'shipments_bp' %}active{% endif %}">
-            <i class="nav-icon fas fa-shipping-fast"></i>
-            <p>الشحنات</p>
-          </a>
-        </li>
-        {% endif %}
-
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <!-- 💰 المالية والمحاسبة -->
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-
-        {% if has_perm('manage_payments') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('payments.index') }}" class="nav-link {% if request.blueprint == 'payments' %}active{% endif %}">
-            <i class="nav-icon fas fa-money-bill-wave"></i>
-            <p>الدفعات</p>
-          </a>
-        </li>
-        {% endif %}
-
-        {% if has_perm('view_payments') or has_perm('manage_payments') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('checks.index') }}" class="nav-link {% if request.blueprint == 'checks' %}active{% endif %}">
-            <i class="nav-icon fas fa-money-check"></i>
-            <p>الشيكات</p>
-          </a>
-        </li>
-        {% endif %}
-
-        {% if has_perm('manage_expenses') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('expenses_bp.list_expenses') }}" class="nav-link {% if request.blueprint == 'expenses_bp' %}active{% endif %}">
-            <i class="nav-icon fas fa-receipt"></i>
-            <p>النفقات</p>
-          </a>
-        </li>
-        {% endif %}
-
-        {% if has_perm('manage_ledger') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('ledger.index') }}" class="nav-link {% if request.blueprint == 'ledger' %}active{% endif %}">
-            <i class="nav-icon fas fa-book"></i>
-            <p>دفتر الأستاذ</p>
-          </a>
-        </li>
-        {% endif %}
-
-        {% if has_perm('manage_currencies') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('currencies.list') }}" class="nav-link {% if request.blueprint == 'currencies' %}active{% endif %}">
-            <i class="nav-icon fas fa-coins"></i>
-            <p>العملات</p>
-          </a>
-        </li>
-        {% endif %}
-
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <!-- 📊 التقارير والتحليلات -->
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-
-        {% if has_perm('view_reports') or has_perm('manage_reports') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('reports_bp.universal') }}" class="nav-link {% if request.blueprint == 'reports_bp' %}active{% endif %}">
-            <i class="nav-icon fas fa-chart-line"></i>
-            <p>التقارير</p>
-          </a>
-        </li>
-        {% endif %}
-
-        {% if has_any('manage_customers','manage_service','manage_sales','manage_reports') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('notes_bp.list_notes') }}" class="nav-link {% if request.blueprint == 'notes_bp' %}active{% endif %}">
-            <i class="nav-icon fas fa-sticky-note"></i>
-            <p>الملاحظات</p>
-          </a>
-        </li>
-        {% endif %}
-
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <!-- ⚙️ الإدارة والإعدادات -->
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-
-        {% if has_perm('manage_users') or shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('users_bp.list_users') }}" class="nav-link {% if request.blueprint == 'users_bp' %}active{% endif %}">
-            <i class="nav-icon fas fa-user-cog"></i>
-            <p>المستخدمون</p>
-          </a>
-        </li>
-        {% endif %}
-        
         {% if current_user.is_authenticated and current_user.role %}
           {% if current_user.role.name == 'Owner' or current_user.role.name|upper == 'OWNER' %}
-        <li class="nav-item">
-          <a href="/security/" class="nav-link {% if request.blueprint == 'security' %}active{% endif %}">
-            <i class="nav-icon fas fa-crown text-warning"></i>
-            <p>اللوحة السرية</p>
+        <li class="nav-item has-treeview {% if request.blueprint in ['bank', 'cost_centers', 'projects'] or (request.endpoint and (request.endpoint.startswith('bank.') or request.endpoint.startswith('cost_centers.') or request.endpoint.startswith('projects.'))) %}menu-open{% endif %}">
+          <a href="#" class="nav-link {% if request.blueprint in ['bank', 'cost_centers', 'projects'] or (request.endpoint and (request.endpoint.startswith('bank.') or request.endpoint.startswith('cost_centers.') or request.endpoint.startswith('projects.'))) %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-pie" style="color: #667eea;"></i>
+            <p>
+              المحاسبة المتقدمة
+              <i class="right fas fa-angle-left"></i>
+            </p>
           </a>
+          <ul class="nav nav-treeview">
+            <li class="nav-item">
+              <a href="/bank/accounts" class="nav-link {% if request.endpoint and request.endpoint.startswith('bank.') %}active{% endif %}">
+                <i class="far fa-circle nav-icon" style="color: #4299e1;"></i>
+                <p>البنوك والتسويات</p>
+              </a>
+            </li>
+            <li class="nav-item has-treeview {% if request.endpoint and request.endpoint.startswith('cost_centers') %}menu-open{% endif %}">
+              <a href="#" class="nav-link {% if request.endpoint and request.endpoint.startswith('cost_centers') %}active{% endif %}">
+                <i class="far fa-circle nav-icon" style="color: #48bb78;"></i>
+                <p>مراكز التكلفة <i class="right fas fa-angle-left"></i></p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a href="/cost-centers" class="nav-link {% if request.endpoint == 'cost_centers.index' %}active{% endif %}">
+                    <i class="fas fa-list nav-icon text-muted" style="font-size: 0.6rem;"></i>
+                    <p>قائمة المراكز</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="/cost-centers/dashboard" class="nav-link {% if request.endpoint == 'cost_centers_advanced.dashboard' %}active{% endif %}">
+                    <i class="fas fa-chart-pie nav-icon text-info" style="font-size: 0.6rem;"></i>
+                    <p>لوحة التحكم</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="/cost-centers/alerts" class="nav-link {% if request.endpoint == 'cost_centers_advanced.alerts_list' %}active{% endif %}">
+                    <i class="fas fa-bell nav-icon text-warning" style="font-size: 0.6rem;"></i>
+                    <p>التنبيهات الذكية</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="/cost-centers/allocation-rules" class="nav-link {% if request.endpoint == 'cost_centers_advanced.allocation_rules' %}active{% endif %}">
+                    <i class="fas fa-random nav-icon text-primary" style="font-size: 0.6rem;"></i>
+                    <p>التوزيع التلقائي</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            
+            <li class="nav-item has-treeview {% if request.endpoint and request.endpoint.startswith('engineering.') %}menu-open{% endif %}">
+              <a href="#" class="nav-link {% if request.endpoint and request.endpoint.startswith('engineering.') %}active{% endif %}">
+                <i class="far fa-circle nav-icon" style="color: #fc8181;"></i>
+                <p>الإدارة الهندسية <i class="right fas fa-angle-left"></i></p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a href="/engineering/" class="nav-link {% if request.endpoint == 'engineering.dashboard' %}active{% endif %}">
+                    <i class="fas fa-tachometer-alt nav-icon text-info" style="font-size: 0.6rem;"></i>
+                    <p>لوحة التحكم</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="/engineering/teams" class="nav-link {% if request.endpoint == 'engineering.teams' %}active{% endif %}">
+                    <i class="fas fa-users nav-icon text-primary" style="font-size: 0.6rem;"></i>
+                    <p>الفرق الهندسية</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="/engineering/tasks" class="nav-link {% if request.endpoint == 'engineering.tasks' %}active{% endif %}">
+                    <i class="fas fa-tasks nav-icon text-warning" style="font-size: 0.6rem;"></i>
+                    <p>المهام الهندسية</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="/engineering/timesheets" class="nav-link {% if request.endpoint == 'engineering.timesheets' %}active{% endif %}">
+                    <i class="fas fa-clock nav-icon text-success" style="font-size: 0.6rem;"></i>
+                    <p>سجل الحضور</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="/engineering/skills" class="nav-link {% if request.endpoint == 'engineering.skills' %}active{% endif %}">
+                    <i class="fas fa-certificate nav-icon text-danger" style="font-size: 0.6rem;"></i>
+                    <p>المهارات</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+            
+            <li class="nav-item has-treeview {% if request.endpoint and (request.endpoint.startswith('projects.') or request.endpoint.startswith('project_advanced.')) %}menu-open{% endif %}">
+              <a href="#" class="nav-link {% if request.endpoint and (request.endpoint.startswith('projects.') or request.endpoint.startswith('project_advanced.')) %}active{% endif %}">
+                <i class="far fa-circle nav-icon" style="color: #ed8936;"></i>
+                <p>
+                  المشاريع
+                  <i class="right fas fa-angle-left"></i>
+                </p>
+              </a>
+              <ul class="nav nav-treeview">
+                <li class="nav-item">
+                  <a href="/projects" class="nav-link {% if request.endpoint == 'projects.index' %}active{% endif %}">
+                    <i class="fas fa-list nav-icon text-muted" style="font-size: 0.7rem;"></i>
+                    <p>قائمة المشاريع</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="/projects/add" class="nav-link {% if request.endpoint == 'projects.add_project' %}active{% endif %}">
+                    <i class="fas fa-plus nav-icon text-success" style="font-size: 0.7rem;"></i>
+                    <p>مشروع جديد</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="#" class="nav-link" data-toggle="collapse" data-target="#pmpSubmenu">
+                    <i class="fas fa-project-diagram nav-icon text-primary" style="font-size: 0.7rem;"></i>
+                    <p>إدارة متقدمة (PMP) <i class="fas fa-angle-down"></i></p>
+                  </a>
+                  <div class="collapse pl-3" id="pmpSubmenu">
+                    <small class="text-muted d-block mb-1">اختر مشروعاً أولاً للوصول إلى:</small>
+                    <div class="btn-group-vertical btn-group-sm mb-2">
+                      <button class="btn btn-sm btn-outline-primary" disabled><i class="fas fa-tasks"></i> المهام</button>
+                      <button class="btn btn-sm btn-outline-success" disabled><i class="fas fa-users"></i> الموارد</button>
+                      <button class="btn btn-sm btn-outline-info" disabled><i class="fas fa-flag-checkered"></i> المحطات</button>
+                      <button class="btn btn-sm btn-outline-danger" disabled><i class="fas fa-exclamation-triangle"></i> المخاطر</button>
+                      <button class="btn btn-sm btn-outline-warning" disabled><i class="fas fa-edit"></i> أوامر التغيير</button>
+                      <button class="btn btn-sm btn-outline-secondary" disabled><i class="fas fa-chart-line"></i> القيمة المكتسبة (EVM)</button>
+                    </div>
+                  </div>
+                </li>
+                <li class="nav-item">
+                  <a href="/projects/reports/profitability" class="nav-link">
+                    <i class="fas fa-chart-line nav-icon text-info" style="font-size: 0.7rem;"></i>
+                    <p>تقارير الربحية</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+          </ul>
         </li>
           {% endif %}
         {% endif %}
 
-        {% if shop_is_super_admin %}
-        <li class="nav-item">
-          <a href="{{ url_for('shop.catalog') }}" class="nav-link" target="_blank">
-            <i class="nav-icon fas fa-store"></i>
-            <p>المتجر الإلكتروني</p>
+        {% if has_perm('view_reports') or has_perm('manage_reports') or has_any('manage_customers','manage_service','manage_sales','manage_reports') or shop_is_super_admin %}
+        <li class="nav-item has-treeview {% if request.blueprint in ['reports_bp', 'notes_bp'] %}menu-open{% endif %}">
+          <a href="#" class="nav-link {% if request.blueprint in ['reports_bp', 'notes_bp'] %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-line text-danger"></i>
+            <p>
+              التقارير والملاحظات
+              <i class="right fas fa-angle-left"></i>
+            </p>
           </a>
+          <ul class="nav nav-treeview">
+            {% if has_perm('view_reports') or has_perm('manage_reports') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('reports_bp.universal') }}" class="nav-link {% if request.blueprint == 'reports_bp' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-info"></i>
+                <p>التقارير</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_any('manage_customers','manage_service','manage_sales','manage_reports') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('notes_bp.list_notes') }}" class="nav-link {% if request.blueprint == 'notes_bp' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-warning"></i>
+                <p>الملاحظات</p>
+              </a>
+            </li>
+            {% endif %}
+          </ul>
         </li>
         {% endif %}
 
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-        <!-- 🔧 النظام والصيانة -->
-        <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
-
-
+        {% if current_user.is_authenticated and current_user.role %}
+          {% if current_user.role.name == 'Owner' or current_user.role.name|upper == 'OWNER' %}
+        <li class="nav-item has-treeview {% if request.blueprint in ['users_bp', 'security', 'shop'] %}menu-open{% endif %}">
+          <a href="#" class="nav-link {% if request.blueprint in ['users_bp', 'security', 'shop'] %}active{% endif %}">
+            <i class="nav-icon fas fa-crown text-warning"></i>
+            <p>
+              لوحة المالك
+              <i class="right fas fa-angle-left"></i>
+            </p>
+          </a>
+          <ul class="nav nav-treeview">
+            <li class="nav-item">
+              <a href="{{ url_for('users_bp.list_users') }}" class="nav-link {% if request.blueprint == 'users_bp' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-info"></i>
+                <p>المستخدمون</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="/security/" class="nav-link {% if request.blueprint == 'security' and request.endpoint != 'security.audit_log_viewer' and request.endpoint != 'security.tax_reports' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-danger"></i>
+                <p>اللوحة السرية</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_for('security.audit_log_viewer') }}" class="nav-link {% if request.endpoint == 'security.audit_log_viewer' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-primary"></i>
+                <p>سجل التدقيق</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_for('security.tax_reports') }}" class="nav-link {% if request.endpoint == 'security.tax_reports' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-warning"></i>
+                <p>إقرار VAT</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_for('shop.catalog') }}" class="nav-link" target="_blank">
+                <i class="far fa-circle nav-icon text-success"></i>
+                <p>المتجر الإلكتروني</p>
+              </a>
+            </li>
+          </ul>
+        </li>
+          {% endif %}
+        {% endif %}
 
         {% if has_perm('backup_database') or shop_is_super_admin %}
         <li class="nav-item">
           <a href="{{ url_for('main.backup_db') }}" class="nav-link {% if request.endpoint == 'main.backup_db' %}active{% endif %}">
-            <i class="nav-icon fas fa-database"></i>
+            <i class="nav-icon fas fa-database text-secondary"></i>
             <p>النسخ الاحتياطي</p>
           </a>
         </li>
         {% endif %}
-
-
 
       </ul>
     </nav>

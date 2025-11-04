@@ -394,5 +394,404 @@
       "_is_general"
     ],
     "has_data": true
+  },
+  {
+    "timestamp": "2025-11-01T23:44:11.863149+00:00",
+    "question": "صباح الخير",
+    "answer": "يمكنني مساعدتك في: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-01T23:44:12.051843+00:00",
+    "question": "صباح الخير",
+    "answer": "يمكنني مساعدتك في: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة",
+    "confidence": 95,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-01T23:44:19.402732+00:00",
+    "question": "وين صفحة الصيانة؟",
+    "answer": "يمكنني مساعدتك في: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة",
+    "confidence": 60,
+    "data_keys": [
+      "intent",
+      "services_total",
+      "services_pending",
+      "services_completed",
+      "services_in_progress",
+      "services_sample"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-01T23:44:22.627874+00:00",
+    "question": "كيف أضيف عميل؟",
+    "answer": "الموضوع: إدارة العملاء\nالمسار: /customers",
+    "confidence": 85,
+    "data_keys": [
+      "intent",
+      "customers_count",
+      "active_customers",
+      "customers_sample"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-01T23:44:27.426765+00:00",
+    "question": "ما هي التقارير المتاحة؟",
+    "answer": "يمكنني مساعدتك في: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-01T23:44:30.616336+00:00",
+    "question": "كيف أعمل نسخة احتياطية؟",
+    "answer": "يمكنني مساعدتك في: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-01T23:44:35.403292+00:00",
+    "question": "كيف أدير الصلاحيات؟",
+    "answer": "يمكنني مساعدتك في: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-01T23:44:49.156818+00:00",
+    "question": "ما هي الضريبة",
+    "answer": "يمكنني مساعدتك في: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة",
+    "confidence": 60,
+    "data_keys": [
+      "intent",
+      "accounting_knowledge"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-01T23:59:14.994829+00:00",
+    "question": "ما هي الضريبة",
+    "answer": "يمكنني مساعدتك في: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة",
+    "confidence": 95,
+    "data_keys": [
+      "intent",
+      "accounting_knowledge"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-01T23:59:23.397414+00:00",
+    "question": "كيف انشيء عميل",
+    "answer": "الموضوع: إدارة العملاء\nالمسار: /customers",
+    "confidence": 85,
+    "data_keys": [
+      "intent",
+      "customers_count",
+      "active_customers",
+      "customers_sample"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-01T23:59:30.955183+00:00",
+    "question": "كيف انشيء فاتورة",
+    "answer": "الموضوع: المبيعات\nالمسار: /sales",
+    "confidence": 85,
+    "data_keys": [
+      "intent",
+      "invoices_count"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-01T23:59:37.715921+00:00",
+    "question": "كيف اعمل صيانة",
+    "answer": "الموضوع: الصيانة",
+    "confidence": 85,
+    "data_keys": [
+      "intent",
+      "services_total",
+      "services_pending",
+      "services_completed",
+      "services_in_progress",
+      "services_sample"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-02T06:45:25.716900+00:00",
+    "question": "ما هي الجمارك",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T06:45:51.054428+00:00",
+    "question": "ما هي التسويات",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent",
+      "partner_settlements_count",
+      "supplier_settlements_count"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-02T06:46:08.712566+00:00",
+    "question": "ما اسمك",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T06:46:19.723963+00:00",
+    "question": "كيف لك ان تكون ذكي",
+    "answer": "لم أتمكن من الإجابة",
+    "confidence": 30,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T06:46:24.411637+00:00",
+    "question": "كس امك",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T06:46:35.423962+00:00",
+    "question": "كم عميل لدينا",
+    "answer": "لم أفهم اسم العميل المطلوب. من فضلك حدد الاسم.",
+    "confidence": 50,
+    "data_keys": [
+      "intent",
+      "customers_count",
+      "active_customers",
+      "customers_sample"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-02T06:46:42.910925+00:00",
+    "question": "كم حساب",
+    "answer": "لم أفهم اسم العميل المطلوب. من فضلك حدد الاسم.",
+    "confidence": 50,
+    "data_keys": [
+      "intent",
+      "accounting_knowledge",
+      "accounts_count"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-02T07:01:04.886500+00:00",
+    "question": "نا عطل الخلاطات",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent",
+      "services_total",
+      "services_pending",
+      "services_completed",
+      "services_in_progress",
+      "services_sample"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-02T07:01:12.802972+00:00",
+    "question": "ما اسمك",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T07:01:23.597935+00:00",
+    "question": "الصيانة الدورية ما هي",
+    "answer": "معلومات الصيانة متوفرة في ذاكرتي. يمكنك السؤال عن: فحص الزيت، صيانة وقائية، أنواع الصيانة، الأعطال الشائعة.",
+    "confidence": 60,
+    "data_keys": [
+      "intent",
+      "roles_count",
+      "permissions_count",
+      "roles_list",
+      "services_total",
+      "services_pending",
+      "services_completed",
+      "services_in_progress",
+      "services_sample"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-02T07:01:34.359283+00:00",
+    "question": "انواع الصيانة",
+    "answer": "معلومات الصيانة متوفرة في ذاكرتي. يمكنك السؤال عن: فحص الزيت، صيانة وقائية، أنواع الصيانة، الأعطال الشائعة.",
+    "confidence": 60,
+    "data_keys": [
+      "intent",
+      "services_total",
+      "services_pending",
+      "services_completed",
+      "services_in_progress",
+      "services_sample"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-02T07:01:42.700237+00:00",
+    "question": "عطل الزيت",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent",
+      "services_total",
+      "services_pending",
+      "services_completed",
+      "services_in_progress",
+      "services_sample"
+    ],
+    "has_data": true
+  },
+  {
+    "timestamp": "2025-11-02T07:01:55.072102+00:00",
+    "question": "فحص الزي",
+    "answer": "معلومات الصيانة متوفرة في ذاكرتي. يمكنك السؤال عن: فحص الزيت، صيانة وقائية، أنواع الصيانة، الأعطال الشائعة.",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T07:02:03.844448+00:00",
+    "question": "فحص الزيت",
+    "answer": "معلومات الصيانة متوفرة في ذاكرتي. يمكنك السؤال عن: فحص الزيت، صيانة وقائية، أنواع الصيانة، الأعطال الشائعة.",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T07:02:21.222097+00:00",
+    "question": "هههه -- انت اغبى من كندرتي",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T08:31:50.953913+00:00",
+    "question": "غبي",
+    "answer": "أعتذر إذا لم أكن مفيداً بما يكفي. أنا أتعلم وأتطور باستمرار. كيف يمكنني تحسين إجابتي؟",
+    "confidence": 100,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T08:32:04.345388+00:00",
+    "question": "ما اسمك",
+    "answer": "أنا أزاد، مساعد ذكي احترافي من شركة أزاد للحلول البرمجية.\n\nأنا متخصص في:\n• المحاسبة والمالية\n• صيانة المعدات الثقيلة\n• إدارة الأعمال\n• نظام Garage Manager\n\nكيف يمكنني مساعدتك اليوم؟",
+    "confidence": 100,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T08:32:28.135821+00:00",
+    "question": "الحس طيزي",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T08:32:43.872377+00:00",
+    "question": "طيب ما اكثر اخطاء",
+    "answer": "لم أجد معلومات كافية. يمكنك السؤال عن: العملاء، المبيعات، المنتجات، المحاسبة، الصيانة، المعدات.",
+    "confidence": 60,
+    "data_keys": [
+      "intent"
+    ],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T08:43:26.206506+00:00",
+    "question": "ما اسمك",
+    "answer": "أنا أزاد، المساعد الذكي الاحترافي.\n\nبشتغل مع شركة أزاد للحلول البرمجية.\n\nمتخصص بـ:\n• المحاسبة والقيود\n• صيانة المعدات الثقيلة\n• إدارة الكراجات\n• كل شي له علاقة بالنظام\n\nشو بدك مساعدة فيه؟",
+    "confidence": 100,
+    "data_keys": [],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T08:43:57.081670+00:00",
+    "question": "فحص الزيت",
+    "answer": "فحص الزيت - خطوة بخطوة:\n\n1. إيقاف المحرك والانتظار 5 دقائق\n2. سحب عصا القياس وتنظيفها بقماش نظيف\n3. إعادة إدخال العصا بالكامل\n4. سحبها مرة أخرى وقراءة المستوى\n5. يجب أن يكون المستوى بين MIN وMAX\n6. إذا كان أقل من MIN، إضافة زيت من نفس النوع\n7. عدم الإفراط في الزيت (فوق MAX)\n8. التحقق من لون الزيت (أ",
+    "confidence": 95,
+    "data_keys": [],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T08:44:06.155589+00:00",
+    "question": "انواع الصيانة",
+    "answer": "الصيانة الوقائية Preventive:\n\nصيانة منتظمة لمنع الأعطال\n\nشو بتشمل:\n\nهاي الصيانة مهمة كثير عشان تمنع الأعطال وتوفر مصاري.",
+    "confidence": 95,
+    "data_keys": [],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T08:44:14.414425+00:00",
+    "question": "عطل الخلاطات",
+    "answer": "عطل الخلاطات:\n\nمشكلة في معدات الخلط (خلاطات الخرسانة أو الإسفلت)\n\nالأعطال الشائعة:\n\n1. عدم دوران الخلاط: فحص المحرك والكهرباء\n2. صوت غير طبيعي: فحص التروس والمحامل\n3. تسريب: فحص الجوانات والأختام\n4. ضعف الخلط: فحص سرعة الدوران\n\n\nشو تعمل لما يصير عطل:\n\n1. التأكد من وصول الكهرباء للمحرك\n2. فحص المحرك ",
+    "confidence": 90,
+    "data_keys": [],
+    "has_data": false
+  },
+  {
+    "timestamp": "2025-11-02T08:52:28.263843+00:00",
+    "question": "كيفك",
+    "answer": "والله ما فهمت عليك منيح.\n\nممكن توضح أكثر؟\n\nأو اسألني عن:\n• المحاسبة والقيود\n• الصيانة والمعدات\n• العملاء والمبيعات\n• VAT والضرائب\n• أي شي بالنظام",
+    "confidence": 40,
+    "data_keys": [],
+    "has_data": false
   }
 ]

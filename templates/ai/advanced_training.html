@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+{% block title %}🎓 التدريب المتقدم - المساعد الذكي{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      
+      <div class="card bg-gradient-primary text-white mb-4">
+        <div class="card-body">
+          <h2><i class="fas fa-graduation-cap"></i> التدريب المتقدم للمساعد الذكي</h2>
+          <p class="mb-0">نظام شامل للتعلم المستمر، قراءة الكتب، الفهم العميق، والذاكرة الشاملة</p>
+        </div>
+      </div>
+      
+      <div class="row">
+        
+        <div class="col-md-4 mb-4">
+          <div class="card h-100 border-primary shadow-sm">
+            <div class="card-header bg-primary text-white">
+              <h5><i class="fas fa-sync"></i> التعلم المستمر</h5>
+            </div>
+            <div class="card-body">
+              <p>يدرس المساعد النظام تلقائياً ويكتشف التحديثات</p>
+              
+              <div class="d-grid">
+                <button class="btn btn-primary mb-2" onclick="startLearningSession()">
+                  <i class="fas fa-play"></i> بدء جلسة تعلم
+                </button>
+                <button class="btn btn-outline-primary" onclick="viewLearningStats()">
+                  <i class="fas fa-chart-bar"></i> عرض الإحصائيات
+                </button>
+              </div>
+              
+              <div id="learning-status" class="mt-3"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+          <div class="card h-100 border-success shadow-sm">
+            <div class="card-header bg-success text-white">
+              <h5><i class="fas fa-book"></i> قراءة الكتب</h5>
+            </div>
+            <div class="card-body">
+              <p>رفع وحفظ كتب بصيغة MD أو PDF</p>
+              
+              <div class="mb-3">
+                <label class="form-label">اختر ملف:</label>
+                <input type="file" class="form-control" id="bookFile" accept=".md,.pdf">
+              </div>
+              
+              <div class="d-grid">
+                <button class="btn btn-success mb-2" onclick="uploadAndReadBook()">
+                  <i class="fas fa-upload"></i> رفع وقراءة
+                </button>
+                <button class="btn btn-outline-success" onclick="viewBooks()">
+                  <i class="fas fa-book-open"></i> الكتب المحفوظة
+                </button>
+              </div>
+              
+              <div id="book-status" class="mt-3"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+          <div class="card h-100 border-warning shadow-sm">
+            <div class="card-header bg-warning text-dark">
+              <h5><i class="fas fa-brain"></i> الذاكرة الشاملة</h5>
+            </div>
+            <div class="card-body">
+              <p>إحصائيات الذاكرة والحفظ</p>
+              
+              <div id="memory-stats" class="mb-3">
+                <div class="spinner-border text-warning" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+              
+              <div class="d-grid">
+                <button class="btn btn-warning mb-2" onclick="consolidateMemory()">
+                  <i class="fas fa-compress-arrows-alt"></i> ترسيخ الذاكرة
+                </button>
+                <button class="btn btn-outline-warning" onclick="searchMemory()">
+                  <i class="fas fa-search"></i> بحث في الذاكرة
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+      
+      <div class="row">
+        
+        <div class="col-md-8 mb-4">
+          <div class="card border-info shadow-sm">
+            <div class="card-header bg-info text-white">
+              <h5><i class="fas fa-lightbulb"></i> الفهم العميق</h5>
+            </div>
+            <div class="card-body">
+              <p>اختبر فهم المساعد لأي مفهوم:</p>
+              
+              <div class="input-group mb-3">
+                <input type="text" class="form-control" id="conceptInput" 
+                       placeholder="مثال: عميل، قيد محاسبي، VAT، رصيد...">
+                <button class="btn btn-info" onclick="explainConcept()">
+                  <i class="fas fa-search"></i> اشرح بعمق
+                </button>
+              </div>
+              
+              <div id="comprehension-result" class="mt-3"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+          <div class="card border-danger shadow-sm">
+            <div class="card-header bg-danger text-white">
+              <h5><i class="fas fa-tachometer-alt"></i> حالة النظام</h5>
+            </div>
+            <div class="card-body">
+              <div id="system-health">
+                <div class="spinner-border text-danger" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+      
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header bg-dark text-white">
+              <h5><i class="fas fa-history"></i> سجل جلسات التدريب</h5>
+            </div>
+            <div class="card-body">
+              <div id="training-log"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<script>
+async function startLearningSession() {
+  const statusDiv = document.getElementById('learning-status');
+  statusDiv.innerHTML = '<div class="alert alert-info">جاري بدء جلسة التعلم...</div>';
+  
+  try {
+    const response = await fetch('/ai/admin/command/start_learning_session', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'}
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.result.session) {
+      const session = data.result.session;
+      
+      let html = '<div class="alert alert-success">';
+      html += `<h6>جلسة تعلم مكتملة!</h6>`;
+      html += `<p>تم تعلم ${session.total_items_learned} عنصر</p>`;
+      html += `<p>المراحل:</p><ul>`;
+      
+      for (const phase of session.phases) {
+        html += `<li>${phase.name}: ${phase.items_learned} عنصر</li>`;
+      }
+      
+      html += '</ul></div>';
+      statusDiv.innerHTML = html;
+      
+      loadSystemHealth();
+    } else {
+      statusDiv.innerHTML = '<div class="alert alert-danger">خطأ: ' + (data.error || 'Unknown') + '</div>';
+    }
+  } catch (error) {
+    statusDiv.innerHTML = '<div class="alert alert-danger">خطأ: ' + error + '</div>';
+  }
+}
+
+async function uploadAndReadBook() {
+  const fileInput = document.getElementById('bookFile');
+  const statusDiv = document.getElementById('book-status');
+  
+  if (!fileInput.files || fileInput.files.length === 0) {
+    alert('الرجاء اختيار ملف أولاً');
+    return;
+  }
+  
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('book_file', file);
+  
+  statusDiv.innerHTML = '<div class="alert alert-info">جاري الرفع والقراءة...</div>';
+  
+  try {
+    const response = await fetch('/ai/admin/upload_book', {
+      method: 'POST',
+      body: formData
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      let html = '<div class="alert alert-success">';
+      html += `<h6>تم قراءة الكتاب بنجاح!</h6>`;
+      html += `<p>العنوان: ${data.title}</p>`;
+      
+      if (data.chapters) {
+        html += `<p>الفصول: ${data.chapters}</p>`;
+      }
+      if (data.pages) {
+        html += `<p>الصفحات: ${data.pages}</p>`;
+      }
+      
+      html += '</div>';
+      statusDiv.innerHTML = html;
+    } else {
+      statusDiv.innerHTML = '<div class="alert alert-danger">خطأ: ' + data.error + '</div>';
+    }
+  } catch (error) {
+    statusDiv.innerHTML = '<div class="alert alert-danger">خطأ: ' + error + '</div>';
+  }
+}
+
+async function explainConcept() {
+  const concept = document.getElementById('conceptInput').value.trim();
+  const resultDiv = document.getElementById('comprehension-result');
+  
+  if (!concept) {
+    alert('الرجاء إدخال مفهوم');
+    return;
+  }
+  
+  resultDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div><p class="mt-2">جاري الفهم العميق...</p></div>';
+  
+  try {
+    const response = await fetch('/ai/admin/command/comprehend_concept', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({concept: concept})
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.result.explanation) {
+      const explanation = data.result.explanation.replace(/\n/g, '<br>');
+      resultDiv.innerHTML = `<div class="alert alert-light border"><pre class="mb-0">${explanation}</pre></div>`;
+    } else {
+      resultDiv.innerHTML = '<div class="alert alert-danger">خطأ: ' + (data.error || 'Unknown') + '</div>';
+    }
+  } catch (error) {
+    resultDiv.innerHTML = '<div class="alert alert-danger">خطأ: ' + error + '</div>';
+  }
+}
+
+async function consolidateMemory() {
+  try {
+    const response = await fetch('/ai/admin/command/consolidate_memory', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'}
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'تم ترسيخ الذاكرة',
+        html: `<p>تم ترسيخ ${data.result.consolidated_items} عنصر في الذاكرة طويلة المدى</p>`
+      });
+      
+      loadMemoryStats();
+    }
+  } catch (error) {
+    Swal.fire('خطأ', error.toString(), 'error');
+  }
+}
+
+async function loadMemoryStats() {
+  const statsDiv = document.getElementById('memory-stats');
+  
+  try {
+    const response = await fetch('/ai/admin/memory_stats');
+    const data = await response.json();
+    
+    if (data.success && data.stats) {
+      const stats = data.stats;
+      
+      let html = '<div class="small">';
+      html += `<p class="mb-1">📝 قصيرة المدى: <strong>${stats.short_term || 0}</strong></p>`;
+      html += `<p class="mb-1">💾 طويلة المدى: <strong>${stats.long_term || 0}</strong></p>`;
+      html += `<p class="mb-1">🧠 دلالية: <strong>${stats.semantic || 0}</strong></p>`;
+      html += `<p class="mb-1">⚙️ إجرائية: <strong>${stats.procedural || 0}</strong></p>`;
+      html += `<p class="mb-1">📅 عرضية: <strong>${stats.episodic || 0}</strong></p>`;
+      html += `<hr><p class="mb-0"><strong>الإجمالي: ${stats.total || 0}</strong></p>`;
+      html += '</div>';
+      
+      statsDiv.innerHTML = html;
+    }
+  } catch (error) {
+    statsDiv.innerHTML = '<div class="text-danger">خطأ في التحميل</div>';
+  }
+}
+
+async function loadSystemHealth() {
+  const healthDiv = document.getElementById('system-health');
+  
+  try {
+    const response = await fetch('/ai/admin/system_status');
+    const data = await response.json();
+    
+    if (data.success && data.status) {
+      const status = data.status;
+      
+      let html = '<div class="small">';
+      html += `<p class="mb-1">الأنظمة الفرعية: <strong>${status.subsystems_count || 0}</strong></p>`;
+      html += `<p class="mb-1">العمليات النشطة: <strong>${status.active_operations || 0}</strong></p>`;
+      
+      const operational = status.all_operational;
+      html += `<p class="mb-0">الحالة: <span class="badge ${operational ? 'bg-success' : 'bg-warning'}">${operational ? 'تعمل بالكامل' : 'جزئي'}</span></p>`;
+      html += '</div>';
+      
+      healthDiv.innerHTML = html;
+    }
+  } catch (error) {
+    healthDiv.innerHTML = '<div class="text-danger">خطأ في التحميل</div>';
+  }
+}
+
+loadMemoryStats();
+loadSystemHealth();
+
+setInterval(loadSystemHealth, 30000);
+</script>
+
+{% endblock %}
+

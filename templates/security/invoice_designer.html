@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}محرر الفواتير{% endblock %}
-{% block page_title %}📄 محرر الفواتير - Invoice Designer{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}invoice_designer{% endblock %}
+{% block security_title %}Invoice Designer{% endblock %}
+{% block security_icon %}<i class="fas fa-file-invoice"></i>{% endblock %}
+{% block security_description %}تصميم وتخصيص شكل الفواتير{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Invoice Designer</li>{% endblock %}
+{% block security_content %}
 
   <div class="row">
     <div class="col-md-8 mx-auto">

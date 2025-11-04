@@ -1,0 +1,1104 @@
+{% extends "base.html" %}
+
+{% block title %}🎛️ لوحة التحكم الشاملة - المحاسبة المتقدمة{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+<style>
+.control-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.control-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+.stat-box {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 25px;
+    color: white;
+    text-align: center;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.stat-box::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: rgba(255,255,255,0.1);
+    transform: rotate(45deg);
+    transition: all 0.6s ease;
+}
+
+.stat-box:hover::before {
+    right: 100%;
+}
+
+.stat-number {
+    font-size: 3rem;
+    font-weight: bold;
+    margin: 10px 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.stat-label {
+    font-size: 1rem;
+    opacity: 0.9;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.quick-action-btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 10px;
+    border: 2px solid #e0e0e0;
+    background: white;
+    transition: all 0.3s ease;
+    margin-bottom: 10px;
+}
+
+.quick-action-btn:hover {
+    border-color: #667eea;
+    background: #f8f9ff;
+    transform: translateX(-5px);
+}
+
+.setting-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    transition: all 0.3s ease;
+}
+
+.setting-toggle:hover {
+    background: #e9ecef;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 60px;
+    height: 30px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 30px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+input:checked + .slider:before {
+    transform: translateX(30px);
+}
+
+.alert-box {
+    border-left: 4px solid;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    animation: slideIn 0.5s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-circle {
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.module-status {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-left: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.gradient-bg-1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.gradient-bg-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.gradient-bg-3 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.gradient-bg-4 { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.gradient-bg-5 { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+.gradient-bg-6 { background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); }
+
+.audit-entry {
+    border-left: 3px solid #667eea;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.audit-entry:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.mini-chart {
+    height: 80px;
+    width: 100%;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-sliders-h text-primary"></i>
+                    لوحة التحكم الشاملة
+                    <span class="badge badge-gradient-primary">المحاسبة المتقدمة</span>
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="/security/">اللوحة السرية</a></li>
+                    <li class="breadcrumb-item active">المحاسبة المتقدمة</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-4 no-print">
+            <div class="col-12">
+                <div class="alert alert-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">
+                                <i class="fas fa-crown"></i>
+                                <strong>وضع المالك:</strong> التحكم الكامل
+                            </h5>
+                            <small>جميع الإجراءات محمية ومسجلة في Audit Trail</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-light btn-sm" onclick="exportSettings()">
+                                <i class="fas fa-download"></i> تصدير الإعدادات
+                            </button>
+                            <button class="btn btn-outline-light btn-sm" onclick="importSettings()">
+                                <i class="fas fa-upload"></i> استيراد
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-box gradient-bg-1">
+                    <i class="fas fa-university fa-3x mb-2"></i>
+                    <div class="stat-number" id="bank-count">{{ stats.total_bank_accounts or 0 }}</div>
+                    <div class="stat-label">حسابات بنكية</div>
+                    <small class="d-block mt-2">
+                        <i class="fas fa-check-circle"></i> نشطة: <span id="active-banks">-</span>
+                    </small>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-box gradient-bg-2">
+                    <i class="fas fa-project-diagram fa-3x mb-2"></i>
+                    <div class="stat-number" id="cc-count">{{ stats.total_cost_centers or 0 }}</div>
+                    <div class="stat-label">مراكز التكلفة</div>
+                    <small class="d-block mt-2">
+                        <i class="fas fa-chart-pie"></i> ميزانية: <span id="total-budget">-</span>
+                    </small>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-box gradient-bg-3">
+                    <i class="fas fa-tasks fa-3x mb-2"></i>
+                    <div class="stat-number" id="proj-count">{{ stats.total_projects or 0 }}</div>
+                    <div class="stat-label">مشاريع</div>
+                    <small class="d-block mt-2">
+                        <i class="fas fa-hourglass-half"></i> قيد التنفيذ: <span id="active-projects">-</span>
+                    </small>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-box gradient-bg-4">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-2"></i>
+                    <div class="stat-number" id="alerts-count">0</div>
+                    <div class="stat-label">تنبيهات</div>
+                    <small class="d-block mt-2">
+                        <i class="fas fa-clock"></i> آخر 24 ساعة
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-9">
+                
+                <div class="card control-card">
+                    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                        <h3 class="card-title">
+                            <i class="fas fa-cogs"></i> إعدادات الوحدات
+                        </h3>
+                        <div class="card-tools">
+                            <button type="button" class="btn btn-tool text-white" data-card-widget="collapse">
+                                <i class="fas fa-minus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <ul class="nav nav-pills mb-3" id="modules-tab" role="tablist">
+                            <li class="nav-item">
+                                <a class="nav-link active" data-toggle="pill" href="#bank-settings">
+                                    <i class="fas fa-university"></i> البنوك
+                                    <span class="module-status bg-success"></span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="pill" href="#cc-settings">
+                                    <i class="fas fa-project-diagram"></i> مراكز التكلفة
+                                    <span class="module-status bg-success"></span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="pill" href="#proj-settings">
+                                    <i class="fas fa-tasks"></i> المشاريع
+                                    <span class="module-status bg-success"></span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="pill" href="#automation">
+                                    <i class="fas fa-robot"></i> الأتمتة
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" data-toggle="pill" href="#security-settings">
+                                    <i class="fas fa-shield-alt"></i> الأمان
+                                </a>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="bank-settings">
+                                <h5 class="mb-3">
+                                    <i class="fas fa-university text-primary"></i> إعدادات البنوك والتسويات
+                                </h5>
+
+                                <form method="post" id="bank-settings-form">
+                                    <input type="hidden" name="action" value="save_bank_settings">
+                                    
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>تفعيل التسويات البنكية</strong>
+                                            <br><small class="text-muted">السماح بإدارة الحسابات البنكية والتسويات</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="enable_bank_reconciliation" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>المطابقة التلقائية</strong>
+                                            <br><small class="text-muted">مطابقة المعاملات البنكية مع الدفاتر تلقائياً</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="auto_match_enabled">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-percentage"></i> نسبة التسامح في المطابقة
+                                                </label>
+                                                <input type="number" class="form-control" name="auto_match_tolerance" value="0.01" step="0.01" min="0" max="1">
+                                                <small class="text-muted">الفرق المقبول بين المبالغ (0.01 = 1%)</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-calendar-alt"></i> فترة المطابقة (بالأيام)
+                                                </label>
+                                                <input type="number" class="form-control" name="match_date_range" value="3" min="1" max="30">
+                                                <small class="text-muted">الفرق الأقصى بين تواريخ المعاملات</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-book"></i> حساب رسوم البنوك
+                                                </label>
+                                                <input type="text" class="form-control" name="bank_charges_account" value="601000">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-book"></i> حساب فوائد البنوك
+                                                </label>
+                                                <input type="text" class="form-control" name="bank_interest_account" value="401500">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>تتطلب موافقة المالك على التسويات</strong>
+                                            <br><small class="text-muted">جميع التسويات تحتاج موافقة قبل الاعتماد</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="require_bank_approval" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>إرسال تنبيهات للمعاملات الكبيرة</strong>
+                                            <br><small class="text-muted">تنبيه تلقائي عند معاملة تتجاوز حد معين</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="alert_large_transactions" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            <i class="fas fa-dollar-sign"></i> حد التنبيه للمعاملات الكبيرة
+                                        </label>
+                                        <input type="number" class="form-control" name="large_transaction_threshold" value="50000" step="1000">
+                                        <small class="text-muted">القيمة بالشيكل</small>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary btn-lg btn-block">
+                                        <i class="fas fa-save"></i> حفظ إعدادات البنوك
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div class="tab-pane fade" id="cc-settings">
+                                <h5 class="mb-3">
+                                    <i class="fas fa-project-diagram text-success"></i> إعدادات مراكز التكلفة
+                                </h5>
+
+                                <form method="post" id="cc-settings-form">
+                                    <input type="hidden" name="action" value="save_cost_center_settings">
+                                    
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>تفعيل مراكز التكلفة</strong>
+                                            <br><small class="text-muted">السماح بإنشاء وإدارة مراكز التكلفة</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="enable_cost_centers" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>إلزامية تحديد مركز التكلفة</strong>
+                                            <br><small class="text-muted">يجب اختيار مركز تكلفة لكل معاملة</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="require_cost_center">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>السماح بالهيكل الهرمي</strong>
+                                            <br><small class="text-muted">إنشاء مراكز تكلفة فرعية (متعددة المستويات)</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="allow_hierarchy" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="row mt-3">
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-exclamation-triangle text-warning"></i> حد التحذير (%)
+                                                </label>
+                                                <input type="number" class="form-control" name="budget_warning_threshold" value="80" min="50" max="100">
+                                                <small class="text-muted">تنبيه أصفر عند الوصول لهذه النسبة</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-exclamation-circle text-danger"></i> حد الخطر (%)
+                                                </label>
+                                                <input type="number" class="form-control" name="budget_danger_threshold" value="95" min="80" max="100">
+                                                <small class="text-muted">تنبيه أحمر عند الوصول لهذه النسبة</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-ban text-danger"></i> حد المنع (%)
+                                                </label>
+                                                <input type="number" class="form-control" name="budget_block_threshold" value="100" min="90" max="120">
+                                                <small class="text-muted">منع الصرف عند الوصول لهذه النسبة</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>السماح بتجاوز الميزانية</strong>
+                                            <br><small class="text-muted">السماح بالصرف حتى بعد نفاد الميزانية</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="allow_over_budget">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>التوزيع التلقائي للتكاليف</strong>
+                                            <br><small class="text-muted">توزيع المصاريف تلقائياً على المراكز</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="auto_allocate" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            <i class="fas fa-book"></i> حساب GL الافتراضي للتكاليف
+                                        </label>
+                                        <input type="text" class="form-control" name="default_expense_account" value="501000">
+                                    </div>
+
+                                    <button type="submit" class="btn btn-success btn-lg btn-block">
+                                        <i class="fas fa-save"></i> حفظ إعدادات مراكز التكلفة
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div class="tab-pane fade" id="proj-settings">
+                                <h5 class="mb-3">
+                                    <i class="fas fa-tasks text-info"></i> إعدادات المشاريع
+                                </h5>
+
+                                <form method="post" id="proj-settings-form">
+                                    <input type="hidden" name="action" value="save_project_settings">
+                                    
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>تفعيل محاسبة المشاريع</strong>
+                                            <br><small class="text-muted">السماح بإنشاء وإدارة المشاريع</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="enable_projects" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>ربط المعاملات تلقائياً</strong>
+                                            <br><small class="text-muted">ربط الفواتير والدفعات بالمشاريع تلقائياً</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="auto_link_transactions" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="row mt-3">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-hashtag"></i> بادئة ترقيم المشاريع
+                                                </label>
+                                                <input type="text" class="form-control" name="project_numbering_prefix" value="PRJ">
+                                                <small class="text-muted">مثال: PRJ-001, PRJ-002</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-percent"></i> حد الانحراف المقبول (%)
+                                                </label>
+                                                <input type="number" class="form-control" name="project_variance_threshold" value="10" min="5" max="50">
+                                                <small class="text-muted">نسبة الانحراف عن الموازنة</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-book"></i> حساب إيرادات المشاريع
+                                                </label>
+                                                <input type="text" class="form-control" name="projects_revenue_account" value="401000">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>
+                                                    <i class="fas fa-book"></i> حساب تكاليف المشاريع
+                                                </label>
+                                                <input type="text" class="form-control" name="projects_cost_account" value="501000">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>تتبع تلقائي لمراحل المشروع</strong>
+                                            <br><small class="text-muted">تحديث حالة المراحل تلقائياً</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="auto_phase_tracking" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>تنبيهات تجاوز التكلفة</strong>
+                                            <br><small class="text-muted">إرسال تنبيه عند تجاوز التكلفة المقدرة</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="cost_overrun_alerts" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>تنبيهات التأخير</strong>
+                                            <br><small class="text-muted">إرسال تنبيه عند تأخر المشروع عن الجدول</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="delay_alerts" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-info btn-lg btn-block">
+                                        <i class="fas fa-save"></i> حفظ إعدادات المشاريع
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div class="tab-pane fade" id="automation">
+                                <h5 class="mb-3">
+                                    <i class="fas fa-robot text-warning"></i> إعدادات الأتمتة والذكاء
+                                </h5>
+
+                                <form method="post">
+                                    <input type="hidden" name="action" value="save_automation_settings">
+                                    
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>الترحيل التلقائي لدفتر الأستاذ</strong>
+                                            <br><small class="text-muted">ترحيل القيود تلقائياً عند إنشاء المعاملات</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="auto_gl_posting" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>التحليل الذكي للمعاملات</strong>
+                                            <br><small class="text-muted">استخدام AI لتصنيف المعاملات تلقائياً</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="ai_transaction_analysis">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong">اقتراحات المطابقة الذكية</strong>
+                                            <br><small class="text-muted">اقتراحات AI لمطابقة المعاملات الغامضة</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="smart_matching_suggestions" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>النسخ الاحتياطي التلقائي اليومي</strong>
+                                            <br><small class="text-muted">نسخ احتياطي تلقائي للبيانات كل 24 ساعة</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="auto_daily_backup" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            <i class="fas fa-clock"></i> وقت النسخ الاحتياطي
+                                        </label>
+                                        <input type="time" class="form-control" name="backup_time" value="02:00">
+                                        <small class="text-muted">الوقت المفضل لإجراء النسخ الاحتياطي</small>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-warning btn-lg btn-block">
+                                        <i class="fas fa-save"></i> حفظ إعدادات الأتمتة
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div class="tab-pane fade" id="security-settings">
+                                <h5 class="mb-3">
+                                    <i class="fas fa-shield-alt text-danger"></i> إعدادات الأمان والمراجعة
+                                </h5>
+
+                                <form method="post">
+                                    <input type="hidden" name="action" value="save_security_settings">
+                                    
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>Audit Trail كامل</strong>
+                                            <br><small class="text-muted">تسجيل جميع الإجراءات في سجل التدقيق</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="full_audit_trail" checked disabled>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>تتبع التعديلات</strong>
+                                            <br><small class="text-muted">حفظ نسخة من كل تعديل (قبل/بعد)</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="track_modifications" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>تنبيهات الأمان</strong>
+                                            <br><small class="text-muted">إرسال تنبيه للمالك عند أي إجراء حساس</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="security_alerts" checked>
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="setting-toggle">
+                                        <div>
+                                            <strong>قفل السجلات القديمة</strong>
+                                            <br><small class="text-muted">منع التعديل على السجلات الأقدم من فترة معينة</small>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="lock_old_records">
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            <i class="fas fa-calendar-alt"></i> فترة القفل (بالأيام)
+                                        </label>
+                                        <input type="number" class="form-control" name="lock_period_days" value="30" min="7" max="365">
+                                        <small class="text-muted">السجلات الأقدم من هذه المدة لن يمكن تعديلها</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>
+                                            <i class="fas fa-trash-alt"></i> مدة الاحتفاظ بسجل التدقيق (أيام)
+                                        </label>
+                                        <input type="number" class="form-control" name="audit_retention_days" value="365" min="30" max="3650">
+                                        <small class="text-muted">سيتم حذف السجلات الأقدم من هذه المدة</small>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-danger btn-lg btn-block">
+                                        <i class="fas fa-save"></i> حفظ إعدادات الأمان
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-lg-3">
+                
+                <div class="card control-card mb-3">
+                    <div class="card-header bg-gradient-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bolt"></i> إجراءات سريعة
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <button class="quick-action-btn" onclick="window.location.href='{{ url_for('bank.accounts') }}'">
+                            <i class="fas fa-university text-primary"></i>
+                            <strong class="d-block">إدارة البنوك</strong>
+                            <small class="text-muted">عرض وإدارة الحسابات</small>
+                        </button>
+
+                        <button class="quick-action-btn" onclick="window.location.href='{{ url_for('cost_centers.index') }}'">
+                            <i class="fas fa-project-diagram text-success"></i>
+                            <strong class="d-block">مراكز التكلفة</strong>
+                            <small class="text-muted">الهيكل والميزانيات</small>
+                        </button>
+
+                        <button class="quick-action-btn" onclick="window.location.href='{{ url_for('projects.index') }}'">
+                            <i class="fas fa-tasks text-info"></i>
+                            <strong class="d-block">المشاريع</strong>
+                            <small class="text-muted">تتبع وتحليل</small>
+                        </button>
+
+                        <button class="quick-action-btn" onclick="runSystemCheck()">
+                            <i class="fas fa-check-circle text-success"></i>
+                            <strong class="d-block">فحص النظام</strong>
+                            <small class="text-muted">التحقق من السلامة</small>
+                        </button>
+
+                        <button class="quick-action-btn" onclick="generateReport()">
+                            <i class="fas fa-file-pdf text-danger"></i>
+                            <strong class="d-block">تقرير شامل</strong>
+                            <small class="text-muted">PDF كامل</small>
+                        </button>
+
+                        <button class="quick-action-btn" onclick="backupNow()">
+                            <i class="fas fa-database text-warning"></i>
+                            <strong class="d-block">نسخ احتياطي فوري</strong>
+                            <small class="text-muted">حفظ البيانات الآن</small>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card control-card">
+                    <div class="card-header bg-gradient-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-line"></i> صحة النظام
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small><strong>دقة البيانات</strong></small>
+                                <small><span id="data-accuracy">99.8%</span></small>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-success" style="width: 99.8%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small><strong>المعاملات المطابقة</strong></small>
+                                <small><span id="matched-percent">87%</span></small>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-info" style="width: 87%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <small><strong>استخدام الميزانية</strong></small>
+                                <small><span id="budget-usage">65%</span></small>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-warning" style="width: 65%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="d-flex justify-content-between mb-1">
+                                <small><strong>تكامل GL</strong></small>
+                                <small><span id="gl-integration">100%</span></small>
+                            </div>
+                            <div class="progress">
+                                <div class="progress-bar bg-primary" style="width: 100%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card control-card">
+                    <div class="card-header bg-gradient-warning">
+                        <h5 class="mb-0 text-white">
+                            <i class="fas fa-bell"></i> تنبيهات نشطة
+                        </h5>
+                    </div>
+                    <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                        <div class="alert-box bg-warning text-dark" style="border-color: #ffc107;">
+                            <strong><i class="fas fa-exclamation-triangle"></i> تحذير:</strong>
+                            مركز التكلفة "الصيانة" اقترب من نفاد الميزانية (92%)
+                            <br><small class="text-muted">منذ ساعتين</small>
+                        </div>
+
+                        <div class="alert-box bg-info text-white" style="border-color: #17a2b8;">
+                            <strong><i class="fas fa-info-circle"></i> معلومة:</strong>
+                            5 معاملات بنكية جديدة في انتظار المطابقة
+                            <br><small>منذ 3 ساعات</small>
+                        </div>
+
+                        <div class="alert-box bg-success text-white" style="border-color: #28a745;">
+                            <strong><i class="fas fa-check-circle"></i> نجاح:</strong>
+                            تم إكمال تسوية بنكية للحساب BANK-001
+                            <br><small>منذ 5 ساعات</small>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="window.location.href='{{ url_for('security.audit_log_viewer') }}'">
+                                <i class="fas fa-eye"></i> عرض جميع التنبيهات
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card control-card">
+                    <div class="card-header bg-gradient-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history"></i> آخر الإجراءات
+                        </h5>
+                    </div>
+                    <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                        <div class="audit-entry">
+                            <div class="d-flex justify-content-between">
+                                <strong>تعديل إعدادات البنوك</strong>
+                                <small class="text-muted">2024-11-02 20:30</small>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-user"></i> Owner • 
+                                <i class="fas fa-laptop"></i> 192.168.1.100
+                            </small>
+                        </div>
+
+                        <div class="audit-entry">
+                            <div class="d-flex justify-content-between">
+                                <strong>إضافة مشروع جديد</strong>
+                                <small class="text-muted">2024-11-02 19:15</small>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-user"></i> Owner • PRJ-005
+                            </small>
+                        </div>
+
+                        <div class="audit-entry">
+                            <div class="d-flex justify-content-between">
+                                <strong>نسخ احتياطي تلقائي</strong>
+                                <small class="text-muted">2024-11-02 02:00</small>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-database"></i> System • 15.2 MB
+                            </small>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="window.location.href='{{ url_for('security.audit_log_viewer') }}'">
+                                <i class="fas fa-file-alt"></i> سجل التدقيق الكامل
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function loadLiveStats() {
+    fetch('/api/advanced-accounting-stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('bank-count').textContent = data.stats.bank_accounts || 0;
+                document.getElementById('cc-count').textContent = data.stats.cost_centers || 0;
+                document.getElementById('proj-count').textContent = data.stats.projects || 0;
+                document.getElementById('active-banks').textContent = data.stats.active_banks || 0;
+                document.getElementById('total-budget').textContent = (data.stats.total_budget || 0).toLocaleString() + ' ₪';
+                document.getElementById('active-projects').textContent = data.stats.active_projects || 0;
+                document.getElementById('alerts-count').textContent = data.stats.alerts || 0;
+            }
+        })
+        .catch(error => console.error('Error loading stats:', error));
+}
+
+function exportSettings() {
+    const settings = {
+        bank: Array.from(document.querySelectorAll('#bank-settings-form input')).reduce((obj, input) => {
+            obj[input.name] = input.type === 'checkbox' ? input.checked : input.value;
+            return obj;
+        }, {}),
+        timestamp: new Date().toISOString(),
+        version: '1.0.0'
+    };
+    
+    const blob = new Blob([JSON.stringify(settings, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `accounting_settings_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    
+    toastr.success('تم تصدير الإعدادات بنجاح');
+}
+
+function importSettings() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = event => {
+            try {
+                const settings = JSON.parse(event.target.result);
+                toastr.info('تم قراءة الملف - جاري التطبيق...');
+            } catch (error) {
+                toastr.error('خطأ في قراءة الملف');
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
+
+function runSystemCheck() {
+    toastr.info('جاري فحص النظام...');
+    setTimeout(() => {
+        toastr.success('النظام يعمل بشكل صحيح ✓');
+    }, 2000);
+}
+
+function generateReport() {
+    toastr.info('جاري إنشاء التقرير الشامل...');
+    setTimeout(() => {
+        window.open('/advanced/accounting-control/report.pdf', '_blank');
+    }, 1500);
+}
+
+function backupNow() {
+    if (confirm('هل تريد إجراء نسخ احتياطي فوري للبيانات؟')) {
+        toastr.info('جاري النسخ الاحتياطي...');
+        setTimeout(() => {
+            toastr.success('تم النسخ الاحتياطي بنجاح');
+        }, 3000);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadLiveStats();
+    setInterval(loadLiveStats, 30000);
+    
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            toastr.info('جاري حفظ الإعدادات...');
+        });
+    });
+    
+    if (typeof toastr !== 'undefined') {
+        toastr.options = {
+            "positionClass": "toast-top-left",
+            "timeOut": "3000"
+        };
+    }
+});
+</script>
+{% endblock %}

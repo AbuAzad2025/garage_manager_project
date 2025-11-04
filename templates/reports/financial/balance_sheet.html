@@ -10,27 +10,16 @@
                 <i class="fas fa-balance-scale"></i>
                 الميزانية العمومية (Balance Sheet)
             </h3>
-            <p class="mb-0 small">كما في {{ as_of_date.strftime('%Y-%m-%d') }}</p>
+            <p class="mb-0 small">كما في {{ balance_date.strftime('%Y-%m-%d') }}</p>
         </div>
         
         <div class="card-body">
-            <!-- فلتر التاريخ -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <label>كما في تاريخ:</label>
-                    <input type="date" id="as_of_date" class="form-control" value="{{ as_of_date.strftime('%Y-%m-%d') }}">
-                </div>
-                <div class="col-md-6">
-                    <label>&nbsp;</label>
-                    <button class="btn btn-primary d-block w-100" onclick="updateReport()">
-                        <i class="fas fa-sync"></i> تحديث
-                    </button>
-                </div>
+            <div class="alert alert-info">
+                تقرير الميزانية العمومية يعرض الأصول والخصوم وحقوق الملكية كما في تاريخ محدد
             </div>
             
             <div class="row">
                 <div class="col-md-6">
-                    <!-- الأصول -->
                     <table class="table table-bordered">
                         <thead class="table-primary">
                             <tr>
@@ -38,12 +27,17 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for asset in assets %}
+                            {% for asset in assets_details %}
                             <tr>
                                 <td>{{ asset.name }} <small class="text-muted">({{ asset.account }})</small></td>
                                 <td class="text-end fw-bold">{{ "{:,.2f}".format(asset.balance) }} ₪</td>
                             </tr>
                             {% endfor %}
+                            {% if not assets_details %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">لا توجد أصول</td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                         <tfoot class="table-primary fw-bold fs-5">
                             <tr>
@@ -55,80 +49,48 @@
                 </div>
                 
                 <div class="col-md-6">
-                    <!-- الخصوم وحقوق الملكية -->
                     <table class="table table-bordered">
-                        <thead class="table-danger">
+                        <thead class="table-warning">
                             <tr>
-                                <th colspan="2"><h5 class="mb-0">📊 الخصوم</h5></th>
+                                <th colspan="2"><h5 class="mb-0">📊 الخصوم وحقوق الملكية</h5></th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for liability in liabilities %}
+                            {% for item in liabilities_equity_details %}
                             <tr>
-                                <td>{{ liability.name }} <small class="text-muted">({{ liability.account }})</small></td>
-                                <td class="text-end fw-bold">{{ "{:,.2f}".format(liability.balance) }} ₪</td>
+                                <td>{{ item.name }} <small class="text-muted">({{ item.account }})</small></td>
+                                <td class="text-end fw-bold">{{ "{:,.2f}".format(item.balance) }} ₪</td>
                             </tr>
                             {% endfor %}
+                            {% if not liabilities_equity_details %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">لا توجد خصوم</td>
+                            </tr>
+                            {% endif %}
                         </tbody>
-                        <tfoot class="table-danger fw-bold">
-                            <tr>
-                                <td>إجمالي الخصوم</td>
-                                <td class="text-end">{{ "{:,.2f}".format(total_liabilities) }} ₪</td>
-                            </tr>
-                        </tfoot>
-                        
-                        <thead class="table-secondary mt-3">
-                            <tr>
-                                <th colspan="2"><h5 class="mb-0">🏦 حقوق الملكية</h5></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for eq in equity %}
-                            <tr>
-                                <td>{{ eq.name }} <small class="text-muted">({{ eq.account }})</small></td>
-                                <td class="text-end fw-bold">{{ "{:,.2f}".format(eq.balance) }} ₪</td>
-                            </tr>
-                            {% endfor %}
-                            <tr>
-                                <td>صافي الربح/الخسارة للفترة</td>
-                                <td class="text-end fw-bold {% if net_income >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                    {{ "{:,.2f}".format(net_income) }} ₪
-                                </td>
-                            </tr>
-                        </tbody>
-                        <tfoot class="table-secondary fw-bold">
-                            <tr>
-                                <td>إجمالي حقوق الملكية</td>
-                                <td class="text-end">{{ "{:,.2f}".format(total_equity) }} ₪</td>
-                            </tr>
-                        </tfoot>
-                        
-                        <tfoot class="table-dark fw-bold fs-5">
+                        <tfoot class="table-warning fw-bold fs-5">
                             <tr>
                                 <td>إجمالي الخصوم + حقوق الملكية</td>
-                                <td class="text-end">{{ "{:,.2f}".format(total_liabilities + total_equity) }} ₪</td>
+                                <td class="text-end">{{ "{:,.2f}".format(total_liabilities_equity) }} ₪</td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             </div>
             
-            <!-- التحقق من التوازن -->
             <div class="alert {% if is_balanced %}alert-success{% else %}alert-danger{% endif %} mt-4">
                 <h5>
                     {% if is_balanced %}
-                    ✅ الميزانية متوازنة!
+                    ✅ الميزانية متوازنة
                     {% else %}
-                    ❌ الميزانية غير متوازنة!
+                    ❌ الميزانية غير متوازنة
                     {% endif %}
                 </h5>
                 <p class="mb-0">
                     <strong>المعادلة المحاسبية:</strong>
                     الأصول ({{ "{:,.2f}".format(total_assets) }})
                     =
-                    الخصوم ({{ "{:,.2f}".format(total_liabilities) }})
-                    +
-                    حقوق الملكية ({{ "{:,.2f}".format(total_equity) }})
+                    الخصوم + حقوق الملكية ({{ "{:,.2f}".format(total_liabilities_equity) }})
                 </p>
             </div>
             
@@ -156,11 +118,6 @@
 </style>
 
 <script>
-function updateReport() {
-    const asOfDate = document.getElementById('as_of_date').value;
-    window.location.href = `/financial-reports/balance-sheet?as_of_date=${asOfDate}`;
-}
-
 function exportToExcel() {
     alert('سيتم إضافة وظيفة التصدير قريباً');
 }

@@ -9,25 +9,25 @@
     <div class="card-header bg-primary text-white">
       <div class="d-flex justify-content-between align-items-center">
         <h3 class="mb-0">
-          <i class="fas fa-file-invoice-dollar me-2"></i>
+          <i class="fas fa-file-invoice-dollar ml-2"></i>
           تفاصيل المصروف #{{ expense.id }}
         </h3>
         <div class="d-flex gap-2">
           <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-outline-light">
-            <i class="fas fa-arrow-right me-1"></i> رجوع
+            <i class="fas fa-arrow-right ml-1"></i> رجوع
           </a>
           {% if has_perm('manage_payments') %}
           <a href="{{ url_for('expenses_bp.pay', exp_id=expense.id) }}" class="btn btn-success">
-            <i class="fas fa-money-bill-wave me-1"></i> دفع
+            <i class="fas fa-money-bill-wave ml-1"></i> دفع
           </a>
           {% endif %}
           {% if has_perm('manage_expenses') %}
           <a href="{{ url_for('expenses_bp.edit', exp_id=expense.id) }}" class="btn btn-warning">
-            <i class="fas fa-edit me-1"></i> تعديل
+            <i class="fas fa-edit ml-1"></i> تعديل
           </a>
           <form method="post" action="{{ url_for('expenses_bp.delete', exp_id=expense.id) }}" style="display:inline;" onsubmit="return confirm('حذف المصروف؟');">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-danger"><i class="fas fa-trash me-1"></i> حذف</button>
+            <button class="btn btn-danger"><i class="fas fa-trash ml-1"></i> حذف</button>
           </form>
           {% endif %}
         </div>
@@ -38,7 +38,7 @@
   <div class="card card-outline card-primary">
     <div class="card-header bg-light">
       <h5 class="card-title mb-0 text-primary">
-        <i class="fas fa-info-circle me-2"></i>معلومات المصروف
+        <i class="fas fa-info-circle ml-2"></i>معلومات المصروف
       </h5>
     </div>
 
@@ -65,11 +65,11 @@
         <dt class="col-sm-3 text-end">المستفيد</dt>
         <dd class="col-sm-9">
           {% if expense.payee_type == 'EMPLOYEE' %}
-            <span class="badge bg-info text-dark me-1">موظّف</span>
+            <span class="badge bg-info text-dark ml-1">موظّف</span>
           {% elif expense.payee_type == 'UTILITY' %}
-            <span class="badge bg-secondary me-1">مرفق</span>
+            <span class="badge bg-secondary ml-1">مرفق</span>
           {% elif expense.payee_type %}
-            <span class="badge bg-light text-dark me-1">أخرى</span>
+            <span class="badge bg-light text-dark ml-1">أخرى</span>
           {% endif %}
           {{ expense.payee_name or expense.paid_to or '—' }}
         </dd>
@@ -169,7 +169,7 @@
   {% if expense.payments and expense.payments|length > 0 %}
   <div class="card card-outline card-secondary mt-3">
     <div class="card-header">
-      <h5 class="card-title mb-0"><i class="fas fa-list me-1"></i> الدفعات المرتبطة</h5>
+      <h5 class="card-title mb-0"><i class="fas fa-list ml-1"></i> الدفعات المرتبطة</h5>
     </div>
     <div class="card-body p-0">
       <table class="table table-striped mb-0">

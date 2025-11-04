@@ -190,7 +190,7 @@
 {% block content %}
 <div class="container-fluid">
   
-  {% include 'security/_navigation.html' %}
+  {# تم حذف include 'security/_navigation.html' لأسباب أمنية - لا يجب إظهار روابط اللوحة السرية في المساعد #}
   
   <!-- Header Alert -->
   <div class="alert ai-card mb-4" style="background: var(--gradient-primary); color: white;">
@@ -364,7 +364,7 @@
               {% if recent_queries %}
                 {% for q in recent_queries %}
                 <div class="d-flex align-items-start mb-3">
-                  <i class="fas fa-user-circle fa-2x text-muted me-3"></i>
+                  <i class="fas fa-user-circle fa-2x text-muted ml-3"></i>
                   <div class="flex-grow-1">
                     <div class="d-flex justify-content-between">
                       <strong>{{ q.question[:50] }}...</strong>
@@ -565,7 +565,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label fw-bold">نوع التدريب</label>
-                  <select class="form-select">
+                  <select class="custom-select">
                     <option>تدريب سريع (Quick Training)</option>
                     <option>تدريب عميق (Deep Training)</option>
                     <option>تدريب مخصص (Custom Training)</option>
@@ -573,7 +573,7 @@
                 </div>
                 <div class="col-md-6">
                   <label class="form-label fw-bold">حجم البيانات</label>
-                  <select class="form-select">
+                  <select class="custom-select">
                     <option>كل البيانات</option>
                     <option>آخر 30 يوم</option>
                     <option>آخر 90 يوم</option>
@@ -701,7 +701,7 @@
               <div class="row g-3">
                 <div class="col-md-6">
                   <label class="form-label fw-bold">النموذج الافتراضي</label>
-                  <select class="form-select">
+                  <select class="custom-select">
                     <option selected>Groq (Llama 3.3 70B)</option>
                     <option>OpenAI (GPT-4)</option>
                     <option>Anthropic (Claude 3)</option>
@@ -731,6 +731,58 @@
               </div>
             </div>
           </div>
+          
+          <!-- AI Alerts Control -->
+          <div class="card ai-card mt-4">
+            <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+              <i class="fas fa-bell"></i> تحذيرات أزاد الذكية
+            </div>
+            <div class="card-body">
+              <div class="alert alert-info mb-3">
+                <i class="fas fa-info-circle"></i> <strong>ميزة فريدة:</strong> أزاد يراقب النظام لحظياً ويحذرك من الأخطاء تلقائياً
+              </div>
+              
+              <div class="row g-3">
+                <div class="col-md-12">
+                  <div class="d-flex justify-content-between align-items-center p-3 border rounded">
+                    <div>
+                      <h6 class="mb-1"><i class="fas fa-shield-alt text-primary"></i> المراقبة الذكية الفورية</h6>
+                      <small class="text-muted">أزاد يفحص كل عملية ويحذرك من:</small>
+                      <ul class="small mb-0 mt-2">
+                        <li>مخزون سالب 🔴</li>
+                        <li>قيود محاسبية غير متوازنة 🔴</li>
+                        <li>أرصدة مرتفعة ⚠️</li>
+                        <li>دفعات مكررة ⚠️</li>
+                        <li>عمليات بدون ربط 💡</li>
+                      </ul>
+                    </div>
+                    <div class="text-center">
+                      <div class="form-check form-switch form-switch-lg">
+                        <input class="form-check-input" type="checkbox" id="aiAlertsToggle" 
+                               checked onchange="toggleAIAlerts(this.checked)" style="width: 60px; height: 30px; cursor: pointer;">
+                      </div>
+                      <small class="d-block mt-2" id="alertsStatus">
+                        <span class="badge bg-success">مفعّل</span>
+                      </small>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="col-md-12">
+                  <label class="form-label fw-bold">فترة الفحص (ثانية)</label>
+                  <input type="number" class="form-control" id="alertCheckInterval" value="30" min="10" max="300" 
+                         onchange="updateAlertInterval(this.value)">
+                  <small class="text-muted">افتراضي: 30 ثانية (يُنصح به)</small>
+                </div>
+                
+                <div class="col-md-12">
+                  <button class="btn btn-outline-primary w-100" onclick="testAlert()">
+                    <i class="fas fa-vial"></i> اختبار التحذيرات
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         {% endif %}
         
@@ -740,9 +792,81 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="{{ url_for('static', filename='js/ai_alerts.js') }}"></script>
 <script>
 // CSRF Token
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔔 AI ALERTS CONTROLS - التحكم بالتحذيرات
+// ═══════════════════════════════════════════════════════════════════════════
+
+// تحديث حالة الزر
+document.addEventListener('DOMContentLoaded', function() {
+    const toggle = document.getElementById('aiAlertsToggle');
+    const status = document.getElementById('alertsStatus');
+    
+    if (toggle && status) {
+        const enabled = localStorage.getItem('ai_alerts_enabled');
+        toggle.checked = (enabled === null || enabled === 'true');
+        
+        updateAlertStatus(toggle.checked);
+    }
+});
+
+function updateAlertStatus(enabled) {
+    const status = document.getElementById('alertsStatus');
+    if (status) {
+        if (enabled) {
+            status.innerHTML = '<span class="badge bg-success"><i class="fas fa-check"></i> مفعّل</span>';
+        } else {
+            status.innerHTML = '<span class="badge bg-secondary"><i class="fas fa-times"></i> متوقف</span>';
+        }
+    }
+}
+
+// تحديث فترة الفحص
+function updateAlertInterval(seconds) {
+    AI_ALERTS_CONFIG.checkInterval = seconds * 1000;
+    
+    // إعادة تشغيل المراقبة بالفترة الجديدة
+    if (AI_ALERTS_CONFIG.enabled) {
+        stopAlertMonitoring();
+        startAlertMonitoring();
+    }
+    
+    toastr.success(`تم تحديث فترة الفحص إلى ${seconds} ثانية`, 'تم التحديث');
+}
+
+// اختبار التحذيرات
+function testAlert() {
+    Swal.fire({
+        icon: 'warning',
+        title: '⚠️ أزاد يحذرك',
+        html: `
+            <div class="text-right" dir="rtl">
+                <h5>هذا تحذير تجريبي من أزاد!</h5>
+                <p class="text-muted mb-2">📌 الإجراء المقترح: فحص النظام</p>
+                <p class="text-info">💡 هل تريد فحص صحة النظام الآن؟</p>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'نعم، افحص الآن',
+        cancelButtonText: 'إغلاق',
+        confirmButtonColor: '#fd7e14'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            checkSystemHealth().then(() => {
+                Swal.fire({
+                    icon: 'success',
+                    title: '✅ اكتمل الفحص',
+                    text: 'النظام يعمل بشكل ممتاز!',
+                    timer: 2000
+                });
+            });
+        }
+    });
+}
 
 // Live Status Indicator
 setInterval(() => {

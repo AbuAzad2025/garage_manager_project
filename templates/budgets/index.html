@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}الميزانيات{% endblock %}
+{% block page_title %}💰 إدارة الميزانيات - {{ fiscal_year }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="mb-3">
+    <a href="{{ url_for('budgets.add') }}" class="btn btn-primary">
+      <i class="fas fa-plus"></i> إضافة ميزانية
+    </a>
+    <a href="{{ url_for('budgets.dashboard') }}" class="btn btn-info">
+      <i class="fas fa-chart-line"></i> لوحة الميزانية
+    </a>
+    <a href="{{ url_for('budgets.budget_vs_actual') }}" class="btn btn-secondary">
+      <i class="fas fa-chart-bar"></i> تقرير المخطط مقابل الفعلي
+    </a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header">
+      <h5 class="mb-0">قائمة الميزانيات</h5>
+    </div>
+    <div class="card-body">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>الحساب</th>
+            <th>الفرع</th>
+            <th>المخصص</th>
+            <th>المصروف</th>
+            <th>الالتزامات</th>
+            <th>المتاح</th>
+            <th>الاستخدام</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in budgets %}
+          <tr>
+            <td>{{ item.budget.account.name }}</td>
+            <td>{{ item.budget.branch.name if item.budget.branch else '-' }}</td>
+            <td>{{ "{:,.2f}".format(item.budget.allocated_amount) }} ₪</td>
+            <td>{{ "{:,.2f}".format(item.actual) }} ₪</td>
+            <td>{{ "{:,.2f}".format(item.committed) }} ₪</td>
+            <td>{{ "{:,.2f}".format(item.available) }} ₪</td>
+            <td>
+              <div class="progress" style="height: 20px;">
+                <div class="progress-bar {% if item.utilization >= 95 %}bg-danger{% elif item.utilization >= 80 %}bg-warning{% else %}bg-success{% endif %}" 
+                     style="width: {{ item.utilization }}%">
+                  {{ "{:.0f}".format(item.utilization) }}%
+                </div>
+              </div>
+            </td>
+            <td>
+              <a href="{{ url_for('budgets.edit', id=item.budget.id) }}" class="btn btn-sm btn-warning">
+                <i class="fas fa-edit"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

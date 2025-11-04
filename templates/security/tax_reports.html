@@ -1,27 +1,10 @@
-{% extends 'base.html' %}
-
-{% block title %}💰 تقارير الضرائب{% endblock %}
-
-{% block content %}
-<div class="content-header">
-  <div class="container-fluid">
-    <div class="row mb-2">
-      <div class="col-sm-6">
-        <h1 class="m-0">💰 تقارير الضرائب <small class="badge badge-success">Tax Reports</small></h1>
-      </div>
-      <div class="col-sm-6">
-        <ol class="breadcrumb float-sm-right">
-          <li class="breadcrumb-item"><a href="/"><i class="fas fa-home"></i> الرئيسية</a></li>
-          <li class="breadcrumb-item"><a href="/security/"><i class="fas fa-shield-alt"></i> الوحدة السرية</a></li>
-          <li class="breadcrumb-item active">تقارير الضرائب</li>
-        </ol>
-      </div>
-    </div>
-  </div>
-</div>
-
-<section class="content">
-  <div class="container-fluid">
+{% extends 'security/base_security.html' %}
+{% block tour_name %}tax_reports{% endblock %}
+{% block security_title %}Tax Reports{% endblock %}
+{% block security_icon %}<i class="fas fa-file-invoice-dollar"></i>{% endblock %}
+{% block security_description %}تقارير الضرائب - VAT Tracking • إقرارات ضريبية{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Tax Reports</li>{% endblock %}
+{% block security_content %}
     
     <!-- اختيار الفترة -->
     <div class="row">

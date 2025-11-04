@@ -75,5 +75,27 @@
     "started_at": "2025-11-01T05:44:17.962666+00:00",
     "estimated_completion": null,
     "error": null
+  },
+  {
+    "job_id": "train_1762040778.984381",
+    "model_name": "نموذج تحليل العملاء",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-11-01T23:46:18.984407+00:00",
+    "estimated_completion": null,
+    "error": null
+  },
+  {
+    "job_id": "train_1762040789.233673",
+    "model_name": "نموذج إدارة المخزون",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-11-01T23:46:29.233698+00:00",
+    "estimated_completion": null,
+    "error": null
   }
 ]

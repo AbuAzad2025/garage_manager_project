@@ -1,0 +1,457 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-11-01",
+  "purpose": "معرفة شاملة بكل صغيرة وكبيرة في النظام",
+  
+  "models_complete": {
+    "Customer": {
+      "table": "customers",
+      "description": "جدول العملاء - يحفظ بيانات العملاء وأرصدتهم",
+      "fields": {
+        "id": {"type": "Integer", "primary_key": true, "description": "المعرف الفريد"},
+        "name": {"type": "String(200)", "required": true, "description": "اسم العميل"},
+        "phone": {"type": "String(20)", "required": true, "unique": true, "description": "رقم الهاتف"},
+        "email": {"type": "String(120)", "nullable": true, "description": "البريد الإلكتروني"},
+        "address": {"type": "Text", "nullable": true, "description": "العنوان"},
+        "city": {"type": "String(100)", "nullable": true, "description": "المدينة"},
+        "tax_id": {"type": "String(50)", "nullable": true, "description": "الرقم الضريبي"},
+        "opening_balance": {"type": "Numeric(15,2)", "default": 0, "description": "الرصيد الافتتاحي"},
+        "balance": {"type": "Numeric(15,2)", "default": 0, "description": "الرصيد الحالي - يُحسب تلقائياً"},
+        "is_active": {"type": "Boolean", "default": true, "description": "نشط/غير نشط"},
+        "notes": {"type": "Text", "nullable": true, "description": "ملاحظات"},
+        "created_at": {"type": "DateTime", "auto": true, "description": "تاريخ الإنشاء"},
+        "updated_at": {"type": "DateTime", "auto": true, "description": "تاريخ التحديث"},
+        "created_by_id": {"type": "Integer", "fk": "users.id", "description": "من أنشأ السجل"}
+      },
+      "relationships": {
+        "sales": "علاقة 1:N مع Sales",
+        "invoices": "علاقة 1:N مع Invoice",
+        "payments": "علاقة 1:N مع Payment",
+        "services": "علاقة 1:N مع ServiceRequest"
+      },
+      "indexes": [
+        "idx_customer_phone",
+        "idx_customer_email",
+        "idx_customer_name"
+      ],
+      "business_rules": [
+        "رقم الهاتف يجب أن يكون فريد",
+        "الرصيد يُحسب تلقائياً من المبيعات والدفعات",
+        "عند الحذف: يجب التحقق من عدم وجود معاملات مرتبطة"
+      ],
+      "balance_formula": "(المبيعات + الفواتير + الخدمات) - (الدفعات الواردة IN)"
+    },
+    
+    "Supplier": {
+      "table": "suppliers",
+      "description": "جدول الموردين",
+      "fields": {
+        "id": {"type": "Integer", "primary_key": true},
+        "name": {"type": "String(200)", "required": true},
+        "phone": {"type": "String(20)", "required": true, "unique": true},
+        "email": {"type": "String(120)", "nullable": true},
+        "address": {"type": "Text", "nullable": true},
+        "city": {"type": "String(100)", "nullable": true},
+        "tax_id": {"type": "String(50)", "nullable": true},
+        "opening_balance": {"type": "Numeric(15,2)", "default": 0},
+        "balance": {"type": "Numeric(15,2)", "default": 0},
+        "is_active": {"type": "Boolean", "default": true},
+        "notes": {"type": "Text", "nullable": true},
+        "created_at": {"type": "DateTime", "auto": true},
+        "updated_at": {"type": "DateTime", "auto": true},
+        "created_by_id": {"type": "Integer", "fk": "users.id"}
+      },
+      "relationships": {
+        "shipments": "علاقة 1:N مع Shipment",
+        "payments": "علاقة 1:N مع Payment"
+      },
+      "balance_formula": "(المشتريات + الشحنات) - (الدفعات الصادرة OUT)"
+    },
+    
+    "Product": {
+      "table": "products",
+      "description": "جدول المنتجات وقطع الغيار",
+      "fields": {
+        "id": {"type": "Integer", "primary_key": true},
+        "name": {"type": "String(200)", "required": true},
+        "sku": {"type": "String(50)", "required": true, "unique": true, "description": "رمز المنتج الفريد"},
+        "barcode": {"type": "String(13)", "nullable": true, "description": "باركود EAN-13"},
+        "category": {"type": "String(100)", "nullable": true},
+        "description": {"type": "Text", "nullable": true},
+        "price": {"type": "Numeric(15,2)", "required": true, "description": "سعر البيع"},
+        "cost": {"type": "Numeric(15,2)", "default": 0, "description": "التكلفة"},
+        "min_stock": {"type": "Integer", "default": 0, "description": "الحد الأدنى للمخزون"},
+        "max_stock": {"type": "Integer", "default": 0, "description": "الحد الأقصى"},
+        "is_active": {"type": "Boolean", "default": true},
+        "created_at": {"type": "DateTime", "auto": true},
+        "updated_at": {"type": "DateTime", "auto": true},
+        "created_by_id": {"type": "Integer", "fk": "users.id"}
+      },
+      "relationships": {
+        "stock_levels": "علاقة 1:N مع StockLevel - مستوى المخزون في كل مستودع",
+        "sale_lines": "علاقة 1:N مع SaleLine",
+        "service_parts": "علاقة 1:N مع ServicePart"
+      },
+      "business_rules": [
+        "SKU يجب أن يكون فريد",
+        "الباركود إن وُجد يجب أن يكون 13 رقم (EAN-13)",
+        "السعر يجب أن يكون أكبر من الصفر"
+      ]
+    },
+    
+    "Sale": {
+      "table": "sales",
+      "description": "عمليات البيع",
+      "fields": {
+        "id": {"type": "Integer", "primary_key": true},
+        "customer_id": {"type": "Integer", "fk": "customers.id", "required": true},
+        "warehouse_id": {"type": "Integer", "fk": "warehouses.id", "required": true},
+        "sale_date": {"type": "DateTime", "required": true},
+        "subtotal": {"type": "Numeric(15,2)", "description": "المجموع قبل الخصم والضريبة"},
+        "discount": {"type": "Numeric(15,2)", "default": 0, "description": "الخصم - قيمة ثابتة"},
+        "vat_amount": {"type": "Numeric(15,2)", "default": 0, "description": "الضريبة"},
+        "sale_total": {"type": "Numeric(15,2)", "description": "الإجمالي النهائي"},
+        "status": {"type": "Enum", "values": ["PENDING", "CONFIRMED", "CANCELLED"], "default": "PENDING"},
+        "notes": {"type": "Text", "nullable": true},
+        "created_at": {"type": "DateTime", "auto": true},
+        "created_by_id": {"type": "Integer", "fk": "users.id"}
+      },
+      "relationships": {
+        "customer": "علاقة N:1 مع Customer",
+        "warehouse": "علاقة N:1 مع Warehouse",
+        "lines": "علاقة 1:N مع SaleLine - سطور البيع (المنتجات)",
+        "gl_batch": "علاقة 1:1 مع GLBatch - القيد المحاسبي"
+      },
+      "calculation": "الإجمالي = (المجموع - الخصم) + الضريبة",
+      "gl_entries": "عند التأكيد: مدين AR | دائن SALES + VAT",
+      "event_listeners": [
+        "_sale_gl_batch_upsert: ينشئ قيد محاسبي تلقائياً عند status=CONFIRMED"
+      ]
+    },
+    
+    "Payment": {
+      "table": "payments",
+      "description": "الدفعات المالية - واردة وصادرة",
+      "fields": {
+        "id": {"type": "Integer", "primary_key": true},
+        "amount": {"type": "Numeric(15,2)", "required": true},
+        "direction": {"type": "Enum", "values": ["IN", "OUT"], "required": true, "description": "IN=وارد، OUT=صادر"},
+        "payment_method": {"type": "Enum", "values": ["CASH", "BANK", "CARD", "CHECK"], "required": true},
+        "payment_date": {"type": "DateTime", "required": true},
+        "status": {"type": "Enum", "values": ["PENDING", "COMPLETED", "CANCELLED"], "default": "PENDING"},
+        "customer_id": {"type": "Integer", "fk": "customers.id", "nullable": true},
+        "supplier_id": {"type": "Integer", "fk": "suppliers.id", "nullable": true},
+        "partner_id": {"type": "Integer", "fk": "partners.id", "nullable": true},
+        "sale_id": {"type": "Integer", "fk": "sales.id", "nullable": true},
+        "invoice_id": {"type": "Integer", "fk": "invoices.id", "nullable": true},
+        "notes": {"type": "Text", "nullable": true},
+        "reference": {"type": "String(100)", "nullable": true},
+        "created_at": {"type": "DateTime", "auto": true},
+        "created_by_id": {"type": "Integer", "fk": "users.id"}
+      },
+      "business_rules": [
+        "يجب تحديد كيان واحد على الأقل (عميل أو مورد أو شريك)",
+        "IN = دفعة واردة من عميل",
+        "OUT = دفعة صادرة لمورد/شريك",
+        "عند التأكيد: يُحدّث رصيد الكيان"
+      ],
+      "gl_entries": {
+        "IN": "مدين CASH/BANK | دائن AR",
+        "OUT": "مدين AP | دائن CASH/BANK"
+      }
+    },
+    
+    "ServiceRequest": {
+      "table": "service_requests",
+      "description": "طلبات الصيانة",
+      "fields": {
+        "id": {"type": "Integer", "primary_key": true},
+        "customer_id": {"type": "Integer", "fk": "customers.id", "required": true},
+        "vehicle_model": {"type": "String(100)", "nullable": true},
+        "vehicle_plate": {"type": "String(20)", "nullable": true},
+        "issue_description": {"type": "Text", "required": true, "description": "وصف العطل"},
+        "diagnosis": {"type": "Text", "nullable": true, "description": "التشخيص"},
+        "status": {"type": "Enum", "values": ["pending", "in_progress", "completed", "cancelled"]},
+        "parts_total": {"type": "Numeric(15,2)", "default": 0, "description": "إجمالي قطع الغيار"},
+        "labor_total": {"type": "Numeric(15,2)", "default": 0, "description": "إجمالي العمالة"},
+        "discount": {"type": "Numeric(15,2)", "default": 0},
+        "vat_amount": {"type": "Numeric(15,2)", "default": 0},
+        "total": {"type": "Numeric(15,2)", "description": "الإجمالي النهائي"},
+        "created_at": {"type": "DateTime", "auto": true},
+        "completed_at": {"type": "DateTime", "nullable": true},
+        "created_by_id": {"type": "Integer", "fk": "users.id"}
+      },
+      "relationships": {
+        "customer": "علاقة N:1 مع Customer",
+        "parts": "علاقة 1:N مع ServicePart - القطع المستخدمة",
+        "tasks": "علاقة 1:N مع ServiceTask - مهام الصيانة"
+      },
+      "calculation": "الإجمالي = (قطع الغيار + العمالة - الخصم) + الضريبة"
+    },
+    
+    "Warehouse": {
+      "table": "warehouses",
+      "description": "المستودعات",
+      "fields": {
+        "id": {"type": "Integer", "primary_key": true},
+        "name": {"type": "String(200)", "required": true},
+        "warehouse_type": {
+          "type": "Enum",
+          "values": ["MAIN", "ONLINE", "PARTNER", "INVENTORY", "EXCHANGE"],
+          "required": true,
+          "description": "نوع المستودع"
+        },
+        "partner_id": {"type": "Integer", "fk": "partners.id", "nullable": true, "description": "مرتبط بشريك (إذا كان نوعه PARTNER)"},
+        "supplier_id": {"type": "Integer", "fk": "suppliers.id", "nullable": true, "description": "مرتبط بمورد (إذا كان نوعه EXCHANGE)"},
+        "is_active": {"type": "Boolean", "default": true},
+        "created_at": {"type": "DateTime", "auto": true}
+      },
+      "types": {
+        "MAIN": "المستودع الرئيسي - ملكنا",
+        "ONLINE": "مستودع المتجر الإلكتروني",
+        "PARTNER": "مستودع شريك - بضاعة الشريك عندنا",
+        "INVENTORY": "مستودع جرد",
+        "EXCHANGE": "مستودع تبادل - بضاعة مورد عندنا"
+      }
+    }
+  },
+  
+  "forms_complete": {
+    "CustomerForm": {
+      "file": "forms.py",
+      "class": "CustomerForm",
+      "inherits": "FlaskForm",
+      "fields": [
+        {"name": "name", "type": "StringField", "validators": ["DataRequired"], "label": "الاسم"},
+        {"name": "phone", "type": "StringField", "validators": ["DataRequired"], "label": "الهاتف"},
+        {"name": "email", "type": "StringField", "validators": ["Email", "Optional"], "label": "البريد"},
+        {"name": "address", "type": "TextAreaField", "validators": [], "label": "العنوان"},
+        {"name": "city", "type": "StringField", "validators": [], "label": "المدينة"},
+        {"name": "tax_id", "type": "StringField", "validators": [], "label": "الرقم الضريبي"},
+        {"name": "opening_balance", "type": "DecimalField", "validators": [], "label": "الرصيد الافتتاحي"},
+        {"name": "notes", "type": "TextAreaField", "validators": [], "label": "ملاحظات"},
+        {"name": "submit", "type": "SubmitField", "label": "حفظ"}
+      ],
+      "validation": {
+        "phone": "يجب أن يكون رقم",
+        "email": "يجب أن يكون بريد صحيح",
+        "opening_balance": "رقم عشري"
+      }
+    },
+    
+    "ProductForm": {
+      "fields": [
+        "name - اسم المنتج (مطلوب)",
+        "sku - رمز المنتج (مطلوب، فريد)",
+        "barcode - الباركود (اختياري، 13 رقم)",
+        "category - الفئة",
+        "description - الوصف",
+        "price - السعر (مطلوب)",
+        "cost - التكلفة",
+        "min_stock - الحد الأدنى",
+        "max_stock - الحد الأقصى"
+      ]
+    }
+  },
+  
+  "routes_complete": {
+    "/customers": {
+      "blueprint": "customers_bp",
+      "file": "routes/customers.py",
+      "methods": "GET",
+      "description": "عرض قائمة العملاء",
+      "template": "customers/index.html",
+      "permissions": ["view_customers"],
+      "returns": "صفحة HTML مع جدول العملاء + فلاتر + بحث"
+    },
+    
+    "/customers/add": {
+      "blueprint": "customers_bp",
+      "methods": ["GET", "POST"],
+      "description": "إضافة عميل جديد",
+      "template": "customers/form.html",
+      "form": "CustomerForm",
+      "permissions": ["add_customer"],
+      "workflow": [
+        "1. GET: عرض فورم فارغ",
+        "2. POST: استقبال البيانات",
+        "3. Validation: التحقق من البيانات",
+        "4. Save: حفظ في قاعدة البيانات",
+        "5. GL: إنشاء قيد افتتاحي (إذا opening_balance != 0)",
+        "6. Redirect: /customers"
+      ]
+    },
+    
+    "/customers/<int:id>/edit": {
+      "methods": ["GET", "POST"],
+      "description": "تعديل عميل",
+      "permissions": ["edit_customer"]
+    },
+    
+    "/sales/create": {
+      "blueprint": "sales_bp",
+      "methods": ["GET", "POST"],
+      "description": "إنشاء عملية بيع",
+      "template": "sales/form.html",
+      "workflow": [
+        "1. اختيار العميل (customer_id)",
+        "2. اختيار المستودع (warehouse_id)",
+        "3. إضافة منتجات (JavaScript dynamic)",
+        "4. حساب الإجمالي تلقائياً",
+        "5. عند الحفظ:",
+        "   - إنشاء Sale",
+        "   - إنشاء SaleLines",
+        "   - تحديث StockLevel (نقص الكمية)",
+        "   - إنشاء GLBatch (قيد محاسبي)",
+        "   - تحديث رصيد العميل"
+      ]
+    },
+    
+    "/payments/create": {
+      "blueprint": "payments_bp",
+      "methods": ["GET", "POST"],
+      "workflow": [
+        "1. تحديد الاتجاه (IN/OUT)",
+        "2. تحديد الطريقة (CASH/BANK/CARD/CHECK)",
+        "3. تحديد الكيان (عميل/مورد/شريك)",
+        "4. إدخال المبلغ",
+        "5. عند الحفظ:",
+        "   - إنشاء Payment",
+        "   - إنشاء GLBatch",
+        "   - تحديث رصيد الكيان"
+      ]
+    }
+  },
+  
+  "templates_structure": {
+    "base.html": {
+      "location": "templates/base.html",
+      "description": "القالب الأساسي - يحتوي على HTML head, navbar, footer",
+      "blocks": [
+        "{% block title %} - عنوان الصفحة",
+        "{% block extra_css %} - CSS إضافي",
+        "{% block content %} - المحتوى الرئيسي",
+        "{% block scripts %} - JavaScript"
+      ],
+      "includes": [
+        "{% include 'partials/navbar.html' %}",
+        "{% include 'partials/footer.html' %}"
+      ]
+    },
+    
+    "customers/index.html": {
+      "extends": "base.html",
+      "description": "صفحة قائمة العملاء",
+      "features": [
+        "جدول DataTables مع Pagination",
+        "بحث (اسم، هاتف، بريد)",
+        "فلترة (نشط/غير نشط)",
+        "أزرار: إضافة، تعديل، حذف، كشف حساب",
+        "عرض الرصيد بالألوان (سالب=أحمر، موجب=أخضر)"
+      ],
+      "javascript": [
+        "DataTables initialization",
+        "Delete confirmation (SweetAlert2)",
+        "Export to Excel"
+      ]
+    },
+    
+    "customers/form.html": {
+      "description": "فورم إضافة/تعديل عميل",
+      "sections": [
+        "بيانات أساسية (اسم، هاتف، بريد)",
+        "بيانات إضافية (عنوان، مدينة)",
+        "بيانات مالية (رصيد افتتاحي)",
+        "ملاحظات"
+      ],
+      "validation": "Client-side + Server-side"
+    }
+  },
+  
+  "javascript_files": {
+    "static/js/customers.js": {
+      "purpose": "وظائف خاصة بصفحات العملاء",
+      "functions": [
+        "initCustomersTable() - تهيئة جدول العملاء",
+        "deleteCustomer(id) - حذف عميل مع تأكيد",
+        "exportToExcel() - تصدير لـ Excel",
+        "showBalance(customerId) - عرض كشف الحساب"
+      ]
+    },
+    
+    "static/js/sales.js": {
+      "functions": [
+        "addProductLine() - إضافة سطر منتج",
+        "removeProductLine(index) - حذف سطر",
+        "calculateTotal() - حساب الإجمالي",
+        "updateVAT() - تحديث الضريبة"
+      ]
+    }
+  },
+  
+  "system_settings": {
+    "vat_enabled": {"type": "boolean", "default": true, "description": "تفعيل ضريبة القيمة المضافة"},
+    "vat_rate": {"type": "decimal", "default": 16, "description": "نسبة الضريبة (%)"},
+    "default_currency": {"type": "string", "default": "ILS", "description": "العملة الافتراضية"},
+    "company_name": {"type": "string", "description": "اسم الشركة"},
+    "maintenance_mode": {"type": "boolean", "default": false, "description": "وضع الصيانة"}
+  },
+  
+  "enums": {
+    "PaymentDirection": ["IN", "OUT"],
+    "PaymentMethod": ["CASH", "BANK", "CARD", "CHECK"],
+    "PaymentStatus": ["PENDING", "COMPLETED", "CANCELLED"],
+    "SaleStatus": ["PENDING", "CONFIRMED", "CANCELLED"],
+    "WarehouseType": ["MAIN", "ONLINE", "PARTNER", "INVENTORY", "EXCHANGE"],
+    "ServiceStatus": ["pending", "in_progress", "completed", "cancelled"]
+  },
+  
+  "business_workflows": {
+    "complete_sale_workflow": {
+      "steps": [
+        {
+          "step": 1,
+          "title": "المستخدم يفتح /sales/create",
+          "action": "عرض فورم البيع"
+        },
+        {
+          "step": 2,
+          "title": "اختيار العميل والمستودع",
+          "validation": "يجب تحديد عميل ومستودع"
+        },
+        {
+          "step": 3,
+          "title": "إضافة منتجات",
+          "javascript": "addProductLine() - يضيف سطر في الجدول",
+          "fields": ["product_id", "quantity", "price", "discount"]
+        },
+        {
+          "step": 4,
+          "title": "حساب الإجمالي تلقائياً",
+          "calculation": "المجموع = Σ((كمية × سعر) - خصم السطر) - خصم عام + ضريبة"
+        },
+        {
+          "step": 5,
+          "title": "الحفظ",
+          "backend": [
+            "إنشاء Sale في قاعدة البيانات",
+            "إنشاء SaleLines",
+            "Event Listener: _sale_gl_batch_upsert",
+            "تحديث StockLevel (نقص)",
+            "تحديث رصيد العميل"
+          ]
+        },
+        {
+          "step": 6,
+          "title": "القيد المحاسبي التلقائي",
+          "gl_entries": [
+            "مدين: 1100_AR بمبلغ الإجمالي",
+            "دائن: 4000_SALES بمبلغ الصافي",
+            "دائن: 2100_VAT بمبلغ الضريبة"
+          ]
+        }
+      ]
+    }
+  }
+}
+

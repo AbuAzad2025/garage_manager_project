@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}{% if task %}تعديل مهمة{% else %}إضافة مهمة جديدة{% endif %}{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-tasks text-warning"></i> {% if task %}تعديل مهمة{% else %}إضافة مهمة جديدة{% endif %}</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-warning text-white">
+        <h3 class="card-title"><i class="fas fa-edit"></i> بيانات المهمة</h3>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>رقم المهمة <span class="text-danger">*</span></label>
+                        <input type="text" name="task_number" class="form-control" value="{{ task.task_number if task else '' }}" required {% if task %}readonly{% endif %}>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>العنوان <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control" value="{{ task.title if task else '' }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>الوصف</label>
+                <textarea name="description" class="form-control" rows="3">{{ task.description if task else '' }}</textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>نوع المهمة <span class="text-danger">*</span></label>
+                        <select name="task_type" class="form-control" required>
+                            <option value="">اختر النوع</option>
+                            <option value="DESIGN" {% if task and task.task_type == 'DESIGN' %}selected{% endif %}>تصميم</option>
+                            <option value="INSPECTION" {% if task and task.task_type == 'INSPECTION' %}selected{% endif %}>فحص</option>
+                            <option value="MAINTENANCE" {% if task and task.task_type == 'MAINTENANCE' %}selected{% endif %}>صيانة</option>
+                            <option value="INSTALLATION" {% if task and task.task_type == 'INSTALLATION' %}selected{% endif %}>تركيب</option>
+                            <option value="REPAIR" {% if task and task.task_type == 'REPAIR' %}selected{% endif %}>إصلاح</option>
+                            <option value="CONSULTATION" {% if task and task.task_type == 'CONSULTATION' %}selected{% endif %}>استشارة</option>
+                            <option value="TESTING" {% if task and task.task_type == 'TESTING' %}selected{% endif %}>اختبار</option>
+                            <option value="CALIBRATION" {% if task and task.task_type == 'CALIBRATION' %}selected{% endif %}>معايرة</option>
+                            <option value="TRAINING" {% if task and task.task_type == 'TRAINING' %}selected{% endif %}>تدريب</option>
+                            <option value="OTHER" {% if task and task.task_type == 'OTHER' %}selected{% endif %}>أخرى</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>الأولوية <span class="text-danger">*</span></label>
+                        <select name="priority" class="form-control" required>
+                            <option value="LOW" {% if task and task.priority == 'LOW' %}selected{% endif %}>منخفضة</option>
+                            <option value="MEDIUM" {% if task and task.priority == 'MEDIUM' %}selected{% elif not task %}selected{% endif %}>متوسطة</option>
+                            <option value="HIGH" {% if task and task.priority == 'HIGH' %}selected{% endif %}>عالية</option>
+                            <option value="URGENT" {% if task and task.priority == 'URGENT' %}selected{% endif %}>عاجلة</option>
+                            <option value="CRITICAL" {% if task and task.priority == 'CRITICAL' %}selected{% endif %}>حرجة</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>الفريق المسؤول</label>
+                        <select name="assigned_team_id" class="form-control">
+                            <option value="">اختر الفريق</option>
+                            {% for team in teams %}
+                            <option value="{{ team.id }}" {% if task and task.assigned_team_id == team.id %}selected{% endif %}>
+                                {{ team.code }} - {{ team.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>المسؤول</label>
+                        <select name="assigned_to_id" class="form-control">
+                            <option value="">اختر المسؤول</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if task and task.assigned_to_id == emp.id %}selected{% endif %}>
+                                {{ emp.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>العميل</label>
+                        <select name="customer_id" class="form-control">
+                            <option value="">اختر العميل</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}" {% if task and task.customer_id == customer.id %}selected{% endif %}>
+                                {{ customer.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>مركز التكلفة</label>
+                        <select name="cost_center_id" class="form-control">
+                            <option value="">اختر مركز التكلفة</option>
+                            {% for cc in cost_centers %}
+                            <option value="{{ cc.id }}" {% if task and task.cost_center_id == cc.id %}selected{% endif %}>
+                                {{ cc.code }} - {{ cc.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>الموقع</label>
+                        <input type="text" name="location" class="form-control" value="{{ task.location if task else '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>موعد البدء المخطط <span class="text-danger">*</span></label>
+                        <input type="datetime-local" name="scheduled_start" class="form-control" 
+                               value="{{ task.scheduled_start.strftime('%Y-%m-%dT%H:%M') if task and task.scheduled_start else '' }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>موعد الانتهاء المخطط</label>
+                        <input type="datetime-local" name="scheduled_end" class="form-control" 
+                               value="{{ task.scheduled_end.strftime('%Y-%m-%dT%H:%M') if task and task.scheduled_end else '' }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>الساعات المقدرة</label>
+                        <input type="number" name="estimated_hours" class="form-control" step="0.5" min="0" 
+                               value="{{ task.estimated_hours if task else 0 }}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>التكلفة المقدرة (₪)</label>
+                        <input type="number" name="estimated_cost" class="form-control" step="0.01" min="0" 
+                               value="{{ task.estimated_cost if task else 0 }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> حفظ
+                </button>
+                <a href="{{ url_for('engineering.tasks') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+</div>
+</section>
+{% endblock %}
+

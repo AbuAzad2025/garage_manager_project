@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}لوحة الميزانية{% endblock %}
+{% block page_title %}💰 لوحة الميزانية - {{ fiscal_year }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">المخصص</h6>
+          <h3 class="text-primary">{{ "{:,.2f}".format(total_allocated) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">المصروف</h6>
+          <h3 class="text-danger">{{ "{:,.2f}".format(total_actual) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">الالتزامات</h6>
+          <h3 class="text-warning">{{ "{:,.2f}".format(total_committed) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">المتاح</h6>
+          <h3 class="text-success">{{ "{:,.2f}".format(total_available) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5>نسبة الاستخدام الإجمالية</h5>
+          <div class="progress" style="height: 30px;">
+            <div class="progress-bar {% if utilization >= 95 %}bg-danger{% elif utilization >= 80 %}bg-warning{% else %}bg-success{% endif %}" 
+                 style="width: {{ utilization }}%">
+              {{ "{:.1f}".format(utilization) }}%
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if alerts %}
+  <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-warning text-white">
+          <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> تنبيهات الميزانية</h5>
+        </div>
+        <div class="card-body">
+          {% for alert in alerts %}
+          <div class="alert alert-{{ alert.level }} mb-2">
+            {{ alert.message }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-chart-pie"></i> توزيع الميزانية حسب الفرع</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>الفرع</th>
+                <th>المخصص</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for branch_name, total in by_branch %}
+              <tr>
+                <td>{{ branch_name }}</td>
+                <td>{{ "{:,.2f}".format(total) }} ₪</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-md-12 text-center">
+      <a href="{{ url_for('budgets.index') }}" class="btn btn-primary">
+        <i class="fas fa-list"></i> قائمة الميزانيات
+      </a>
+      <a href="{{ url_for('budgets.budget_vs_actual') }}" class="btn btn-info">
+        <i class="fas fa-chart-bar"></i> المخطط مقابل الفعلي
+      </a>
+      <a href="{{ url_for('budgets.variance_analysis') }}" class="btn btn-secondary">
+        <i class="fas fa-analytics"></i> تحليل الانحرافات
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

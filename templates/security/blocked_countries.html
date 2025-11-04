@@ -1,9 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}دول محظورة{% endblock %}
-{% block page_title %}🌍 دول محظورة{% endblock %}
-{% block content %}
-<div class="container-fluid">
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}blocked_countries{% endblock %}
+{% block security_title %}Blocked Countries{% endblock %}
+{% block security_icon %}<i class="fas fa-globe"></i>{% endblock %}
+{% block security_description %}إدارة الدول المحظورة من الوصول للنظام{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Blocked Countries</li>{% endblock %}
+{% block security_content %}
   
   <a href="{{ url_for('security.block_country') }}" class="btn btn-warning mb-3"><i class="fas fa-flag"></i> حظر دولة</a>
   <div class="card"><div class="card-body">

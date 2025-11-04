@@ -14,7 +14,7 @@
 {% block content %}
   <div class="card shadow-sm rounded">
     <div class="card-header bg-primary text-white">
-      <h5 class="card-title m-0"><i class="fas fa-filter me-2"></i> فلتر متقدّم</h5>
+      <h5 class="card-title m-0"><i class="fas fa-filter ml-2"></i> فلتر متقدّم</h5>
     </div>
     <div class="card-body">
 
@@ -53,7 +53,7 @@
         <!-- فئة وحالة -->
         <div class="col-md-3">
           <label class="form-label fw-bold">الفئة</label>
-          <select name="category" class="form-select form-select-sm">
+          <select name="category" class="custom-select custom-select-sm">
             <option value="">الكل</option>
             {% for cat in ['عادي','فضي','ذهبي','مميز'] %}
               <option value="{{ cat }}" {{ 'selected' if request.args.get('category')==cat else '' }}>{{ cat }}</option>
@@ -62,7 +62,7 @@
         </div>
         <div class="col-md-3">
           <label class="form-label fw-bold">الحالة</label>
-          <select name="status" class="form-select form-select-sm">
+          <select name="status" class="custom-select custom-select-sm">
             <option value="">الكل</option>
             <option value="active" {{ 'selected' if request.args.get('status')=='active' else '' }}>نشط</option>
             <option value="inactive" {{ 'selected' if request.args.get('status')=='inactive' else '' }}>غير نشط</option>
@@ -72,10 +72,10 @@
 
         <!-- أزرار التحكم -->
         <div class="col-12 d-flex flex-wrap gap-2 mt-3">
-          <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i> تطبيق</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-check ml-1"></i> تطبيق</button>
           <button type="reset" id="reset-adv-filter" class="btn btn-secondary">إعادة</button>
-          <button type="button" id="export-results" class="btn btn-outline-success">
-            <i class="fas fa-file-csv me-1"></i> تصدير CSV
+          <button type="button" id="export-results" class="btn btn-outline-success" onclick="exportTableToCSV('customers_filtered.csv')">
+            <i class="fas fa-file-csv ml-1"></i> تصدير CSV
           </button>
         </div>
       </form>

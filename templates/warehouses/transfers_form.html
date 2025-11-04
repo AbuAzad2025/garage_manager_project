@@ -121,14 +121,14 @@
 
 <!-- تنبيه توضيحي -->
 <div class="alert alert-info alert-dismissible fade show" role="alert">
-  <i class="fas fa-info-circle me-2"></i>
+  <i class="fas fa-info-circle ml-2"></i>
   <strong>ملاحظة:</strong> سيتم خصم الكمية من <strong>{{ warehouse.name }}</strong> وإضافتها للمستودع الوجهة تلقائياً.
   <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
 </div>
 
 <!-- تنبيه قواعد التحويل -->
 <div class="alert alert-warning" role="alert" style="border-right: 4px solid #ffc107;">
-  <h6 class="mb-2"><i class="fas fa-exclamation-triangle me-2"></i><strong>قواعد التحويل حسب نوع المستودع:</strong></h6>
+  <h6 class="mb-2"><i class="fas fa-exclamation-triangle ml-2"></i><strong>قواعد التحويل حسب نوع المستودع:</strong></h6>
   <ul class="mb-0" style="font-size: 0.9rem; line-height: 1.8;">
     <li><strong>مستودع شريك:</strong> يحول فقط لمستودع شريك آخر</li>
     <li><strong>مستودع تبادل:</strong> يحول فقط لمستودع تبادل آخر</li>
@@ -141,7 +141,7 @@
   <div class="row align-items-center">
     <div class="col-md-8">
       <h5 class="mb-2">
-        <i class="fas fa-box-open me-2"></i>
+        <i class="fas fa-box-open ml-2"></i>
         <span id="productName">-</span>
       </h5>
       <p class="mb-0 opacity-75">الكمية المتاحة في {{ warehouse.name }}</p>
@@ -221,7 +221,7 @@
             </label>
             {{ form.source_id(class="form-control", id="source_id", disabled=True) }}
             <small class="form-text text-muted">
-              <i class="fas fa-lock me-1"></i>
+              <i class="fas fa-lock ml-1"></i>
               مثبت على: {{ warehouse.name }}
             </small>
           </div>
@@ -241,7 +241,7 @@
             </label>
             {{ form.quantity(class="form-control", min="1", type="number", required=True) }}
             <div class="stock-warning" id="stockWarning">
-              <i class="fas fa-exclamation-triangle me-2"></i>
+              <i class="fas fa-exclamation-triangle ml-2"></i>
               <span id="warningMessage"></span>
             </div>
           </div>
@@ -272,21 +272,21 @@
   <div class="d-flex justify-content-between align-items-center">
     <div>
       <small class="text-muted">
-        <i class="fas fa-keyboard me-1"></i>
+        <i class="fas fa-keyboard ml-1"></i>
         <kbd>Ctrl+S</kbd> للحفظ | <kbd>Esc</kbd> للرجوع
       </small>
     </div>
     <div class="d-flex gap-2">
     <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.transfers', id=warehouse.id) }}">
-        <i class="fas fa-times me-1"></i> إلغاء
+        <i class="fas fa-times ml-1"></i> إلغاء
       </a>
       <button type="submit" class="btn btn-success btn-submit">
         <span class="btn-text">
-          <i class="fas fa-check me-1"></i>
+          <i class="fas fa-check ml-1"></i>
           حفظ التحويل
         </span>
         <span class="btn-loading">
-          <i class="fas fa-spinner fa-spin me-1"></i>
+          <i class="fas fa-spinner fa-spin ml-1"></i>
           جاري الحفظ...
         </span>
       </button>

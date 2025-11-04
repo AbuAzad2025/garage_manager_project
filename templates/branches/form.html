@@ -6,11 +6,11 @@
   
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0">
-      <i class="fas fa-{{ branch and 'edit' or 'plus' }} me-2"></i>
+      <i class="fas fa-{{ branch and 'edit' or 'plus' }} ml-2"></i>
       {{ branch and 'تعديل فرع' or 'إضافة فرع جديد' }}
     </h3>
     <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-secondary">
-      <i class="fas fa-arrow-right me-1"></i> رجوع
+      <i class="fas fa-arrow-right ml-1"></i> رجوع
     </a>
   </div>
 
@@ -19,7 +19,7 @@
     
     <div class="card shadow-sm">
       <div class="card-header bg-primary text-white">
-        <i class="fas fa-info-circle me-1"></i> المعلومات الأساسية
+        <i class="fas fa-info-circle ml-1"></i> المعلومات الأساسية
       </div>
       <div class="card-body">
         <div class="row g-3">
@@ -65,7 +65,7 @@
 
           <div class="col-md-4">
             <label class="form-label">مدير الفرع (موظف)</label>
-            <select name="manager_employee_id" class="form-select">
+            <select name="manager_employee_id" class="custom-select">
               <option value="0">-- بدون مدير --</option>
               {% for emp in employees %}
               <option value="{{ emp.id }}" {% if branch and branch.manager_employee_id == emp.id %}selected{% endif %}>
@@ -78,7 +78,7 @@
 
           <div class="col-md-4">
             <label class="form-label">العملة الافتراضية</label>
-            <select name="currency" class="form-select">
+            <select name="currency" class="custom-select">
               <option value="ILS" {% if not branch or branch.currency == 'ILS' %}selected{% endif %}>شيكل (ILS)</option>
               <option value="USD" {% if branch and branch.currency == 'USD' %}selected{% endif %}>دولار (USD)</option>
               <option value="JOD" {% if branch and branch.currency == 'JOD' %}selected{% endif %}>دينار (JOD)</option>
@@ -100,7 +100,7 @@
             <div class="form-check form-switch">
               <input type="checkbox" name="is_active" class="form-check-input" id="is_active" value="1" {% if not branch or branch.is_active %}checked{% endif %}>
               <label class="form-check-label fw-bold" for="is_active">
-                <i class="fas fa-toggle-on me-1"></i> فرع نشط
+                <i class="fas fa-toggle-on ml-1"></i> فرع نشط
               </label>
             </div>
           </div>
@@ -112,12 +112,12 @@
     <!-- بطاقة الموقع GPS -->
     <div class="card shadow-sm mt-3">
       <div class="card-header bg-success text-white">
-        <i class="fas fa-map-marked-alt me-1"></i> تحديد الموقع على الخريطة
+        <i class="fas fa-map-marked-alt ml-1"></i> تحديد الموقع على الخريطة
         <small class="float-end">اختياري - يساعد في تحديد موقع الفرع بدقة</small>
       </div>
       <div class="card-body">
         <div class="alert alert-info mb-3">
-          <i class="fas fa-info-circle me-2"></i>
+          <i class="fas fa-info-circle ml-2"></i>
           <strong>كيفية الاستخدام:</strong>
           <ul class="mb-0 mt-2">
             <li>🔍 ابحث عن المكان في صندوق البحث</li>
@@ -131,7 +131,7 @@
         <!-- عرض الإحداثيات الحالية -->
         <div class="mt-3 text-center">
           <span class="badge bg-primary p-2" style="font-size: 14px;" id="coords-display">
-            <i class="fas fa-crosshairs me-1"></i>
+            <i class="fas fa-crosshairs ml-1"></i>
             لم يتم تحديد موقع بعد
           </span>
         </div>
@@ -140,7 +140,7 @@
       <div class="card-footer">
         <div class="d-flex gap-2 justify-content-start">
           <button type="submit" class="btn btn-success">
-            <i class="fas fa-save me-1"></i> {{ branch and 'تحديث' or 'حفظ' }}
+            <i class="fas fa-save ml-1"></i> {{ branch and 'تحديث' or 'حفظ' }}
           </button>
           <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-secondary">إلغاء</a>
         </div>
@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (lat && lng) {
             coordsDisplay.innerHTML = `
-                <i class="fas fa-map-marker-alt me-1"></i>
+                <i class="fas fa-map-marker-alt ml-1"></i>
                 ${parseFloat(lat).toFixed(6)}, ${parseFloat(lng).toFixed(6)}
                 <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="text-white ms-2">
                     <i class="fas fa-external-link-alt"></i> عرض على Google Maps
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             coordsDisplay.className = 'badge bg-success p-2';
         } else {
-            coordsDisplay.innerHTML = '<i class="fas fa-crosshairs me-1"></i> لم يتم تحديد موقع بعد';
+            coordsDisplay.innerHTML = '<i class="fas fa-crosshairs ml-1"></i> لم يتم تحديد موقع بعد';
             coordsDisplay.className = 'badge bg-secondary p-2';
         }
     }

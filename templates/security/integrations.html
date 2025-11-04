@@ -1,6 +1,9 @@
-{% extends 'base.html' %}
-{% block title %}🔌 مركز التكامل - Integration Center{% endblock %}
-{% block page_title %}🔌 مركز التكامل مع الأجهزة والأنظمة الخارجية{% endblock %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}integrations{% endblock %}
+{% block security_title %}Integrations{% endblock %}
+{% block security_icon %}<i class="fas fa-plug"></i>{% endblock %}
+{% block security_description %}التكامل مع الأجهزة والأنظمة الخارجية - POS • طابعات • API{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Integrations</li>{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -745,7 +748,7 @@
     <!-- Back Button -->
     <div class="row">
         <div class="col-12">
-            <a href="{{ url_for('security.dashboard') }}" class="btn btn-secondary">
+            <a href="{{ url_for('security.index') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-right"></i> العودة للوحة السرية
             </a>
         </div>

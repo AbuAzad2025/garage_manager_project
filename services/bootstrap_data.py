@@ -13,8 +13,10 @@ def _json_dumps(obj: Any) -> str:
 
 def seed_core_expense_types(db):
     """
-    زرع/تحديث أنواع المصاريف الأساسية دائماً عند الإقلاع (idempotent).
-    لا يعتمد على ملفات التهجير؛ آمن للتشغيل عدة مرات.
+    ✅ Bootstrap: أنواع المصاريف الأساسية
+    - يعمل مرة واحدة فقط عند أول تشغيل
+    - لا يعدل الأنواع الموجودة (يحترم التعديلات اليدوية)
+    - يمكن إضافة أنواع جديدة من الواجهة بعد التشغيل
     """
     from models import ExpenseType
     
@@ -45,11 +47,14 @@ def seed_core_expense_types(db):
         ("SHIP_HANDLING", "مناولة وأرضيات", {"required": ["shipment_id"], "optional": ["description"]}),
         ("SHIP_PORT_FEES", "رسوم موانئ", {"required": ["shipment_id"], "optional": ["description"]}),
         ("SHIP_STORAGE", "تخزين مؤقت", {"required": ["shipment_id"], "optional": ["description"]}),
+        ("SUPPLIER_EXPENSE", "مصروف مورد", {"required": ["supplier_id"], "optional": ["description", "beneficiary_name"]}),
+        ("PARTNER_EXPENSE", "مصروف شريك", {"required": ["partner_id"], "optional": ["description", "beneficiary_name"]}),
         ("OTHER", "أخرى", {"required": [], "optional": ["beneficiary_name", "description"]}),
     ]
 
     default_gl_map = {
         "SALARY": "6100_SALARIES",
+        "EMPLOYEE_ADVANCE": "6110_EMPLOYEE_ADVANCES",
         "RENT": "6200_RENT",
         "UTILITIES": "6300_UTILITIES",
         "MAINTENANCE": "6400_MAINTENANCE",
@@ -62,12 +67,12 @@ def seed_core_expense_types(db):
         "MARKETING": "6920_MARKETING",
         "SOFTWARE": "6930_SOFTWARE",
         "BANK_FEES": "6940_BANK_FEES",
-        "OTHER": "5000_EXPENSES",
-        "EMPLOYEE_ADVANCE": "6110_EMPLOYEE_ADVANCES",
         "HOSPITALITY": "6950_HOSPITALITY",
         "HOME_EXPENSE": "6960_HOME_EXPENSE",
         "OWNERS_EXPENSE": "6970_OWNERS_EXPENSE",
         "ENTERTAINMENT": "6980_ENTERTAINMENT",
+        "SUPPLIER_EXPENSE": "5100_SUPPLIER_EXPENSES",
+        "PARTNER_EXPENSE": "5200_PARTNER_EXPENSES",
         "SHIP_INSURANCE": "5510_SHIP_INSURANCE",
         "SHIP_CUSTOMS": "5520_SHIP_CUSTOMS",
         "SHIP_IMPORT_TAX": "5530_SHIP_IMPORT_TAX",
@@ -76,6 +81,7 @@ def seed_core_expense_types(db):
         "SHIP_HANDLING": "5560_SHIP_HANDLING",
         "SHIP_PORT_FEES": "5570_SHIP_PORT_FEES",
         "SHIP_STORAGE": "5580_SHIP_STORAGE",
+        "OTHER": "5000_EXPENSES",
     }
 
     try:
@@ -88,19 +94,26 @@ def seed_core_expense_types(db):
         except Exception:
             pass
 
+        added = 0
+        skipped = 0
+        
         for code, arabic_name, meta in base_types:
             meta = dict(meta or {})
             meta.setdefault("gl_account_code", default_gl_map.get(code))
             meta_json = _json_dumps(meta)
 
-            row = conn.execute(sa_text("SELECT id FROM expense_types WHERE code = :c OR name = :n"), {"c": code, "n": arabic_name}).fetchone()
+            row = conn.execute(sa_text("SELECT id FROM expense_types WHERE code = :c"), {"c": code}).fetchone()
+            
             if row:
-                conn.execute(sa_text("UPDATE expense_types SET name=:n, is_active=1, fields_meta=:m, code=:c WHERE id=:id"), {"n": arabic_name, "m": meta_json, "c": code, "id": row[0]})
+                skipped += 1
             else:
                 conn.execute(sa_text("INSERT INTO expense_types (name, description, is_active, code, fields_meta) VALUES (:n, :d, 1, :c, :m)"), {"n": arabic_name, "d": arabic_name, "c": code, "m": meta_json})
+                added += 1
         
         try:
             db.session.commit()
+            if added > 0:
+                print(f"✅ Bootstrap: Added {added} new expense types (skipped {skipped} existing)")
         except:
             db.session.rollback()
     except Exception as e:
@@ -111,13 +124,8 @@ def seed_core_expense_types(db):
                 meta.setdefault("gl_account_code", default_gl_map.get(code))
                 meta_json = _json_dumps(meta)
                 
-                existing = ExpenseType.query.filter((ExpenseType.code == code) | (ExpenseType.name == arabic_name)).first()
-                if existing:
-                    existing.name = arabic_name
-                    existing.fields_meta = meta_json
-                    existing.code = code
-                    existing.is_active = True
-                else:
+                existing = ExpenseType.query.filter(ExpenseType.code == code).first()
+                if not existing:
                     new_type = ExpenseType(
                         name=arabic_name,
                         description=arabic_name,

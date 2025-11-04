@@ -47,7 +47,7 @@
           <div class="col-md-6 mb-3">
             {{ form.customer_id.label(class="form-label fw-bold") }}<span class="text-danger ms-1">*</span>
             <div class="input-group">
-              {{ form.customer_id(class="form-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
+              {{ form.customer_id(class="custom-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
               <a href="{{ url_for('customers_bp.create_form', return_to=url_for('service.create_request')) }}" 
                  class="btn btn-outline-primary" title="إضافة عميل جديد" target="_blank">
                 <i class="fa fa-user-plus"></i>
@@ -70,7 +70,7 @@
           <div class="col-md-3 mb-3">
             {{ form.vehicle_type_id.label(class="form-label fw-bold") }}
             <div class="input-group">
-              {{ form.vehicle_type_id(class="form-select select2", id="vehicleTypeSelect", data_endpoint=url_for('api.search_equipment_types'), data_placeholder="اختر نوعًا أو أضف جديدًا") }}
+              {{ form.vehicle_type_id(class="custom-select select2", id="vehicleTypeSelect", data_endpoint=url_for('api.search_equipment_types'), data_placeholder="اختر نوعًا أو أضف جديدًا") }}
               <button type="button" class="btn btn-outline-primary" id="addTypeBtn" title="إضافة نوع">
                 <i class="fa fa-plus"></i>
               </button>
@@ -108,7 +108,7 @@
         <div class="row">
           <div class="col-md-4 mb-3">
             {{ form.priority.label(class="form-label fw-bold") }}
-            {{ form.priority(class="form-select") }}
+            {{ form.priority(class="custom-select") }}
           </div>
           <div class="col-md-4 mb-3">
             {{ form.estimated_duration.label(class="form-label fw-bold") }}
@@ -116,14 +116,14 @@
           </div>
           <div class="col-md-4 mb-3">
             {{ form.status.label(class="form-label fw-bold") }}
-            {{ form.status(class="form-select") }}
+            {{ form.status(class="custom-select") }}
           </div>
         </div>
 
         <div class="row">
           <div class="col-md-4 mb-3">
             {{ form.currency.label(class="form-label fw-bold") }}<span class="text-danger ms-1">*</span>
-            {{ form.currency(class="form-select") }}
+            {{ form.currency(class="custom-select") }}
             {% for e in form.currency.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
             <div class="form-text">اختر عملة الطلب، الافتراضي ILS.</div>
           </div>
@@ -137,8 +137,8 @@
       <div id="parts-list">
         {% for part in form.parts %}
         <div class="row g-2 mb-2 part-line">
-          <div class="col-md-3">{{ part.warehouse_id(class="form-select") }}</div>
-          <div class="col-md-3">{{ part.part_id(class="form-select") }}</div>
+          <div class="col-md-3">{{ part.warehouse_id(class="custom-select") }}</div>
+          <div class="col-md-3">{{ part.part_id(class="custom-select") }}</div>
           <div class="col-md-2">{{ part.quantity(class="form-control", min="1") }}</div>
           <div class="col-md-2">{{ part.unit_price(class="form-control", min="0", step="0.01") }}</div>
           <div class="col-auto d-flex align-items-center">

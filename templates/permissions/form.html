@@ -18,20 +18,9 @@
     {% endif %}
   {% endwith %}
 
-  {# قائمة الأكواد المحجوزة #}
-  {% set reserved = [
-    'backup_database','restore_database','manage_permissions','manage_roles','manage_users',
-    'manage_customers','manage_sales','manage_service','manage_reports','view_reports',
-    'manage_vendors','manage_shipments','manage_warehouses','view_warehouses','manage_exchange',
-    'manage_payments','manage_expenses','view_inventory','manage_inventory','warehouse_transfer',
-    'view_parts','view_preorders','add_preorder','edit_preorder','delete_preorder',
-    'add_customer','add_supplier','add_partner','place_online_order','view_shop','browse_products','manage_shop',
-    'access_api','manage_api','view_notes','manage_notes','view_barcode','manage_barcode'
-  ] %}
-
   {% set code_norm = (perm.code if perm and perm.code else '')|lower %}
-  {% set is_reserved = code_norm in reserved %}
-  {% set is_protected = (perm and perm.protected) or is_reserved %}
+  {% set is_reserved = code_norm in (protected_codes or []) %}
+  {% set is_protected = (perm and perm.is_protected) or is_reserved %}
 
   {% if is_protected %}
     <div class="alert alert-info">هذا الإذن محمي/محجوز؛ تم تعطيل تعديل الحقول للحفاظ على سلامة النظام.</div>

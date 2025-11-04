@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }} - الموارد{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-users-cog"></i> موارد المشروع: {{ project.name }}</h1>
+            </div>
+            <div class="col-sm-6">
+                <button class="btn btn-primary float-left" data-toggle="modal" data-target="#addResourceModal">
+                    <i class="fas fa-plus"></i> تخصيص مورد
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="info-box bg-primary">
+                    <span class="info-box-icon"><i class="fas fa-layer-group"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">إجمالي الموارد</span>
+                        <span class="info-box-number">{{ stats.total_resources }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-danger">
+                    <span class="info-box-icon"><i class="fas fa-dollar-sign"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">إجمالي التكلفة</span>
+                        <span class="info-box-number">{{ "%.2f"|format(stats.total_cost) }} ₪</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-success">
+                    <span class="info-box-icon"><i class="fas fa-user-tie"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">موظفين</span>
+                        <span class="info-box-number">{{ stats.by_type.get('EMPLOYEE', {}).get('count', 0) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-warning">
+                    <span class="info-box-icon"><i class="fas fa-boxes"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">مواد</span>
+                        <span class="info-box-number">{{ stats.by_type.get('MATERIAL', {}).get('count', 0) }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-info">
+                    <span class="info-box-icon"><i class="fas fa-tools"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">معدات</span>
+                        <span class="info-box-number">{{ stats.by_type.get('EQUIPMENT', {}).get('count', 0) }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-users-cog"></i> قائمة الموارد المخصصة</h3>
+                <div class="card-tools">
+                    <button class="btn btn-sm btn-success" onclick="window.print()">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                    <button class="btn btn-sm btn-info" onclick="exportResources()">
+                        <i class="fas fa-file-excel"></i> تصدير Excel
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover" id="resourcesTable">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>#</th>
+                            <th>النوع</th>
+                            <th>اسم المورد</th>
+                            <th>الكمية</th>
+                            <th>التكلفة للوحدة</th>
+                            <th>إجمالي التكلفة</th>
+                            <th>تاريخ التخصيص</th>
+                            <th>ساعات مخصصة</th>
+                            <th>ساعات مستخدمة</th>
+                            <th>الحالة</th>
+                            <th>ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for resource in resources %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td>
+                                {% if resource.resource_type == 'EMPLOYEE' %}
+                                    <span class="badge badge-success"><i class="fas fa-user-tie"></i> موظف</span>
+                                {% elif resource.resource_type == 'MATERIAL' %}
+                                    <span class="badge badge-warning"><i class="fas fa-boxes"></i> مواد</span>
+                                {% elif resource.resource_type == 'EQUIPMENT' %}
+                                    <span class="badge badge-info"><i class="fas fa-tools"></i> معدات</span>
+                                {% else %}
+                                    <span class="badge badge-secondary"><i class="fas fa-handshake"></i> مقاول</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if resource.employee %}
+                                    {{ resource.employee.name }}
+                                {% elif resource.product %}
+                                    {{ resource.product.name }}
+                                {% else %}
+                                    {{ resource.resource_name }}
+                                {% endif %}
+                            </td>
+                            <td>{{ resource.quantity }}</td>
+                            <td>{{ "%.2f"|format(resource.unit_cost) }} ₪</td>
+                            <td><strong>{{ "%.2f"|format(resource.total_cost) }} ₪</strong></td>
+                            <td>{{ resource.allocation_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ resource.hours_allocated or '-' }}</td>
+                            <td>{{ resource.hours_used or '-' }}</td>
+                            <td>
+                                {% if resource.status == 'COMPLETED' %}
+                                    <span class="badge badge-success">مكتمل</span>
+                                {% elif resource.status == 'IN_USE' %}
+                                    <span class="badge badge-primary">قيد الاستخدام</span>
+                                {% elif resource.status == 'ALLOCATED' %}
+                                    <span class="badge badge-info">مخصص</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">مخطط</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ resource.notes or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="bg-light font-weight-bold">
+                            <td colspan="5" class="text-left">الإجمالي:</td>
+                            <td>{{ "%.2f"|format(stats.total_cost) }} ₪</td>
+                            <td colspan="5"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="addResourceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('project_advanced.add_resource', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title"><i class="fas fa-plus"></i> تخصيص مورد جديد</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> نوع المورد:</label>
+                                <select name="resource_type" class="form-control" id="resourceType" required onchange="toggleResourceFields()">
+                                    <option value="">-- اختر النوع --</option>
+                                    <option value="EMPLOYEE">موظف</option>
+                                    <option value="MATERIAL">مواد</option>
+                                    <option value="EQUIPMENT">معدات</option>
+                                    <option value="SUBCONTRACTOR">مقاول فرعي</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="employeeField" style="display:none;">
+                            <div class="form-group">
+                                <label>الموظف:</label>
+                                <select name="employee_id" class="form-control">
+                                    <option value="">-- اختر --</option>
+                                    {% for emp in employees %}
+                                    <option value="{{ emp.id }}">{{ emp.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="productField" style="display:none;">
+                            <div class="form-group">
+                                <label>المنتج:</label>
+                                <select name="product_id" class="form-control">
+                                    <option value="">-- اختر --</option>
+                                    {% for product in products %}
+                                    <option value="{{ product.id }}">{{ product.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <label>اسم المورد:</label>
+                                <input type="text" name="resource_name" class="form-control" placeholder="اسم المورد أو المقاول">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>المهمة:</label>
+                                <select name="task_id" class="form-control">
+                                    <option value="">-- اختر --</option>
+                                    {% for task in tasks %}
+                                    <option value="{{ task.id }}">{{ task.task_number }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> الكمية:</label>
+                                <input type="number" name="quantity" class="form-control" step="0.01" min="0" required value="1">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> التكلفة للوحدة (₪):</label>
+                                <input type="number" name="unit_cost" class="form-control" step="0.01" min="0" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>ساعات مخصصة:</label>
+                                <input type="number" name="hours_allocated" class="form-control" step="0.5" min="0" value="0">
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>ملاحظات:</label>
+                                <textarea name="notes" class="form-control" rows="2" placeholder="ملاحظات إضافية"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> تخصيص
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleResourceFields() {
+    const type = document.getElementById('resourceType').value;
+    document.getElementById('employeeField').style.display = (type === 'EMPLOYEE') ? 'block' : 'none';
+    document.getElementById('productField').style.display = (type === 'MATERIAL') ? 'block' : 'none';
+}
+
+function exportResources() {
+    window.location.href = '{{ url_for("project_advanced.resources", project_id=project.id) }}?export=excel';
+}
+</script>
+{% endblock %}
+

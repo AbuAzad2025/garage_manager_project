@@ -175,7 +175,7 @@
             </div>
         </div>
         <div class="col-md-6">
-            <select class="form-select" id="filterType">
+            <select class="custom-select" id="filterType">
                 <option value="all">جميع الأنواع</option>
                 <option value="ASSET">الأصول فقط</option>
                 <option value="LIABILITY">الخصوم فقط</option>
@@ -420,7 +420,7 @@ function displayAccounts(accounts) {
                     <div class="account-group-header">
                         <div class="d-flex justify-content-between align-items-center">
                             <h4>
-                                <span class="me-2">${typeIcons[type]}</span>
+                                <span class="ml-2">${typeIcons[type]}</span>
                                 ${typeDescriptions[type]}
                             </h4>
                             <span class="badge bg-white text-dark">${grouped[type].length} حساب</span>

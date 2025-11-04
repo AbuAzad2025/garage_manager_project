@@ -18,6 +18,7 @@ from flask import Blueprint, render_template, request, jsonify, redirect, url_fo
 from flask_login import login_required, current_user
 from functools import wraps
 from datetime import datetime
+from typing import List, Dict
 import json
 import os
 
@@ -58,7 +59,7 @@ def owner_only(f):
 
 
 def ai_access(f):
-    """وصول للمساعد - المالك والمدراء"""
+    """وصول للمساعد - حسب الإعدادات"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
@@ -69,8 +70,17 @@ def ai_access(f):
         if current_user.is_system_account or current_user.username == '__OWNER__':
             return f(*args, **kwargs)
         
-        # المدراء لديهم وصول
-        if current_user.role and current_user.role.name in ['manager', 'مدير', 'admin']:
+        # فحص إذا كان المساعد مفعّل
+        from AI.engine.ai_permissions import is_ai_enabled, is_ai_visible_to_role
+        
+        if not is_ai_enabled():
+            flash('⛔ المساعد الذكي معطّل حالياً', 'warning')
+            return redirect(url_for('main.index'))
+        
+        # فحص الدور
+        role_name = current_user.role.name if current_user.role else 'guest'
+        
+        if is_ai_visible_to_role(role_name):
             return f(*args, **kwargs)
         
         flash('⛔ غير مصرح لك بالوصول للمساعد الذكي', 'danger')
@@ -116,26 +126,49 @@ def hub():
 def assistant():
     """
     💬 AI Assistant - المساعد المباشر
+    
+    يدعم:
+    - محادثة تفاعلية
+    - أسئلة بالعربية
+    - تنفيذ عمليات
+    - شرح أي رقم
+    - تحليل محاسبي
     """
     if request.method == 'POST':
         query = request.form.get('query', '').strip()
         
-        if query:
-            # تحليل السؤال والرد
-            analysis = _analyze_query(query)
+        if not query:
+            flash('⚠️ الرجاء إدخال سؤال', 'warning')
+            return redirect(url_for('ai.assistant'))
+        
+        try:
+            response = ai_chat_with_search(
+                message=query,
+                session_id=f"user_{current_user.id}"
+            )
+            
+            # حفظ المحادثة
+            _save_conversation(query, response)
             
             return render_template(
                 'ai/ai_assistant.html',
                 query=query,
-                analysis=analysis
+                response=response,
+                suggestions=_get_ai_suggestions()
             )
+        
+        except Exception as e:
+            flash(f'❌ خطأ: {str(e)}', 'danger')
+            return redirect(url_for('ai.assistant'))
     
     # GET request - عرض الصفحة مع اقتراحات
     suggestions = _get_ai_suggestions()
+    recent_conversations = _get_recent_conversations(limit=5)
     
     return render_template(
         'ai/ai_assistant.html',
-        suggestions=suggestions
+        suggestions=suggestions,
+        recent_conversations=recent_conversations
     )
 
 
@@ -156,17 +189,20 @@ def chat():
                 'error': 'الرسالة فارغة'
             }), 400
         
-        # استخدام خدمة AI المركزية
         response = ai_chat_with_search(
             message=message,
             session_id=f"user_{current_user.id}"
         )
         
+        # حفظ المحادثة
+        _save_conversation(message, response)
+        
         return jsonify({
             'success': True,
             'response': response.get('response', 'عذراً، لم أتمكن من الإجابة'),
             'confidence': response.get('confidence', 0),
-            'sources': response.get('sources', [])
+            'sources': response.get('sources', []),
+            'timestamp': datetime.now().isoformat()
         })
         
     except Exception as e:
@@ -374,8 +410,39 @@ def analytics_queries():
     """
     period = request.args.get('period', '7days')
     
-    # TODO: جلب البيانات الفعلية من ai_interactions.json
+    # جلب البيانات الفعلية من ai_interactions.json
+    try:
+        interactions_file = 'AI/data/ai_interactions.json'
+        
+        if os.path.exists(interactions_file):
+            with open(interactions_file, 'r', encoding='utf-8') as f:
+                interactions = json.load(f)
+                
+                # تجميع حسب اليوم
+                from collections import defaultdict
+                daily_counts = defaultdict(int)
+                
+                for interaction in interactions[-100:]:  # آخر 100
+                    timestamp = interaction.get('timestamp', '')
+                    if timestamp:
+                        day = timestamp[:10]  # YYYY-MM-DD
+                        daily_counts[day] += 1
+                
+                # آخر 7 أيام
+                labels = list(daily_counts.keys())[-7:]
+                values = [daily_counts[day] for day in labels]
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'labels': labels,
+                        'values': values
+                    }
+                })
+    except:
+        pass
     
+    # Fallback data
     return jsonify({
         'success': True,
         'data': {
@@ -390,6 +457,33 @@ def analytics_queries():
 # ============================================================
 
 def _get_ai_stats():
+    try:
+        from AI.engine.ai_performance_tracker import get_performance_tracker
+        from AI.engine.ai_self_evolution import get_evolution_engine
+        from AI.engine.ai_learning_system import get_learning_system
+        
+        tracker = get_performance_tracker()
+        evolution = get_evolution_engine()
+        learning = get_learning_system()
+        
+        perf = tracker.get_performance_report()
+        evo = evolution.get_evolution_report()
+        learn = learning.get_learning_stats()
+        
+        return {
+            'total_interactions': perf.get('total_queries', 0),
+            'success_rate': perf.get('success_rate', 0),
+            'avg_confidence': perf.get('avg_confidence', 0),
+            'evolution_level': evo.get('evolution_level', 1),
+            'learned_queries': learn.get('total_learned_queries', 0)
+        }
+    except:
+        pass
+    
+    return {'total_interactions': 0, 'success_rate': 0, 'avg_confidence': 0}
+
+
+def _get_ai_stats_old():
     """جمع إحصائيات AI"""
     try:
         interactions_file = 'AI/data/ai_interactions.json'
@@ -436,6 +530,17 @@ def _get_ai_stats():
 
 
 def _get_system_stats():
+    try:
+        from AI.engine.ai_service import gather_system_context
+        ctx = gather_system_context()
+        return ctx
+    except:
+        pass
+    
+    return {}
+
+
+def _get_system_stats_old():
     """إحصائيات النظام"""
     try:
         from AI.engine.ai_auto_discovery import load_system_map
@@ -445,8 +550,8 @@ def _get_system_stats():
             return {
                 'total_routes': system_map.get('statistics', {}).get('total_routes', 0),
                 'total_templates': system_map.get('statistics', {}).get('total_templates', 0),
-                'total_models': 45,  # TODO: حساب من ai_data_schema.json
-                'total_relationships': 120
+                'total_models': len(system_map.get('models', [])) if system_map.get('models') else 45,
+                'total_relationships': len(system_map.get('relationships', [])) if system_map.get('relationships') else 120
             }
     except:
         pass
@@ -481,6 +586,44 @@ def _get_recent_queries(limit=5):
 
 
 def _get_predictions():
+    try:
+        from AI.engine.ai_performance_tracker import get_performance_tracker
+        tracker = get_performance_tracker()
+        report = tracker.get_performance_report()
+        
+        trend = report.get('recent_trend', 'stable')
+        
+        predictions = []
+        
+        if trend == 'improving':
+            predictions.append({
+                'type': 'positive',
+                'message': 'الأداء في تحسن مستمر',
+                'icon': 'arrow-up'
+            })
+        elif trend == 'declining':
+            predictions.append({
+                'type': 'warning',
+                'message': 'الأداء في تراجع - يحتاج مراجعة',
+                'icon': 'arrow-down'
+            })
+        
+        success_rate = report.get('success_rate', 0)
+        if success_rate >= 90:
+            predictions.append({
+                'type': 'success',
+                'message': f'نسبة نجاح ممتازة: {success_rate}%',
+                'icon': 'check-circle'
+            })
+        
+        return predictions
+    except:
+        pass
+    
+    return []
+
+
+def _get_predictions_old():
     """التنبؤات المتاحة"""
     return [
         {'type': 'مبيعات', 'period': 'الشهر القادم', 'value': '+15%', 'confidence': 87},
@@ -493,6 +636,60 @@ def _check_api_keys():
     """التحقق من تفعيل API keys"""
     configured = list_configured_apis()
     return len(configured) > 0
+
+
+def _save_conversation(query: str, response: dict):
+    """حفظ المحادثة في السجل"""
+    try:
+        conversations_file = 'AI/data/conversations.json'
+        os.makedirs('AI/data', exist_ok=True)
+        
+        if os.path.exists(conversations_file):
+            with open(conversations_file, 'r', encoding='utf-8') as f:
+                conversations = json.load(f)
+        else:
+            conversations = []
+        
+        conversations.append({
+            'user_id': current_user.id,
+            'username': current_user.username,
+            'query': query,
+            'response': response.get('response', ''),
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        # الاحتفاظ بآخر 1000 محادثة
+        conversations = conversations[-1000:]
+        
+        with open(conversations_file, 'w', encoding='utf-8') as f:
+            json.dump(conversations, f, ensure_ascii=False, indent=2)
+    
+    except Exception as e:
+        print(f"Error saving conversation: {e}")
+
+
+def _get_recent_conversations(limit: int = 5) -> List[Dict]:
+    """الحصول على آخر المحادثات"""
+    try:
+        conversations_file = 'AI/data/conversations.json'
+        
+        if os.path.exists(conversations_file):
+            with open(conversations_file, 'r', encoding='utf-8') as f:
+                conversations = json.load(f)
+                
+            # فلترة حسب المستخدم الحالي
+            user_conversations = [
+                c for c in conversations 
+                if c.get('user_id') == current_user.id
+            ]
+            
+            return user_conversations[-limit:]
+        
+        return []
+    
+    except Exception as e:
+        print(f"Error loading conversations: {e}")
+        return []
 
 
 def _get_ai_suggestions():

@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block title %}لوحة مراكز التكلفة{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-chart-pie text-primary"></i> لوحة مراكز التكلفة</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cost_centers.index') }}">مراكز التكلفة</a></li>
+                    <li class="breadcrumb-item active">لوحة التحكم</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>{{ stats.total_centers }}</h3>
+                <p>مراكز التكلفة النشطة</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-sitemap"></i>
+            </div>
+            <a href="{{ url_for('cost_centers.index') }}" class="small-box-footer">
+                عرض المراكز <i class="fas fa-arrow-circle-left"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3>{{ "{:,.0f}".format(stats.total_budget) }} ₪</h3>
+                <p>إجمالي الميزانية</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-dollar-sign"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="small-box {% if stats.budget_usage < 80 %}bg-primary{% elif stats.budget_usage < 100 %}bg-warning{% else %}bg-danger{% endif %}">
+            <div class="inner">
+                <h3>{{ "{:,.0f}".format(stats.total_allocated) }} ₪</h3>
+                <p>إجمالي المنصرف ({{ "{:.1f}".format(stats.budget_usage) }}%)</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3>{{ stats.active_alerts }}</h3>
+                <p>تنبيهات نشطة</p>
+                <small>{{ stats.triggered_today }} تنبيه اليوم</small>
+            </div>
+            <div class="icon">
+                <i class="fas fa-bell"></i>
+            </div>
+            <a href="{{ url_for('cost_centers_advanced.alerts_list') }}" class="small-box-footer">
+                إدارة التنبيهات <i class="fas fa-arrow-circle-left"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if over_budget %}
+<div class="alert alert-danger">
+    <h5><i class="fas fa-exclamation-triangle"></i> تحذير: {{ stats.over_budget_count }} مركز تجاوز الميزانية!</h5>
+    <ul class="mb-0">
+        {% for item in over_budget %}
+        <li>
+            <strong>{{ item.center.name }}</strong>: 
+            تجاوز بمقدار {{ "{:,.2f}".format(item.excess) }} ₪ 
+            (<span class="text-danger">+{{ "{:.1f}".format(item.excess_percent) }}%</span>)
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h3 class="card-title"><i class="fas fa-trophy"></i> أعلى 5 مراكز استهلاكاً</h3>
+    </div>
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>الرمز</th>
+                    <th>اسم المركز</th>
+                    <th>الميزانية</th>
+                    <th>المنصرف</th>
+                    <th>نسبة الاستهلاك</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in top_consumers %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item[0].code }}</td>
+                    <td>{{ item[0].name }}</td>
+                    <td>{{ "{:,.2f}".format(item[0].budget_amount or 0) }} ₪</td>
+                    <td>{{ "{:,.2f}".format(item[1]) }} ₪</td>
+                    <td>
+                        {% set usage = (item[1] / (item[0].budget_amount or 1)) * 100 %}
+                        <div class="progress">
+                            <div class="progress-bar {% if usage < 80 %}bg-success{% elif usage < 100 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 style="width: {{ usage if usage <= 100 else 100 }}%">
+                                {{ "{:.1f}".format(usage) }}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('cost_centers.view', id=item[0].id) }}" class="btn btn-sm btn-info">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h3 class="card-title"><i class="fas fa-chart-line"></i> روابط سريعة</h3>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{{ url_for('cost_centers.index') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-sitemap text-info"></i> عرض جميع المراكز
+                    </a>
+                    <a href="{{ url_for('cost_centers.add') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-plus text-success"></i> إضافة مركز تكلفة
+                    </a>
+                    <a href="{{ url_for('cost_centers_advanced.alerts_list') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-bell text-warning"></i> إدارة التنبيهات
+                    </a>
+                    <a href="{{ url_for('cost_centers_advanced.allocation_rules') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-random text-primary"></i> قواعد التوزيع التلقائي
+                    </a>
+                    <a href="{{ url_for('cost_centers_advanced.report_trends') }}" class="list-group-item list-group-item-action">
+                        <i class="fas fa-chart-area text-danger"></i> تقرير الاتجاهات
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-warning text-white">
+                <h3 class="card-title"><i class="fas fa-info-circle"></i> الملخص المالي</h3>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-6">إجمالي الميزانية:</dt>
+                    <dd class="col-sm-6 text-success">{{ "{:,.2f}".format(stats.total_budget) }} ₪</dd>
+                    
+                    <dt class="col-sm-6">إجمالي المنصرف:</dt>
+                    <dd class="col-sm-6 text-danger">{{ "{:,.2f}".format(stats.total_allocated) }} ₪</dd>
+                    
+                    <dt class="col-sm-6">المتبقي:</dt>
+                    <dd class="col-sm-6 {% if stats.budget_remaining > 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ "{:,.2f}".format(stats.budget_remaining) }} ₪
+                    </dd>
+                    
+                    <dt class="col-sm-6">نسبة الاستهلاك:</dt>
+                    <dd class="col-sm-6">
+                        <div class="progress">
+                            <div class="progress-bar {% if stats.budget_usage < 80 %}bg-success{% elif stats.budget_usage < 100 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 style="width: {{ stats.budget_usage if stats.budget_usage <= 100 else 100 }}%">
+                                {{ "{:.1f}".format(stats.budget_usage) }}%
+                            </div>
+                        </div>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    console.log('Cost Centers Dashboard loaded successfully');
+});
+</script>
+{% endblock %}
+
+

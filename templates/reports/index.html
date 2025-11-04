@@ -18,7 +18,7 @@
         <div class="d-flex justify-content-between">
           <div>
             <h6 class="mb-1" style="color: rgba(255,255,255,0.9); font-weight: 600;">إجمالي التقارير</h6>
-            <h3 class="mb-0 fw-bold" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">15</h3>
+            <h3 class="mb-0 fw-bold" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">18</h3>
             <small style="color: rgba(255,255,255,0.8);">تقارير متاحة</small>
           </div>
           <div class="align-self-center">
@@ -35,8 +35,8 @@
         <div class="d-flex justify-content-between">
           <div>
             <h6 class="mb-1" style="color: rgba(255,255,255,0.9); font-weight: 600;">تقارير مالية</h6>
-            <h3 class="mb-0 fw-bold" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">8</h3>
-            <small style="color: rgba(255,255,255,0.8);">مبيعات، دفعات، أرباح</small>
+            <h3 class="mb-0 fw-bold" style="color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">12</h3>
+            <small style="color: rgba(255,255,255,0.8);">مبيعات، دفعات، أرباح، فواتير</small>
           </div>
           <div class="align-self-center">
             <i class="fas fa-dollar-sign fa-2x" style="opacity: 0.4; color: white;"></i>
@@ -229,6 +229,46 @@
         <i class="fas fa-tools"></i>
         <h5>تقارير الصيانة</h5>
         <p>عدد / إيراد / قطع / أجور</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.invoices_report') }}">
+      <div class="report-card invoices h-100 w-100">
+        <i class="fas fa-file-invoice-dollar"></i>
+        <h5>الفواتير</h5>
+        <p>شاملة / مدفوع / متأخرة</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.preorders_report') }}">
+      <div class="report-card preorders h-100 w-100">
+        <i class="fas fa-clipboard-list"></i>
+        <h5>الطلبيات المسبقة</h5>
+        <p>طلبيات / مدفوع / متبقي</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.profit_loss_report') }}">
+      <div class="report-card profit h-100 w-100">
+        <i class="fas fa-chart-line"></i>
+        <h5>الأرباح والخسائر</h5>
+        <p>P&L / هامش الربح</p>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-3 col-sm-6 d-flex align-items-stretch">
+    <a class="text-decoration-none w-100" href="{{ url_for('reports_bp.cash_flow_report') }}">
+      <div class="report-card cashflow h-100 w-100">
+        <i class="fas fa-money-bill-wave"></i>
+        <h5>التدفقات النقدية</h5>
+        <p>Cash Flow / وارد / صادر</p>
       </div>
     </a>
   </div>

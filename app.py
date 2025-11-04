@@ -15,7 +15,7 @@ from config import Config, ensure_runtime_dirs, assert_production_sanity
 from extensions import db, migrate, login_manager, socketio, mail, csrf, limiter, setup_logging, setup_sentry
 from extensions import init_extensions
 import utils
-from models import User, Role, Permission, Customer
+from models import User, Role, Permission, Customer, SystemSettings
 from acl import attach_acl
 
 from routes.auth import auth_bp
@@ -46,8 +46,8 @@ from routes.ledger_control import ledger_control_bp
 from routes.financial_reports import financial_reports_bp
 from routes.accounting_validation import accounting_validation_bp
 from routes.accounting_docs import accounting_docs_bp
-# from routes.ledger_ai_assistant import ai_assistant_bp  # تم حذفه - موحد مع AI Hub
-from routes.ai_routes import ai_bp  # 🤖 المساعد الذكي - ملف منفصل
+from routes.ai_routes import ai_bp
+from routes.ai_admin import ai_admin_bp
 from routes.barcode_scanner import barcode_scanner_bp
 from routes.currencies import currencies_bp
 from routes.hard_delete import hard_delete_bp
@@ -55,9 +55,19 @@ from routes.user_guide import user_guide_bp
 from routes.other_systems import other_systems_bp
 from routes.pricing import pricing_bp
 from routes.checks import checks_bp
+from routes.budgets import budgets_bp
+from routes.assets import assets_bp
+from routes.bank import bank_bp
+from routes.cost_centers import cost_centers_bp
+from routes.cost_centers_advanced import cost_centers_advanced_bp
+from routes.engineering import engineering_bp
+from routes.projects import projects_bp
+from routes.project_advanced import project_advanced_bp
+from routes.recurring_invoices import recurring_bp
 from routes.health import health_bp
 from routes.security import security_bp
 from routes.advanced_control import advanced_bp
+from routes.security_control import security_control_bp
 from routes.archive import archive_bp
 from routes.archive_routes import archive_routes_bp
 from routes.sale_returns import returns_bp
@@ -390,6 +400,13 @@ def create_app(config_object=Config) -> Flask:
     app.jinja_env.globals["get_entity_balance_in_ils"] = utils.get_entity_balance_in_ils
     app.jinja_env.globals["url_for_any"] = url_for_any
     app.jinja_env.globals["now"] = lambda: datetime.now(timezone.utc)
+    app.jinja_env.globals["get_setting"] = lambda key, default=None: SystemSettings.get_setting(key, default)
+    
+    from translations.accounting_ar import get_all_translations
+    app.jinja_env.globals["translations"] = get_all_translations()
+
+    from middleware.security_middleware import init_security_middleware
+    init_security_middleware(app)
 
     attach_acl(
         shop_bp,
@@ -468,8 +485,8 @@ def create_app(config_object=Config) -> Flask:
         hard_delete_bp,
         barcode_scanner_bp,
         ledger_control_bp,
-        # ai_assistant_bp,  # تم حذفه - موحد مع AI Hub
-        ai_bp,  # 🤖 المساعد الذكي - ملف منفصل
+        ai_bp,
+        ai_admin_bp,
         user_guide_bp,
         other_systems_bp,
         pricing_bp,
@@ -477,11 +494,21 @@ def create_app(config_object=Config) -> Flask:
         health_bp,
         security_bp,
         advanced_bp,
+        security_control_bp,
         archive_bp,
         archive_routes_bp,
         financial_reports_bp,
         accounting_validation_bp,
         accounting_docs_bp,
+        budgets_bp,
+        assets_bp,
+        bank_bp,
+        cost_centers_bp,
+        cost_centers_advanced_bp,
+        engineering_bp,
+        projects_bp,
+        project_advanced_bp,
+        recurring_bp,
     ]
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)
@@ -803,13 +830,16 @@ def create_app(config_object=Config) -> Flask:
     with app.app_context():
         try:
             from models import Role
+            from permissions_config.permissions import PermissionsRegistry
             
-            basic_roles = ['Owner', 'super_admin', 'admin', 'staff', 'mechanic', 'registered_customer']
-            
-            for role_name in basic_roles:
+            for role_name in PermissionsRegistry.ROLES.keys():
                 existing = Role.query.filter_by(name=role_name).first()
                 if not existing:
-                    role = Role(name=role_name)
+                    role_data = PermissionsRegistry.ROLES[role_name]
+                    role = Role(
+                        name=role_name,
+                        description=role_data.get('description', '')
+                    )
                     db.session.add(role)
             
             db.session.commit()
@@ -844,7 +874,7 @@ def bootstrap_database():
             if not existing:
                 new_type = ExpenseType(code=code, name=name, description=desc)
                 db.session.add(new_type)
-                current_app.logger.info(f'✅ Created ExpenseType: {code}')
+                current_app.logger.info(f'[OK] Created ExpenseType: {code}')
         
         # 3. زرع الإعدادات الافتراضية (إذا لم تكن موجودة)
         default_settings = {
@@ -860,13 +890,13 @@ def bootstrap_database():
             existing = SystemSettings.query.filter_by(key=key).first()
             if not existing:
                 SystemSettings.set_setting(key, value, desc, dtype, is_public=False)
-                current_app.logger.info(f'✅ Created setting: {key}')
+                current_app.logger.info(f'Created setting: {key}')
         
         db.session.commit()
-        current_app.logger.info('✅ Bootstrap completed successfully')
+        current_app.logger.info('Bootstrap completed successfully')
         
     except Exception as e:
-        current_app.logger.error(f'❌ Bootstrap failed: {e}')
+        current_app.logger.error(f'Bootstrap failed: {e}')
         db.session.rollback()
 
 
@@ -876,6 +906,21 @@ if __name__ == '__main__':
     # Bootstrap على أول تشغيل
     with app.app_context():
         bootstrap_database()
+    
+    # 🤖 تفعيل AI Systems
+    try:
+        # 1. Auto-Learning Scheduler
+        from AI.scheduler import start_scheduler
+        start_scheduler()
+        print("[OK] AI Auto-Learning Scheduler started")
+        
+        # 2. Real-time Monitor Event Listeners
+        from AI.engine.ai_event_listeners import register_ai_listeners
+        register_ai_listeners(app)
+        print("[OK] AI Real-time Monitor activated")
+        
+    except Exception as e:
+        print(f"[WARN] AI Systems not started: {e}")
     
     app.run(debug=True, host='0.0.0.0', port=5000)
 else:

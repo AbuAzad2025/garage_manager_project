@@ -1,0 +1,435 @@
+{% extends 'base.html' %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/security_responsive.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/security_dark_mode.css') }}">
+<style>
+.security-sidebar {
+  position: fixed;
+  top: 60px;
+  right: 0;
+  width: 280px;
+  height: calc(100vh - 60px);
+  background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
+  color: white;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.security-sidebar.collapsed {
+  transform: translateX(100%);
+}
+
+.security-content {
+  margin-right: 280px;
+  transition: margin-right 0.3s ease;
+}
+
+.security-content.expanded {
+  margin-right: 0;
+}
+
+.security-sidebar-header {
+  background: rgba(0,0,0,0.2);
+  padding: 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.security-menu-item {
+  padding: 12px 20px;
+  color: rgba(255,255,255,0.8);
+  transition: all 0.2s;
+  border-right: 3px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.security-menu-item:hover {
+  background: rgba(255,255,255,0.1);
+  color: white;
+  border-right-color: #ffc107;
+}
+
+.security-menu-item.active {
+  background: rgba(255,255,255,0.15);
+  color: white;
+  border-right-color: #28a745;
+  font-weight: bold;
+}
+
+.security-menu-category {
+  padding: 15px 20px 10px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #ffc107;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.security-toggle-btn {
+  position: fixed;
+  top: 70px;
+  left: 10px;
+  z-index: 1001;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  padding: 10px 15px;
+  border-radius: 5px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+  transition: all 0.3s ease;
+}
+
+.security-toggle-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.security-breadcrumb {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 15px 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.security-page-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 30px;
+  border-radius: 15px;
+  margin-bottom: 25px;
+  box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+}
+
+@media (max-width: 991px) {
+  .security-sidebar {
+    transform: translateX(100%);
+  }
+  
+  .security-sidebar.show {
+    transform: translateX(0);
+  }
+  
+  .security-content {
+    margin-right: 0;
+  }
+}
+
+.menu-badge {
+  margin-right: auto;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.submenu {
+  background: rgba(0,0,0,0.1);
+  display: none;
+}
+
+.submenu.show {
+  display: block;
+}
+
+.submenu .security-menu-item {
+  padding-right: 40px;
+  font-size: 13px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<script>
+document.body.dataset.tourName = '{% block tour_name %}dashboard{% endblock %}';
+</script>
+
+<button class="security-toggle-btn" id="sidebarToggle">
+  <i class="fas fa-bars"></i>
+</button>
+
+<button class="btn btn-primary" id="tourGuideBtn" style="
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 1001;
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+" title="ابدأ الجولة الإرشادية (F1)">
+  <i class="fas fa-question-circle fa-lg"></i>
+</button>
+
+<div class="security-sidebar" id="securitySidebar">
+  <div class="security-sidebar-header text-center">
+    <i class="fas fa-shield-alt fa-3x mb-2"></i>
+    <h5 class="mb-0">الوحدة السرية</h5>
+    <small class="opacity-75">Owner Access Only</small>
+  </div>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-home"></i> القائمة الرئيسية
+  </div>
+  <a href="{{ url_for('security.index') }}" class="security-menu-item {% if request.endpoint == 'security.index' %}active{% endif %}">
+    <i class="fas fa-tachometer-alt"></i>
+    <span>لوحة التحكم</span>
+  </a>
+  <a href="{{ url_for('security.sitemap') }}" class="security-menu-item {% if request.endpoint == 'security.sitemap' %}active{% endif %}">
+    <i class="fas fa-sitemap"></i>
+    <span>خريطة الموقع</span>
+  </a>
+  <a href="{{ url_for('security.help_page') }}" class="security-menu-item {% if request.endpoint == 'security.help_page' %}active{% endif %}">
+    <i class="fas fa-question-circle"></i>
+    <span>المساعدة</span>
+  </a>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-database"></i> قاعدة البيانات
+  </div>
+  <a href="{{ url_for('security.database_manager') }}" class="security-menu-item {% if 'database_manager' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-server"></i>
+    <span>Database Manager</span>
+    <span class="menu-badge bg-primary">11 أداة</span>
+  </a>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-robot"></i> الذكاء الاصطناعي
+  </div>
+  <a href="{{ url_for('ai.hub') }}" class="security-menu-item">
+    <i class="fas fa-brain"></i>
+    <span>AI Hub</span>
+  </a>
+  <a href="{{ url_for('ai_admin.ai_settings') }}" class="security-menu-item">
+    <i class="fas fa-cogs"></i>
+    <span>إعدادات AI</span>
+  </a>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-shield-alt"></i> الأمان والمراقبة
+  </div>
+  <a href="{{ url_for('security.security_center') }}" class="security-menu-item {% if request.endpoint == 'security.security_center' %}active{% endif %}">
+    <i class="fas fa-lock"></i>
+    <span>Security Center</span>
+  </a>
+  <a href="{{ url_for('security.audit_log_viewer') }}" class="security-menu-item {% if 'audit_log' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-history"></i>
+    <span>Audit Log</span>
+  </a>
+  <a href="{{ url_for('security.monitoring_dashboard') }}" class="security-menu-item {% if 'monitoring' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-chart-line"></i>
+    <span>Live Monitoring</span>
+  </a>
+  <a href="{{ url_for('security.blocked_ips') }}" class="security-menu-item {% if 'blocked_ips' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-ban"></i>
+    <span>IPs محظورة</span>
+    <span class="menu-badge bg-danger">{{ blocked_ips_count|default(0) }}</span>
+  </a>
+  <a href="{{ url_for('security.blocked_countries') }}" class="security-menu-item {% if 'blocked_countries' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-globe"></i>
+    <span>دول محظورة</span>
+  </a>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-users"></i> المستخدمين والصلاحيات
+  </div>
+  <a href="{{ url_for('security.users_center') }}" class="security-menu-item {% if request.endpoint == 'security.users_center' %}active{% endif %}">
+    <i class="fas fa-users-cog"></i>
+    <span>Users Center</span>
+  </a>
+  <a href="{{ url_for('security.user_control') }}" class="security-menu-item {% if 'user_control' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-user-shield"></i>
+    <span>User Control</span>
+  </a>
+  <a href="{{ url_for('security.permissions_manager') }}" class="security-menu-item {% if 'permissions' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-key"></i>
+    <span>Permissions</span>
+  </a>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-cog"></i> الإعدادات
+  </div>
+  <a href="{{ url_for('security.settings_center') }}" class="security-menu-item {% if 'settings_center' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-sliders-h"></i>
+    <span>Settings Center</span>
+    <span class="menu-badge bg-warning text-dark">8 أدوات</span>
+  </a>
+  <a href="{{ url_for('security.system_settings') }}" class="security-menu-item {% if 'system_settings' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-wrench"></i>
+    <span>System Settings</span>
+  </a>
+  <a href="{{ url_for('security.theme_editor') }}" class="security-menu-item {% if 'theme' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-palette"></i>
+    <span>Theme Editor</span>
+  </a>
+  <a href="{{ url_for('security.logo_manager') }}" class="security-menu-item {% if 'logo' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-image"></i>
+    <span>Logo Manager</span>
+  </a>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-chart-bar"></i> التقارير والأداء
+  </div>
+  <a href="{{ url_for('security.reports_center') }}" class="security-menu-item {% if 'reports_center' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-file-alt"></i>
+    <span>Reports Center</span>
+  </a>
+  <a href="{{ url_for('security.performance_monitor') }}" class="security-menu-item {% if 'performance' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-tachometer-alt"></i>
+    <span>Performance</span>
+  </a>
+  <a href="{{ url_for('security.tax_reports') }}" class="security-menu-item {% if 'tax' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-file-invoice-dollar"></i>
+    <span>Tax Reports</span>
+  </a>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-tools"></i> الأدوات والتكاملات
+  </div>
+  <a href="{{ url_for('security.tools_center') }}" class="security-menu-item {% if 'tools_center' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-toolbox"></i>
+    <span>Tools Center</span>
+  </a>
+  <a href="{{ url_for('security.integrations') }}" class="security-menu-item {% if 'integrations' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-plug"></i>
+    <span>Integrations</span>
+  </a>
+  <a href="{{ url_for('security.email_manager') }}" class="security-menu-item {% if 'email' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-envelope"></i>
+    <span>Email Manager</span>
+  </a>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-calculator"></i> المحاسبة المتقدمة
+  </div>
+  <a href="{{ url_for('advanced.accounting_control') }}" class="security-menu-item">
+    <i class="fas fa-calculator"></i>
+    <span>Accounting Control</span>
+  </a>
+  <a href="{{ url_for('ledger_control.index') }}" class="security-menu-item">
+    <i class="fas fa-book"></i>
+    <span>Ledger Control</span>
+  </a>
+  
+  <div class="security-menu-category">
+    <i class="fas fa-exclamation-triangle"></i> الطوارئ
+  </div>
+  <a href="{{ url_for('security.emergency_tools') }}" class="security-menu-item {% if 'emergency' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-fire-extinguisher"></i>
+    <span>Emergency Tools</span>
+    <span class="menu-badge bg-danger">!</span>
+  </a>
+  <a href="{{ url_for('security.system_cleanup') }}" class="security-menu-item {% if 'cleanup' in request.endpoint %}active{% endif %}">
+    <i class="fas fa-broom"></i>
+    <span>System Cleanup</span>
+  </a>
+  
+  <div style="height: 50px;"></div>
+</div>
+
+<div class="security-content" id="securityContent">
+  <div class="container-fluid">
+    <div class="security-breadcrumb">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('security.index') }}"><i class="fas fa-shield-alt"></i> الوحدة السرية</a></li>
+          {% block security_breadcrumb %}{% endblock %}
+        </ol>
+      </nav>
+    </div>
+    
+    <div class="security-page-header">
+      <div class="d-flex justify-content-between align-items-center flex-wrap">
+        <div>
+          <h2 class="mb-0">
+            {% block security_icon %}<i class="fas fa-shield-alt"></i>{% endblock %}
+            {% block security_title %}الوحدة السرية{% endblock %}
+          </h2>
+          <p class="mb-0 mt-2 opacity-75">{% block security_description %}وحدة التحكم الكامل للمالك{% endblock %}</p>
+        </div>
+        <div>
+          {% block security_actions %}{% endblock %}
+        </div>
+      </div>
+    </div>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show">
+            <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    
+    {% block security_content %}{% endblock %}
+  </div>
+</div>
+
+<script>
+(function() {
+  const sidebar = document.getElementById('securitySidebar');
+  const content = document.getElementById('securityContent');
+  const toggle = document.getElementById('sidebarToggle');
+  
+  toggle.addEventListener('click', function() {
+    sidebar.classList.toggle('collapsed');
+    content.classList.toggle('expanded');
+    
+    const icon = this.querySelector('i');
+    icon.classList.toggle('fa-bars');
+    icon.classList.toggle('fa-times');
+    
+    localStorage.setItem('securitySidebarCollapsed', sidebar.classList.contains('collapsed'));
+  });
+  
+  const isCollapsed = localStorage.getItem('securitySidebarCollapsed') === 'true';
+  if (isCollapsed) {
+    sidebar.classList.add('collapsed');
+    content.classList.add('expanded');
+    toggle.querySelector('i').classList.replace('fa-bars', 'fa-times');
+  }
+  
+  if (window.innerWidth < 992) {
+    sidebar.classList.add('collapsed');
+    content.classList.add('expanded');
+  }
+  
+  console.log('✅ Security Navigation Ready');
+})();
+
+(function() {
+  const tourBtn = document.getElementById('tourGuideBtn');
+  if (tourBtn) {
+    tourBtn.addEventListener('click', function() {
+      const tourName = document.body.dataset.tourName || 'dashboard';
+      if (window.SecurityTourGuide) {
+        window.SecurityTourGuide.start(tourName);
+      }
+    });
+  }
+  
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'F1') {
+      e.preventDefault();
+      tourBtn?.click();
+    }
+  });
+})();
+</script>
+
+<script src="{{ url_for('static', filename='js/security-tour-guide.js') }}"></script>
+<script src="{{ url_for('static', filename='js/security-favorites.js') }}"></script>
+<script src="{{ url_for('static', filename='js/enhanced-tabs.js') }}"></script>
+
+{% endblock %}
+

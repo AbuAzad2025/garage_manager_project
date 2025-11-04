@@ -38,11 +38,11 @@
           </p>
           <div class="hero-buttons">
             <a href="#products" class="btn btn-hero-primary">
-              <i class="fas fa-shopping-bag me-2"></i>
+              <i class="fas fa-shopping-bag ml-2"></i>
               تسوق الآن
             </a>
             <a href="#features" class="btn btn-hero-secondary">
-              <i class="fas fa-info-circle me-2"></i>
+              <i class="fas fa-info-circle ml-2"></i>
               اعرف المزيد
             </a>
           </div>
@@ -175,11 +175,11 @@
     <div class="admin-actions mb-4" data-aos="fade-up" data-aos-delay="300">
       <div class="btn-group modern-btn-group" role="group">
         <a href="{{ url_for('shop.admin_products') }}" class="btn btn-admin-primary">
-          <i class="fas fa-cogs me-2"></i> إدارة المنتجات
+          <i class="fas fa-cogs ml-2"></i> إدارة المنتجات
         </a>
         {% if has_any('view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
         <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-admin-secondary">
-          <i class="fas fa-chart-line me-2"></i> تقارير البطاقات
+          <i class="fas fa-chart-line ml-2"></i> تقارير البطاقات
         </a>
         {% endif %}
       </div>
@@ -229,7 +229,7 @@
 
             <div class="product-badges">
               <span class="price-badge">
-                <i class="fas fa-tag me-1"></i>
+                <i class="fas fa-tag ml-1"></i>
                 {{ '%.2f'|format(display_price) }} شيكل
               </span>
               {% if avail <= 0 %}
@@ -263,13 +263,13 @@
                       </button>
                     </div>
                     <button type="submit" class="add-to-cart-btn" title="احجز المنتج">
-                      <i class="fas fa-shopping-cart me-2"></i>
+                      <i class="fas fa-shopping-cart ml-2"></i>
                       احجز الآن
                     </button>
                   </form>
                 {% else %}
                   <a href="{{ url_for('auth.login') }}" class="login-to-buy-btn">
-                    <i class="fas fa-sign-in-alt me-2"></i>
+                    <i class="fas fa-sign-in-alt ml-2"></i>
                     سجّل للحجز
                   </a>
                 {% endif %}
@@ -388,7 +388,7 @@
       form.addEventListener('submit', function(e) {
         const btn = this.querySelector('.add-to-cart-btn');
         if (btn) {
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الإضافة...';
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i>جاري الإضافة...';
           btn.disabled = true;
         }
       });
@@ -404,12 +404,12 @@
           icon.className = 'fas fa-heart';
           this.style.background = 'var(--danger-color)';
           this.style.color = 'white';
-          showToast('تمت الإضافة للمفضلة', 'success');
+          console.log('تمت الإضافة للمفضلة');
         } else {
           icon.className = 'far fa-heart';
           this.style.background = 'white';
           this.style.color = 'var(--primary-color)';
-          showToast('تمت الإزالة من المفضلة', 'info');
+          console.log('تمت الإزالة من المفضلة');
         }
       });
     });
@@ -420,28 +420,12 @@
         // Allow the link to work normally - don't prevent default
         const card = this.closest('.product-card');
         const title = card.querySelector('.product-title').textContent;
-        showToast(`عرض تفاصيل: ${title}`, 'info');
+        console.log(`عرض تفاصيل: ${title}`);
       });
     });
     
-    // Toast notification system
     function showToast(message, type = 'info') {
-      const toast = document.createElement('div');
-      toast.className = `toast ${type}`;
-      toast.innerHTML = `
-        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-        ${message}
-      `;
-      
-      document.body.appendChild(toast);
-      
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(20px)';
-        setTimeout(() => {
-          document.body.removeChild(toast);
-        }, 300);
-      }, 3000);
+      return;
     }
     
     // Smooth scroll for anchor links

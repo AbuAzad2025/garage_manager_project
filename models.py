@@ -3,7 +3,7 @@ import enum
 import re, hashlib
 import json
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from decimal import Decimal, ROUND_HALF_UP
 from flask import current_app, has_request_context, request
 from flask_login import UserMixin, current_user
@@ -1516,14 +1516,14 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     password_hash = db.Column(db.String(255), nullable=False)
     role_id = db.Column(db.Integer, db.ForeignKey("roles.id"), index=True)
     is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"))
-    is_system_account = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), index=True)  # حساب نظام مخفي محمي
+    is_system_account = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), index=True)
     last_login = db.Column(db.DateTime)
     last_seen = db.Column(db.DateTime)
     last_login_ip = db.Column(db.String(64))
     login_count = db.Column(db.Integer, nullable=False, server_default=sa_text("0"))
     avatar_url = db.Column(db.String(500))
     notes_text = db.Column(db.Text)
-    role = relationship("Role", backref="users", lazy="select")  # ⚡ Changed from 'joined' to 'select' for better performance
+    role = relationship("Role", backref="users", lazy="select")
     extra_permissions = relationship(
         "Permission",
         secondary=user_permissions,
@@ -1578,7 +1578,8 @@ class User(db.Model, UserMixin, TimestampMixin, AuditMixin):
     
     @property
     def is_super_role(self) -> bool:
-        return self.role_name_l in {"developer", "owner", "super_admin"} or self.is_system
+        from permissions_config.permissions import PermissionsRegistry
+        return self.role_name_l in {r.lower() for r in PermissionsRegistry.get_super_roles()} or self.is_system
 
     @property
     def is_admin_role(self) -> bool:
@@ -2433,6 +2434,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     payments = db.relationship("Payment", back_populates="supplier")
     invoices = db.relationship("Invoice", back_populates="supplier")
     preorders = db.relationship("PreOrder", back_populates="supplier")
+    expenses = db.relationship("Expense", back_populates="supplier")
     warehouses = db.relationship("Warehouse", back_populates="supplier")
     loan_settlements = db.relationship("SupplierLoanSettlement", back_populates="supplier", cascade="all, delete-orphan")
     archived_by_user = db.relationship("User", foreign_keys=[archived_by])
@@ -2758,8 +2760,8 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
     id = db.Column(db.Integer, primary_key=True)
     code = db.Column(db.String(40), unique=True, index=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id"), nullable=False, index=True)
-    from_date = db.Column(db.DateTime, nullable=False)
-    to_date = db.Column(db.DateTime, nullable=False)
+    from_date = db.Column(db.DateTime, nullable=False, index=True)
+    to_date = db.Column(db.DateTime, nullable=False, index=True)
     currency = db.Column(db.String(10), default="ILS", nullable=False)
     
     # حقول سعر الصرف
@@ -2785,8 +2787,34 @@ class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
     total_gross = db.Column(db.Numeric(12, 2), default=0)
     total_due = db.Column(db.Numeric(12, 2), default=0)
 
+    previous_settlement_id = db.Column(db.Integer, db.ForeignKey("supplier_settlements.id"), nullable=True, index=True)
+    
+    opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    rights_exchange = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    rights_total = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    obligations_sales = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    obligations_services = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    obligations_preorders = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    obligations_expenses = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    obligations_total = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    payments_out = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    payments_in = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    payments_returns = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    payments_net = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    closing_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    is_approved = db.Column(db.Boolean, default=False, nullable=False, index=True, server_default=sa_text("0"))
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+
     supplier = db.relationship("Supplier", backref="settlements")
     lines = db.relationship("SupplierSettlementLine", back_populates="settlement", cascade="all, delete-orphan")
+    previous_settlement = db.relationship("SupplierSettlement", remote_side=[id], foreign_keys=[previous_settlement_id], backref="next_settlements")
+    approved_by_user = db.relationship("User", foreign_keys=[approved_by])
 
     __table_args__ = ()
 
@@ -3513,7 +3541,65 @@ def update_partner_balance(partner_id: int, connection=None):
     
     received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in_all)
     
-    balance = ob + sales_share_total + inventory_total - sales_to_total - services_to_total - paid_out + received_in
+    preorders_total = Decimal('0.00')
+    if partner.customer_id:
+        from models import PreOrder
+        preorders = db.session.query(PreOrder).filter(
+            PreOrder.customer_id == partner.customer_id,
+            PreOrder.status.in_(['CONFIRMED', 'COMPLETED'])
+        ).all()
+        for po in preorders:
+            preorders_total += _to_ils(po.prepaid_amount, po.currency, po.created_at)
+    
+    damaged_items_total = Decimal('0.00')
+    from models import StockAdjustment, StockAdjustmentItem, ProductPartner, Product
+    damaged_query = db.session.query(
+        StockAdjustmentItem.quantity,
+        StockAdjustmentItem.unit_cost,
+        ProductPartner.share_percent,
+        Product.currency,
+        StockAdjustment.date
+    ).join(
+        StockAdjustment, StockAdjustmentItem.adjustment_id == StockAdjustment.id
+    ).join(
+        ProductPartner, ProductPartner.product_id == StockAdjustmentItem.product_id
+    ).join(
+        Product, Product.id == StockAdjustmentItem.product_id
+    ).filter(
+        ProductPartner.partner_id == partner_id,
+        StockAdjustment.reason == 'DAMAGED',
+        ProductPartner.share_percent > 0
+    ).all()
+    for item in damaged_query:
+        partner_loss = Decimal(str(item.quantity)) * Decimal(str(item.unit_cost or 0)) * Decimal(str(item.share_percent)) / Decimal("100")
+        damaged_items_total += _to_ils(partner_loss, item.currency, item.date)
+    
+    returns_liability_total = Decimal('0.00')
+    from models import SaleReturnLine
+    return_lines = db.session.query(
+        SaleReturnLine.quantity,
+        SaleReturnLine.unit_price,
+        SaleReturn.currency,
+        SaleReturn.created_at
+    ).join(
+        SaleReturn, SaleReturnLine.sale_return_id == SaleReturn.id
+    ).filter(
+        SaleReturnLine.liability_party == 'PARTNER',
+        SaleReturn.status == 'CONFIRMED'
+    ).all()
+    for line in return_lines:
+        return_amount = Decimal(str(line.quantity or 0)) * Decimal(str(line.unit_price or 0))
+        returns_liability_total += _to_ils(return_amount, line.currency, line.created_at)
+    
+    expenses_deducted = Decimal('0.00')
+    from models import Expense
+    expenses = db.session.query(Expense).filter(
+        Expense.partner_id == partner_id
+    ).all()
+    for exp in expenses:
+        expenses_deducted += _to_ils(exp.amount, exp.currency, exp.date)
+    
+    balance = ob + sales_share_total + inventory_total + preorders_total - sales_to_total - services_to_total - damaged_items_total - returns_liability_total - expenses_deducted - paid_out + received_in
     
     if connection is None:
         connection = db.session.connection()
@@ -3710,7 +3796,6 @@ class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
     to_date = db.Column(db.DateTime, nullable=False, index=True)
     currency = db.Column(db.String(10), default="ILS", nullable=False)
     
-    # حقول سعر الصرف
     fx_rate_used = db.Column(db.Numeric(10, 6))
     fx_rate_source = db.Column(db.String(20))
     fx_rate_timestamp = db.Column(db.DateTime)
@@ -3724,8 +3809,36 @@ class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
     total_costs = db.Column(db.Numeric(12, 2), default=0, nullable=False)
     total_due = db.Column(db.Numeric(12, 2), default=0, nullable=False)
 
+    previous_settlement_id = db.Column(db.Integer, db.ForeignKey("partner_settlements.id"), nullable=True, index=True)
+    
+    opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    rights_inventory = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    rights_sales_share = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    rights_preorders = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    rights_total = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    obligations_sales_to_partner = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    obligations_services = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    obligations_damaged = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    obligations_expenses = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    obligations_returns = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    obligations_total = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    payments_out = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    payments_in = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    payments_net = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    closing_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
+    
+    is_approved = db.Column(db.Boolean, default=False, nullable=False, index=True, server_default=sa_text("0"))
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+
     partner = db.relationship("Partner", backref="settlements")
     lines = db.relationship("PartnerSettlementLine", back_populates="settlement", cascade="all, delete-orphan")
+    previous_settlement = db.relationship("PartnerSettlement", remote_side=[id], foreign_keys=[previous_settlement_id], backref="next_settlements")
+    approved_by_user = db.relationship("User", foreign_keys=[approved_by])
 
     __table_args__ = ()
 
@@ -3787,6 +3900,19 @@ def _ps_before_update(_m, _c, t: PartnerSettlement):
         t.ensure_code()
     if t.from_date and t.to_date and t.to_date < t.from_date:
         t.from_date, t.to_date = t.to_date, t.from_date
+
+@event.listens_for(PartnerSettlement, "after_update", propagate=True)
+def _ps_after_update_approved(mapper, connection, target: PartnerSettlement):
+    try:
+        if target.is_approved and target.partner_id:
+            from sqlalchemy import text as sa_text
+            connection.execute(
+                sa_text("UPDATE partners SET opening_balance = :ob WHERE id = :pid"),
+                {"ob": float(target.closing_balance or 0), "pid": target.partner_id}
+            )
+            update_partner_balance(target.partner_id, connection)
+    except:
+        pass
 
 
 class PartnerSettlementLine(db.Model, TimestampMixin):
@@ -4200,6 +4326,8 @@ class EmployeeAdvanceInstallment(db.Model, TimestampMixin, AuditMixin):
     employee = relationship('Employee', back_populates='advance_installments')
     advance_expense = relationship('Expense', foreign_keys=[advance_expense_id])
     salary_expense = relationship('Expense', foreign_keys=[paid_in_salary_expense_id])
+    
+    __table_args__ = ()
 
 
 class EquipmentType(db.Model, TimestampMixin):
@@ -7622,14 +7750,10 @@ def _update_partner_supplier_balance_on_payment(mapper, connection, target: "Pay
 @event.listens_for(Payment, "after_update", propagate=True)
 @event.listens_for(Payment, "after_delete", propagate=True)
 def _update_sale_on_payment_change(mapper, connection, target: "Payment"):
-    """تحديث total_paid و balance_due في Sale عند تغيير Payment"""
     if hasattr(target, 'sale_id') and target.sale_id:
         _update_sale_payment_totals(connection, target.sale_id)
 
 
-# ===== تحديث total_paid و balance_due في Invoices تلقائياً =====
-# ملاحظة: جدول invoices لا يحتوي على أعمدة total_paid و balance_due
-# لذلك تم تعطيل التحديث التلقائي للفواتير عند تغيير الدفعات
 
 
 def _avg_cost_until(product_id: int, supplier_id: int, as_of: datetime) -> Decimal:
@@ -9952,6 +10076,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     employee_id = db.Column(db.Integer, db.ForeignKey("employees.id", ondelete="SET NULL"), index=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"), index=True)
     partner_id = db.Column(db.Integer, db.ForeignKey("partners.id", ondelete="SET NULL"), index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id", ondelete="SET NULL"), index=True)
     shipment_id = db.Column(db.Integer, db.ForeignKey("shipments.id", ondelete="SET NULL"), index=True)
     utility_account_id = db.Column(db.Integer, db.ForeignKey("utility_accounts.id", ondelete="SET NULL"), index=True)
     stock_adjustment_id = db.Column(db.Integer, db.ForeignKey("stock_adjustments.id", ondelete="SET NULL"), index=True)
@@ -9962,6 +10087,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
 
     beneficiary_name = db.Column(db.String(200))
     paid_to = db.Column(db.String(200), index=True)
+    disbursed_by = db.Column(db.String(200))
 
     period_start = db.Column(db.Date, index=True)
     period_end = db.Column(db.Date, index=True)
@@ -10002,6 +10128,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     type = relationship("ExpenseType", back_populates="expenses")
     warehouse = relationship("Warehouse", back_populates="expenses")
     partner = relationship("Partner", back_populates="expenses")
+    supplier = relationship("Supplier", back_populates="expenses")
     shipment = relationship("Shipment", back_populates="expenses")
     utility_account = relationship("UtilityAccount", back_populates="expenses")
     stock_adjustment = relationship("StockAdjustment", back_populates="expense")
@@ -10018,10 +10145,11 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     __table_args__ = (
         db.CheckConstraint("amount >= 0", name="chk_expense_amount_non_negative"),
         db.CheckConstraint("payment_method IN ('cash','cheque','bank','card','online','other')", name="chk_expense_payment_method_allowed"),
-        CheckConstraint("payee_type IN ('EMPLOYEE','SUPPLIER','UTILITY','OTHER')", name="ck_expense_payee_type_allowed"),
+        CheckConstraint("payee_type IN ('EMPLOYEE','SUPPLIER','PARTNER','UTILITY','OTHER')", name="ck_expense_payee_type_allowed"),
         db.UniqueConstraint("stock_adjustment_id", name="uq_expenses_stock_adjustment_id"),
         db.Index("ix_expense_type_date", "type_id", "date"),
         db.Index("ix_expense_partner_date", "partner_id", "date"),
+        db.Index("ix_expense_supplier_date", "supplier_id", "date"),
         db.Index("ix_expense_shipment_date", "shipment_id", "date"),
     )
 
@@ -10983,6 +11111,8 @@ PAYMENT_GL_MAP = {
 GL_ACCOUNTS = {
     "AR": "1100_AR",
     "REV": "4000_SALES",
+    "SALES": "4000_SALES",
+    "SERVICE_REV": "4100_SERVICE_REVENUE",
     "VAT": "2100_VAT_PAYABLE",
     "CASH": "1000_CASH",
     "BANK": "1010_BANK",
@@ -10991,6 +11121,8 @@ GL_ACCOUNTS = {
     "EXP": "5000_EXPENSES",
     "INV_EXCHANGE": "1205_INV_EXCHANGE",
     "COGS_EXCHANGE": "5105_COGS_EXCHANGE",
+    "DEPRECIATION_EXP": "6800_DEPRECIATION",
+    "ACCUMULATED_DEP": "1599_ACCUMULATED_DEPRECIATION",
 }
 
 
@@ -11898,3 +12030,1576 @@ class SaaSInvoice(db.Model, TimestampMixin):
     
     def __repr__(self):
         return f"<SaaSInvoice {self.invoice_number}>"
+
+
+class RecurringInvoiceTemplate(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "recurring_invoice_templates"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    template_name = db.Column(db.String(200), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False, index=True)
+    description = db.Column(db.Text)
+    amount = db.Column(db.Numeric(15, 2), nullable=False)
+    currency = db.Column(db.String(10), default='ILS', nullable=False)
+    tax_rate = db.Column(db.Numeric(5, 2), default=0)
+    frequency = db.Column(db.String(20), nullable=False, index=True)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date)
+    next_invoice_date = db.Column(db.Date, index=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, server_default=sa_text("1"), index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False, index=True)
+    site_id = db.Column(db.Integer, db.ForeignKey('sites.id'), index=True)
+    
+    customer = db.relationship('Customer', backref='recurring_templates')
+    branch = db.relationship('Branch')
+    site = db.relationship('Site')
+    schedules = db.relationship('RecurringInvoiceSchedule', back_populates='template', cascade='all, delete-orphan')
+    
+    __table_args__ = (
+        db.CheckConstraint('amount >= 0', name='ck_recurring_amount_ge_0'),
+        db.CheckConstraint("frequency IN ('DAILY','WEEKLY','MONTHLY','QUARTERLY','YEARLY')", name='ck_recurring_frequency'),
+    )
+    
+    def __repr__(self):
+        return f"<RecurringTemplate {self.template_name}>"
+
+
+class RecurringInvoiceSchedule(db.Model, TimestampMixin):
+    __tablename__ = "recurring_invoice_schedules"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(db.Integer, db.ForeignKey('recurring_invoice_templates.id', ondelete='CASCADE'), nullable=False, index=True)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoices.id'), index=True)
+    scheduled_date = db.Column(db.Date, nullable=False, index=True)
+    generated_at = db.Column(db.DateTime)
+    status = db.Column(db.String(20), default='PENDING', nullable=False, index=True)
+    error_message = db.Column(db.Text)
+    
+    template = db.relationship('RecurringInvoiceTemplate', back_populates='schedules')
+    invoice = db.relationship('Invoice')
+    
+    __table_args__ = (
+        db.CheckConstraint("status IN ('PENDING','GENERATED','FAILED','SKIPPED')", name='ck_schedule_status'),
+    )
+    
+    def __repr__(self):
+        return f"<RecurringSchedule {self.scheduled_date} - {self.status}>"
+
+
+class Budget(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "budgets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fiscal_year = db.Column(db.Integer, nullable=False, index=True)
+    account_code = db.Column(db.String(20), db.ForeignKey("accounts.code", ondelete="RESTRICT"), nullable=False, index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id", ondelete="CASCADE"), index=True)
+    site_id = db.Column(db.Integer, db.ForeignKey("sites.id", ondelete="CASCADE"), index=True)
+    
+    allocated_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    notes = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), index=True)
+    
+    account = db.relationship("Account", backref=db.backref("budgets", lazy="dynamic"))
+    branch = db.relationship("Branch", backref=db.backref("budgets", lazy="dynamic"))
+    site = db.relationship("Site", backref=db.backref("budgets", lazy="dynamic"))
+
+    __table_args__ = (
+        db.UniqueConstraint("fiscal_year", "account_code", "branch_id", "site_id", name="uq_budget_year_account_branch_site"),
+        db.Index("ix_budget_year_branch", "fiscal_year", "branch_id"),
+        db.Index("ix_budget_year_account", "fiscal_year", "account_code"),
+        db.CheckConstraint("allocated_amount >= 0", name="ck_budget_allocated_ge_0"),
+    )
+
+    def get_actual_amount(self):
+        from sqlalchemy import func
+        expenses = db.session.query(func.sum(Expense.amount)).filter(
+            db.extract('year', Expense.date) == self.fiscal_year,
+            Expense.branch_id == self.branch_id
+        )
+        if self.site_id:
+            expenses = expenses.filter(Expense.site_id == self.site_id)
+        
+        return float(expenses.scalar() or 0)
+
+    def get_committed_amount(self):
+        total = db.session.query(func.sum(BudgetCommitment.committed_amount)).filter(
+            BudgetCommitment.budget_id == self.id,
+            BudgetCommitment.status.in_(["PENDING", "APPROVED"])
+        ).scalar()
+        return float(total or 0)
+
+    def get_available_amount(self):
+        return float(self.allocated_amount) - self.get_actual_amount() - self.get_committed_amount()
+
+    def __repr__(self):
+        return f"<Budget {self.fiscal_year} {self.account_code} {self.branch_id}>"
+
+
+class BudgetCommitment(db.Model, TimestampMixin):
+    __tablename__ = "budget_commitments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    budget_id = db.Column(db.Integer, db.ForeignKey("budgets.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_type = db.Column(sa_str_enum(["EXPENSE", "PURCHASE", "QUOTE"], name="commitment_source_type"), nullable=False, index=True)
+    source_id = db.Column(db.Integer, nullable=False, index=True)
+    
+    committed_amount = db.Column(db.Numeric(12, 2), nullable=False)
+    commitment_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    status = db.Column(sa_str_enum(["PENDING", "APPROVED", "PAID", "CANCELLED"], name="commitment_status"), nullable=False, default="PENDING", index=True)
+    notes = db.Column(db.Text)
+    
+    budget = db.relationship("Budget", backref=db.backref("commitments", lazy="dynamic", cascade="all, delete-orphan"))
+
+    __table_args__ = (
+        db.UniqueConstraint("source_type", "source_id", name="uq_commitment_source"),
+        db.Index("ix_commitment_budget_status", "budget_id", "status"),
+        db.CheckConstraint("committed_amount >= 0", name="ck_commitment_amount_ge_0"),
+    )
+
+    def __repr__(self):
+        return f"<BudgetCommitment {self.source_type} {self.source_id} {self.committed_amount}>"
+
+
+class FixedAssetCategory(db.Model, TimestampMixin):
+    __tablename__ = "fixed_asset_categories"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(100), nullable=False, index=True)
+    account_code = db.Column(db.String(20), db.ForeignKey("accounts.code", ondelete="RESTRICT"), nullable=False)
+    depreciation_account_code = db.Column(db.String(20), db.ForeignKey("accounts.code", ondelete="RESTRICT"), nullable=False)
+    
+    useful_life_years = db.Column(db.Integer, nullable=False, default=5)
+    depreciation_method = db.Column(sa_str_enum(["STRAIGHT_LINE", "DECLINING_BALANCE"], name="depreciation_method"), nullable=False, default="STRAIGHT_LINE")
+    depreciation_rate = db.Column(db.Numeric(5, 2), default=0)
+    
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), index=True)
+    
+    account = db.relationship("Account", foreign_keys=[account_code], backref=db.backref("asset_categories", lazy="dynamic"))
+    depreciation_account = db.relationship("Account", foreign_keys=[depreciation_account_code], backref=db.backref("depreciation_categories", lazy="dynamic"))
+
+    __table_args__ = (
+        db.CheckConstraint("useful_life_years > 0", name="ck_useful_life_gt_0"),
+        db.CheckConstraint("depreciation_rate >= 0 AND depreciation_rate <= 100", name="ck_depreciation_rate_range"),
+    )
+
+    def __repr__(self):
+        return f"<FixedAssetCategory {self.code} {self.name}>"
+
+
+class FixedAsset(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "fixed_assets"
+
+    id = db.Column(db.Integer, primary_key=True)
+    asset_number = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False, index=True)
+    category_id = db.Column(db.Integer, db.ForeignKey("fixed_asset_categories.id", ondelete="RESTRICT"), nullable=False, index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id", ondelete="CASCADE"), index=True)
+    site_id = db.Column(db.Integer, db.ForeignKey("sites.id", ondelete="CASCADE"), index=True)
+    
+    purchase_date = db.Column(db.Date, nullable=False, index=True)
+    purchase_price = db.Column(db.Numeric(12, 2), nullable=False)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("partners.id"), index=True)
+    
+    serial_number = db.Column(db.String(100), index=True)
+    barcode = db.Column(db.String(100), index=True)
+    location = db.Column(db.String(200))
+    
+    status = db.Column(sa_str_enum(["ACTIVE", "DISPOSED", "SOLD", "STOLEN", "DAMAGED"], name="asset_status"), nullable=False, default="ACTIVE", index=True)
+    disposal_date = db.Column(db.Date, index=True)
+    disposal_amount = db.Column(db.Numeric(12, 2))
+    disposal_notes = db.Column(db.Text)
+    
+    notes = db.Column(db.Text)
+    is_archived = db.Column(db.Boolean, nullable=False, server_default=sa_text("0"), index=True)
+    
+    category = db.relationship("FixedAssetCategory", backref=db.backref("assets", lazy="dynamic"))
+    branch = db.relationship("Branch", backref=db.backref("assets", lazy="dynamic"))
+    site = db.relationship("Site", backref=db.backref("assets", lazy="dynamic"))
+    supplier = db.relationship("Partner", backref=db.backref("supplied_assets", lazy="dynamic"))
+
+    __table_args__ = (
+        db.Index("ix_asset_category_branch", "category_id", "branch_id"),
+        db.Index("ix_asset_status_date", "status", "purchase_date"),
+        db.CheckConstraint("purchase_price >= 0", name="ck_asset_price_ge_0"),
+    )
+
+    def get_current_book_value(self, as_of_date=None):
+        if as_of_date is None:
+            as_of_date = date.today()
+        
+        total_depreciation = db.session.query(func.sum(AssetDepreciation.depreciation_amount)).filter(
+            AssetDepreciation.asset_id == self.id,
+            AssetDepreciation.depreciation_date <= as_of_date
+        ).scalar()
+        
+        return float(self.purchase_price) - float(total_depreciation or 0)
+
+    def __repr__(self):
+        return f"<FixedAsset {self.asset_number} {self.name}>"
+
+
+class AssetDepreciation(db.Model, TimestampMixin):
+    __tablename__ = "asset_depreciations"
+
+    id = db.Column(db.Integer, primary_key=True)
+    asset_id = db.Column(db.Integer, db.ForeignKey("fixed_assets.id", ondelete="CASCADE"), nullable=False, index=True)
+    fiscal_year = db.Column(db.Integer, nullable=False, index=True)
+    fiscal_month = db.Column(db.Integer, index=True)
+    
+    depreciation_date = db.Column(db.Date, nullable=False, index=True)
+    depreciation_amount = db.Column(db.Numeric(12, 2), nullable=False)
+    accumulated_depreciation = db.Column(db.Numeric(12, 2), nullable=False)
+    book_value = db.Column(db.Numeric(12, 2), nullable=False)
+    
+    gl_batch_id = db.Column(db.Integer, db.ForeignKey("gl_batches.id"), index=True)
+    notes = db.Column(db.Text)
+    
+    asset = db.relationship("FixedAsset", backref=db.backref("depreciations", lazy="dynamic", cascade="all, delete-orphan"))
+    gl_batch = db.relationship("GLBatch", backref=db.backref("asset_depreciations", lazy="dynamic"))
+
+    __table_args__ = (
+        db.UniqueConstraint("asset_id", "fiscal_year", "fiscal_month", name="uq_depreciation_asset_period"),
+        db.Index("ix_depreciation_year_month", "fiscal_year", "fiscal_month"),
+        db.CheckConstraint("depreciation_amount >= 0", name="ck_depreciation_amount_ge_0"),
+        db.CheckConstraint("fiscal_month >= 1 AND fiscal_month <= 12", name="ck_fiscal_month_range"),
+    )
+
+    def __repr__(self):
+        return f"<AssetDepreciation {self.asset_id} {self.fiscal_year}/{self.fiscal_month}>"
+
+
+class AssetMaintenance(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "asset_maintenance"
+
+    id = db.Column(db.Integer, primary_key=True)
+    asset_id = db.Column(db.Integer, db.ForeignKey("fixed_assets.id", ondelete="CASCADE"), nullable=False, index=True)
+    maintenance_date = db.Column(db.Date, nullable=False, index=True)
+    maintenance_type = db.Column(db.String(100), index=True)
+    
+    cost = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    expense_id = db.Column(db.Integer, db.ForeignKey("expenses.id"), index=True)
+    
+    description = db.Column(db.Text)
+    next_maintenance_date = db.Column(db.Date, index=True)
+    
+    asset = db.relationship("FixedAsset", backref=db.backref("maintenance_records", lazy="dynamic", cascade="all, delete-orphan"))
+    expense = db.relationship("Expense", backref=db.backref("asset_maintenance", uselist=False))
+
+    __table_args__ = (
+        db.Index("ix_maintenance_asset_date", "asset_id", "maintenance_date"),
+        db.CheckConstraint("cost >= 0", name="ck_maintenance_cost_ge_0"),
+    )
+
+    def __repr__(self):
+        return f"<AssetMaintenance {self.asset_id} {self.maintenance_date}>"
+
+
+class BankAccount(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "bank_accounts"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False, index=True)
+    bank_name = db.Column(db.String(200), nullable=False, index=True)
+    account_number = db.Column(db.String(100), nullable=False)
+    iban = db.Column(db.String(34))
+    swift_code = db.Column(db.String(11))
+    currency = db.Column(db.String(10), nullable=False, default="ILS", index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), index=True)
+    gl_account_code = db.Column(db.String(20), db.ForeignKey("accounts.code", ondelete="RESTRICT"), nullable=False)
+    opening_balance = db.Column(db.Numeric(15, 2), nullable=False, default=0)
+    current_balance = db.Column(db.Numeric(15, 2), nullable=False, default=0)
+    last_reconciled_date = db.Column(db.Date, index=True)
+    notes = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    
+    branch = db.relationship("Branch", backref=db.backref("bank_accounts", lazy="dynamic"))
+    gl_account = db.relationship("Account", backref=db.backref("bank_accounts", lazy="dynamic"))
+    creator = db.relationship("User", foreign_keys=[created_by], backref=db.backref("created_bank_accounts", lazy="dynamic"))
+    updater = db.relationship("User", foreign_keys=[updated_by], backref=db.backref("updated_bank_accounts", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_bank_account_code", "code"),
+        db.CheckConstraint("current_balance IS NOT NULL", name="ck_bank_current_balance_not_null"),
+    )
+    
+    def __repr__(self):
+        return f"<BankAccount {self.code} {self.name}>"
+    
+    def get_unreconciled_balance(self):
+        from sqlalchemy import func
+        unmatched = db.session.query(func.sum(BankTransaction.debit - BankTransaction.credit)).filter(
+            BankTransaction.bank_account_id == self.id,
+            BankTransaction.matched == False
+        ).scalar() or 0
+        return float(unmatched)
+
+
+class BankStatement(db.Model, TimestampMixin):
+    __tablename__ = "bank_statements"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    statement_number = db.Column(db.String(50), index=True)
+    statement_date = db.Column(db.Date, nullable=False, index=True)
+    period_start = db.Column(db.Date, nullable=False, index=True)
+    period_end = db.Column(db.Date, nullable=False, index=True)
+    opening_balance = db.Column(db.Numeric(15, 2), nullable=False)
+    closing_balance = db.Column(db.Numeric(15, 2), nullable=False)
+    total_deposits = db.Column(db.Numeric(15, 2), default=0)
+    total_withdrawals = db.Column(db.Numeric(15, 2), default=0)
+    file_path = db.Column(db.String(500))
+    imported_at = db.Column(db.DateTime, index=True)
+    imported_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    status = db.Column(sa_str_enum(["DRAFT", "IMPORTED", "RECONCILED"], name="statement_status"), nullable=False, default="DRAFT", index=True)
+    notes = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    
+    bank_account = db.relationship("BankAccount", backref=db.backref("statements", lazy="dynamic", cascade="all, delete-orphan"))
+    importer = db.relationship("User", foreign_keys=[imported_by], backref=db.backref("imported_statements", lazy="dynamic"))
+    creator = db.relationship("User", foreign_keys=[created_by], backref=db.backref("created_statements", lazy="dynamic"))
+    updater = db.relationship("User", foreign_keys=[updated_by], backref=db.backref("updated_statements", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_statement_account_date", "bank_account_id", "statement_date"),
+        db.CheckConstraint("closing_balance = opening_balance + total_deposits - total_withdrawals", name="ck_statement_balance"),
+    )
+    
+    def __repr__(self):
+        return f"<BankStatement {self.bank_account_id} {self.statement_date}>"
+
+
+class BankTransaction(db.Model, TimestampMixin):
+    __tablename__ = "bank_transactions"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    statement_id = db.Column(db.Integer, db.ForeignKey("bank_statements.id", ondelete="CASCADE"), index=True)
+    transaction_date = db.Column(db.Date, nullable=False, index=True)
+    value_date = db.Column(db.Date, index=True)
+    reference = db.Column(db.String(100), index=True)
+    description = db.Column(db.Text)
+    debit = db.Column(db.Numeric(15, 2), default=0)
+    credit = db.Column(db.Numeric(15, 2), default=0)
+    balance = db.Column(db.Numeric(15, 2))
+    matched = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    payment_id = db.Column(db.Integer, db.ForeignKey("payments.id"), index=True)
+    gl_batch_id = db.Column(db.Integer, db.ForeignKey("gl_batches.id"), index=True)
+    reconciliation_id = db.Column(db.Integer, db.ForeignKey("bank_reconciliations.id"), index=True)
+    notes = db.Column(db.Text)
+    
+    bank_account = db.relationship("BankAccount", backref=db.backref("transactions", lazy="dynamic", cascade="all, delete-orphan"))
+    statement = db.relationship("BankStatement", backref=db.backref("transactions", lazy="dynamic", cascade="all, delete-orphan"))
+    payment = db.relationship("Payment", backref=db.backref("bank_transactions", lazy="dynamic"))
+    gl_batch = db.relationship("GLBatch", backref=db.backref("bank_transactions", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_bank_tx_account_date", "bank_account_id", "transaction_date"),
+        db.Index("ix_bank_tx_matched", "matched", "bank_account_id"),
+        db.CheckConstraint("(debit = 0 AND credit > 0) OR (credit = 0 AND debit > 0) OR (debit = 0 AND credit = 0)", name="ck_bank_tx_debit_credit"),
+    )
+    
+    def __repr__(self):
+        return f"<BankTransaction {self.reference} {self.transaction_date}>"
+
+
+class BankReconciliation(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "bank_reconciliations"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey("bank_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    reconciliation_number = db.Column(db.String(50), unique=True, index=True)
+    period_start = db.Column(db.Date, nullable=False, index=True)
+    period_end = db.Column(db.Date, nullable=False, index=True)
+    book_balance = db.Column(db.Numeric(15, 2), nullable=False)
+    bank_balance = db.Column(db.Numeric(15, 2), nullable=False)
+    unmatched_book_count = db.Column(db.Integer, default=0)
+    unmatched_bank_count = db.Column(db.Integer, default=0)
+    unmatched_book_amount = db.Column(db.Numeric(15, 2), default=0)
+    unmatched_bank_amount = db.Column(db.Numeric(15, 2), default=0)
+    reconciled_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    reconciled_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.id"))
+    approved_at = db.Column(db.DateTime)
+    status = db.Column(sa_str_enum(["DRAFT", "COMPLETED", "APPROVED"], name="reconciliation_status"), nullable=False, default="DRAFT", index=True)
+    notes = db.Column(db.Text)
+    
+    bank_account = db.relationship("BankAccount", backref=db.backref("reconciliations", lazy="dynamic", cascade="all, delete-orphan"))
+    reconciler = db.relationship("User", foreign_keys=[reconciled_by], backref=db.backref("reconciliations_done", lazy="dynamic"))
+    approver = db.relationship("User", foreign_keys=[approved_by], backref=db.backref("reconciliations_approved", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_reconciliation_account_period", "bank_account_id", "period_start", "period_end"),
+        db.CheckConstraint("period_end >= period_start", name="ck_reconciliation_period"),
+    )
+    
+    def __repr__(self):
+        return f"<BankReconciliation {self.reconciliation_number}>"
+
+
+class CostCenter(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "cost_centers"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False, index=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id"), index=True)
+    description = db.Column(db.Text)
+    manager_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    gl_account_code = db.Column(db.String(50))
+    budget_amount = db.Column(db.Numeric(15, 2), default=0)
+    actual_amount = db.Column(db.Numeric(15, 2), default=0)
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    
+    parent = db.relationship("CostCenter", remote_side=[id], backref=db.backref("children", lazy="dynamic"))
+    manager = db.relationship("User", foreign_keys=[manager_id], backref=db.backref("managed_cost_centers", lazy="dynamic"))
+    creator = db.relationship("User", foreign_keys=[created_by], backref=db.backref("created_cost_centers", lazy="dynamic"))
+    updater = db.relationship("User", foreign_keys=[updated_by], backref=db.backref("updated_cost_centers", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_cost_center_parent", "parent_id", "is_active"),
+        db.CheckConstraint("budget_amount >= 0", name="ck_cost_center_budget_ge_0"),
+    )
+    
+    def __repr__(self):
+        return f"<CostCenter {self.code} {self.name}>"
+    
+    def get_full_path(self):
+        if self.parent:
+            return f"{self.parent.get_full_path()} > {self.name}"
+        return self.name
+    
+    def get_total_budget(self):
+        total = float(self.budget_amount or 0)
+        for child in self.children:
+            total += child.get_total_budget()
+        return total
+    
+    def get_total_actual(self):
+        from sqlalchemy import func
+        direct = db.session.query(func.sum(CostCenterAllocation.amount)).filter(
+            CostCenterAllocation.cost_center_id == self.id
+        ).scalar() or 0
+        
+        children_total = sum(child.get_total_actual() for child in self.children)
+        return float(direct) + children_total
+
+
+class CostCenterAllocation(db.Model, TimestampMixin):
+    __tablename__ = "cost_center_allocations"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cost_center_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_type = db.Column(sa_str_enum(["EXPENSE", "SALE", "SERVICE", "PAYMENT", "PURCHASE"], name="cc_source_type"), nullable=False, index=True)
+    source_id = db.Column(db.Integer, nullable=False, index=True)
+    amount = db.Column(db.Numeric(15, 2), nullable=False)
+    percentage = db.Column(db.Numeric(5, 2), default=100)
+    allocation_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    notes = db.Column(db.Text)
+    
+    cost_center = db.relationship("CostCenter", backref=db.backref("allocations", lazy="dynamic", cascade="all, delete-orphan"))
+    
+    __table_args__ = (
+        db.UniqueConstraint("source_type", "source_id", "cost_center_id", name="uq_cost_center_allocation_source"),
+        db.Index("ix_cost_center_alloc_date", "cost_center_id", "allocation_date"),
+        db.CheckConstraint("amount >= 0", name="ck_cc_alloc_amount_ge_0"),
+        db.CheckConstraint("percentage >= 0 AND percentage <= 100", name="ck_cc_alloc_percentage_range"),
+    )
+    
+    def __repr__(self):
+        return f"<CostCenterAllocation {self.source_type}:{self.source_id} -> CC:{self.cost_center_id}>"
+
+
+class Project(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "projects"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False, index=True)
+    client_id = db.Column(db.Integer, db.ForeignKey("customers.id"), index=True)
+    start_date = db.Column(db.Date, nullable=False, index=True)
+    end_date = db.Column(db.Date, index=True)
+    planned_end_date = db.Column(db.Date)
+    budget_amount = db.Column(db.Numeric(15, 2), default=0)
+    actual_cost = db.Column(db.Numeric(15, 2), default=0)
+    actual_revenue = db.Column(db.Numeric(15, 2), default=0)
+    cost_center_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id"), index=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey("branches.id"), index=True)
+    status = db.Column(sa_str_enum(["PLANNED", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"], name="project_status"), nullable=False, default="PLANNED", index=True)
+    completion_percentage = db.Column(db.Numeric(5, 2), default=0)
+    description = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text("1"), index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    
+    client = db.relationship("Customer", backref=db.backref("projects", lazy="dynamic"))
+    cost_center = db.relationship("CostCenter", backref=db.backref("projects", lazy="dynamic"))
+    manager = db.relationship("User", foreign_keys=[manager_id], backref=db.backref("managed_projects", lazy="dynamic"))
+    branch = db.relationship("Branch", backref=db.backref("projects", lazy="dynamic"))
+    creator = db.relationship("User", foreign_keys=[created_by], backref=db.backref("created_projects", lazy="dynamic"))
+    updater = db.relationship("User", foreign_keys=[updated_by], backref=db.backref("updated_projects", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_project_status_dates", "status", "start_date", "end_date"),
+        db.CheckConstraint("budget_amount >= 0", name="ck_project_budget_ge_0"),
+        db.CheckConstraint("completion_percentage >= 0 AND completion_percentage <= 100", name="ck_project_completion_range"),
+    )
+    
+    def __repr__(self):
+        return f"<Project {self.code} {self.name}>"
+    
+    def get_profit(self):
+        return float(self.actual_revenue or 0) - float(self.actual_cost or 0)
+    
+    def get_profit_margin(self):
+        if self.actual_revenue and self.actual_revenue > 0:
+            return (self.get_profit() / float(self.actual_revenue)) * 100
+        return 0
+
+
+class ProjectPhase(db.Model, TimestampMixin):
+    __tablename__ = "project_phases"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False)
+    order = db.Column(db.Integer, nullable=False, default=1)
+    start_date = db.Column(db.Date, index=True)
+    end_date = db.Column(db.Date, index=True)
+    planned_budget = db.Column(db.Numeric(15, 2), default=0)
+    actual_cost = db.Column(db.Numeric(15, 2), default=0)
+    status = db.Column(sa_str_enum(["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"], name="phase_status"), nullable=False, default="PENDING", index=True)
+    completion_percentage = db.Column(db.Numeric(5, 2), default=0)
+    description = db.Column(db.Text)
+    
+    project = db.relationship("Project", backref=db.backref("phases", lazy="dynamic", cascade="all, delete-orphan", order_by="ProjectPhase.order"))
+    
+    __table_args__ = (
+        db.Index("ix_project_phase_project_order", "project_id", "order"),
+        db.CheckConstraint("planned_budget >= 0", name="ck_phase_budget_ge_0"),
+        db.CheckConstraint("completion_percentage >= 0 AND completion_percentage <= 100", name="ck_phase_completion_range"),
+    )
+    
+    def __repr__(self):
+        return f"<ProjectPhase {self.project_id}:{self.name}>"
+
+
+class ProjectCost(db.Model, TimestampMixin):
+    __tablename__ = "project_costs"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    phase_id = db.Column(db.Integer, db.ForeignKey("project_phases.id", ondelete="SET NULL"), index=True)
+    cost_type = db.Column(sa_str_enum(["EXPENSE", "PURCHASE", "SALARY", "SERVICE", "MATERIAL", "OTHER"], name="project_cost_type"), nullable=False, index=True)
+    source_id = db.Column(db.Integer, index=True)
+    amount = db.Column(db.Numeric(15, 2), nullable=False)
+    cost_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    description = db.Column(db.Text)
+    gl_batch_id = db.Column(db.Integer, db.ForeignKey("gl_batches.id"), index=True)
+    notes = db.Column(db.Text)
+    
+    project = db.relationship("Project", backref=db.backref("costs", lazy="dynamic", cascade="all, delete-orphan"))
+    phase = db.relationship("ProjectPhase", backref=db.backref("costs", lazy="dynamic"))
+    gl_batch = db.relationship("GLBatch", backref=db.backref("project_costs", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_project_cost_date", "project_id", "cost_date"),
+        db.CheckConstraint("amount >= 0", name="ck_project_cost_amount_ge_0"),
+    )
+    
+    def __repr__(self):
+        return f"<ProjectCost {self.project_id} {self.amount}>"
+
+
+class ProjectRevenue(db.Model, TimestampMixin):
+    __tablename__ = "project_revenues"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    phase_id = db.Column(db.Integer, db.ForeignKey("project_phases.id", ondelete="SET NULL"), index=True)
+    revenue_type = db.Column(sa_str_enum(["SALE", "SERVICE", "INVOICE", "MILESTONE", "OTHER"], name="project_revenue_type"), nullable=False, index=True)
+    source_id = db.Column(db.Integer, index=True)
+    amount = db.Column(db.Numeric(15, 2), nullable=False)
+    revenue_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    description = db.Column(db.Text)
+    gl_batch_id = db.Column(db.Integer, db.ForeignKey("gl_batches.id"), index=True)
+    notes = db.Column(db.Text)
+    
+    project = db.relationship("Project", backref=db.backref("revenues", lazy="dynamic", cascade="all, delete-orphan"))
+    phase = db.relationship("ProjectPhase", backref=db.backref("revenues", lazy="dynamic"))
+    gl_batch = db.relationship("GLBatch", backref=db.backref("project_revenues", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_project_revenue_date", "project_id", "revenue_date"),
+        db.CheckConstraint("amount >= 0", name="ck_project_revenue_amount_ge_0"),
+    )
+    
+    def __repr__(self):
+        return f"<ProjectRevenue {self.project_id} {self.amount}>"
+
+
+@event.listens_for(ProjectCost, "after_insert")
+@event.listens_for(ProjectCost, "after_update")
+def _project_cost_gl_batch_create(mapper, connection, target: "ProjectCost"):
+    try:
+        amount = float(target.amount or 0)
+        if amount <= 0:
+            return
+        
+        project = connection.execute(
+            sa_text("SELECT id, code, name, cost_center_id FROM projects WHERE id = :pid"),
+            {"pid": target.project_id}
+        ).fetchone()
+        
+        if not project:
+            return
+        
+        cost_center_id = project[3]
+        if not cost_center_id:
+            return
+        
+        cost_center = connection.execute(
+            sa_text("SELECT gl_account_code FROM cost_centers WHERE id = :ccid"),
+            {"ccid": cost_center_id}
+        ).fetchone()
+        
+        if not cost_center or not cost_center[0]:
+            return
+        
+        gl_account_code = cost_center[0]
+        cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
+        
+        entries = [
+            (gl_account_code, amount, 0),
+            (cash_account, 0, amount)
+        ]
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="PROJECT_COST",
+            source_id=target.id,
+            purpose="EXPENSE",
+            currency="ILS",
+            memo=f"تكلفة مشروع: {project[2]} - {target.description or ''}",
+            entries=entries,
+            ref=f"PCOST-{target.id}",
+            entity_type="PROJECT",
+            entity_id=target.project_id
+        )
+        
+        connection.execute(
+            sa_text("UPDATE projects SET actual_cost = actual_cost + :amt WHERE id = :pid"),
+            {"amt": amount, "pid": target.project_id}
+        )
+        
+        if target.phase_id:
+            connection.execute(
+                sa_text("UPDATE project_phases SET actual_cost = actual_cost + :amt WHERE id = :phid"),
+                {"amt": amount, "phid": target.phase_id}
+            )
+            
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch لتكلفة المشروع #{target.id}: {e}", file=sys.stderr)
+
+
+@event.listens_for(ProjectRevenue, "after_insert")
+@event.listens_for(ProjectRevenue, "after_update")
+def _project_revenue_gl_batch_create(mapper, connection, target: "ProjectRevenue"):
+    try:
+        amount = float(target.amount or 0)
+        if amount <= 0:
+            return
+        
+        project = connection.execute(
+            sa_text("SELECT id, code, name, client_id FROM projects WHERE id = :pid"),
+            {"pid": target.project_id}
+        ).fetchone()
+        
+        if not project:
+            return
+        
+        ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
+        revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
+        
+        entries = [
+            (ar_account, amount, 0),
+            (revenue_account, 0, amount)
+        ]
+        
+        _gl_upsert_batch_and_entries(
+            connection,
+            source_type="PROJECT_REVENUE",
+            source_id=target.id,
+            purpose="REVENUE",
+            currency="ILS",
+            memo=f"إيراد مشروع: {project[2]} - {target.description or ''}",
+            entries=entries,
+            ref=f"PREV-{target.id}",
+            entity_type="PROJECT",
+            entity_id=target.project_id
+        )
+        
+        connection.execute(
+            sa_text("UPDATE projects SET actual_revenue = actual_revenue + :amt WHERE id = :pid"),
+            {"amt": amount, "pid": target.project_id}
+        )
+        
+        if target.phase_id:
+            connection.execute(
+                sa_text("UPDATE project_phases SET actual_cost = actual_cost + :amt WHERE id = :phid"),
+                {"amt": amount, "phid": target.phase_id}
+            )
+            
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء GLBatch لإيراد المشروع #{target.id}: {e}", file=sys.stderr)
+
+
+class ProjectTask(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "project_tasks"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    phase_id = db.Column(db.Integer, db.ForeignKey("project_phases.id", ondelete="SET NULL"), index=True)
+    task_number = db.Column(db.String(50), nullable=False, index=True)
+    name = db.Column(db.String(300), nullable=False, index=True)
+    description = db.Column(db.Text)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    priority = db.Column(sa_str_enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"], name="task_priority"), default="MEDIUM", nullable=False, index=True)
+    status = db.Column(sa_str_enum(["TODO", "IN_PROGRESS", "BLOCKED", "REVIEW", "COMPLETED", "CANCELLED"], name="task_status"), default="TODO", nullable=False, index=True)
+    start_date = db.Column(db.Date, nullable=False, index=True)
+    due_date = db.Column(db.Date, nullable=False, index=True)
+    completed_date = db.Column(db.Date, index=True)
+    estimated_hours = db.Column(db.Numeric(8, 2), default=0)
+    actual_hours = db.Column(db.Numeric(8, 2), default=0)
+    completion_percentage = db.Column(db.Numeric(5, 2), default=0)
+    depends_on = db.Column(db.JSON)
+    blocked_reason = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    
+    project = db.relationship("Project", backref=db.backref("tasks", lazy="dynamic", cascade="all, delete-orphan"))
+    phase = db.relationship("ProjectPhase", backref=db.backref("tasks", lazy="dynamic"))
+    assignee = db.relationship("User", foreign_keys=[assigned_to], backref=db.backref("assigned_tasks", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_project_task_project_status", "project_id", "status"),
+        db.Index("ix_project_task_assigned_status", "assigned_to", "status"),
+        db.CheckConstraint("estimated_hours >= 0", name="ck_task_est_hours_ge_0"),
+        db.CheckConstraint("actual_hours >= 0", name="ck_task_actual_hours_ge_0"),
+        db.CheckConstraint("completion_percentage >= 0 AND completion_percentage <= 100", name="ck_task_completion_range"),
+    )
+    
+    def __repr__(self):
+        return f"<ProjectTask {self.task_number} {self.name}>"
+    
+    @hybrid_property
+    def is_overdue(self):
+        if self.status in ['COMPLETED', 'CANCELLED']:
+            return False
+        return self.due_date < date.today() if self.due_date else False
+    
+    @hybrid_property
+    def is_blocked_by_dependencies(self):
+        if not self.depends_on:
+            return False
+        for task_id in (self.depends_on or []):
+            dep_task = db.session.get(ProjectTask, task_id)
+            if dep_task and dep_task.status != 'COMPLETED':
+                return True
+        return False
+
+
+class ProjectResource(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "project_resources"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("project_tasks.id", ondelete="CASCADE"), index=True)
+    resource_type = db.Column(sa_str_enum(["EMPLOYEE", "MATERIAL", "EQUIPMENT", "SUBCONTRACTOR"], name="resource_type"), nullable=False, index=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), index=True)
+    product_id = db.Column(db.Integer, db.ForeignKey("products.id"), index=True)
+    resource_name = db.Column(db.String(200))
+    quantity = db.Column(db.Numeric(10, 2), nullable=False)
+    unit_cost = db.Column(db.Numeric(12, 2), nullable=False)
+    total_cost = db.Column(db.Numeric(15, 2), nullable=False)
+    allocation_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    start_date = db.Column(db.Date, index=True)
+    end_date = db.Column(db.Date, index=True)
+    hours_allocated = db.Column(db.Numeric(8, 2))
+    hours_used = db.Column(db.Numeric(8, 2), default=0)
+    status = db.Column(sa_str_enum(["PLANNED", "ALLOCATED", "IN_USE", "COMPLETED", "RELEASED"], name="resource_status"), default="PLANNED", nullable=False, index=True)
+    notes = db.Column(db.Text)
+    
+    project = db.relationship("Project", backref=db.backref("resources", lazy="dynamic", cascade="all, delete-orphan"))
+    task = db.relationship("ProjectTask", backref=db.backref("resources", lazy="dynamic"))
+    employee = db.relationship("Employee", backref=db.backref("project_allocations", lazy="dynamic"))
+    product = db.relationship("Product", backref=db.backref("project_usage", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_project_resource_project_type", "project_id", "resource_type"),
+        db.CheckConstraint("quantity > 0", name="ck_resource_quantity_gt_0"),
+        db.CheckConstraint("unit_cost >= 0", name="ck_resource_unit_cost_ge_0"),
+        db.CheckConstraint("hours_allocated >= 0", name="ck_resource_hours_alloc_ge_0"),
+        db.CheckConstraint("hours_used >= 0", name="ck_resource_hours_used_ge_0"),
+    )
+    
+    def __repr__(self):
+        return f"<ProjectResource {self.resource_type} {self.resource_name}>"
+
+
+class ProjectMilestone(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "project_milestones"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    phase_id = db.Column(db.Integer, db.ForeignKey("project_phases.id", ondelete="SET NULL"), index=True)
+    milestone_number = db.Column(db.String(50), nullable=False, index=True)
+    name = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text)
+    due_date = db.Column(db.Date, nullable=False, index=True)
+    completed_date = db.Column(db.Date, index=True)
+    billing_amount = db.Column(db.Numeric(15, 2), default=0)
+    billing_percentage = db.Column(db.Numeric(5, 2), default=0)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), index=True)
+    payment_terms_days = db.Column(db.Integer, default=30)
+    status = db.Column(sa_str_enum(["PENDING", "IN_PROGRESS", "COMPLETED", "BILLED", "PAID"], name="milestone_status"), default="PENDING", nullable=False, index=True)
+    completion_criteria = db.Column(db.Text)
+    deliverables = db.Column(db.JSON)
+    approval_required = db.Column(db.Boolean, default=False)
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    approved_at = db.Column(db.DateTime, index=True)
+    notes = db.Column(db.Text)
+    
+    project = db.relationship("Project", backref=db.backref("milestones", lazy="dynamic", cascade="all, delete-orphan"))
+    phase = db.relationship("ProjectPhase", backref=db.backref("milestones", lazy="dynamic"))
+    invoice = db.relationship("Invoice", backref=db.backref("milestone", uselist=False))
+    approver = db.relationship("User", foreign_keys=[approved_by], backref=db.backref("approved_milestones", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_milestone_project_status", "project_id", "status"),
+        db.CheckConstraint("billing_amount >= 0", name="ck_milestone_billing_ge_0"),
+        db.CheckConstraint("billing_percentage >= 0 AND billing_percentage <= 100", name="ck_milestone_billing_pct"),
+    )
+    
+    def __repr__(self):
+        return f"<ProjectMilestone {self.milestone_number} {self.name}>"
+    
+    @hybrid_property
+    def is_overdue(self):
+        if self.status in ['COMPLETED', 'BILLED', 'PAID']:
+            return False
+        return self.due_date < date.today() if self.due_date else False
+
+
+class ProjectRisk(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "project_risks"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    risk_number = db.Column(db.String(50), nullable=False, index=True)
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    category = db.Column(sa_str_enum(["FINANCIAL", "TECHNICAL", "RESOURCE", "SCHEDULE", "QUALITY", "EXTERNAL"], name="risk_category"), nullable=False, index=True)
+    probability = db.Column(sa_str_enum(["VERY_LOW", "LOW", "MEDIUM", "HIGH", "VERY_HIGH"], name="risk_probability"), nullable=False, index=True)
+    impact = db.Column(sa_str_enum(["NEGLIGIBLE", "MINOR", "MODERATE", "MAJOR", "CRITICAL"], name="risk_impact"), nullable=False, index=True)
+    risk_score = db.Column(db.Numeric(5, 2), nullable=False, index=True)
+    status = db.Column(sa_str_enum(["IDENTIFIED", "ANALYZING", "MITIGATING", "MONITORING", "CLOSED"], name="risk_status"), default="IDENTIFIED", nullable=False, index=True)
+    mitigation_plan = db.Column(db.Text)
+    contingency_plan = db.Column(db.Text)
+    owner_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    identified_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    review_date = db.Column(db.Date, index=True)
+    closed_date = db.Column(db.Date, index=True)
+    actual_impact_cost = db.Column(db.Numeric(15, 2), default=0)
+    notes = db.Column(db.Text)
+    
+    project = db.relationship("Project", backref=db.backref("risks", lazy="dynamic", cascade="all, delete-orphan"))
+    owner = db.relationship("User", foreign_keys=[owner_id], backref=db.backref("owned_risks", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_risk_project_status", "project_id", "status"),
+        db.Index("ix_risk_score", "risk_score", postgresql_ops={"risk_score": "DESC"}),
+        db.CheckConstraint("risk_score >= 0 AND risk_score <= 25", name="ck_risk_score_range"),
+    )
+    
+    def __repr__(self):
+        return f"<ProjectRisk {self.risk_number} {self.title}>"
+    
+    @hybrid_property
+    def risk_level(self):
+        score = float(self.risk_score or 0)
+        if score >= 15:
+            return "CRITICAL"
+        elif score >= 10:
+            return "HIGH"
+        elif score >= 5:
+            return "MEDIUM"
+        else:
+            return "LOW"
+
+
+class ProjectChangeOrder(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "project_change_orders"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    change_number = db.Column(db.String(50), nullable=False, unique=True, index=True)
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    requested_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    requested_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    reason = db.Column(db.Text)
+    scope_change = db.Column(db.Text)
+    cost_impact = db.Column(db.Numeric(15, 2), default=0)
+    schedule_impact_days = db.Column(db.Integer, default=0)
+    status = db.Column(sa_str_enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "APPROVED", "REJECTED", "IMPLEMENTED"], name="change_order_status"), default="DRAFT", nullable=False, index=True)
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    approved_date = db.Column(db.Date, index=True)
+    implemented_date = db.Column(db.Date, index=True)
+    rejection_reason = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    
+    project = db.relationship("Project", backref=db.backref("change_orders", lazy="dynamic", cascade="all, delete-orphan"))
+    requester = db.relationship("User", foreign_keys=[requested_by], backref=db.backref("change_requests", lazy="dynamic"))
+    approver = db.relationship("User", foreign_keys=[approved_by], backref=db.backref("approved_changes", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_change_order_project_status", "project_id", "status"),
+        db.CheckConstraint("cost_impact IS NOT NULL", name="ck_change_cost_not_null"),
+        db.CheckConstraint("schedule_impact_days >= 0", name="ck_change_schedule_ge_0"),
+    )
+    
+    def __repr__(self):
+        return f"<ProjectChangeOrder {self.change_number} {self.title}>"
+
+
+class ProjectIssue(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "project_issues"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("project_tasks.id", ondelete="SET NULL"), index=True)
+    issue_number = db.Column(db.String(50), nullable=False, index=True)
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    category = db.Column(sa_str_enum(["BUG", "DELAY", "QUALITY", "RESOURCE", "SCOPE", "OTHER"], name="issue_category"), nullable=False, index=True)
+    severity = db.Column(sa_str_enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"], name="issue_severity"), nullable=False, index=True)
+    priority = db.Column(sa_str_enum(["LOW", "MEDIUM", "HIGH", "URGENT"], name="issue_priority"), nullable=False, index=True)
+    status = db.Column(sa_str_enum(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED", "REOPENED"], name="issue_status"), default="OPEN", nullable=False, index=True)
+    reported_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    assigned_to = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    reported_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+    resolved_date = db.Column(db.Date, index=True)
+    resolution = db.Column(db.Text)
+    cost_impact = db.Column(db.Numeric(15, 2), default=0)
+    schedule_impact_days = db.Column(db.Integer, default=0)
+    root_cause = db.Column(db.Text)
+    preventive_action = db.Column(db.Text)
+    
+    project = db.relationship("Project", backref=db.backref("issues", lazy="dynamic", cascade="all, delete-orphan"))
+    task = db.relationship("ProjectTask", backref=db.backref("issues", lazy="dynamic"))
+    reporter = db.relationship("User", foreign_keys=[reported_by], backref=db.backref("reported_issues", lazy="dynamic"))
+    assignee = db.relationship("User", foreign_keys=[assigned_to], backref=db.backref("assigned_issues", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_issue_project_status", "project_id", "status"),
+        db.Index("ix_issue_severity_priority", "severity", "priority"),
+    )
+    
+    def __repr__(self):
+        return f"<ProjectIssue {self.issue_number} {self.title}>"
+
+
+class ResourceTimeLog(db.Model, TimestampMixin):
+    __tablename__ = "resource_time_logs"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    task_id = db.Column(db.Integer, db.ForeignKey("project_tasks.id", ondelete="CASCADE"), index=True)
+    resource_id = db.Column(db.Integer, db.ForeignKey("project_resources.id", ondelete="CASCADE"), index=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False, index=True)
+    log_date = db.Column(db.Date, nullable=False, index=True)
+    hours_worked = db.Column(db.Numeric(8, 2), nullable=False)
+    hourly_rate = db.Column(db.Numeric(10, 2), nullable=False)
+    total_cost = db.Column(db.Numeric(12, 2), nullable=False)
+    description = db.Column(db.Text)
+    approved = db.Column(db.Boolean, default=False, index=True)
+    approved_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    approved_at = db.Column(db.DateTime)
+    
+    project = db.relationship("Project", backref=db.backref("time_logs", lazy="dynamic"))
+    task = db.relationship("ProjectTask", backref=db.backref("time_logs", lazy="dynamic"))
+    resource = db.relationship("ProjectResource", backref=db.backref("time_logs", lazy="dynamic"))
+    employee = db.relationship("Employee", backref=db.backref("time_logs", lazy="dynamic"))
+    approver = db.relationship("User", foreign_keys=[approved_by], backref=db.backref("approved_time_logs", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_time_log_project_date", "project_id", "log_date"),
+        db.Index("ix_time_log_employee_date", "employee_id", "log_date"),
+        db.CheckConstraint("hours_worked > 0 AND hours_worked <= 24", name="ck_hours_worked_range"),
+        db.CheckConstraint("hourly_rate >= 0", name="ck_hourly_rate_ge_0"),
+    )
+    
+    def __repr__(self):
+        return f"<ResourceTimeLog {self.log_date} {self.hours_worked}h>"
+
+
+@event.listens_for(ResourceTimeLog, "after_insert")
+@event.listens_for(ResourceTimeLog, "after_update")
+def _time_log_update_task(mapper, connection, target: "ResourceTimeLog"):
+    try:
+        if target.task_id:
+            connection.execute(
+                sa_text("UPDATE project_tasks SET actual_hours = actual_hours + :hrs WHERE id = :tid"),
+                {"hrs": float(target.hours_worked or 0), "tid": target.task_id}
+            )
+        
+        if target.resource_id:
+            connection.execute(
+                sa_text("UPDATE project_resources SET hours_used = hours_used + :hrs WHERE id = :rid"),
+                {"hrs": float(target.hours_worked or 0), "rid": target.resource_id}
+            )
+            
+        if target.approved and target.total_cost:
+            cost_entry = connection.execute(
+                sa_text("SELECT id FROM project_costs WHERE source_id = :tl_id AND cost_type = 'SALARY'"),
+                {"tl_id": target.id}
+            ).fetchone()
+            
+            if not cost_entry:
+                connection.execute(
+                    sa_text("""INSERT INTO project_costs 
+                            (project_id, cost_type, source_id, amount, cost_date, description) 
+                            VALUES (:pid, 'SALARY', :sid, :amt, :dt, :desc)"""),
+                    {
+                        "pid": target.project_id,
+                        "sid": target.id,
+                        "amt": float(target.total_cost),
+                        "dt": target.log_date,
+                        "desc": f"تكلفة وقت موظف - {target.hours_worked} ساعة"
+                    }
+                )
+    except:
+        pass
+
+
+@event.listens_for(ProjectMilestone, "after_update")
+def _milestone_auto_invoice(mapper, connection, target: "ProjectMilestone"):
+    try:
+        if target.status == 'COMPLETED' and not target.invoice_id and float(target.billing_amount or 0) > 0:
+            from datetime import datetime, timedelta
+            
+            invoice_date = target.completed_date or date.today()
+            due_date = invoice_date + timedelta(days=target.payment_terms_days or 30)
+            
+            project = connection.execute(
+                sa_text("SELECT id, code, name, client_id FROM projects WHERE id = :pid"),
+                {"pid": target.project_id}
+            ).fetchone()
+            
+            if project and project[3]:
+                invoice_number = f"MS-{target.milestone_number}"
+                
+                connection.execute(
+                    sa_text("""INSERT INTO invoices 
+                            (invoice_number, invoice_date, due_date, customer_id, source, kind, 
+                             currency, tax_amount, total_amount, notes) 
+                            VALUES (:num, :inv_dt, :due_dt, :cust_id, 'MANUAL', 'INVOICE', 
+                                    'ILS', 0, :amt, :notes)"""),
+                    {
+                        "num": invoice_number,
+                        "inv_dt": invoice_date,
+                        "due_dt": due_date,
+                        "cust_id": project[3],
+                        "amt": float(target.billing_amount),
+                        "notes": f"فاتورة محطة: {target.name} - مشروع: {project[2]}"
+                    }
+                )
+                
+                new_invoice_id = connection.execute(
+                    sa_text("SELECT id FROM invoices WHERE invoice_number = :num"),
+                    {"num": invoice_number}
+                ).scalar()
+                
+                if new_invoice_id:
+                    connection.execute(
+                        sa_text("UPDATE project_milestones SET invoice_id = :inv_id, status = 'BILLED' WHERE id = :mid"),
+                        {"inv_id": new_invoice_id, "mid": target.id}
+                    )
+    except Exception as e:
+        import sys
+        print(f"⚠️ فشل إنشاء فاتورة تلقائية للمحطة #{target.id}: {e}", file=sys.stderr)
+
+
+@event.listens_for(ProjectChangeOrder, "after_update")
+def _change_order_update_budget(mapper, connection, target: "ProjectChangeOrder"):
+    try:
+        if target.status == 'APPROVED' and target.cost_impact:
+            connection.execute(
+                sa_text("UPDATE projects SET budget_amount = budget_amount + :amt WHERE id = :pid"),
+                {"amt": float(target.cost_impact), "pid": target.project_id}
+            )
+            
+            if target.schedule_impact_days:
+                connection.execute(
+                    sa_text("UPDATE projects SET end_date = date(end_date, '+' || :days || ' days') WHERE id = :pid"),
+                    {"days": target.schedule_impact_days, "pid": target.project_id}
+                )
+    except:
+        pass
+
+
+@event.listens_for(ProjectResource, "after_insert")
+def _resource_create_cost(mapper, connection, target: "ProjectResource"):
+    try:
+        if target.status == 'ALLOCATED' and float(target.total_cost or 0) > 0:
+            connection.execute(
+                sa_text("""INSERT INTO project_costs 
+                        (project_id, cost_type, source_id, amount, cost_date, description) 
+                        VALUES (:pid, 'OTHER', :sid, :amt, :dt, :desc)"""),
+                {
+                    "pid": target.project_id,
+                    "sid": target.id,
+                    "amt": float(target.total_cost),
+                    "dt": target.allocation_date,
+                    "desc": f"تخصيص مورد: {target.resource_type} - {target.resource_name}"
+                }
+            )
+    except:
+        pass
+
+
+@event.listens_for(SaleReturn, "after_insert", propagate=True)
+@event.listens_for(SaleReturn, "after_update", propagate=True)
+@event.listens_for(SaleReturn, "after_delete", propagate=True)
+def _update_partner_on_return_change(mapper, connection, target):
+    try:
+        if target.sale_id:
+            from sqlalchemy import text as sa_text
+            sale_result = connection.execute(
+                sa_text("SELECT customer_id FROM sales WHERE id = :sid"),
+                {"sid": target.sale_id}
+            ).fetchone()
+            if sale_result and sale_result[0]:
+                partner_result = connection.execute(
+                    sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+                    {"cid": sale_result[0]}
+                ).fetchone()
+                if partner_result:
+                    update_partner_balance(partner_result[0], connection)
+    except:
+        pass
+
+
+@event.listens_for(ServiceRequest, "after_insert", propagate=True)
+@event.listens_for(ServiceRequest, "after_update", propagate=True)
+@event.listens_for(ServiceRequest, "after_delete", propagate=True)
+def _update_partner_on_service_change(mapper, connection, target):
+    try:
+        if hasattr(target, 'customer_id') and target.customer_id:
+            from sqlalchemy import text as sa_text
+            partner_result = connection.execute(
+                sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+                {"cid": target.customer_id}
+            ).fetchone()
+            if partner_result:
+                update_partner_balance(partner_result[0], connection)
+    except:
+        pass
+
+
+@event.listens_for(Expense, "after_insert", propagate=True)
+@event.listens_for(Expense, "after_update", propagate=True)
+@event.listens_for(Expense, "after_delete", propagate=True)
+def _update_partner_on_expense_change(mapper, connection, target):
+    try:
+        if hasattr(target, 'partner_id') and target.partner_id:
+            update_partner_balance(target.partner_id, connection)
+    except:
+        pass
+
+@event.listens_for(Expense, "after_insert", propagate=True)
+@event.listens_for(Expense, "after_update", propagate=True)
+@event.listens_for(Expense, "after_delete", propagate=True)
+def _update_supplier_on_expense_change(mapper, connection, target):
+    try:
+        if hasattr(target, 'supplier_id') and target.supplier_id:
+            update_supplier_balance(target.supplier_id, connection)
+    except:
+        pass
+
+class CostCenterAlert(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'cost_center_alerts'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_centers.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    alert_type = db.Column(sa_str_enum(['BUDGET_EXCEEDED', 'BUDGET_WARNING', 'NO_ACTIVITY', 'UNUSUAL_SPIKE'], name='cc_alert_type'), nullable=False)
+    
+    threshold_type = db.Column(sa_str_enum(['PERCENTAGE', 'AMOUNT'], name='cc_threshold_type'), nullable=False, server_default=sa_text("'PERCENTAGE'"))
+    threshold_value = db.Column(db.Numeric(15, 2), nullable=False)
+    
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text('1'), index=True)
+    
+    notify_manager = db.Column(db.Boolean, nullable=False, server_default=sa_text('1'))
+    notify_emails = db.Column(db.JSON)
+    notify_users = db.Column(db.JSON)
+    
+    last_triggered_at = db.Column(db.DateTime)
+    trigger_count = db.Column(db.Integer, nullable=False, server_default=sa_text('0'))
+    
+    cost_center = db.relationship('CostCenter', backref=db.backref('alerts', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    __table_args__ = (
+        db.Index('ix_cc_alert_center_active', 'cost_center_id', 'is_active'),
+    )
+
+class CostCenterAlertLog(db.Model, TimestampMixin):
+    __tablename__ = 'cost_center_alert_logs'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    alert_id = db.Column(db.Integer, db.ForeignKey('cost_center_alerts.id', ondelete='CASCADE'), index=True)
+    cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_centers.id'), index=True)
+    
+    triggered_at = db.Column(db.DateTime, nullable=False, server_default=sa_text('CURRENT_TIMESTAMP'))
+    trigger_value = db.Column(db.Numeric(15, 2))
+    threshold_value = db.Column(db.Numeric(15, 2))
+    
+    message = db.Column(db.Text)
+    severity = db.Column(sa_str_enum(['INFO', 'WARNING', 'CRITICAL'], name='cc_alert_severity'))
+    
+    notified_users = db.Column(db.JSON)
+    notification_sent = db.Column(db.Boolean, nullable=False, server_default=sa_text('0'))
+    
+    alert = db.relationship('CostCenterAlert', backref=db.backref('logs', lazy='dynamic', cascade='all, delete-orphan'))
+    cost_center = db.relationship('CostCenter', backref=db.backref('alert_logs', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('ix_cc_alert_log_date', 'triggered_at'),
+    )
+
+class CostAllocationRule(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'cost_allocation_rules'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False, index=True)
+    description = db.Column(db.Text)
+    
+    source_cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_centers.id'), index=True)
+    
+    allocation_method = db.Column(sa_str_enum(['PERCENTAGE', 'RATIO', 'EQUAL', 'EMPLOYEE_COUNT', 'REVENUE_BASED', 'AREA_BASED', 'CUSTOM'], name='allocation_method'), nullable=False)
+    
+    frequency = db.Column(sa_str_enum(['MANUAL', 'DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY'], name='allocation_frequency'))
+    
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text('1'), index=True)
+    auto_execute = db.Column(db.Boolean, nullable=False, server_default=sa_text('0'))
+    
+    last_executed_at = db.Column(db.DateTime)
+    next_execution_at = db.Column(db.DateTime)
+    
+    source_cost_center = db.relationship('CostCenter', backref=db.backref('allocation_rules_source', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('ix_allocation_rule_active', 'is_active'),
+    )
+
+class CostAllocationLine(db.Model):
+    __tablename__ = 'cost_allocation_lines'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    rule_id = db.Column(db.Integer, db.ForeignKey('cost_allocation_rules.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    target_cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_centers.id'), nullable=False, index=True)
+    
+    percentage = db.Column(db.Numeric(5, 2))
+    fixed_amount = db.Column(db.Numeric(15, 2))
+    
+    allocation_driver = db.Column(db.String(100))
+    driver_value = db.Column(db.Numeric(15, 2))
+    
+    notes = db.Column(db.Text)
+    
+    rule = db.relationship('CostAllocationRule', backref=db.backref('lines', lazy='dynamic', cascade='all, delete-orphan'))
+    target_cost_center = db.relationship('CostCenter', backref=db.backref('allocation_lines_target', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('ix_allocation_line_rule', 'rule_id'),
+        db.CheckConstraint('percentage >= 0 AND percentage <= 100', name='ck_allocation_line_percentage'),
+    )
+
+class CostAllocationExecution(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'cost_allocation_executions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    rule_id = db.Column(db.Integer, db.ForeignKey('cost_allocation_rules.id'), index=True)
+    
+    execution_date = db.Column(db.Date, nullable=False, index=True)
+    total_amount = db.Column(db.Numeric(15, 2), nullable=False)
+    
+    status = db.Column(sa_str_enum(['DRAFT', 'EXECUTED', 'REVERSED'], name='allocation_exec_status'), nullable=False, server_default=sa_text("'DRAFT'"))
+    
+    gl_batch_id = db.Column(db.Integer, db.ForeignKey('gl_batches.id'), index=True)
+    
+    notes = db.Column(db.Text)
+    
+    rule = db.relationship('CostAllocationRule', backref=db.backref('executions', lazy='dynamic'))
+    gl_batch = db.relationship('GLBatch', backref=db.backref('cost_allocation_executions', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('ix_allocation_exec_date', 'execution_date'),
+    )
+
+class CostAllocationExecutionLine(db.Model):
+    __tablename__ = 'cost_allocation_execution_lines'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    execution_id = db.Column(db.Integer, db.ForeignKey('cost_allocation_executions.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    source_cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_centers.id'), index=True)
+    target_cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_centers.id'), index=True)
+    
+    amount = db.Column(db.Numeric(15, 2), nullable=False)
+    percentage = db.Column(db.Numeric(5, 2))
+    
+    gl_batch_id = db.Column(db.Integer, db.ForeignKey('gl_batches.id'))
+    
+    execution = db.relationship('CostAllocationExecution', backref=db.backref('lines', lazy='dynamic', cascade='all, delete-orphan'))
+    source_cost_center = db.relationship('CostCenter', foreign_keys=[source_cost_center_id], backref=db.backref('allocation_exec_lines_source', lazy='dynamic'))
+    target_cost_center = db.relationship('CostCenter', foreign_keys=[target_cost_center_id], backref=db.backref('allocation_exec_lines_target', lazy='dynamic'))
+    gl_batch = db.relationship('GLBatch', backref=db.backref('cost_allocation_execution_lines', lazy='dynamic'))
+
+class EngineeringTeam(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'engineering_teams'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(20), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False, index=True)
+    
+    team_leader_id = db.Column(db.Integer, db.ForeignKey('employees.id'), index=True)
+    
+    specialty = db.Column(sa_str_enum(['MECHANICAL', 'ELECTRICAL', 'CIVIL', 'AUTOMOTIVE', 'SOFTWARE', 'MAINTENANCE', 'HVAC', 'PLUMBING', 'GENERAL'], name='eng_specialty'), nullable=False, index=True)
+    
+    cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_centers.id'), index=True)
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), index=True)
+    
+    max_concurrent_tasks = db.Column(db.Integer, nullable=False, server_default=sa_text('5'))
+    
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text('1'), index=True)
+    
+    description = db.Column(db.Text)
+    equipment_inventory = db.Column(db.JSON)
+    
+    team_leader = db.relationship('Employee', foreign_keys=[team_leader_id], backref=db.backref('led_teams', lazy='dynamic'))
+    cost_center = db.relationship('CostCenter', backref=db.backref('engineering_teams', lazy='dynamic'))
+    branch = db.relationship('Branch', backref=db.backref('engineering_teams', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('ix_eng_team_active', 'is_active'),
+        db.Index('ix_eng_team_specialty', 'specialty'),
+    )
+
+class EngineeringTeamMember(db.Model, TimestampMixin):
+    __tablename__ = 'engineering_team_members'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    team_id = db.Column(db.Integer, db.ForeignKey('engineering_teams.id', ondelete='CASCADE'), nullable=False, index=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id'), nullable=False, index=True)
+    
+    role = db.Column(sa_str_enum(['LEADER', 'SENIOR', 'ENGINEER', 'JUNIOR', 'TECHNICIAN', 'APPRENTICE'], name='team_member_role'), nullable=False)
+    
+    join_date = db.Column(db.Date, nullable=False, server_default=sa_text('CURRENT_DATE'))
+    leave_date = db.Column(db.Date)
+    
+    hourly_rate = db.Column(db.Numeric(10, 2))
+    
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text('1'))
+    
+    team = db.relationship('EngineeringTeam', backref=db.backref('members', lazy='dynamic', cascade='all, delete-orphan'))
+    employee = db.relationship('Employee', backref=db.backref('team_memberships', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.UniqueConstraint('team_id', 'employee_id', name='uq_team_member'),
+        db.Index('ix_team_member_active', 'is_active'),
+    )
+
+class EngineeringSkill(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'engineering_skills'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False, index=True)
+    name_ar = db.Column(db.String(200))
+    
+    category = db.Column(db.String(100), index=True)
+    
+    description = db.Column(db.Text)
+    
+    is_certification_required = db.Column(db.Boolean, nullable=False, server_default=sa_text('0'))
+    certification_validity_months = db.Column(db.Integer)
+    
+    is_active = db.Column(db.Boolean, nullable=False, server_default=sa_text('1'), index=True)
+    
+    __table_args__ = (
+        db.Index('ix_skill_category', 'category'),
+    )
+
+class EmployeeSkill(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'employee_skills'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id', ondelete='CASCADE'), nullable=False, index=True)
+    skill_id = db.Column(db.Integer, db.ForeignKey('engineering_skills.id'), nullable=False, index=True)
+    
+    proficiency_level = db.Column(sa_str_enum(['BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT'], name='proficiency_level'), nullable=False)
+    
+    years_experience = db.Column(db.Integer, nullable=False, server_default=sa_text('0'))
+    
+    certification_number = db.Column(db.String(100))
+    certification_authority = db.Column(db.String(200))
+    certification_date = db.Column(db.Date)
+    expiry_date = db.Column(db.Date, index=True)
+    
+    verified_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    verification_date = db.Column(db.Date)
+    
+    notes = db.Column(db.Text)
+    
+    employee = db.relationship('Employee', backref=db.backref('skills', lazy='dynamic', cascade='all, delete-orphan'))
+    skill = db.relationship('EngineeringSkill', backref=db.backref('employee_skills', lazy='dynamic'))
+    verifier = db.relationship('User', backref=db.backref('verified_skills', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.UniqueConstraint('employee_id', 'skill_id', name='uq_employee_skill'),
+        db.Index('ix_employee_skill_expiry', 'expiry_date'),
+    )
+
+class EngineeringTask(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'engineering_tasks'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    task_number = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    title = db.Column(db.String(300), nullable=False)
+    description = db.Column(db.Text)
+    
+    task_type = db.Column(sa_str_enum(['DESIGN', 'INSPECTION', 'MAINTENANCE', 'INSTALLATION', 'REPAIR', 'CONSULTATION', 'TESTING', 'CALIBRATION', 'TRAINING', 'OTHER'], name='eng_task_type'), nullable=False, index=True)
+    
+    priority = db.Column(sa_str_enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'CRITICAL'], name='eng_task_priority'), nullable=False, server_default=sa_text("'MEDIUM'"), index=True)
+    
+    status = db.Column(sa_str_enum(['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'ON_HOLD', 'REVIEW', 'COMPLETED', 'CANCELLED', 'DEFERRED'], name='eng_task_status'), nullable=False, server_default=sa_text("'PENDING'"), index=True)
+    
+    assigned_team_id = db.Column(db.Integer, db.ForeignKey('engineering_teams.id'), index=True)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('employees.id'), index=True)
+    
+    required_skills = db.Column(db.JSON)
+    
+    estimated_hours = db.Column(db.Numeric(8, 2))
+    actual_hours = db.Column(db.Numeric(8, 2), nullable=False, server_default=sa_text('0'))
+    
+    estimated_cost = db.Column(db.Numeric(15, 2))
+    actual_cost = db.Column(db.Numeric(15, 2), nullable=False, server_default=sa_text('0'))
+    
+    scheduled_start = db.Column(db.DateTime, index=True)
+    scheduled_end = db.Column(db.DateTime, index=True)
+    actual_start = db.Column(db.DateTime)
+    actual_end = db.Column(db.DateTime)
+    
+    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), index=True)
+    location = db.Column(db.String(300))
+    
+    equipment_needed = db.Column(db.Text)
+    tools_needed = db.Column(db.Text)
+    materials_needed = db.Column(db.JSON)
+    
+    safety_requirements = db.Column(db.Text)
+    quality_standards = db.Column(db.Text)
+    
+    completion_notes = db.Column(db.Text)
+    completion_photos = db.Column(db.JSON)
+    
+    customer_satisfaction_rating = db.Column(db.Integer)
+    customer_feedback = db.Column(db.Text)
+    
+    cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_centers.id'), index=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('projects.id'), index=True)
+    service_request_id = db.Column(db.Integer, db.ForeignKey('service_requests.id'), index=True)
+    
+    parent_task_id = db.Column(db.Integer, db.ForeignKey('engineering_tasks.id'), index=True)
+    
+    gl_batch_id = db.Column(db.Integer, db.ForeignKey('gl_batches.id'))
+    
+    assigned_team = db.relationship('EngineeringTeam', backref=db.backref('tasks', lazy='dynamic'))
+    assigned_to = db.relationship('Employee', foreign_keys=[assigned_to_id], backref=db.backref('assigned_tasks', lazy='dynamic'))
+    customer = db.relationship('Customer', backref=db.backref('engineering_tasks', lazy='dynamic'))
+    cost_center = db.relationship('CostCenter', backref=db.backref('engineering_tasks', lazy='dynamic'))
+    project = db.relationship('Project', backref=db.backref('engineering_tasks', lazy='dynamic'))
+    service_request = db.relationship('ServiceRequest', backref=db.backref('engineering_tasks', lazy='dynamic'))
+    parent_task = db.relationship('EngineeringTask', remote_side=[id], backref=db.backref('subtasks', lazy='dynamic'))
+    gl_batch = db.relationship('GLBatch', backref=db.backref('engineering_tasks', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('ix_eng_task_status', 'status'),
+        db.Index('ix_eng_task_priority', 'priority'),
+        db.Index('ix_eng_task_assigned', 'assigned_to_id', 'status'),
+        db.Index('ix_eng_task_scheduled', 'scheduled_start', 'scheduled_end'),
+        db.CheckConstraint('customer_satisfaction_rating >= 1 AND customer_satisfaction_rating <= 5', name='ck_task_rating_range'),
+    )
+
+class EngineeringTimesheet(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = 'engineering_timesheets'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employees.id', ondelete='CASCADE'), nullable=False, index=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('engineering_tasks.id'), index=True)
+    
+    work_date = db.Column(db.Date, nullable=False, index=True)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    
+    break_duration_minutes = db.Column(db.Integer, nullable=False, server_default=sa_text('0'))
+    actual_work_hours = db.Column(db.Numeric(5, 2), nullable=False)
+    
+    billable_hours = db.Column(db.Numeric(5, 2))
+    hourly_rate = db.Column(db.Numeric(10, 2))
+    total_cost = db.Column(db.Numeric(15, 2))
+    
+    productivity_rating = db.Column(sa_str_enum(['POOR', 'FAIR', 'GOOD', 'VERY_GOOD', 'EXCELLENT'], name='productivity_rating'))
+    
+    work_description = db.Column(db.Text)
+    issues_encountered = db.Column(db.Text)
+    materials_used = db.Column(db.JSON)
+    
+    location = db.Column(db.String(300))
+    
+    status = db.Column(sa_str_enum(['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'], name='timesheet_status'), nullable=False, server_default=sa_text("'DRAFT'"), index=True)
+    
+    approved_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    approval_date = db.Column(db.DateTime)
+    approval_notes = db.Column(db.Text)
+    
+    cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_centers.id'), index=True)
+    gl_batch_id = db.Column(db.Integer, db.ForeignKey('gl_batches.id'))
+    
+    employee = db.relationship('Employee', backref=db.backref('timesheets', lazy='dynamic', cascade='all, delete-orphan'))
+    task = db.relationship('EngineeringTask', backref=db.backref('timesheets', lazy='dynamic'))
+    approver = db.relationship('User', backref=db.backref('approved_timesheets', lazy='dynamic'))
+    cost_center = db.relationship('CostCenter', backref=db.backref('engineering_timesheets', lazy='dynamic'))
+    gl_batch = db.relationship('GLBatch', backref=db.backref('engineering_timesheets', lazy='dynamic'))
+    
+    __table_args__ = (
+        db.Index('ix_timesheet_employee_date', 'employee_id', 'work_date'),
+        db.Index('ix_timesheet_task', 'task_id'),
+        db.Index('ix_timesheet_status', 'status'),
+        db.CheckConstraint('actual_work_hours > 0', name='ck_timesheet_hours_positive'),
+        db.CheckConstraint('break_duration_minutes >= 0', name='ck_timesheet_break_positive'),
+    )
+

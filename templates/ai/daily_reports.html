@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}التقارير اليومية - المساعد الذكي{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-calendar-day text-primary"></i> التقارير اليومية</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('ai.hub') }}">المساعد الذكي</a></li>
+                    <li class="breadcrumb-item active">التقارير اليومية</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-header bg-gradient-primary">
+      <h3 class="card-title">تقارير أزاد اليومية</h3>
+    </div>
+    <div class="card-body">
+      {% if daily_reports %}
+        {% for report in daily_reports %}
+        <div class="card mb-3">
+          <div class="card-header">
+            <strong>{{ report.date }}</strong> - {{ report.title }}
+          </div>
+          <div class="card-body">
+            <p>{{ report.summary }}</p>
+            <ul>
+              {% for item in report.items %}
+              <li>{{ item }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle"></i>
+          لا توجد تقارير يومية متوفرة حالياً.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+</section>
+{% endblock %}
+

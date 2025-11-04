@@ -1,4 +1,4 @@
-﻿{% extends 'shop/base.html' %}
+{% extends 'shop/base.html' %}
 
 {% block title %}{{ 'تعديل منتج' if product else 'إضافة منتج' }}{% endblock %}
 
@@ -8,7 +8,7 @@
   .card{border-radius:1rem;box-shadow:0 6px 20px rgba(0,0,0,0.08)}
   .card-body{padding:2rem}
   .form-label{font-weight:600;color:#1a237e}
-  .form-control,.form-select{border-radius:0.6rem}
+  .form-control,.custom-select{border-radius:0.6rem}
   .btn-primary{background:linear-gradient(135deg,#1a237e,#311b92);border:none;font-weight:bold}
   .btn-primary:hover{background:linear-gradient(135deg,#283593,#4527a0)}
   .badge-status{font-size:.85rem;padding:.35em .75em;border-radius:.65rem}
@@ -42,12 +42,12 @@
               type="button"
               class="btn btn-ghost"
               data-toggle-url="{{ url_for('shop.admin_product_toggle_active', pid=product.id) }}">
-        {% if product.is_active %}<i class="fas fa-pause me-1"></i> تعطيل{% else %}<i class="fas fa-play me-1"></i> تفعيل{% endif %}
+        {% if product.is_active %}<i class="fas fa-pause ml-1"></i> تعطيل{% else %}<i class="fas fa-play ml-1"></i> تفعيل{% endif %}
       </button>
     {% endif %}
     {% if has_any('manage_shop','manage_inventory') %}
       <a href="{{ url_for('shop.admin_products') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-right me-1"></i> الرجوع لإدارة المنتجات
+        <i class="fas fa-arrow-right ml-1"></i> الرجوع لإدارة المنتجات
       </a>
     {% endif %}
   </div>
@@ -74,7 +74,7 @@
                     type="button"
                     class="btn btn-primary"
                     data-update-url="{{ url_for('shop.admin_product_update_fields', pid=product.id) }}">
-              <i class="fas fa-bolt me-1"></i> تحديث
+              <i class="fas fa-bolt ml-1"></i> تحديث
             </button>
           </div>
         </div>
@@ -109,7 +109,7 @@
             </div>
             <div class="col-md-6">
               <label for="{{ form.condition.id }}" class="form-label">الحالة</label>
-              {{ form.condition(class="form-select", id=form.condition.id) }}
+              {{ form.condition(class="custom-select", id=form.condition.id) }}
               {% if form.condition.errors %}
                 <div class="text-danger small mt-1">{{ form.condition.errors | join(', ') }}</div>
               {% endif %}
@@ -150,7 +150,7 @@
             <div class="d-grid gap-2 flex-grow-1">
               <input id="main-file" type="file" accept="image/*" style="display: none;">
               <button id="btn-upload-main" type="button" class="btn btn-primary btn-lg">
-                <i class="fas fa-cloud-upload-alt me-2"></i> رفع صورة المنتج
+                <i class="fas fa-cloud-upload-alt ml-2"></i> رفع صورة المنتج
               </button>
               <div class="small text-muted" id="main-image-url" dir="ltr" style="max-width:260px;word-break:break-all;">
                 {{ product.image or 'لم يتم رفع صورة بعد' }}
@@ -161,7 +161,7 @@
 
           <div class="d-grid">
             <button type="submit" class="btn btn-primary py-2">
-              <i class="fas fa-save me-1"></i> حفظ
+              <i class="fas fa-save ml-1"></i> حفظ
             </button>
           </div>
           {% endif %}
@@ -190,7 +190,7 @@
          data-update-inline-url-template="/warehouses/PLACEHOLDER1/products/PLACEHOLDER2/update">
       <div class="card-body">
         <div class="d-flex justify-content-between align-items-center mb-3">
-          <h2 class="h5 mb-0"><i class="fas fa-globe me-2"></i> إدارة الأونلاين</h2>
+          <h2 class="h5 mb-0"><i class="fas fa-globe ml-2"></i> إدارة الأونلاين</h2>
           <span id="online-warehouse-badge" class="badge bg-secondary">...</span>
         </div>
 
@@ -218,7 +218,7 @@
               <div class="d-grid gap-2 flex-grow-1">
                 <input id="online-file" type="file" accept="image/*" style="display: none;">
                 <button id="btn-upload-online" type="button" class="btn btn-info btn-lg">
-                  <i class="fas fa-cloud-upload-alt me-2"></i> رفع صورة الأونلاين
+                  <i class="fas fa-cloud-upload-alt ml-2"></i> رفع صورة الأونلاين
                 </button>
                 <div class="small text-muted" id="online-image-url" dir="ltr" style="max-width:260px;word-break:break-all;">
                   {{ product.online_image or 'لم يتم رفع صورة بعد' }}
@@ -230,7 +230,7 @@
           <div class="col-12">
             <div class="d-flex gap-2">
               <button id="btn-save-online" type="button" class="btn btn-primary">
-                <i class="fas fa-save me-1"></i> حفظ إعدادات الأونلاين
+                <i class="fas fa-save ml-1"></i> حفظ إعدادات الأونلاين
               </button>
               <div id="online-status" class="small text-muted"></div>
             </div>
@@ -242,7 +242,7 @@
 
     {% if product %}
     <div class="alert alert-info mt-3 shadow-sm">
-      <i class="fas fa-info-circle me-2"></i>
+      <i class="fas fa-info-circle ml-2"></i>
       <strong>ملاحظة:</strong> أي تعديل يتم حفظه بعد الضغط على "حفظ".
       <hr>
       <div class="small text-muted">المعرف: {{ product.id }}</div>

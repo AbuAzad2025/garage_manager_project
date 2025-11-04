@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}سجل الأصول{% endblock %}
+{% block page_title %}📖 سجل الأصول الثابتة{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <table class="table table-hover table-sm">
+        <thead>
+          <tr>
+            <th>رقم الأصل</th>
+            <th>الاسم</th>
+            <th>التصنيف</th>
+            <th>الفرع</th>
+            <th>تاريخ الشراء</th>
+            <th>سعر الشراء</th>
+            <th>الاستهلاك المتراكم</th>
+            <th>القيمة الدفترية</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in data %}
+          <tr>
+            <td>{{ item.asset.asset_number }}</td>
+            <td>{{ item.asset.name }}</td>
+            <td>{{ item.asset.category.name }}</td>
+            <td>{{ item.asset.branch.name if item.asset.branch else '-' }}</td>
+            <td>{{ item.asset.purchase_date.strftime('%Y-%m-%d') }}</td>
+            <td>{{ "{:,.2f}".format(item.asset.purchase_price) }}</td>
+            <td>{{ "{:,.2f}".format(item.total_depreciation) }}</td>
+            <td>{{ "{:,.2f}".format(item.book_value) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

@@ -1,0 +1,19 @@
+{
+  "responses": {
+    "عندي خطأ nameerror في python": {
+      "responses": [
+        {
+          "response": "نوع الخطأ: NameError\nالسبب: المتغير 'unknown' غير معرّف\n\nالحلول:\n1. عرّف المتغير قبل استخدامه: unknown = ...\n2. تحقق من الإملاء - هل كتبت unknown بشكل صحيح؟\n3. تحقق من الـ scope - هل unknown معرّف في نفس النطاق؟\n\nالكود الصحيح:\n\n# ✅ الحل:\nunknown = \"some_value\"  # عرّف المتغير أولاً\nprint(unknown)  # ثم استخدمه\n\n# أو إذا كان function:\ndef unknown():\n    pass\n            ",
+          "timestamp": "2025-11-02T02:15:00.741115",
+          "feedback": null
+        }
+      ],
+      "best_response": "نوع الخطأ: NameError\nالسبب: المتغير 'unknown' غير معرّف\n\nالحلول:\n1. عرّف المتغير قبل استخدامه: unknown = ...\n2. تحقق من الإملاء - هل كتبت unknown بشكل صحيح؟\n3. تحقق من الـ scope - هل unknown معرّف في نفس النطاق؟\n\nالكود الصحيح:\n\n# ✅ الحل:\nunknown = \"some_value\"  # عرّف المتغير أولاً\nprint(unknown)  # ثم استخدمه\n\n# أو إذا كان function:\ndef unknown():\n    pass\n            ",
+      "count": 1,
+      "success_count": 1
+    }
+  },
+  "corrections": {},
+  "patterns": {},
+  "last_updated": "2025-11-02T02:15:00.741647"
+}

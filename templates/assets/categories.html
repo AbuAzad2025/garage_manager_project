@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% block title %}تصنيفات الأصول{% endblock %}
+{% block page_title %}📁 تصنيفات الأصول الثابتة{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>الرمز</th>
+            <th>الاسم</th>
+            <th>الحساب</th>
+            <th>حساب الاستهلاك</th>
+            <th>العمر الافتراضي</th>
+            <th>طريقة الاستهلاك</th>
+            <th>عدد الأصول</th>
+            <th>النشطة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in categories %}
+          <tr>
+            <td>{{ item.category.code }}</td>
+            <td>{{ item.category.name }}</td>
+            <td>{{ item.category.account.name }}</td>
+            <td>{{ item.category.depreciation_account.name }}</td>
+            <td>{{ item.category.useful_life_years }} سنوات</td>
+            <td>
+              {% if item.category.depreciation_method == 'STRAIGHT_LINE' %}
+              قسط ثابت
+              {% else %}
+              رصيد متناقص
+              {% endif %}
+            </td>
+            <td>{{ item.asset_count }}</td>
+            <td>{{ item.active_count }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

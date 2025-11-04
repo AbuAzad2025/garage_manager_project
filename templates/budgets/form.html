@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}{% if budget %}تعديل{% else %}إضافة{% endif %} ميزانية{% endblock %}
+{% block page_title %}💰 {% if budget %}تعديل{% else %}إضافة{% endif %} ميزانية{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">السنة المالية *</label>
+            <input type="number" name="fiscal_year" class="form-control" 
+                   value="{{ budget.fiscal_year if budget else now().year }}" 
+                   min="2020" max="2050" required {% if budget %}readonly{% endif %}>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">الحساب *</label>
+            <select name="account_code" class="custom-select" required {% if budget %}disabled{% endif %}>
+              <option value="">اختر الحساب</option>
+              {% for account in accounts %}
+              <option value="{{ account.code }}" {% if budget and budget.account_code == account.code %}selected{% endif %}>
+                {{ account.name }} ({{ account.code }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">الفرع</label>
+            <select name="branch_id" class="custom-select" {% if budget %}disabled{% endif %}>
+              <option value="">عام (جميع الفروع)</option>
+              {% for branch in branches %}
+              <option value="{{ branch.id }}" {% if budget and budget.branch_id == branch.id %}selected{% endif %}>
+                {{ branch.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">الموقع</label>
+            <select name="site_id" class="custom-select" {% if budget %}disabled{% endif %}>
+              <option value="">عام</option>
+              {% for site in sites %}
+              <option value="{{ site.id }}" {% if budget and budget.site_id == site.id %}selected{% endif %}>
+                {{ site.name }} ({{ site.branch.name if site.branch else '-' }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">المبلغ المخصص (₪) *</label>
+            <input type="number" name="allocated_amount" class="form-control" 
+                   value="{{ budget.allocated_amount if budget else 0 }}" 
+                   min="0" step="0.01" required>
+          </div>
+          
+          {% if budget %}
+          <div class="col-md-6 mb-3">
+            <label class="form-label">الحالة</label>
+            <div class="form-check form-switch mt-2">
+              <input type="checkbox" name="is_active" class="form-check-input" 
+                     {% if budget.is_active %}checked{% endif %}>
+              <label class="form-check-label">نشط</label>
+            </div>
+          </div>
+          {% endif %}
+          
+          <div class="col-md-12 mb-3">
+            <label class="form-label">ملاحظات</label>
+            <textarea name="notes" class="form-control" rows="3">{{ budget.notes if budget else '' }}</textarea>
+          </div>
+        </div>
+        
+        <div class="text-end">
+          <a href="{{ url_for('budgets.index') }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i> إلغاء
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> حفظ
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

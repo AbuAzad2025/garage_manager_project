@@ -72,7 +72,7 @@
 <div class="container my-4">
   <!-- ملخص سريع -->
   <div class="alert alert-info mb-3">
-    <h6 class="alert-heading mb-2"><i class="fas fa-info-circle me-2"></i>معلومات الحجز المسبق</h6>
+    <h6 class="alert-heading mb-2"><i class="fas fa-info-circle ml-2"></i>معلومات الحجز المسبق</h6>
     <p class="mb-1">الحجز المسبق يسمح لك بحجز قطعة مطلوبة حتى إذا لم تكن متوفرة بالمخزن حالياً.</p>
     <ul class="mb-0 small">
       <li>اختر <strong>المستودع أولاً</strong> ثم اختر القطعة من نفس المستودع</li>
@@ -85,7 +85,7 @@
   <div class="card shadow-sm">
     <div class="card-body">
       <h4 class="mb-4">
-        <i class="fas fa-shopping-cart me-2 text-primary"></i>
+        <i class="fas fa-shopping-cart ml-2 text-primary"></i>
         {{ edit_mode and 'تعديل' or 'إضافة' }} حجز مسبق
       </h4>
 
@@ -95,7 +95,7 @@
         <!-- معلومات الحجز -->
         <div class="mb-4">
           <h6 class="text-muted mb-3">
-            <i class="fas fa-file-alt me-2"></i>معلومات الحجز الأساسية
+            <i class="fas fa-file-alt ml-2"></i>معلومات الحجز الأساسية
           </h6>
           <div class="row g-3">
             <div class="col-md-4">
@@ -133,7 +133,7 @@
         <!-- العميل والحالة -->
         <div class="mb-4">
           <h6 class="text-muted mb-3">
-            <i class="fas fa-user me-2"></i>العميل والحالة
+            <i class="fas fa-user ml-2"></i>العميل والحالة
           </h6>
           <div class="row g-3">
             <div class="col-md-3">
@@ -141,7 +141,7 @@
                 {{ form.status.label.text }} 
                 <span class="text-danger">*</span>
               </label>
-              {{ form.status(class="form-select", id=form.status.id) }}
+              {{ form.status(class="custom-select", id=form.status.id) }}
               {% for e in form.status.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
               <small class="text-muted">الحالة الحالية للحجز</small>
             </div>
@@ -151,7 +151,7 @@
                 <span class="text-danger">*</span>
               </label>
               <div class="input-group">
-                {{ form.customer_id(class="form-select select2", id=form.customer_id.id, data_endpoint=url_for('api.search_customers'), data_placeholder="ابحث عن العميل") }}
+                {{ form.customer_id(class="custom-select select2", id=form.customer_id.id, data_endpoint=url_for('api.search_customers'), data_placeholder="ابحث عن العميل") }}
                 <a href="{{ url_for('customers_bp.create_form', return_to=url_for('warehouse_bp.preorder_create')) }}"
                    class="btn btn-outline-primary" title="إضافة عميل جديد" target="_blank">
                   <i class="fa fa-user-plus"></i>
@@ -168,10 +168,10 @@
         <!-- القطعة والمخزن -->
         <div class="mb-4">
           <h6 class="text-muted mb-3">
-            <i class="fas fa-box me-2"></i>القطعة والمخزن
+            <i class="fas fa-box ml-2"></i>القطعة والمخزن
           </h6>
           <div class="alert alert-warning mb-3">
-            <i class="fas fa-exclamation-triangle me-2"></i>
+            <i class="fas fa-exclamation-triangle ml-2"></i>
             <strong>هام:</strong> يجب اختيار <strong>المخزن أولاً</strong> ثم اختيار القطعة من القائمة
           </div>
           <div class="row g-3">
@@ -180,7 +180,7 @@
                 {{ form.warehouse_id.label.text }} 
                 <span class="text-danger">*</span>
               </label>
-              {{ form.warehouse_id(class="form-select select2", id="warehouseSelect", data_endpoint=url_for('api.warehouses'), data_placeholder="اختر المخزن") }}
+              {{ form.warehouse_id(class="custom-select select2", id="warehouseSelect", data_endpoint=url_for('api.warehouses'), data_placeholder="اختر المخزن") }}
               {% for e in form.warehouse_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
               <small class="text-muted">المستودع الذي سيتم جلب القطع منه</small>
             </div>
@@ -189,7 +189,7 @@
                 {{ form.product_id.label.text }} 
                 <span class="text-danger">*</span>
               </label>
-              {{ form.product_id(class="form-select select2", id="productSelect", data_endpoint_by_warehouse="/api/warehouses/0/products", data_placeholder="اختر القطعة بعد المخزن") }}
+              {{ form.product_id(class="custom-select select2", id="productSelect", data_endpoint_by_warehouse="/api/warehouses/0/products", data_placeholder="اختر القطعة بعد المخزن") }}
               {% for e in form.product_id.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
               <div id="prodAvail" class="badge bg-info mt-1"></div>
               <br>
@@ -203,7 +203,7 @@
         <!-- الكميات والأسعار -->
         <div class="mb-4">
           <h6 class="text-muted mb-3">
-            <i class="fas fa-calculator me-2"></i>الكميات والأسعار
+            <i class="fas fa-calculator ml-2"></i>الكميات والأسعار
           </h6>
           <div class="row g-3">
             <div class="col-md-4">
@@ -241,7 +241,7 @@
         <!-- طريقة الدفع -->
         <div class="mb-4">
           <h6 class="text-muted mb-3">
-            <i class="fas fa-credit-card me-2"></i>طريقة الدفع
+            <i class="fas fa-credit-card ml-2"></i>طريقة الدفع
           </h6>
           <div class="row g-3">
             <div class="col-md-12">
@@ -249,7 +249,7 @@
                 {{ form.payment_method.label.text }} 
                 <span class="text-muted small">(اختياري)</span>
               </label>
-              {{ form.payment_method(class="form-select", id=form.payment_method.id) }}
+              {{ form.payment_method(class="custom-select", id=form.payment_method.id) }}
               {% for e in form.payment_method.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
               <small class="text-muted">اختر طريقة الدفع المفضلة للحجز (لحفظ تفاصيل الدفعة لاحقاً)</small>
             </div>
@@ -308,7 +308,7 @@
         <!-- الملاحظات -->
         <div class="mb-4">
           <h6 class="text-muted mb-3">
-            <i class="fas fa-sticky-note me-2"></i>ملاحظات إضافية
+            <i class="fas fa-sticky-note ml-2"></i>ملاحظات إضافية
           </h6>
           <div class="row">
             <div class="col-12">
@@ -328,10 +328,10 @@
         <!-- أزرار الإجراءات -->
         <div class="d-flex gap-2 justify-content-end">
           <a href="{{ url_for('warehouse_bp.preorders_list') }}" class="btn btn-outline-secondary btn-lg">
-            <i class="fas fa-times me-2"></i>إلغاء
+            <i class="fas fa-times ml-2"></i>إلغاء
           </a>
           <button type="submit" class="btn btn-primary btn-lg">
-            <i class="fas fa-check me-2"></i>{{ edit_mode and 'تحديث الحجز' or 'تأكيد الحجز' }}
+            <i class="fas fa-check ml-2"></i>{{ edit_mode and 'تحديث الحجز' or 'تأكيد الحجز' }}
           </button>
         </div>
       </form>

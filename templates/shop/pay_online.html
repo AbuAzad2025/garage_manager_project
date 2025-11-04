@@ -19,7 +19,7 @@
 
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-header bg-white py-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-credit-card me-2 text-primary"></i> إتمام عملية الشراء</h5>
+        <h5 class="mb-0"><i class="fas fa-credit-card ml-2 text-primary"></i> إتمام عملية الشراء</h5>
         <span class="checkout-step">الخطوة 2 من 2</span>
         {% if has_any('manage_payments','view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
           <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-sm btn-warning">
@@ -33,14 +33,14 @@
 
           <div class="col-lg-7 border-end">
             {% if not has_any('manage_payments','manage_shop') %}
-              <h6 class="mb-3"><i class="fas fa-lock me-2 text-primary"></i> معلومات الدفع</h6>
+              <h6 class="mb-3"><i class="fas fa-lock ml-2 text-primary"></i> معلومات الدفع</h6>
 
               <form method="POST" id="payment-form" novalidate>
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="mb-3">
                   <label for="payment-method" class="form-label">طريقة الدفع</label>
-                  <select class="form-select" id="payment-method" name="payment_method">
+                  <select class="custom-select" id="payment-method" name="payment_method">
                     <option value="card" selected>بطاقة بنكية</option>
                   </select>
                 </div>
@@ -90,7 +90,7 @@
 
                 <div class="d-grid">
                   <button type="submit" class="btn btn-pay btn-lg py-3">
-                    <i class="fas fa-check-circle me-2"></i> تأكيد الدفع وإتمام الطلب
+                    <i class="fas fa-check-circle ml-2"></i> تأكيد الدفع وإتمام الطلب
                   </button>
                 </div>
               </form>
@@ -102,7 +102,7 @@
           </div>
 
           <div class="col-lg-5">
-            <h6 class="mb-3"><i class="fas fa-list-alt me-2 text-primary"></i> ملخص الطلب</h6>
+            <h6 class="mb-3"><i class="fas fa-list-alt ml-2 text-primary"></i> ملخص الطلب</h6>
             <div class="card summary-card">
               <div class="card-body">
                 <ul class="list-group list-group-flush">
@@ -141,10 +141,10 @@
 
             <div class="d-flex justify-content-between mt-3">
               <a href="{{ url_for('shop.cart') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-right me-2"></i> العودة للسلة
+                <i class="fas fa-arrow-right ml-2"></i> العودة للسلة
               </a>
               <a href="{{ url_for('shop.catalog') }}" class="btn btn-link text-muted">
-                <i class="fas fa-shopping-bag me-2"></i> مواصلة التسوق
+                <i class="fas fa-shopping-bag ml-2"></i> مواصلة التسوق
               </a>
             </div>
           </div>

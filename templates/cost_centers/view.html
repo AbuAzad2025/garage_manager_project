@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% block title %}{{ center.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-project-diagram text-primary"></i> 
+                    {{ center.name }} <small class="text-muted">({{ center.code }})</small>
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('advanced.accounting_control') }}"><i class="fas fa-sliders-h"></i> المحاسبة المتقدمة</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cost_centers.index') }}">مراكز التكلفة</a></li>
+                    <li class="breadcrumb-item active">{{ center.name }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  
+  <div class="row mb-3 no-print">
+    <div class="col-12">
+      <div class="btn-group">
+        <a href="{{ url_for('cost_centers.index') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left"></i> العودة للمراكز
+        </a>
+        <button class="btn btn-secondary" onclick="window.print()">
+          <i class="fas fa-print"></i> طباعة
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">الميزانية الإجمالية</h6>
+          <h3>{{ "{:,.2f}".format(stats.budget) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">المصروف الفعلي</h6>
+          <h3 class="text-danger">{{ "{:,.2f}".format(stats.total_allocated) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">المتبقي</h6>
+          <h3 class="{% if stats.budget_remaining >= 0 %}text-success{% else %}text-danger{% endif %}">{{ "{:,.2f}".format(stats.budget_remaining) }} ₪</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">نسبة الاستخدام</h6>
+          <h3>{{ "{:.1f}".format(stats.budget_usage_percent) }}%</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link active" data-bs-toggle="tab" href="#info">المعلومات</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="tab" href="#allocations">التخصيصات</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="tab" href="#breakdown">التفصيل حسب النوع</a>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="info">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr>
+              <th width="200">الرمز:</th>
+              <td>{{ center.code }}</td>
+            </tr>
+            <tr>
+              <th>الاسم:</th>
+              <td>{{ center.name }}</td>
+            </tr>
+            <tr>
+              <th>المركز الأب:</th>
+              <td>{{ center.parent.name if center.parent else '-' }}</td>
+            </tr>
+            <tr>
+              <th>المسار الكامل:</th>
+              <td>{{ center.get_full_path() }}</td>
+            </tr>
+            <tr>
+              <th>المدير:</th>
+              <td>{{ center.manager.full_name if center.manager else '-' }}</td>
+            </tr>
+            <tr>
+              <th>الوصف:</th>
+              <td>{{ center.description or '-' }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="allocations">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <table class="table table-hover table-sm">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>النوع</th>
+                <th>المبلغ</th>
+                <th>النسبة</th>
+                <th>ملاحظات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for alloc in allocations.items %}
+              <tr>
+                <td>{{ alloc.allocation_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ alloc.source_type }}</td>
+                <td>{{ "{:,.2f}".format(alloc.amount) }} ₪</td>
+                <td>{{ "{:.0f}".format(alloc.percentage) }}%</td>
+                <td>{{ alloc.notes or '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          
+          {% if allocations.pages > 1 %}
+          <nav>
+            <ul class="pagination justify-content-center">
+              {% if allocations.has_prev %}
+              <li class="page-item"><a class="page-link" href="{{ url_for('cost_centers.view', id=center.id, page=allocations.prev_num) }}">السابق</a></li>
+              {% endif %}
+              {% for page_num in allocations.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if page_num %}
+                  <li class="page-item {% if page_num == allocations.page %}active{% endif %}"><a class="page-link" href="{{ url_for('cost_centers.view', id=center.id, page=page_num) }}">{{ page_num }}</a></li>
+                {% else %}
+                  <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+              {% endfor %}
+              {% if allocations.has_next %}
+              <li class="page-item"><a class="page-link" href="{{ url_for('cost_centers.view', id=center.id, page=allocations.next_num) }}">التالي</a></li>
+              {% endif %}
+            </ul>
+          </nav>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="breakdown">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h5 class="mb-3">المراكز الفرعية</h5>
+          {% if children %}
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>الرمز</th>
+                <th>الاسم</th>
+                <th>الميزانية</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for child in children %}
+              <tr>
+                <td>{{ child.code }}</td>
+                <td><a href="{{ url_for('cost_centers.view', id=child.id) }}">{{ child.name }}</a></td>
+                <td>{{ "{:,.2f}".format(child.budget_amount or 0) }} ₪</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <p class="text-muted">لا توجد مراكز فرعية</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print.js') }}"></script>
+{% endblock %}
+

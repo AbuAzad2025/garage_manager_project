@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 from werkzeug.exceptions import BadRequest
 from flask import Blueprint, Response, flash, jsonify, render_template, request, current_app, redirect, url_for
 from sqlalchemy.orm import class_mapper, joinedload
-from sqlalchemy import func, cast, Date, desc, or_
+from sqlalchemy import func, cast, Date, desc, or_, and_
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy import inspect as sa_inspect
 from extensions import db
@@ -365,30 +365,409 @@ def online_report():
     )
 
 @reports_bp.route("/sales", methods=["GET"])
+@login_required
 def sales():
-    start = _parse_date(request.args.get("start"))
-    end = _parse_date(request.args.get("end"))
-    rpt = sales_report_ils(start, end)
-    
-    # تحويل daily_revenue إلى daily_labels و daily_values
-    daily_revenue = rpt.get('daily_revenue', {})
-    daily_labels = sorted(daily_revenue.keys())
-    daily_values = [float(daily_revenue.get(label, 0)) for label in daily_labels]
-    
-    # استخراج total_revenue
-    total_revenue = float(rpt.get('totals', {}).get('total_revenue_ils', 0))
-    
-    return render_template("reports/sales.html", 
-                         daily_labels=daily_labels,
-                         daily_values=daily_values,
-                         total_revenue=total_revenue,
-                         start=request.args.get("start", ""), 
-                         end=request.args.get("end", ""), 
-                         FIELD_LABELS=FIELD_LABELS, 
-                         MODEL_LABELS=MODEL_LABELS)
+    return sales_advanced_report()
 
 @reports_bp.route("/payments-summary", methods=["GET"], strict_slashes=False)
+@login_required
 def payments_summary():
+    return payments_advanced_report()
+
+
+@reports_bp.route("/invoices", methods=["GET"], strict_slashes=False)
+@login_required
+def invoices_report():
+    from datetime import datetime
+    from decimal import Decimal
+    
+    sd = _parse_date(request.args.get("start_date"))
+    ed = _parse_date(request.args.get("end_date"))
+    customer_id = request.args.get("customer_id")
+    kind = request.args.get("kind")
+    status_filter = request.args.get("status")
+    
+    if sd and ed and ed < sd:
+        sd, ed = ed, sd
+    
+    query = Invoice.query.options(
+        joinedload(Invoice.customer),
+        joinedload(Invoice.supplier),
+        joinedload(Invoice.partner),
+        joinedload(Invoice.lines)
+    )
+    
+    if sd:
+        start_dt = datetime.combine(sd, datetime.min.time())
+        query = query.filter(Invoice.invoice_date >= start_dt)
+    if ed:
+        end_dt = datetime.combine(ed, datetime.max.time())
+        query = query.filter(Invoice.invoice_date <= end_dt)
+    if customer_id:
+        query = query.filter(Invoice.customer_id == int(customer_id))
+    if kind:
+        query = query.filter(Invoice.kind == kind)
+    if status_filter:
+        query = query.filter(Invoice.status == status_filter)
+    
+    invoices = query.order_by(Invoice.invoice_date.desc()).all()
+    
+    total_amount = Decimal('0')
+    total_paid = Decimal('0')
+    balance_due = Decimal('0')
+    overdue_count = 0
+    credit_notes = 0
+    
+    today = datetime.now().date()
+    for inv in invoices:
+        total_amount += Decimal(str(inv.computed_total or 0))
+        total_paid += Decimal(str(inv.total_paid or 0))
+        balance_due += Decimal(str(inv.computed_total or 0)) - Decimal(str(inv.total_paid or 0))
+        
+        if inv.due_date and inv.due_date.date() < today and inv.status != 'PAID':
+            overdue_count += 1
+        if inv.kind == 'CREDIT_NOTE':
+            credit_notes += 1
+    
+    summary = {
+        'total_invoices': len(invoices),
+        'total_amount': float(total_amount),
+        'total_paid': float(total_paid),
+        'balance_due': float(balance_due),
+        'overdue_count': overdue_count,
+        'credit_notes': credit_notes
+    }
+    
+    all_customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+    
+    return render_template(
+        "reports/invoices.html",
+        invoices=invoices,
+        summary=summary,
+        all_customers=all_customers
+    )
+
+
+@reports_bp.route("/preorders", methods=["GET"], strict_slashes=False)
+@login_required
+def preorders_report():
+    from datetime import datetime
+    from decimal import Decimal
+    
+    sd = _parse_date(request.args.get("start_date"))
+    ed = _parse_date(request.args.get("end_date"))
+    customer_id = request.args.get("customer_id")
+    status_filter = request.args.get("status")
+    
+    if sd and ed and ed < sd:
+        sd, ed = ed, sd
+    
+    query = PreOrder.query.options(
+        joinedload(PreOrder.customer),
+        joinedload(PreOrder.product)
+    )
+    
+    if sd:
+        start_dt = datetime.combine(sd, datetime.min.time())
+        query = query.filter(PreOrder.preorder_date >= start_dt)
+    if ed:
+        end_dt = datetime.combine(ed, datetime.max.time())
+        query = query.filter(PreOrder.preorder_date <= end_dt)
+    if customer_id:
+        query = query.filter(PreOrder.customer_id == int(customer_id))
+    if status_filter:
+        query = query.filter(PreOrder.status == status_filter)
+    
+    preorders = query.order_by(PreOrder.preorder_date.desc()).all()
+    
+    total_amount = Decimal('0')
+    total_paid = Decimal('0')
+    balance_due = Decimal('0')
+    
+    for pre in preorders:
+        total_amount += Decimal(str(pre.total_amount or 0))
+        total_paid += Decimal(str(pre.total_paid or 0))
+        balance_due += Decimal(str(pre.balance_due or 0))
+    
+    summary = {
+        'total_preorders': len(preorders),
+        'total_amount': float(total_amount),
+        'total_paid': float(total_paid),
+        'balance_due': float(balance_due)
+    }
+    
+    all_customers = Customer.query.filter_by(is_archived=False).order_by(Customer.name).all()
+    
+    return render_template(
+        "reports/preorders.html",
+        preorders=preorders,
+        summary=summary,
+        all_customers=all_customers
+    )
+
+
+@reports_bp.route("/profit-loss", methods=["GET"], strict_slashes=False)
+@login_required
+def profit_loss_report():
+    from datetime import datetime, timedelta
+    from decimal import Decimal
+    
+    sd = _parse_date(request.args.get("start_date"))
+    ed = _parse_date(request.args.get("end_date"))
+    
+    if sd and ed and ed < sd:
+        sd, ed = ed, sd
+    
+    query_sales = Sale.query.filter(Sale.status == 'CONFIRMED')
+    query_services = ServiceRequest.query.filter(ServiceRequest.status == 'COMPLETED')
+    query_expenses = Expense.query
+    
+    if sd:
+        start_dt = datetime.combine(sd, datetime.min.time())
+        query_sales = query_sales.filter(Sale.sale_date >= start_dt)
+        query_services = query_services.filter(ServiceRequest.created_at >= start_dt)
+        query_expenses = query_expenses.filter(Expense.created_at >= start_dt)
+    
+    if ed:
+        end_dt = datetime.combine(ed, datetime.max.time())
+        query_sales = query_sales.filter(Sale.sale_date <= end_dt)
+        query_services = query_services.filter(ServiceRequest.created_at <= end_dt)
+        query_expenses = query_expenses.filter(Expense.created_at <= end_dt)
+    
+    sales = query_sales.all()
+    services = query_services.all()
+    expenses = query_expenses.all()
+    
+    sales_revenue = sum(Decimal(str(s.total_amount or 0)) for s in sales)
+    service_revenue = sum(Decimal(str(s.total_amount or 0)) for s in services)
+    other_revenue = Decimal('0')
+    
+    total_revenue = sales_revenue + service_revenue + other_revenue
+    
+    operational_expenses = Decimal('0')
+    salary_expenses = Decimal('0')
+    other_expenses_total = Decimal('0')
+    
+    for exp in expenses:
+        exp_amount = Decimal(str(exp.amount or 0))
+        if hasattr(exp, 'expense_type') and exp.expense_type:
+            type_name = getattr(exp.expense_type, 'name', '')
+            if 'رواتب' in type_name or 'راتب' in type_name:
+                salary_expenses += exp_amount
+            else:
+                operational_expenses += exp_amount
+        else:
+            other_expenses_total += exp_amount
+    
+    total_expenses = operational_expenses + salary_expenses + other_expenses_total
+    net_profit = total_revenue - total_expenses
+    profit_margin = (float(net_profit) / float(total_revenue) * 100) if total_revenue > 0 else 0
+    
+    data = {
+        'total_revenue': float(total_revenue),
+        'sales_revenue': float(sales_revenue),
+        'service_revenue': float(service_revenue),
+        'other_revenue': float(other_revenue),
+        'total_expenses': float(total_expenses),
+        'operational_expenses': float(operational_expenses),
+        'salary_expenses': float(salary_expenses),
+        'other_expenses': float(other_expenses_total),
+        'net_profit': float(net_profit),
+        'profit_margin': profit_margin
+    }
+    
+    return render_template(
+        "reports/profit_loss.html",
+        data=data,
+        start_date=sd.isoformat() if sd else '',
+        end_date=ed.isoformat() if ed else ''
+    )
+
+
+@reports_bp.route("/cash-flow", methods=["GET"], strict_slashes=False)
+@login_required
+def cash_flow_report():
+    from datetime import datetime
+    from decimal import Decimal
+    
+    sd = _parse_date(request.args.get("start_date"))
+    ed = _parse_date(request.args.get("end_date"))
+    
+    if sd and ed and ed < sd:
+        sd, ed = ed, sd
+    
+    query_pay_in = Payment.query.filter(
+        Payment.direction == PaymentDirection.IN.value,
+        Payment.status == PaymentStatus.COMPLETED.value
+    )
+    query_pay_out = Payment.query.filter(
+        Payment.direction == PaymentDirection.OUT.value,
+        Payment.status == PaymentStatus.COMPLETED.value
+    )
+    query_expenses = Expense.query
+    
+    if sd:
+        start_dt = datetime.combine(sd, datetime.min.time())
+        query_pay_in = query_pay_in.filter(Payment.created_at >= start_dt)
+        query_pay_out = query_pay_out.filter(Payment.created_at >= start_dt)
+        query_expenses = query_expenses.filter(Expense.created_at >= start_dt)
+    
+    if ed:
+        end_dt = datetime.combine(ed, datetime.max.time())
+        query_pay_in = query_pay_in.filter(Payment.created_at <= end_dt)
+        query_pay_out = query_pay_out.filter(Payment.created_at <= end_dt)
+        query_expenses = query_expenses.filter(Expense.created_at <= end_dt)
+    
+    payments_in = query_pay_in.all()
+    payments_out = query_pay_out.all()
+    expenses = query_expenses.all()
+    
+    customer_payments = sum(Decimal(str(p.total_amount or 0)) for p in payments_in)
+    cash_sales = Decimal('0')
+    other_inflow = Decimal('0')
+    
+    total_inflow = customer_payments + cash_sales + other_inflow
+    
+    supplier_payments = sum(Decimal(str(p.total_amount or 0)) for p in payments_out)
+    
+    salaries_paid = Decimal('0')
+    expenses_paid = Decimal('0')
+    other_outflow = Decimal('0')
+    
+    for exp in expenses:
+        exp_amount = Decimal(str(exp.amount or 0))
+        if hasattr(exp, 'expense_type') and exp.expense_type:
+            type_name = getattr(exp.expense_type, 'name', '')
+            if 'رواتب' in type_name or 'راتب' in type_name:
+                salaries_paid += exp_amount
+            else:
+                expenses_paid += exp_amount
+        else:
+            other_outflow += exp_amount
+    
+    total_outflow = supplier_payments + salaries_paid + expenses_paid + other_outflow
+    net_cash_flow = total_inflow - total_outflow
+    
+    data = {
+        'total_inflow': float(total_inflow),
+        'customer_payments': float(customer_payments),
+        'cash_sales': float(cash_sales),
+        'other_inflow': float(other_inflow),
+        'total_outflow': float(total_outflow),
+        'supplier_payments': float(supplier_payments),
+        'salaries_paid': float(salaries_paid),
+        'expenses_paid': float(expenses_paid),
+        'other_outflow': float(other_outflow),
+        'net_cash_flow': float(net_cash_flow)
+    }
+    
+    return render_template(
+        "reports/cash_flow.html",
+        data=data,
+        start_date=sd.isoformat() if sd else '',
+        end_date=ed.isoformat() if ed else ''
+    )
+
+
+@reports_bp.route("/payments/advanced", methods=["GET"], endpoint="payments_advanced_report")
+@login_required
+def payments_advanced_report():
+    """تقرير المدفوعات الشامل الاحترافي"""
+    from decimal import Decimal
+    from collections import defaultdict
+    
+    sd = _parse_date(request.args.get("start_date"))
+    ed = _parse_date(request.args.get("end_date"))
+    direction_filter = request.args.get("direction")
+    method_filter = request.args.get("method")
+    status_filter = request.args.get("status")
+    
+    if sd and ed and ed < sd:
+        sd, ed = ed, sd
+    
+    query = Payment.query.options(
+        db.joinedload(Payment.customer),
+        db.joinedload(Payment.supplier),
+        db.joinedload(Payment.partner)
+    )
+    
+    if sd:
+        start_dt = datetime.combine(sd, datetime.min.time())
+        query = query.filter(Payment.payment_date >= start_dt)
+    if ed:
+        end_dt = datetime.combine(ed, datetime.max.time())
+        query = query.filter(Payment.payment_date <= end_dt)
+    
+    if direction_filter:
+        query = query.filter(Payment.direction == direction_filter)
+    
+    if method_filter:
+        query = query.filter(Payment.method == method_filter)
+    
+    if status_filter:
+        query = query.filter(Payment.status == status_filter)
+    else:
+        query = query.filter(Payment.status == PaymentStatus.COMPLETED)
+    
+    payments = query.order_by(Payment.payment_date.desc()).all()
+    
+    total_in = Decimal('0.00')
+    total_out = Decimal('0.00')
+    total_amount = Decimal('0.00')
+    completed_count = 0
+    method_stats_dict = defaultdict(lambda: Decimal('0.00'))
+    
+    for payment in payments:
+        amount = Decimal(str(payment.total_amount or 0))
+        total_amount += amount
+        
+        if payment.status == PaymentStatus.COMPLETED:
+            completed_count += 1
+            
+        if payment.direction == PaymentDirection.IN:
+            total_in += amount
+        else:
+            total_out += amount
+        
+        method_key = payment.method.value if payment.method else 'OTHER'
+        method_stats_dict[method_key] += amount
+    
+    method_labels = {
+        'CASH': 'نقدي',
+        'BANK_TRANSFER': 'تحويل بنكي',
+        'CHECK': 'شيك',
+        'CREDIT_CARD': 'بطاقة ائتمان',
+        'OTHER': 'أخرى'
+    }
+    
+    method_stats = [
+        {'method': k, 'label': method_labels.get(k, k), 'total': float(v)}
+        for k, v in sorted(method_stats_dict.items(), key=lambda x: x[1], reverse=True)
+    ]
+    
+    summary = {
+        'total_payments': len(payments),
+        'total_in': float(total_in),
+        'total_out': float(total_out),
+        'net_flow': float(total_in - total_out),
+        'total_amount': float(total_amount),
+        'avg_payment': float(total_amount / len(payments)) if len(payments) > 0 else 0,
+        'completed_count': completed_count
+    }
+    
+    return render_template(
+        "reports/payments_summary.html",
+        payments=payments,
+        summary=summary,
+        method_stats=method_stats,
+        show_charts=True,
+                         FIELD_LABELS=FIELD_LABELS, 
+        MODEL_LABELS=MODEL_LABELS
+    )
+
+
+@reports_bp.route("/payments-summary-old", methods=["GET"], strict_slashes=False)
+def payments_summary_old():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     rpt = payment_summary_report_ils(start, end)
@@ -530,26 +909,32 @@ def suppliers_report():
 
 @reports_bp.route("/partners", methods=["GET"], endpoint="partners_report")
 def partners_report():
-    # استخدام Partner.balance المحدّث تلقائياً
     q = Partner.query.order_by(Partner.name.asc()).all()
     
     data = []
     total_balance = 0
+    total_paid = 0
     for partner in q:
         balance = float(partner.balance or 0)
         share = float(partner.share_percentage or 0)
+        paid = 0
         data.append(
             {
                 "id": partner.id,
                 "name": partner.name,
                 "balance": balance,
+                "total_paid": paid,
+                "net_balance": balance - paid,
                 "share_percentage": share,
             }
         )
         total_balance += balance
+        total_paid += paid
     
     totals = {
         "balance": total_balance,
+        "total_paid": total_paid,
+        "net_balance": total_balance - total_paid,
     }
     return render_template(
         "reports/partners.html",
@@ -560,117 +945,251 @@ def partners_report():
     )
 
 @reports_bp.route("/customers", methods=["GET"], endpoint="customers_report")
+@login_required
 def customers_report():
+    return customers_advanced_report()
+
+
+@reports_bp.route("/customers/advanced", methods=["GET"], endpoint="customers_advanced_report")
+@login_required
+def customers_advanced_report():
+    """تقرير العملاء الشامل الاحترافي"""
     from decimal import Decimal
     from models import convert_amount
+    from sqlalchemy import or_
     
-    sd = _parse_date(request.args.get("start"))
-    ed = _parse_date(request.args.get("end"))
-    if sd and ed and ed < sd:
-        sd, ed = ed, sd
-    start = sd or date.min
-    end = ed or date.max
+    search = request.args.get('search', '').strip()
+    balance_status = request.args.get('balance_status', '')
     
-    customers = Customer.query.all()
-    data = []
+    query = Customer.query
     
-    for cust in customers:
+    if search:
+        query = query.filter(
+            or_(
+                Customer.name.ilike(f'%{search}%'),
+                Customer.phone.ilike(f'%{search}%'),
+                Customer.email.ilike(f'%{search}%')
+            )
+        )
+    
+    all_customers = query.all()
+    customers_data = []
+    
+    total_invoiced_sum = Decimal('0.00')
+    total_paid_sum = Decimal('0.00')
+    total_invoices_count = 0
+    
+    for cust in all_customers:
         invoiced_ils = Decimal('0.00')
         paid_ils = Decimal('0.00')
+        invoice_count = 0
+        last_transaction = None
         
         invoices = db.session.query(Invoice).filter(
             Invoice.customer_id == cust.id,
-            Invoice.cancelled_at.is_(None),
-            cast(Invoice.invoice_date, Date).between(start, end)
+            Invoice.cancelled_at.is_(None)
         ).all()
+        invoice_count += len(invoices)
         for inv in invoices:
             amt = Decimal(str(inv.total_amount or 0))
-            if inv.currency == "ILS":
-                invoiced_ils += amt
-            else:
-                try:
-                    invoiced_ils += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
-                except:
-                    pass
+            invoiced_ils += amt
+            if not last_transaction or (inv.invoice_date and inv.invoice_date > last_transaction):
+                last_transaction = inv.invoice_date
         
         sales = db.session.query(Sale).filter(
             Sale.customer_id == cust.id,
-            Sale.status == SaleStatus.CONFIRMED,
-            cast(Sale.sale_date, Date).between(start, end)
+            Sale.status == SaleStatus.CONFIRMED
         ).all()
+        invoice_count += len(sales)
         for s in sales:
             amt = Decimal(str(s.total_amount or 0))
-            if s.currency == "ILS":
-                invoiced_ils += amt
-            else:
-                try:
-                    invoiced_ils += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                except:
-                    pass
+            invoiced_ils += amt
+            if not last_transaction or (s.sale_date and s.sale_date > last_transaction):
+                last_transaction = s.sale_date
         
         services = db.session.query(ServiceRequest).filter(
-            ServiceRequest.customer_id == cust.id,
-            cast(func.coalesce(ServiceRequest.completed_at, ServiceRequest.received_at, ServiceRequest.created_at), Date).between(start, end)
+            ServiceRequest.customer_id == cust.id
         ).all()
+        invoice_count += len(services)
         for srv in services:
             amt = Decimal(str(srv.total_amount or 0))
-            if srv.currency == "ILS":
-                invoiced_ils += amt
-            else:
-                try:
-                    invoiced_ils += convert_amount(amt, srv.currency, "ILS", srv.received_at)
-                except:
-                    pass
-        
-        online_preorders = db.session.query(OnlinePreOrder).filter(
-            OnlinePreOrder.customer_id == cust.id,
-            cast(OnlinePreOrder.created_at, Date).between(start, end)
-        ).all()
-        for op in online_preorders:
-            amt = Decimal(str(op.total_amount or 0))
-            if op.currency == "ILS":
-                invoiced_ils += amt
-            else:
-                try:
-                    invoiced_ils += convert_amount(amt, op.currency, "ILS", op.created_at)
-                except:
-                    pass
+            invoiced_ils += amt
+            if not last_transaction or (srv.received_at and srv.received_at > last_transaction):
+                last_transaction = srv.received_at
         
         payments = db.session.query(Payment).filter(
             Payment.customer_id == cust.id,
             Payment.direction == PaymentDirection.IN.value,
-            Payment.status == PaymentStatus.COMPLETED.value,
-            cast(Payment.payment_date, Date).between(start, end)
+            Payment.status == PaymentStatus.COMPLETED.value
         ).all()
         for p in payments:
             amt = Decimal(str(p.total_amount or 0))
-            if p.currency == "ILS":
-                paid_ils += amt
-            else:
-                try:
-                    paid_ils += convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
-                    pass
+            paid_ils += amt
+            if not last_transaction or (p.payment_date and p.payment_date > last_transaction):
+                last_transaction = p.payment_date
+        
+        balance = invoiced_ils - paid_ils
+        
+        if balance_status == 'debit' and balance <= 0:
+            continue
+        elif balance_status == 'credit' and balance >= 0:
+            continue
+        elif balance_status == 'zero' and balance != 0:
+            continue
         
         if invoiced_ils != 0 or paid_ils != 0:
-            data.append({
-                "id": cust.id,
-                "name": cust.name,
-                "total_invoiced": float(invoiced_ils),
-                "total_paid": float(paid_ils),
-                "balance": float(invoiced_ils - paid_ils),
+            total_invoiced_sum += invoiced_ils
+            total_paid_sum += paid_ils
+            total_invoices_count += invoice_count
+            
+            customers_data.append({
+                'id': cust.id,
+                'name': cust.name,
+                'phone': cust.phone or '',
+                'email': cust.email or '',
+                'stats': {
+                    'total_invoiced': float(invoiced_ils),
+                    'total_paid': float(paid_ils),
+                    'invoice_count': invoice_count,
+                    'last_transaction': last_transaction
+                }
             })
     
-    data.sort(key=lambda x: x["total_invoiced"], reverse=True)
+    customers_data.sort(key=lambda x: x['stats']['total_invoiced'] - x['stats']['total_paid'], reverse=True)
+    
+    summary = {
+        'total_customers': len(customers_data),
+        'total_invoiced': float(total_invoiced_sum),
+        'total_paid': float(total_paid_sum),
+        'total_balance': float(total_invoiced_sum - total_paid_sum),
+        'avg_invoice': float(total_invoiced_sum / len(customers_data)) if len(customers_data) > 0 else 0,
+        'payment_ratio': float(total_paid_sum / total_invoiced_sum * 100) if total_invoiced_sum > 0 else 0,
+        'total_invoices': total_invoices_count
+    }
+    
+    top_customers = sorted(customers_data, key=lambda x: x['stats']['total_invoiced'], reverse=True)[:5]
+    
+    all_customers_data = []
+    for c in customers_data:
+        all_customers_data.append({
+            'id': c['id'],
+            'name': c['name'],
+            'phone': c['phone'],
+            'email': c['email'],
+            'total_invoiced': c['stats']['total_invoiced'],
+            'total_paid': c['stats']['total_paid'],
+            'balance': c['stats']['total_invoiced'] - c['stats']['total_paid'],
+        })
     
     return render_template(
         "reports/customers.html",
-        data=data,
-        start=request.args.get("start", ""),
-        end=request.args.get("end", ""),
+        data=all_customers_data,
+        totals={
+            'invoiced': summary['total_invoiced'],
+            'paid': summary['total_paid'],
+            'balance': summary['total_balance']
+        },
+        start=request.args.get("start_date", ""),
+        end=request.args.get("end_date", ""),
         FIELD_LABELS=FIELD_LABELS,
-        MODEL_LABELS=MODEL_LABELS,
+        MODEL_LABELS=MODEL_LABELS
     )
+
+
+@reports_bp.route("/sales/advanced", methods=["GET"], endpoint="sales_advanced_report")
+@login_required
+def sales_advanced_report():
+    """تقرير المبيعات الشامل الاحترافي"""
+    from decimal import Decimal
+    from collections import defaultdict
+    from sqlalchemy.orm import joinedload
+    
+    sd = _parse_date(request.args.get("start_date"))
+    ed = _parse_date(request.args.get("end_date"))
+    customer_id = request.args.get("customer_id")
+    status_filter = request.args.get("status")
+    
+    if sd and ed and ed < sd:
+        sd, ed = ed, sd
+    
+    query = Sale.query.options(
+        joinedload(Sale.customer),
+        joinedload(Sale.lines)
+    )
+    
+    if sd:
+        start_dt = datetime.combine(sd, datetime.min.time())
+        query = query.filter(Sale.sale_date >= start_dt)
+    if ed:
+        end_dt = datetime.combine(ed, datetime.max.time())
+        query = query.filter(Sale.sale_date <= end_dt)
+    
+    if customer_id:
+        try:
+            query = query.filter(Sale.customer_id == int(customer_id))
+        except:
+            pass
+    
+    if status_filter:
+        query = query.filter(Sale.status == status_filter)
+    else:
+        query = query.filter(Sale.status == SaleStatus.CONFIRMED)
+    
+    sales = query.order_by(Sale.sale_date.desc()).all()
+    
+    total_revenue = Decimal('0.00')
+    total_items = 0
+    total_quantity = 0
+    daily_sales_dict = defaultdict(lambda: Decimal('0.00'))
+    product_sales_dict = defaultdict(lambda: {'quantity': 0, 'revenue': Decimal('0.00')})
+    
+    for sale in sales:
+        total_revenue += Decimal(str(sale.total_amount or 0))
+        total_items += len(sale.lines)
+        
+        for line in sale.lines:
+            total_quantity += line.quantity or 0
+            line_amount = Decimal(str(line.net_amount or 0))
+            
+            if sale.sale_date:
+                date_key = sale.sale_date.date().isoformat()
+                daily_sales_dict[date_key] += line_amount
+            
+            if line.product:
+                product_sales_dict[line.product.id]['name'] = line.product.name
+                product_sales_dict[line.product.id]['quantity'] += line.quantity or 0
+                product_sales_dict[line.product.id]['revenue'] += line_amount
+    
+    summary = {
+        'total_sales': len(sales),
+        'total_revenue': float(total_revenue),
+        'avg_sale': float(total_revenue / len(sales)) if len(sales) > 0 else 0,
+        'total_items': total_items,
+        'total_quantity': total_quantity,
+        'avg_item_value': float(total_revenue / total_items) if total_items > 0 else 0
+    }
+    
+    daily_sales = [{'date': d, 'total': float(v)} for d, v in sorted(daily_sales_dict.items())]
+    
+    top_products = sorted([
+        {'id': pid, 'name': pdata.get('name', 'منتج'), 'quantity': pdata['quantity'], 'revenue': float(pdata['revenue'])}
+        for pid, pdata in product_sales_dict.items()
+    ], key=lambda x: x['revenue'], reverse=True)[:5]
+    
+    all_customers = Customer.query.order_by(Customer.name).all()
+    
+    return render_template(
+        "reports/sales.html",
+        sales=sales,
+        summary=summary,
+        daily_sales=daily_sales,
+        top_products=top_products,
+        all_customers=all_customers,
+        show_charts=True,
+        FIELD_LABELS=FIELD_LABELS,
+        MODEL_LABELS=MODEL_LABELS
+    )
+
 
 @reports_bp.route("/expenses", methods=["GET"], endpoint="expenses_report")
 def expenses_report():
@@ -1170,8 +1689,10 @@ def supplier_detail_report(supplier_id):
 
     # جميع المصاريف المتعلقة بالمورد
     expenses_query = Expense.query.filter(
-        Expense.payee_type == 'SUPPLIER',
-        Expense.payee_entity_id == supplier_id
+        or_(
+            Expense.supplier_id == supplier_id,
+            and_(Expense.payee_type == 'SUPPLIER', Expense.payee_entity_id == supplier_id)
+        )
     )
     if start_date:
         expenses_query = expenses_query.filter(Expense.date >= start_date)
@@ -1336,8 +1857,10 @@ def partner_detail_report(partner_id):
 
     # جميع المصاريف المتعلقة بالشريك
     expenses_query = Expense.query.filter(
-        Expense.payee_type == 'PARTNER',
-        Expense.payee_entity_id == partner_id
+        or_(
+            Expense.partner_id == partner_id,
+            and_(Expense.payee_type == 'PARTNER', Expense.payee_entity_id == partner_id)
+        )
     )
     if start_date:
         expenses_query = expenses_query.filter(Expense.date >= start_date)

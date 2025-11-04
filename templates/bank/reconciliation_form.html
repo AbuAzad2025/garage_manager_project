@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}تسوية بنكية جديدة{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+{% endblock %}
+{% block page_title %}⚖️ تسوية بنكية جديدة{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-balance-scale text-primary"></i> 
+                    تسوية بنكية
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('advanced.accounting_control') }}"><i class="fas fa-sliders-h"></i> المحاسبة المتقدمة</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('bank.accounts') }}">الحسابات البنكية</a></li>
+                    <li class="breadcrumb-item active">تسوية بنكية</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  
+  <div class="row mb-3 no-print">
+    <div class="col-12">
+      <div class="btn-group">
+        <a href="{{ url_for('bank.reconciliations') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left"></i> العودة للتسويات
+        </a>
+        <button class="btn btn-secondary" onclick="window.print()">
+          <i class="fas fa-print"></i> طباعة
+        </button>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">الحساب البنكي *</label>
+            <select name="bank_account_id" class="custom-select" required>
+              <option value="">اختر الحساب</option>
+              {% for account in bank_accounts %}
+              <option value="{{ account.id }}">{{ account.name }} - {{ account.bank_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="col-md-3 mb-3">
+            <label class="form-label">من تاريخ *</label>
+            <input type="date" name="period_start" class="form-control" required>
+          </div>
+          
+          <div class="col-md-3 mb-3">
+            <label class="form-label">إلى تاريخ *</label>
+            <input type="date" name="period_end" class="form-control" required>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">رصيد البنك (من الكشف) *</label>
+            <input type="number" name="bank_balance" class="form-control" step="0.01" required>
+          </div>
+        </div>
+        
+        <div class="text-end">
+          <a href="{{ url_for('bank.reconciliations') }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i> إلغاء
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check"></i> بدء التسوية
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print.js') }}"></script>
+{% endblock %}
+

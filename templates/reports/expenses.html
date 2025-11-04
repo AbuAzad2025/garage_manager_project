@@ -51,7 +51,7 @@
   <!-- فلاتر -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-      <span><i class="fas fa-filter me-2"></i> فلاتر التقرير</span>
+      <span><i class="fas fa-filter ml-2"></i> فلاتر التقرير</span>
       <button class="btn btn-sm btn-outline-light" type="button" data-toggle="collapse" data-target="#filterCollapse">
         <i class="fas fa-chevron-down"></i>
       </button>
@@ -81,7 +81,7 @@
             <label class="form-label fw-semibold">
               <i class="fas fa-tags text-info"></i> نوع المصروف
             </label>
-            <select name="type" class="form-select">
+            <select name="type" class="custom-select">
               <option value="">— جميع الأنواع —</option>
               {% for t in expense_types %}
                 <option value="{{ t.id }}" {% if selected_type|string == t.id|string %}selected{% endif %}>{{ t.name }}</option>
@@ -94,7 +94,7 @@
             <label class="form-label fw-semibold">
               <i class="fas fa-user-tie text-success"></i> الموظف
             </label>
-            <select name="employee_id" class="form-select">
+            <select name="employee_id" class="custom-select">
               <option value="">— جميع الموظفين —</option>
               {% for emp in employees %}
                 <option value="{{ emp.id }}" {% if selected_employee_id == emp.id %}selected{% endif %}>
@@ -109,7 +109,7 @@
             <label class="form-label fw-semibold">
               <i class="fas fa-money-bill text-warning"></i> حالة الدفع
             </label>
-            <select name="is_paid" class="form-select">
+            <select name="is_paid" class="custom-select">
               <option value="">— الكل —</option>
               <option value="true" {% if selected_is_paid == 'true' %}selected{% endif %}>مدفوع</option>
               <option value="false" {% if selected_is_paid == 'false' %}selected{% endif %}>غير مدفوع</option>
@@ -121,7 +121,7 @@
             <label class="form-label fw-semibold">
               <i class="fas fa-warehouse text-secondary"></i> المستودع
             </label>
-            <select name="warehouse_id" class="form-select">
+            <select name="warehouse_id" class="custom-select">
               <option value="">— جميع المستودعات —</option>
               {% for w in warehouses %}
                 <option value="{{ w.id }}" {% if selected_warehouse_id == w.id %}selected{% endif %}>{{ w.name }}</option>
@@ -134,7 +134,7 @@
             <label class="form-label fw-semibold">
               <i class="fas fa-handshake text-secondary"></i> الشريك
             </label>
-            <select name="partner_id" class="form-select">
+            <select name="partner_id" class="custom-select">
               <option value="">— جميع الشركاء —</option>
               {% for p in partners %}
                 <option value="{{ p.id }}" {% if selected_partner_id == p.id %}selected{% endif %}>{{ p.name }}</option>

@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block title %}{% if center %}تعديل{% else %}إضافة{% endif %} مركز تكلفة{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-project-diagram text-primary"></i> 
+                    {% if center %}تعديل مركز تكلفة{% else %}إضافة مركز تكلفة جديد{% endif %}
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('advanced.accounting_control') }}"><i class="fas fa-sliders-h"></i> المحاسبة المتقدمة</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cost_centers.index') }}">مراكز التكلفة</a></li>
+                    <li class="breadcrumb-item active">{% if center %}تعديل{% else %}إضافة{% endif %}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  
+  <div class="row mb-3 no-print">
+    <div class="col-12">
+      <a href="{{ url_for('cost_centers.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> العودة للمراكز
+      </a>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">الرمز *</label>
+            <input type="text" name="code" class="form-control" placeholder="CC01" value="{{ center.code if center else '' }}" {% if center %}readonly{% endif %} required>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">الاسم *</label>
+            <input type="text" name="name" class="form-control" placeholder="المركز الإداري" value="{{ center.name if center else '' }}" required>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">المركز الأب (للهيكل الهرمي)</label>
+            <select name="parent_id" class="custom-select">
+              <option value="">مركز رئيسي</option>
+              {% for cc in parent_centers %}
+              <option value="{{ cc.id }}" {% if center and center.parent_id == cc.id %}selected{% endif %}>{{ cc.name }} ({{ cc.code }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">المدير المسؤول</label>
+            <select name="manager_id" class="custom-select">
+              <option value="">بدون</option>
+              {% for manager in managers %}
+              <option value="{{ manager.id }}" {% if center and center.manager_id == manager.id %}selected{% endif %}>{{ manager.username }} - {{ manager.full_name or manager.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="col-md-6 mb-3">
+            <label class="form-label">الميزانية المخصصة (₪)</label>
+            <input type="number" name="budget_amount" class="form-control" value="{{ center.budget_amount if center else 0 }}" step="0.01" min="0">
+          </div>
+          
+          <div class="col-md-12 mb-3">
+            <label class="form-label">الوصف</label>
+            <textarea name="description" class="form-control" rows="3">{{ center.description if center else '' }}</textarea>
+          </div>
+          
+          {% if center %}
+          <div class="col-md-12 mb-3">
+            <div class="form-check">
+              <input type="checkbox" name="is_active" class="form-check-input" id="is_active" {% if center.is_active %}checked{% endif %}>
+              <label class="form-check-label" for="is_active">نشط</label>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+        
+        <div class="text-end">
+          <a href="{{ url_for('cost_centers.index') }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i> إلغاء
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> حفظ
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</section>
+{% endblock %}
+

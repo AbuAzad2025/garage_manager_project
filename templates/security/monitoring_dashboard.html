@@ -1,0 +1,436 @@
+{% extends 'security/base_security.html' %}
+{% block tour_name %}monitoring_dashboard{% endblock %}
+{% block security_title %}Monitoring Dashboard{% endblock %}
+{% block security_icon %}<i class="fas fa-tv"></i>{% endblock %}
+{% block security_description %}مراقبة شاملة للأداء والموارد في الوقت الفعلي - Grafana-like{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Monitoring Dashboard</li>{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+{% endblock %}
+
+{% block security_content %}
+  
+  <div class="alert alert-success border-0 shadow-sm">
+    <i class="fas fa-chart-line"></i>
+    <strong>Grafana-like Dashboard:</strong> مراقبة شاملة للأداء والموارد والعمليات في الوقت الفعلي
+    <button class="btn btn-sm btn-outline-success float-end" onclick="refreshAllMetrics()">
+      <i class="fas fa-sync-alt"></i> تحديث
+    </button>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-primary text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">CPU Usage</h6>
+              <h3 class="mb-0" id="cpu-value">{{ system_metrics.cpu if system_metrics else 0 }}%</h3>
+            </div>
+            <div class="fs-1 opacity-50">
+              <i class="fas fa-microchip"></i>
+            </div>
+          </div>
+          <div class="progress mt-3" style="height: 6px;">
+            <div class="progress-bar bg-white" id="cpu-bar" role="progressbar" style="width: {{ system_metrics.cpu if system_metrics else 0 }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-success text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">Memory Usage</h6>
+              <h3 class="mb-0" id="memory-value">{{ system_metrics.memory if system_metrics else 0 }}%</h3>
+            </div>
+            <div class="fs-1 opacity-50">
+              <i class="fas fa-memory"></i>
+            </div>
+          </div>
+          <div class="progress mt-3" style="height: 6px;">
+            <div class="progress-bar bg-white" id="memory-bar" role="progressbar" style="width: {{ system_metrics.memory if system_metrics else 0 }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-info text-white">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-white-50 mb-1">Disk Usage</h6>
+              <h3 class="mb-0" id="disk-value">{{ system_metrics.disk if system_metrics else 0 }}%</h3>
+            </div>
+            <div class="fs-1 opacity-50">
+              <i class="fas fa-hdd"></i>
+            </div>
+          </div>
+          <div class="progress mt-3" style="height: 6px;">
+            <div class="progress-bar bg-white" id="disk-bar" role="progressbar" style="width: {{ system_metrics.disk if system_metrics else 0 }}%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-warning text-dark">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-dark-50 mb-1">Active Users</h6>
+              <h3 class="mb-0" id="users-value">{{ dashboard_data.active_users if dashboard_data else 0 }}</h3>
+            </div>
+            <div class="fs-1 opacity-50">
+              <i class="fas fa-users"></i>
+            </div>
+          </div>
+          <small id="users-detail" class="d-block mt-2">جاري التحميل...</small>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1">المبيعات اليوم</h6>
+              <h4 class="mb-0 text-primary">{{ dashboard_data.total_sales_today if dashboard_data else 0 }}</h4>
+            </div>
+            <i class="fas fa-shopping-cart fa-2x text-primary opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1">الدفعات اليوم</h6>
+              <h4 class="mb-0 text-success">{{ dashboard_data.total_payments_today if dashboard_data else 0 }}</h4>
+            </div>
+            <i class="fas fa-money-bill-wave fa-2x text-success opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1">طلبات صيانة معلقة</h6>
+              <h4 class="mb-0 text-warning">{{ dashboard_data.pending_services if dashboard_data else 0 }}</h4>
+            </div>
+            <i class="fas fa-tools fa-2x text-warning opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1">مستخدمين نشطين</h6>
+              <h4 class="mb-0 text-info">{{ dashboard_data.active_users if dashboard_data else 0 }}</h4>
+            </div>
+            <i class="fas fa-users fa-2x text-info opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-dark text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-area"></i> استخدام الموارد (آخر 30 دقيقة)</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="resourcesChart" height="80"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-secondary text-white">
+          <h5 class="mb-0"><i class="fas fa-database"></i> معلومات قاعدة البيانات</h5>
+        </div>
+        <div class="card-body" id="db-info">
+          <div class="d-flex justify-content-between mb-2">
+            <span>الحجم:</span>
+            <strong id="db-size">--</strong>
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span>WAL Mode:</span>
+            <strong id="db-wal">--</strong>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span>Page Size:</span>
+            <strong id="db-page">--</strong>
+          </div>
+          <hr>
+          <button class="btn btn-sm btn-outline-primary w-100 mb-1" onclick="runVacuum()">
+            <i class="fas fa-broom"></i> VACUUM
+          </button>
+          <button class="btn btn-sm btn-outline-info w-100 mb-1" onclick="runAnalyze()">
+            <i class="fas fa-chart-bar"></i> ANALYZE
+          </button>
+          <button class="btn btn-sm btn-outline-success w-100" onclick="runCheckpoint()">
+            <i class="fas fa-save"></i> CHECKPOINT
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-info text-white">
+          <h5 class="mb-0"><i class="fas fa-tachometer-alt"></i> معدل العمليات (Ops/min)</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="opsChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-warning text-dark">
+          <h5 class="mb-0"><i class="fas fa-clock"></i> وقت الاستجابة (Response Time)</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="responseChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-gradient-danger text-white">
+          <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> تنبيهات النظام</h5>
+        </div>
+        <div class="card-body">
+          <div id="alerts-container" class="row g-2">
+            <div class="col-12 text-center text-muted">
+              <i class="fas fa-spinner fa-spin"></i> جاري تحميل التنبيهات...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+
+</div>
+
+<script>
+const csrfToken = '{{ csrf_token() }}';
+
+let resourcesChart, opsChart, responseChart;
+let resourcesData = {
+  labels: [],
+  cpu: [],
+  memory: [],
+  disk: []
+};
+
+function initCharts() {
+  const resourcesCtx = document.getElementById('resourcesChart').getContext('2d');
+  resourcesChart = new Chart(resourcesCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'CPU %',
+          data: [],
+          borderColor: '#007bff',
+          backgroundColor: 'rgba(0, 123, 255, 0.1)',
+          tension: 0.4
+        },
+        {
+          label: 'Memory %',
+          data: [],
+          borderColor: '#28a745',
+          backgroundColor: 'rgba(40, 167, 69, 0.1)',
+          tension: 0.4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
+        }
+      }
+    }
+  });
+  
+  const opsCtx = document.getElementById('opsChart').getContext('2d');
+  opsChart = new Chart(opsCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Sales', 'Payments', 'Services', 'Products', 'Other'],
+      datasets: [{
+        label: 'Operations',
+        data: [0, 0, 0, 0, 0],
+        backgroundColor: [
+          'rgba(255, 99, 132, 0.7)',
+          'rgba(54, 162, 235, 0.7)',
+          'rgba(255, 206, 86, 0.7)',
+          'rgba(75, 192, 192, 0.7)',
+          'rgba(153, 102, 255, 0.7)'
+        ]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true
+    }
+  });
+  
+  const responseCtx = document.getElementById('responseChart').getContext('2d');
+  responseChart = new Chart(responseCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Avg Response (ms)',
+        data: [],
+        borderColor: '#ffc107',
+        backgroundColor: 'rgba(255, 193, 7, 0.1)',
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true
+    }
+  });
+}
+
+async function loadMetrics() {
+  try {
+    const response = await fetch('/security/api/live-metrics');
+    const data = await response.json();
+    
+    if (data) {
+      document.getElementById('cpu-value').textContent = (data.cpu || 0).toFixed(1) + '%';
+      document.getElementById('cpu-bar').style.width = (data.cpu || 0) + '%';
+      
+      document.getElementById('memory-value').textContent = (data.memory || 0).toFixed(1) + '%';
+      document.getElementById('memory-bar').style.width = (data.memory || 0) + '%';
+      
+      document.getElementById('disk-value').textContent = (data.disk || 0).toFixed(1) + '%';
+      document.getElementById('disk-bar').style.width = (data.disk || 0) + '%';
+      
+      document.getElementById('users-value').textContent = data.active_users || 0;
+      document.getElementById('users-detail').textContent = `${data.online_now || 0} متصل الآن`;
+      
+      updateChart(data.cpu || 0, data.memory || 0);
+    }
+  } catch (err) {
+    console.error('Error loading metrics:', err);
+  }
+}
+
+async function loadDBInfo() {
+  try {
+    const response = await fetch('/security/api/maintenance/db-info');
+    const data = await response.json();
+    
+    if (data.success) {
+      document.getElementById('db-size').textContent = data.db_size || 'N/A';
+      document.getElementById('db-wal').innerHTML = data.wal_mode ? 
+        '<span class="badge bg-success">نعم</span>' : 
+        '<span class="badge bg-secondary">لا</span>';
+      document.getElementById('db-page').textContent = data.page_size || 'N/A';
+    }
+  } catch (err) {
+    console.error('Error loading DB info:', err);
+  }
+}
+
+function updateChart(cpu, memory) {
+  const now = new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+  
+  resourcesChart.data.labels.push(now);
+  resourcesChart.data.datasets[0].data.push(cpu);
+  resourcesChart.data.datasets[1].data.push(memory);
+  
+  if (resourcesChart.data.labels.length > 30) {
+    resourcesChart.data.labels.shift();
+    resourcesChart.data.datasets[0].data.shift();
+    resourcesChart.data.datasets[1].data.shift();
+  }
+  
+  resourcesChart.update();
+}
+
+async function runVacuum() {
+  if (!confirm('تنفيذ VACUUM على قاعدة البيانات؟')) return;
+  
+  try {
+    const response = await fetch('/security/api/maintenance/vacuum', {method: 'POST'});
+    const data = await response.json();
+    alert(data.message);
+    loadDBInfo();
+  } catch (err) {
+    alert('خطأ: ' + err.message);
+  }
+}
+
+async function runAnalyze() {
+  try {
+    const response = await fetch('/security/api/maintenance/analyze', {method: 'POST'});
+    const data = await response.json();
+    alert(data.message);
+  } catch (err) {
+    alert('خطأ: ' + err.message);
+  }
+}
+
+async function runCheckpoint() {
+  try {
+    const response = await fetch('/security/api/maintenance/checkpoint', {method: 'POST'});
+    const data = await response.json();
+    alert(data.message);
+    loadDBInfo();
+  } catch (err) {
+    alert('خطأ: ' + err.message);
+  }
+}
+
+function refreshAllMetrics() {
+  loadMetrics();
+  loadDBInfo();
+}
+
+initCharts();
+loadMetrics();
+loadDBInfo();
+
+setInterval(loadMetrics, 5000);
+</script>
+
+{% endblock %}
+

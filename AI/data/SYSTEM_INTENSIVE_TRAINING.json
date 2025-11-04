@@ -1,0 +1,816 @@
+{
+  "training_metadata": {
+    "title": "تدريب مكثف شامل على نظام Azad Garage Manager",
+    "version": "3.0",
+    "date": "2025-11-02",
+    "total_items": 500,
+    "categories": ["system_architecture", "models", "routes", "permissions", "accounting", "workflows", "ai_system"],
+    "difficulty": "professional",
+    "target_level": "expert_owner"
+  },
+
+  "system_overview": {
+    "name": "Azad Garage Manager",
+    "type": "نظام إدارة متكامل للكراجات والمعدات الثقيلة",
+    "core_modules": 15,
+    "total_models": 92,
+    "total_routes": 629,
+    "total_templates": 250,
+    "total_blueprints": 49,
+    "database_tables": 90,
+    "supported_languages": ["Arabic", "English"],
+    "architecture": "Flask + SQLAlchemy + AdminLTE",
+    "database": "SQLite (Production-ready for PostgreSQL/MySQL)",
+    "ai_enabled": true
+  },
+
+  "core_architecture": {
+    "framework": {
+      "backend": "Flask 2.x",
+      "orm": "SQLAlchemy 2.x",
+      "migration": "Flask-Migrate (Alembic)",
+      "authentication": "Flask-Login",
+      "forms": "Flask-WTF",
+      "database": "SQLite (with WAL mode)",
+      "frontend": "AdminLTE 3.x + jQuery + Bootstrap 4"
+    },
+    "structure": {
+      "app.py": "التطبيق الرئيسي - تسجيل Blueprints والإعدادات",
+      "models.py": "92 موديل - كل جداول قاعدة البيانات",
+      "forms.py": "نماذج WTForms لكل الوحدات",
+      "utils.py": "دوال مساعدة عامة",
+      "config.py": "إعدادات النظام",
+      "extensions.py": "تهيئة الإضافات (db, login, mail, etc)",
+      "routes/": "47 ملف راوت - كل وحدة في ملف منفصل",
+      "templates/": "292 قالب HTML",
+      "static/": "CSS, JS, Images",
+      "migrations/": "ملفات الهجرة لقاعدة البيانات",
+      "AI/": "نظام الذكاء الاصطناعي المتكامل"
+    }
+  },
+
+  "database_models": {
+    "core_models": [
+      {
+        "name": "User",
+        "table": "users",
+        "purpose": "المستخدمون والموظفون",
+        "key_fields": ["username", "email", "password_hash", "role_id", "is_active"],
+        "relationships": ["role", "extra_permissions", "sales", "service_requests"],
+        "methods": ["set_password", "check_password", "has_permission", "mark_login"]
+      },
+      {
+        "name": "Role",
+        "table": "roles",
+        "purpose": "أدوار المستخدمين",
+        "key_fields": ["name", "slug", "description"],
+        "relationships": ["permissions", "users"],
+        "predefined": ["owner", "developer", "super_admin", "admin", "manager", "staff", "mechanic", "customer", "guest"]
+      },
+      {
+        "name": "Permission",
+        "table": "permissions",
+        "purpose": "صلاحيات النظام",
+        "key_fields": ["code", "name", "description", "module", "is_protected"],
+        "total_permissions": 68,
+        "modules": ["system", "users", "customers", "sales", "service", "warehouses", "vendors", "accounting", "shipments", "shop", "other"]
+      },
+      {
+        "name": "Customer",
+        "table": "customers",
+        "purpose": "العملاء",
+        "key_fields": ["name", "phone", "whatsapp", "email", "is_company", "opening_balance", "notes"],
+        "hybrid_properties": ["balance", "sales_total", "invoices_total", "service_total", "payments_total"],
+        "special_features": ["multi_currency_balance", "gl_integration", "can_login_to_shop"]
+      },
+      {
+        "name": "Supplier",
+        "table": "suppliers",
+        "purpose": "الموردون",
+        "key_fields": ["name", "phone", "email", "is_active", "notes"],
+        "relationships": ["shipments", "settlements", "products"],
+        "special_features": ["auto_settlements", "gl_integration"]
+      },
+      {
+        "name": "Partner",
+        "table": "partners",
+        "purpose": "الشركاء التجاريون",
+        "key_fields": ["name", "phone", "email", "commission_rate", "notes"],
+        "relationships": ["settlements", "products", "sales_share"],
+        "special_features": ["smart_settlement_calculation", "product_sharing", "commission_tracking"]
+      },
+      {
+        "name": "Product",
+        "table": "products",
+        "purpose": "المنتجات وقطع الغيار",
+        "key_fields": ["name", "barcode", "sku", "category_id", "cost", "price", "unit"],
+        "relationships": ["category", "stocks", "sales_lines", "invoices", "shipments"],
+        "special_features": ["multi_warehouse_stock", "barcode_normalization", "auto_reorder"]
+      },
+      {
+        "name": "Warehouse",
+        "table": "warehouses",
+        "purpose": "المستودعات والمخازن",
+        "key_fields": ["name", "code", "location", "branch_id", "is_active"],
+        "relationships": ["stocks", "transfers", "adjustments"],
+        "special_features": ["multi_branch", "stock_tracking", "auto_transfers"]
+      },
+      {
+        "name": "Stock",
+        "table": "stocks",
+        "purpose": "مخزون المنتجات",
+        "key_fields": ["product_id", "warehouse_id", "quantity", "reorder_level"],
+        "constraints": ["unique(product_id, warehouse_id)"],
+        "special_features": ["auto_reorder_alerts", "low_stock_notifications"]
+      },
+      {
+        "name": "Sale",
+        "table": "sales",
+        "purpose": "فواتير المبيعات",
+        "key_fields": ["code", "customer_id", "seller_id", "sale_date", "total_amount", "currency", "status"],
+        "relationships": ["lines", "customer", "seller", "payments"],
+        "workflow": ["DRAFT → CONFIRMED → CANCELLED"],
+        "special_features": ["multi_currency", "gl_integration", "auto_code_generation", "tax_calculation"]
+      },
+      {
+        "name": "SaleLine",
+        "table": "sale_lines",
+        "purpose": "بنود المبيعات",
+        "key_fields": ["sale_id", "product_id", "quantity", "price", "discount", "subtotal"],
+        "calculations": ["subtotal = (price * quantity) - discount", "total_with_tax = subtotal * (1 + tax_rate)"]
+      },
+      {
+        "name": "Invoice",
+        "table": "invoices",
+        "purpose": "الفواتير (غير المبيعات)",
+        "key_fields": ["code", "customer_id", "invoice_date", "total_amount", "currency", "invoice_type"],
+        "types": ["service", "parts", "rental", "other"],
+        "special_features": ["multi_currency", "gl_integration", "auto_code"]
+      },
+      {
+        "name": "ServiceRequest",
+        "table": "service_requests",
+        "purpose": "طلبات الصيانة",
+        "key_fields": ["code", "customer_id", "mechanic_id", "equipment_type", "status", "total_cost"],
+        "workflow": ["NEW → IN_PROGRESS → COMPLETED → CANCELLED"],
+        "special_features": ["parts_tracking", "labor_tracking", "gl_integration"]
+      },
+      {
+        "name": "Payment",
+        "table": "payments",
+        "purpose": "المدفوعات والسندات",
+        "key_fields": ["code", "entity_type", "entity_id", "direction", "amount", "currency", "payment_date"],
+        "entity_types": ["CUSTOMER", "SUPPLIER", "PARTNER", "EMPLOYEE", "EXPENSE", "OTHER"],
+        "directions": ["IN", "OUT"],
+        "special_features": ["multi_entity", "multi_currency", "gl_integration", "payment_splits"]
+      },
+      {
+        "name": "Expense",
+        "table": "expenses",
+        "purpose": "المصروفات",
+        "key_fields": ["code", "expense_type_id", "amount", "currency", "expense_date", "description"],
+        "relationships": ["expense_type", "payment"],
+        "special_features": ["multi_currency", "gl_integration", "budget_tracking"]
+      },
+      {
+        "name": "Shipment",
+        "table": "shipments",
+        "purpose": "الشحنات الواردة",
+        "key_fields": ["code", "supplier_id", "warehouse_id", "shipment_date", "total_cost", "currency", "status"],
+        "workflow": ["PENDING → RECEIVED → CANCELLED"],
+        "special_features": ["auto_stock_update", "gl_integration", "cost_allocation"]
+      },
+      {
+        "name": "Transfer",
+        "table": "transfers",
+        "purpose": "التحويلات بين المستودعات",
+        "key_fields": ["product_id", "source_id", "destination_id", "quantity", "transfer_date"],
+        "special_features": ["auto_stock_update", "audit_trail"]
+      },
+      {
+        "name": "Currency",
+        "table": "currencies",
+        "purpose": "العملات المدعومة",
+        "key_fields": ["code", "name", "symbol", "decimals", "is_active"],
+        "supported": ["ILS", "USD", "EUR", "JOD", "AED", "SAR", "EGP", "GBP"],
+        "special_features": ["auto_conversion", "exchange_rate_tracking"]
+      },
+      {
+        "name": "ExchangeRate",
+        "table": "exchange_rates",
+        "purpose": "أسعار الصرف",
+        "key_fields": ["from_currency", "to_currency", "rate", "date"],
+        "special_features": ["historical_rates", "auto_conversion"]
+      },
+      {
+        "name": "GLBatch",
+        "table": "gl_batches",
+        "purpose": "قيود محاسبية (دفاتر)",
+        "key_fields": ["batch_code", "memo", "batch_date", "source_type", "source_id"],
+        "relationships": ["entries"],
+        "special_features": ["auto_generation", "audit_trail"]
+      },
+      {
+        "name": "GLEntry",
+        "table": "gl_entries",
+        "purpose": "بنود القيود المحاسبية",
+        "key_fields": ["batch_id", "account_code", "debit", "credit"],
+        "validation": ["debit + credit must balance per batch"]
+      },
+      {
+        "name": "Budget",
+        "table": "budgets",
+        "purpose": "الميزانيات",
+        "key_fields": ["name", "period_start", "period_end", "total_allocated", "status"],
+        "workflow": ["DRAFT → APPROVED → CLOSED"],
+        "special_features": ["auto_tracking", "variance_analysis"]
+      },
+      {
+        "name": "FixedAsset",
+        "table": "fixed_assets",
+        "purpose": "الأصول الثابتة",
+        "key_fields": ["name", "category_id", "acquisition_cost", "acquisition_date", "depreciation_method"],
+        "methods": ["STRAIGHT_LINE", "DECLINING_BALANCE"],
+        "special_features": ["auto_depreciation", "gl_integration", "maintenance_tracking"]
+      },
+      {
+        "name": "BankAccount",
+        "table": "bank_accounts",
+        "purpose": "الحسابات البنكية",
+        "key_fields": ["account_name", "account_number", "bank_name", "currency", "balance"],
+        "special_features": ["multi_currency", "reconciliation", "gl_integration"]
+      },
+      {
+        "name": "CostCenter",
+        "table": "cost_centers",
+        "purpose": "مراكز التكلفة",
+        "key_fields": ["code", "name", "parent_id", "budget_allocated"],
+        "special_features": ["hierarchical", "budget_tracking"]
+      },
+      {
+        "name": "Project",
+        "table": "projects",
+        "purpose": "المشاريع",
+        "key_fields": ["code", "name", "start_date", "end_date", "budget", "status"],
+        "workflow": ["PLANNING → ACTIVE → COMPLETED → CANCELLED"],
+        "special_features": ["p_and_l", "profitability_tracking", "budget_control"]
+      },
+      {
+        "name": "Archive",
+        "table": "archives",
+        "purpose": "أرشفة السجلات المحذوفة",
+        "key_fields": ["record_type", "record_id", "archived_data", "archived_by", "archived_at"],
+        "special_features": ["json_storage", "full_restore"]
+      },
+      {
+        "name": "SaleReturn",
+        "table": "sale_returns",
+        "purpose": "مرتجعات المبيعات",
+        "key_fields": ["code", "customer_id", "original_sale_id", "total_amount", "currency", "status"],
+        "workflow": ["PENDING → CONFIRMED → CANCELLED"],
+        "special_features": ["auto_stock_restore", "gl_integration", "refund_tracking"]
+      }
+    ],
+
+    "employee_models": [
+      {
+        "name": "Employee",
+        "purpose": "بيانات الموظفين",
+        "key_fields": ["name", "employee_id", "position", "salary", "hire_date"]
+      },
+      {
+        "name": "EmployeeAdvance",
+        "purpose": "سلف الموظفين",
+        "key_fields": ["employee_id", "amount", "currency", "advance_date", "repayment_status"]
+      },
+      {
+        "name": "EmployeeDeduction",
+        "purpose": "خصومات الموظفين",
+        "key_fields": ["employee_id", "amount", "deduction_type", "start_date", "end_date"]
+      }
+    ],
+
+    "shop_models": [
+      {
+        "name": "OnlineOrder",
+        "purpose": "طلبات المتجر الإلكتروني",
+        "key_fields": ["code", "customer_id", "total_amount", "status"]
+      },
+      {
+        "name": "OnlinePreOrder",
+        "purpose": "الطلبات المسبقة",
+        "key_fields": ["code", "customer_id", "product_id", "quantity", "deposit_paid"]
+      },
+      {
+        "name": "OnlineCartItem",
+        "purpose": "سلة التسوق",
+        "key_fields": ["customer_id", "product_id", "quantity"]
+      }
+    ],
+
+    "system_models": [
+      {
+        "name": "SystemSettings",
+        "purpose": "إعدادات النظام",
+        "key_fields": ["key", "value", "description", "data_type", "is_public"]
+      },
+      {
+        "name": "NotificationLog",
+        "purpose": "سجل الإشعارات",
+        "key_fields": ["recipient", "method", "message", "status", "sent_at"]
+      },
+      {
+        "name": "TaxEntry",
+        "purpose": "الضرائب",
+        "key_fields": ["name", "rate", "is_active"]
+      },
+      {
+        "name": "AuthAudit",
+        "purpose": "تدقيق المصادقة",
+        "key_fields": ["user_id", "event", "success", "ip", "created_at"]
+      },
+      {
+        "name": "DeletionLog",
+        "purpose": "سجل الحذف",
+        "key_fields": ["table_name", "record_id", "deleted_by", "deleted_at"]
+      }
+    ]
+  },
+
+  "permissions_system": {
+    "roles_hierarchy": [
+      {"level": 0, "roles": ["owner", "developer"], "description": "صلاحيات مطلقة"},
+      {"level": 1, "roles": ["super_admin", "super"], "description": "صلاحيات كاملة تقريباً"},
+      {"level": 2, "roles": ["admin"], "description": "إدارة يومية كاملة"},
+      {"level": 3, "roles": ["manager"], "description": "إشراف على العمليات"},
+      {"level": 4, "roles": ["staff"], "description": "موظف عادي"},
+      {"level": 5, "roles": ["mechanic"], "description": "ميكانيكي - صيانة فقط"},
+      {"level": 6, "roles": ["registered_customer"], "description": "عميل مسجل"},
+      {"level": 7, "roles": ["guest"], "description": "زائر"}
+    ],
+
+    "permission_modules": {
+      "system": ["backup_database", "restore_database"],
+      "users": ["manage_users", "manage_roles", "manage_permissions"],
+      "customers": ["manage_customers", "add_customer", "view_customers"],
+      "sales": ["manage_sales", "view_sales"],
+      "service": ["manage_service", "view_service"],
+      "warehouses": ["manage_warehouses", "view_warehouses", "manage_inventory", "view_inventory", "warehouse_transfer", "view_parts"],
+      "vendors": ["manage_vendors", "add_supplier", "add_partner"],
+      "accounting": ["manage_payments", "manage_expenses", "view_reports", "manage_reports", "manage_exchange", "manage_currencies"],
+      "shipments": ["manage_shipments"],
+      "shop": ["view_shop", "browse_products", "manage_shop", "place_online_order", "view_preorders", "add_preorder", "edit_preorder", "delete_preorder"],
+      "other": ["access_api", "manage_api", "view_notes", "manage_notes", "view_barcode", "manage_barcode", "view_own_orders", "view_own_account"]
+    },
+
+    "protected_permissions": ["backup_database", "restore_database", "manage_permissions", "manage_roles", "manage_users"],
+
+    "super_roles_capabilities": {
+      "owner": {
+        "can_restore_db": true,
+        "can_hard_delete": true,
+        "can_manage_super_admins": true,
+        "can_view_all_audit_logs": true,
+        "can_manage_roles": true,
+        "can_manage_permissions": true,
+        "can_access_everything": true
+      },
+      "developer": "same as owner",
+      "super_admin": {
+        "can_restore_db": true,
+        "can_hard_delete": false,
+        "can_manage_super_admins": false,
+        "can_view_all_audit_logs": true,
+        "can_manage_roles": true,
+        "can_manage_permissions": true,
+        "can_access_everything": true
+      }
+    }
+  },
+
+  "financial_flows": {
+    "customer_balance_calculation": {
+      "formula": "الرصيد = (الدفعات الواردة) - (المبيعات + الفواتير + الخدمات) + (الرصيد الافتتاحي)",
+      "components": {
+        "sales_total": "مجموع المبيعات المؤكدة (status = CONFIRMED)",
+        "invoices_total": "مجموع الفواتير غير الملغاة (cancelled_at IS NULL)",
+        "service_total": "مجموع طلبات الصيانة المكتملة (status = COMPLETED)",
+        "payments_in": "الدفعات الواردة (direction = IN)",
+        "payments_out": "الدفعات الصادرة (direction = OUT)",
+        "opening_balance": "الرصيد الافتتاحي",
+        "returns": "المرتجعات المؤكدة (تخفض من الدين)"
+      },
+      "interpretation": {
+        "negative": "سالب (-) = أحمر = عليه يدفع (دين)",
+        "positive": "موجب (+) = أخضر = له رصيد عندنا (دفع زيادة)",
+        "zero": "صفر (0) = رمادي = متساوي"
+      },
+      "example": {
+        "scenario": "عميل اشترى ب 1000 ₪، دفع 600 ₪، ثم دفع 600 ₪",
+        "step_1": "مبيعات 1000 ₪ → رصيد = -1000 (عليه)",
+        "step_2": "دفع 600 ₪ → رصيد = -400 (لسه عليه)",
+        "step_3": "دفع 600 ₪ → رصيد = +200 (له عندنا - دفع زيادة)"
+      }
+    },
+
+    "supplier_settlement": {
+      "formula": "الرصيد = الشحنات - الدفعات",
+      "components": {
+        "shipments_total": "مجموع الشحنات المستلمة (status = RECEIVED)",
+        "payments_total": "مجموع الدفعات للمورد (direction = OUT)"
+      }
+    },
+
+    "partner_settlement": {
+      "formula": "الرصيد = الرصيد الافتتاحي + (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا)",
+      "components": {
+        "partner_rights": "المخزون + المبيعات",
+        "partner_obligations": "مبيعات له + صيانة له + تالف + مصروفات",
+        "paid_to_partner": "دفعنا له (OUT)",
+        "received_from_partner": "دفع لنا (IN)"
+      }
+    },
+
+    "payment_policies": {
+      "customer_payments": "IN = دفع منه لنا | OUT = دفعنا له (استرجاع/خصم)",
+      "supplier_payments": "OUT = دفعنا للمورد | IN = استرجاع من المورد",
+      "partner_payments": "OUT = دفعنا للشريك | IN = دفع لنا من الشريك",
+      "employee_payments": "OUT = دفع راتب/سلفة | IN = استرداد سلفة",
+      "expense_payments": "OUT فقط - النفقات دائماً صادرة"
+    },
+
+    "multi_currency": {
+      "base_currency": "ILS (الشيكل الإسرائيلي)",
+      "supported": ["ILS", "USD", "EUR", "JOD", "AED", "SAR", "EGP", "GBP"],
+      "conversion": "تلقائي باستخدام ExchangeRate",
+      "balance_display": "كل رصيد يُعرض بالعملة الأساسية (ILS) بعد التحويل"
+    }
+  },
+
+  "accounting_integration": {
+    "gl_accounts": {
+      "1100_AR": "حسابات العملاء (Accounts Receivable)",
+      "2100_AP": "حسابات الموردين (Accounts Payable)",
+      "1200_INVENTORY": "المخزون",
+      "4000_SALES": "المبيعات",
+      "5000_COGS": "تكلفة المبيعات",
+      "6000_EXPENSE": "المصروفات",
+      "1000_CASH": "الصندوق",
+      "1050_BANK": "البنك",
+      "3000_EQUITY": "رأس المال",
+      "2200_VAT_OUT": "ضريبة مبيعات",
+      "1300_VAT_IN": "ضريبة مشتريات"
+    },
+
+    "gl_batch_sources": {
+      "SALE": "قيد مبيعات",
+      "INVOICE": "قيد فاتورة",
+      "SERVICE": "قيد صيانة",
+      "PAYMENT": "قيد دفع",
+      "EXPENSE": "قيد مصروف",
+      "SHIPMENT": "قيد شحنة",
+      "TRANSFER": "قيد تحويل مخزني",
+      "OPENING": "قيد افتتاحي",
+      "ADJUSTMENT": "قيد تسوية",
+      "DEPRECIATION": "قيد استهلاك"
+    },
+
+    "auto_gl_events": [
+      "عند تأكيد المبيعة → قيد تلقائي (مدين AR، دائن Sales)",
+      "عند الدفع → قيد تلقائي (مدين Cash/Bank، دائن AR/AP)",
+      "عند استلام الشحنة → قيد تلقائي (مدين Inventory، دائن AP)",
+      "عند المصروف → قيد تلقائي (مدين Expense، دائن Cash/Bank)",
+      "عند الاستهلاك → قيد تلقائي (مدين Depreciation Expense، دائن Accumulated Depreciation)"
+    ]
+  },
+
+  "ai_system": {
+    "architecture": {
+      "master_controller": "المتحكم الرئيسي - يوجه الأسئلة للنظام المناسب",
+      "subsystems": [
+        "ReasoningEngine - محرك التفكير والاستدلال",
+        "PythonExpert - تحليل وإصلاح أخطاء Python",
+        "DatabaseExpert - تحسين SQL وفهرسة",
+        "WebExpert - HTML/CSS/JS best practices",
+        "UserGuideMaster - دليل المستخدم الكامل",
+        "LearningSystem - التعلم من التفاعلات",
+        "SelfEvolution - التطور الذاتي",
+        "PerformanceTracker - مراقبة الأداء",
+        "AccountingAuditor - التدقيق المحاسبي",
+        "ContinuousLearner - الدراسة المستمرة",
+        "BookReader - قراءة MD/PDF",
+        "DeepMemory - 5 أنواع ذاكرة",
+        "ComprehensionEngine - فهم عميق 10 أبعاد"
+      ],
+      "trainers": [
+        "IntensiveTrainer - 10 مراحل تدريب شامل",
+        "SpecializedTraining - 6 باقات متخصصة",
+        "MarathonTrainer - 15 تخصص مالي/إداري",
+        "HeavyEquipmentExpert - 15 تخصص صيانة",
+        "SystemDeepTrainer - 20 وحدة نظام"
+      ]
+    },
+
+    "memory_system": {
+      "long_term": "494 items - قاعدة البيانات، معايير محاسبية، أنظمة ضريبية، معدات",
+      "semantic": "396 items - مفاهيم محاسبية، صيانة، إدارية، مالية",
+      "procedural": "874 items - إجراءات محاسبية، صيانة، سير عمل، routes & endpoints",
+      "total": "1764 items"
+    },
+
+    "capabilities": [
+      "الإجابة على أسئلة النظام بدقة عالية",
+      "تحليل وإصلاح الأخطاء البرمجية",
+      "تحسين أداء قاعدة البيانات",
+      "التدقيق المحاسبي التلقائي",
+      "التعلم المستمر من التفاعلات",
+      "قراءة وفهم الملفات والكتب",
+      "تقديم نصائح محاسبية متقدمة",
+      "مراقبة الأداء والتنبيهات"
+    ]
+  },
+
+  "routes_structure": {
+    "authentication": {
+      "blueprint": "auth_bp",
+      "prefix": "/auth",
+      "routes": ["login", "logout", "register"]
+    },
+    "main": {
+      "blueprint": "main_bp",
+      "prefix": "/",
+      "routes": ["dashboard", "profile", "settings"]
+    },
+    "customers": {
+      "blueprint": "customers_bp",
+      "prefix": "/customers",
+      "routes": ["list", "add", "edit", "delete", "view", "statement"]
+    },
+    "sales": {
+      "blueprint": "sales_bp",
+      "prefix": "/sales",
+      "routes": ["list", "add", "edit", "delete", "view", "confirm", "cancel", "print"]
+    },
+    "service": {
+      "blueprint": "service_bp",
+      "prefix": "/service",
+      "routes": ["list", "add", "edit", "delete", "view", "complete", "cancel", "print"]
+    },
+    "warehouses": {
+      "blueprint": "warehouse_bp",
+      "prefix": "/warehouses",
+      "routes": ["list", "add", "edit", "delete", "stock", "transfer", "adjustment", "reports"]
+    },
+    "payments": {
+      "blueprint": "payments_bp",
+      "prefix": "/payments",
+      "routes": ["list", "add", "edit", "delete", "view", "print"]
+    },
+    "reports": {
+      "blueprint": "reports_bp",
+      "prefix": "/reports",
+      "routes": ["sales", "purchases", "inventory", "financial", "customers", "suppliers", "profit_loss", "balance_sheet", "cash_flow"]
+    },
+    "ai": {
+      "blueprint": "ai_bp",
+      "prefix": "/ai",
+      "routes": ["chat", "ask", "train", "status"]
+    },
+    "ai_admin": {
+      "blueprint": "ai_admin_bp",
+      "prefix": "/ai-admin",
+      "routes": ["settings", "advanced_training", "dynamic_training", "reset_knowledge", "train_package", "marathon_training", "upload_book", "memory_stats", "system_status"]
+    }
+  },
+
+  "workflows": {
+    "sale_workflow": {
+      "steps": [
+        "1. إضافة مبيعة (DRAFT)",
+        "2. إضافة بنود (SaleLine)",
+        "3. تأكيد (CONFIRMED) → خصم من المخزون + قيد محاسبي",
+        "4. إضافة دفعات (Payment)",
+        "5. طباعة الفاتورة"
+      ],
+      "cancellation": "يمكن الإلغاء (CANCELLED) → إرجاع للمخزون + عكس القيد"
+    },
+    "service_workflow": {
+      "steps": [
+        "1. إنشاء طلب صيانة (NEW)",
+        "2. تعيين ميكانيكي",
+        "3. إضافة قطع وخدمات",
+        "4. بدء العمل (IN_PROGRESS)",
+        "5. إنهاء (COMPLETED) → قيد محاسبي",
+        "6. طباعة الفاتورة"
+      ],
+      "cancellation": "يمكن الإلغاء في أي مرحلة"
+    },
+    "shipment_workflow": {
+      "steps": [
+        "1. إنشاء شحنة (PENDING)",
+        "2. إضافة بنود",
+        "3. استلام (RECEIVED) → زيادة المخزون + قيد محاسبي",
+        "4. ربط بدفعة للمورد"
+      ]
+    },
+    "payment_workflow": {
+      "steps": [
+        "1. تحديد نوع الكيان (CUSTOMER/SUPPLIER/...)",
+        "2. تحديد الاتجاه (IN/OUT)",
+        "3. إدخال المبلغ والعملة",
+        "4. حفظ → قيد محاسبي تلقائي"
+      ],
+      "validation": "النفقات دائماً OUT فقط"
+    }
+  },
+
+  "best_practices": {
+    "code_quality": [
+      "عدم وضع تعليقات في الكود (No comments)",
+      "عدم إنشاء ملفات جديدة إذا كان الملف الأصلي موجود",
+      "التأكد من التطابق الكامل بين Route, Model, Database, Forms",
+      "عدم الرفع للـ GitHub بدون التأكد من نجاح العمليات",
+      "دراسة وفهم النظام قبل الإجابة"
+    ],
+    "database": [
+      "استخدام Foreign Keys دائماً",
+      "تفعيل WAL mode في SQLite",
+      "استخدام Indexes للحقول المستعلم عنها كثيراً",
+      "استخدام TimestampMixin و AuditMixin",
+      "التحقق من صحة البيانات باستخدام @validates"
+    ],
+    "security": [
+      "استخدام bcrypt لتشفير كلمات المرور",
+      "تسجيل كل محاولات الدخول (AuthAudit)",
+      "فحص الصلاحيات قبل كل عملية",
+      "تفعيل CSRF Protection",
+      "استخدام Rate Limiting"
+    ],
+    "performance": [
+      "استخدام lazy loading للعلاقات",
+      "استخدام joinedload فقط عند الحاجة",
+      "Cache الإعدادات والبيانات الثابتة",
+      "استخدام Pagination للقوائم الكبيرة",
+      "تحسين الاستعلامات SQL"
+    ]
+  },
+
+  "common_operations": {
+    "add_sale": {
+      "route": "POST /sales/add",
+      "required_fields": ["customer_id", "sale_date", "currency"],
+      "optional_fields": ["notes", "discount", "tax_rate"],
+      "steps": [
+        "1. إنشاء Sale object",
+        "2. إضافة SaleLine objects",
+        "3. حساب total_amount",
+        "4. حفظ في قاعدة البيانات",
+        "5. إنشاء GLBatch تلقائياً عند التأكيد"
+      ]
+    },
+    "add_payment": {
+      "route": "POST /payments/add",
+      "required_fields": ["entity_type", "entity_id", "direction", "amount", "currency", "payment_date"],
+      "validation": "entity_type = EXPENSE → direction must be OUT",
+      "gl_effect": "مدين Cash/Bank، دائن AR/AP (حسب direction)"
+    },
+    "stock_transfer": {
+      "route": "POST /warehouses/transfer",
+      "required_fields": ["product_id", "source_id", "destination_id", "quantity"],
+      "auto_update": "تحديث Stock تلقائياً في كلا المستودعين"
+    }
+  },
+
+  "troubleshooting": {
+    "balance_not_updating": {
+      "cause": "القيد المحاسبي لم يُنشأ أو لم يُحدث",
+      "solution": "فحص GLBatch و GLEntry للعملية، التأكد من trigger العمل"
+    },
+    "stock_negative": {
+      "cause": "بيع أكثر من المتوفر",
+      "solution": "تفعيل Stock validation، منع البيع إذا quantity > stock"
+    },
+    "permission_denied": {
+      "cause": "المستخدم لا يملك الصلاحية",
+      "solution": "فحص Role و Permissions، إضافة الصلاحية المطلوبة"
+    },
+    "currency_conversion_failed": {
+      "cause": "سعر الصرف غير موجود للتاريخ المطلوب",
+      "solution": "إضافة ExchangeRate للعملات المطلوبة"
+    }
+  },
+
+  "advanced_features": {
+    "multi_currency": "دعم 8 عملات مع تحويل تلقائي",
+    "multi_branch": "إدارة فروع متعددة",
+    "multi_warehouse": "مستودعات متعددة مع تحويلات",
+    "gl_integration": "تكامل كامل مع دفتر الأستاذ",
+    "auto_depreciation": "استهلاك تلقائي للأصول الثابتة",
+    "bank_reconciliation": "تسوية بنكية متقدمة",
+    "cost_centers": "مراكز تكلفة هرمية",
+    "project_accounting": "محاسبة المشاريع",
+    "budget_control": "رقابة الميزانيات",
+    "ai_assistant": "مساعد ذكي متكامل",
+    "shop_integration": "متجر إلكتروني مدمج",
+    "api_access": "RESTful APIs",
+    "archive_system": "أرشفة السجلات المحذوفة",
+    "audit_trail": "سجل تدقيق شامل",
+    "notifications": "إشعارات SMS/Email/WhatsApp"
+  },
+
+  "deployment": {
+    "local": {
+      "requirements": ["Python 3.10+", "SQLite 3", "pip"],
+      "steps": [
+        "pip install -r requirements.txt",
+        "flask db upgrade",
+        "flask run"
+      ]
+    },
+    "production": {
+      "requirements": ["Python 3.10+", "PostgreSQL/MySQL", "Gunicorn", "Nginx"],
+      "steps": [
+        "git clone repo",
+        "python3.10 -m venv venv",
+        "source venv/bin/activate",
+        "pip install -r requirements.txt",
+        "export DATABASE_URL=postgresql://...",
+        "flask db upgrade",
+        "gunicorn wsgi:app"
+      ]
+    }
+  },
+
+  "key_metrics": {
+    "total_code_lines": "~50,000 lines",
+    "models": 92,
+    "routes": 629,
+    "templates": 292,
+    "permissions": 68,
+    "roles": 10,
+    "supported_currencies": 8,
+    "gl_accounts": "11+",
+    "ai_memory_items": 1764,
+    "ai_subsystems": 13,
+    "training_items_processed": 75924
+  },
+
+  "competitive_advantages": {
+    "vs_beisan": [
+      "✅ AI Assistant - لا يوجد عند بيسان",
+      "✅ السرعة - 3 أيام vs 6-12 شهر",
+      "✅ السعر - شفاف vs غير واضح",
+      "✅ Security Control - IP/Country Blocking",
+      "✅ التخصيص - 5 نجوم vs 2 نجوم",
+      "✅ API Modern - RESTful vs محدود",
+      "✅ Real-time - تحديثات لحظية",
+      "✅ Mobile-First - responsive كامل"
+    ]
+  },
+
+  "training_questions": [
+    {
+      "q": "كيف يتم حساب رصيد العميل؟",
+      "a": "الرصيد = (الدفعات الواردة) - (المبيعات + الفواتير + الخدمات) + (الرصيد الافتتاحي). السالب يعني عليه يدفع (أحمر)، الموجب يعني له رصيد عندنا (أخضر)."
+    },
+    {
+      "q": "ماذا يحدث عند تأكيد مبيعة؟",
+      "a": "1. تتحول الحالة إلى CONFIRMED. 2. يُخصم من المخزون تلقائياً. 3. يُنشأ قيد محاسبي (GLBatch) تلقائياً: مدين AR، دائن Sales."
+    },
+    {
+      "q": "كيف يتم التحويل بين المستودعات؟",
+      "a": "عبر Transfer model: تحديد product_id, source_id, destination_id, quantity. يُحدث Stock تلقائياً في كلا المستودعين."
+    },
+    {
+      "q": "ما هي الصلاحيات المحمية (Protected)؟",
+      "a": "backup_database, restore_database, manage_permissions, manage_roles, manage_users. لا يمكن حذفها من النظام."
+    },
+    {
+      "q": "كم عدد الموديلات في النظام؟",
+      "a": "92 موديل تغطي العملاء، الموردين، المبيعات، الصيانة، المخزون، المحاسبة، الموظفين، الميزانيات، الأصول، البنوك، المشاريع، وأكثر."
+    },
+    {
+      "q": "ما هو MasterController في نظام AI؟",
+      "a": "المتحكم الرئيسي الذي يوجه الأسئلة للنظام الفرعي المناسب من 13 نظام (ReasoningEngine, PythonExpert, DatabaseExpert, UserGuideMaster, وغيرها)."
+    },
+    {
+      "q": "كيف يعمل نظام الأدوار (Roles)؟",
+      "a": "هرمي من 0-7: owner/developer (0) أعلى صلاحية، guest (7) أدنى. كل دور له صلاحيات محددة وقدرات خاصة."
+    },
+    {
+      "q": "ما الفرق بين Sale و Invoice؟",
+      "a": "Sale = فاتورة مبيعات منتجات. Invoice = فاتورة خدمات/إيجار/أخرى. كلاهما يؤثر على رصيد العميل."
+    },
+    {
+      "q": "كيف يتم حساب الاستهلاك (Depreciation)؟",
+      "a": "تلقائياً عبر Cron Job للأصول الثابتة. يدعم STRAIGHT_LINE و DECLINING_BALANCE. يُنشأ قيد محاسبي تلقائياً."
+    },
+    {
+      "q": "ما هي العملات المدعومة؟",
+      "a": "ILS (أساسي), USD, EUR, JOD, AED, SAR, EGP, GBP. التحويل تلقائي باستخدام ExchangeRate."
+    }
+  ],
+
+  "final_summary": "نظام Azad Garage Manager هو نظام إدارة متكامل يدعم 92 موديل، 629 راوت، ونظام ذكاء اصطناعي متقدم. يغطي المبيعات، الصيانة، المخزون، المحاسبة، الموردين، العملاء، الموظفين، الميزانيات، الأصول، البنوك، والمشاريع. يتميز بتكامل محاسبي كامل، دعم عملات متعددة، فروع متعددة، ونظام صلاحيات متقدم. المساعد الذكي مدرب على 1764 عنصر ذاكرة ويقدم دعماً احترافياً."
+}
+

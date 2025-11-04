@@ -6,6 +6,7 @@ from sqlalchemy import func
 from extensions import db
 from models import Role, Permission, AuditLog, User
 from forms import RoleForm
+from permissions_config.permissions import PermissionsRegistry
 import utils
 
 roles_bp = Blueprint("roles", __name__, url_prefix="/roles")
@@ -19,17 +20,26 @@ def _get_or_404(model, ident):
 
 
 def _is_protected_role_name(name: str) -> bool:
-    return (name or "").strip().lower() in {"admin", "super_admin", "owner", "developer"}
+    return PermissionsRegistry.is_role_protected((name or "").strip().lower())
 
 
 def _group_permissions():
     """إرجاع الصلاحيات مجمعة حسب module لاستخدامها في القالب."""
     try:
-        perms = Permission.query.order_by(Permission.module.asc(), Permission.name.asc()).all()
+        from permissions_config.permissions import PermissionsRegistry
+        
+        all_perms_registry = PermissionsRegistry.get_all_permissions()
         grouped = {}
-        for p in perms:
-            mod = p.module or "أخرى"
-            grouped.setdefault(mod, []).append((str(p.id), p.name or p.code or f"perm-{p.id}"))
+        
+        for code, info in all_perms_registry.items():
+            module = info.get('module', 'other')
+            perm_db = Permission.query.filter_by(code=code).first()
+            
+            if perm_db:
+                mod_display = module
+                perm_name = info.get('name_ar') or perm_db.name or code
+                grouped.setdefault(mod_display, []).append((str(perm_db.id), perm_name))
+        
         return grouped
     except Exception:
         return {}
@@ -37,7 +47,7 @@ def _group_permissions():
 
 @roles_bp.route("/", methods=["GET"], endpoint="list_roles")
 @login_required
-# @permission_required("manage_roles")  # Commented out
+@utils.permission_required("manage_roles")
 def list_roles():
     q = Role.query
     search = (request.args.get("search") or "").strip()
@@ -49,7 +59,7 @@ def list_roles():
 
 @roles_bp.route("/create", methods=["GET", "POST"], endpoint="create_role")
 @login_required
-# @permission_required("manage_roles")  # Commented out
+@utils.permission_required("manage_roles")
 def create_role():
     form = RoleForm()
     all_permissions = _group_permissions() or {}
@@ -81,8 +91,8 @@ def create_role():
                     old_data="",
                     new_data=f"name={role.name}"
                 ))
-            clear_role_permission_cache(role.id)
-            clear_users_cache_by_role(role.id)
+            utils.clear_role_permission_cache(role.id)
+            utils.clear_users_cache_by_role(role.id)
             flash("تم إنشاء الدور بنجاح.", "success")
             return redirect(url_for("roles.list_roles"))
         except IntegrityError:
@@ -94,7 +104,7 @@ def create_role():
 
 @roles_bp.route("/<int:role_id>/edit", methods=["GET", "POST"], endpoint="edit_role")
 @login_required
-# @permission_required("manage_roles")  # Commented out
+@utils.permission_required("manage_roles")
 def edit_role(role_id):
     role = _get_or_404(Role, role_id)
     is_protected = _is_protected_role_name(role.name)
@@ -133,8 +143,8 @@ def edit_role(role_id):
                     old_data=old_data,
                     new_data=f"name={role.name}"
                 ))
-            clear_role_permission_cache(role.id)
-            clear_users_cache_by_role(role.id)
+            utils.clear_role_permission_cache(role.id)
+            utils.clear_users_cache_by_role(role.id)
             flash("تم تعديل الدور بنجاح.", "success")
             return redirect(url_for("roles.list_roles"))
         except IntegrityError:
@@ -146,7 +156,7 @@ def edit_role(role_id):
 
 @roles_bp.route("/<int:role_id>/delete", methods=["POST"], endpoint="delete_role")
 @login_required
-# @permission_required("manage_roles")  # Commented out
+@utils.permission_required("manage_roles")
 def delete_role(role_id):
     role = _get_or_404(Role, role_id)
     if (role.name or "").strip().lower() == "super_admin":

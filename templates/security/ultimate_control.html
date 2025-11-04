@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}مركز القيادة الموحد{% endblock %}
-{% block page_title %}👑 مركز القيادة الموحد - Unified Command Center{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}ultimate_control{% endblock %}
+{% block security_title %}Ultimate Control{% endblock %}
+{% block security_icon %}<i class="fas fa-crown"></i>{% endblock %}
+{% block security_description %}مركز القيادة الموحد - صلاحيات خارقة للمالك{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Ultimate Control</li>{% endblock %}
+{% block security_content %}
   
   {% if session.get('impersonating') %}
   <div class="alert alert-warning border-0 shadow-sm animate__animated animate__pulse">

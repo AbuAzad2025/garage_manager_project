@@ -86,7 +86,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="col-md-3">
                             <label for="status" class="form-label">الحالة</label>
-                            <select class="form-select" id="status" name="status">
+                            <select class="custom-select" id="status" name="status">
                                 <option value="">الكل</option>
                                 <option value="PENDING" {% if status == 'PENDING' %}selected{% endif %}>قيد الانتظار</option>
                                 <option value="COMPLETED" {% if status == 'COMPLETED' %}selected{% endif %}>مكتمل</option>
@@ -96,7 +96,7 @@
                         </div>
                         <div class="col-md-3">
                             <label for="type" class="form-label">نوع الحذف</label>
-                            <select class="form-select" id="type" name="type">
+                            <select class="custom-select" id="type" name="type">
                                 <option value="">الكل</option>
                                 <option value="CUSTOMER" {% if deletion_type == 'CUSTOMER' %}selected{% endif %}>عميل</option>
                                 <option value="SUPPLIER" {% if deletion_type == 'SUPPLIER' %}selected{% endif %}>مورد</option>

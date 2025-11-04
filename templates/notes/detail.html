@@ -115,22 +115,22 @@
     </div>
   </div>
 
-  <div class="card-footer bg-white d-flex flex-wrap align-items-center" style="gap:.5rem">
-    <a href="{{ url_for('notes_bp.list_notes') }}" class="btn btn-outline-secondary">
+  <div class="card-footer bg-white d-flex flex-wrap align-items-center">
+    <a href="{{ url_for('notes_bp.list_notes') }}" class="btn btn-outline-secondary mr-2 mb-2">
       <i class="fas fa-list ml-1"></i> جميع الملاحظات
     </a>
 
     {% if has_perm('manage_notes') or (current_user.is_authenticated and note.author_id and current_user.id == note.author_id) %}
-      <button class="btn btn-primary" id="btnEditDetail" data-id="{{ note.id }}">
+      <button class="btn btn-primary mr-2 mb-2" id="btnEditDetail" data-id="{{ note.id }}">
         <i class="fas fa-edit ml-1"></i> تعديل
       </button>
 
-      <form class="d-inline" id="formDeleteDetail" action="{{ url_for('notes_bp.delete_note', note_id=note.id) }}" method="post" onsubmit="return confirm('تأكيد حذف الملاحظة؟');">
+      <form class="d-inline mr-2 mb-2" id="formDeleteDetail" action="{{ url_for('notes_bp.delete_note', note_id=note.id) }}" method="post" onsubmit="return confirm('تأكيد حذف الملاحظة؟');">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger"><i class="fas fa-trash ml-1"></i> حذف</button>
       </form>
 
-      <form class="d-inline" id="formPinDetail" action="{{ url_for('notes_bp.toggle_pin', note_id=note.id) }}" method="post">
+      <form class="d-inline mb-2" id="formPinDetail" action="{{ url_for('notes_bp.toggle_pin', note_id=note.id) }}" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-warning"><i class="fas fa-thumbtack ml-1"></i> تبديل التثبيت</button>
       </form>

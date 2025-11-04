@@ -13,43 +13,9 @@ import utils
 
 permissions_bp = Blueprint("permissions", __name__, url_prefix="/permissions", template_folder="templates/permissions")
 
-_RESERVED_CODES = frozenset({
-    "backup_database",
-    "restore_database",
-    "manage_permissions",
-    "manage_roles",
-    "manage_users",
-    "manage_customers",
-    "manage_sales",
-    "manage_service",
-    "manage_reports",
-    "view_reports",
-    "manage_vendors",
-    "manage_shipments",
-    "manage_warehouses",
-    "view_warehouses",
-    "manage_exchange",
-    "manage_payments",
-    "manage_expenses",
-    "view_inventory",
-    "manage_inventory",
-    "warehouse_transfer",
-    "view_parts",
-    "view_preorders",
-    "add_preorder",
-    "edit_preorder",
-    "delete_preorder",
-    "add_customer",
-    "add_supplier",
-    "add_partner",
-    "place_online_order",
-    "access_api",
-    "manage_api",
-    "view_notes",
-    "manage_notes",
-    "view_barcode",
-    "manage_barcode",
-})
+from permissions_config.permissions import PermissionsRegistry
+
+_RESERVED_CODES = PermissionsRegistry.get_protected_permissions()
 
 def _get_or_404(model, ident, options=None):
     q = db.session.query(model)
@@ -126,7 +92,7 @@ def _parse_aliases(raw: str | None):
 
 @permissions_bp.route("/", methods=["GET"], endpoint="list")
 @login_required
-# @permission_required("manage_permissions")  # Commented out
+@utils.permission_required("manage_permissions")
 def list_permissions():
     search = (request.args.get("search") or "").strip()
     q = Permission.query
@@ -141,7 +107,7 @@ def list_permissions():
 
 @permissions_bp.route("/create", methods=["GET", "POST"], endpoint="create")
 @login_required
-# @permission_required("manage_permissions")  # Commented out
+@utils.permission_required("manage_permissions")
 def create_permission():
     form = PermissionForm()
     if form.validate_on_submit():
@@ -149,10 +115,10 @@ def create_permission():
         code = _ensure_code_from_inputs(name, getattr(form, "code", None) and form.code.data)
         if not name:
             flash("الاسم مطلوب.", "danger")
-            return render_template("permissions/form.html", form=form)
+            return render_template("permissions/form.html", form=form, protected_codes=_RESERVED_CODES)
         if not code:
             flash("الكود مطلوب (تمّ توليده من الاسم لكن نتج فارغ). عدّل الاسم أو أدخل كودًا صالحًا.", "danger")
-            return render_template("permissions/form.html", form=form)
+            return render_template("permissions/form.html", form=form, protected_codes=_RESERVED_CODES)
         msg = _unique_violation(name, code)
         if msg:
             flash(msg, "danger")
@@ -187,11 +153,11 @@ def create_permission():
             except SQLAlchemyError as e:
                 db.session.rollback()
                 flash(f"خطأ أثناء الإضافة: {e}", "danger")
-    return render_template("permissions/form.html", form=form)
+    return render_template("permissions/form.html", form=form, protected_codes=_RESERVED_CODES)
 
 @permissions_bp.route("/<int:permission_id>/edit", methods=["GET", "POST"], endpoint="edit")
 @login_required
-# @permission_required("manage_permissions")  # Commented out
+@utils.permission_required("manage_permissions")
 def edit_permission(permission_id):
     perm = _get_or_404(Permission, permission_id)
     form = PermissionForm(obj=perm)
@@ -204,10 +170,10 @@ def edit_permission(permission_id):
             incoming_code = _ensure_code_from_inputs(incoming_name, incoming_code_input)
         if not incoming_name:
             flash("الاسم مطلوب.", "danger")
-            return render_template("permissions/form.html", form=form, perm=perm)
+            return render_template("permissions/form.html", form=form, perm=perm, protected_codes=_RESERVED_CODES)
         if not incoming_code:
             flash("الكود مطلوب (تمّ توليده من الاسم لكن نتج فارغ). عدّل الاسم أو أدخل كودًا صالحًا.", "danger")
-            return render_template("permissions/form.html", form=form, perm=perm)
+            return render_template("permissions/form.html", form=form, perm=perm, protected_codes=_RESERVED_CODES)
         msg = _unique_violation(incoming_name, incoming_code, exclude_id=perm.id)
         if msg:
             flash(msg, "danger")
@@ -239,11 +205,11 @@ def edit_permission(permission_id):
             except SQLAlchemyError as e:
                 db.session.rollback()
                 flash(f"خطأ أثناء التحديث: {e}", "danger")
-    return render_template("permissions/form.html", form=form, perm=perm)
+    return render_template("permissions/form.html", form=form, perm=perm, protected_codes=_RESERVED_CODES)
 
 @permissions_bp.route("/<int:permission_id>/delete", methods=["POST"], endpoint="delete")
 @login_required
-# @permission_required("manage_permissions")  # Commented out
+@utils.permission_required("manage_permissions")
 def delete_permission(permission_id):
     perm = _get_or_404(Permission, permission_id)
     if (perm.code and _normalize_code(perm.code) in _RESERVED_CODES) or (

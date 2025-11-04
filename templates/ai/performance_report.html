@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}تقرير الأداء - AI Performance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      
+      <div class="card bg-primary text-white mb-4">
+        <div class="card-body">
+          <h3><i class="fas fa-chart-line"></i> تقرير أداء المساعد الذكي</h3>
+          <p class="mb-0">تتبع حي للأداء والتطور</p>
+        </div>
+      </div>
+      
+      <div class="row">
+        
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header bg-success text-white">
+              <h5 class="mb-0"><i class="fas fa-tachometer-alt"></i> الأداء</h5>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm">
+                <tr>
+                  <td>إجمالي الاستعلامات:</td>
+                  <td><strong>{{ performance.total_queries }}</strong></td>
+                </tr>
+                <tr>
+                  <td>نسبة النجاح:</td>
+                  <td><strong>{{ performance.success_rate }}%</strong></td>
+                </tr>
+                <tr>
+                  <td>متوسط الثقة:</td>
+                  <td><strong>{{ performance.avg_confidence }}%</strong></td>
+                </tr>
+                <tr>
+                  <td>متوسط وقت الرد:</td>
+                  <td><strong>{{ performance.avg_response_time }}s</strong></td>
+                </tr>
+                <tr>
+                  <td>الاتجاه:</td>
+                  <td>
+                    {% if performance.recent_trend == 'improving' %}
+                      <span class="badge badge-success">تحسن ↗️</span>
+                    {% elif performance.recent_trend == 'declining' %}
+                      <span class="badge badge-danger">تراجع ↘️</span>
+                    {% else %}
+                      <span class="badge badge-info">مستقر →</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header bg-info text-white">
+              <h5 class="mb-0"><i class="fas fa-chart-pie"></i> التطور</h5>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm">
+                <tr>
+                  <td>المستوى:</td>
+                  <td><strong>{{ evolution.evolution_level_name }}</strong></td>
+                </tr>
+                <tr>
+                  <td>التفاعلات:</td>
+                  <td><strong>{{ evolution.total_interactions }}</strong></td>
+                </tr>
+                <tr>
+                  <td>نسبة النجاح:</td>
+                  <td><strong>{{ evolution.success_rate }}%</strong></td>
+                </tr>
+                <tr>
+                  <td>متوسط الثقة:</td>
+                  <td><strong>{{ evolution.average_confidence }}%</strong></td>
+                </tr>
+                <tr>
+                  <td>معدل التعلم:</td>
+                  <td>
+                    {% if evolution.learning_rate > 0 %}
+                      <span class="text-success">+{{ evolution.learning_rate }}%</span>
+                    {% elif evolution.learning_rate < 0 %}
+                      <span class="text-danger">{{ evolution.learning_rate }}%</span>
+                    {% else %}
+                      <span class="text-muted">0%</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-header bg-warning text-dark">
+              <h5 class="mb-0"><i class="fas fa-brain"></i> التعلم</h5>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm">
+                <tr>
+                  <td>الاستعلامات المحفوظة:</td>
+                  <td><strong>{{ learning.total_learned_queries }}</strong></td>
+                </tr>
+                <tr>
+                  <td>التصحيحات:</td>
+                  <td><strong>{{ learning.total_corrections }}</strong></td>
+                </tr>
+                <tr>
+                  <td>الأنماط المكتشفة:</td>
+                  <td><strong>{{ learning.total_patterns }}</strong></td>
+                </tr>
+                <tr>
+                  <td>نسبة النجاح:</td>
+                  <td><strong>{{ learning.success_rate|round(2) }}%</strong></td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+      
+      <div class="row mt-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">أنواع الاستعلامات الأكثر شيوعاً</h5>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm">
+                {% for query_type, count in performance.top_query_types.items() %}
+                <tr>
+                  <td>{{ query_type }}</td>
+                  <td><strong>{{ count }}</strong></td>
+                </tr>
+                {% endfor %}
+              </table>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">استخدام الخبراء</h5>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm">
+                {% for expert, count in performance.expert_usage.items() %}
+                <tr>
+                  <td>{{ expert }}</td>
+                  <td><strong>{{ count }}</strong></td>
+                </tr>
+                {% endfor %}
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+{% endblock %}
+

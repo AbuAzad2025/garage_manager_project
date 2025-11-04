@@ -43,25 +43,25 @@
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link text-white" href="/security/ledger-control">
-                                <i class="fas fa-tachometer-alt me-2"></i>
+                                <i class="fas fa-tachometer-alt ml-2"></i>
                                 لوحة التحكم
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-white" href="/reports/financial">
-                                <i class="fas fa-chart-line me-2"></i>
+                                <i class="fas fa-chart-line ml-2"></i>
                                 التقارير المالية
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-white active" href="/validation/accounting">
-                                <i class="fas fa-check-circle me-2"></i>
+                                <i class="fas fa-check-circle ml-2"></i>
                                 التحقق المحاسبي
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-white" href="/docs/accounting">
-                                <i class="fas fa-book me-2"></i>
+                                <i class="fas fa-book ml-2"></i>
                                 التوثيق المحاسبي
                             </a>
                         </li>
@@ -73,12 +73,12 @@
             <div class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">
-                        <i class="fas fa-check-circle text-success me-2"></i>
+                        <i class="fas fa-check-circle text-success ml-2"></i>
                         التحقق المحاسبي
                     </h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
                         <button type="button" class="btn btn-outline-secondary" onclick="runAllChecks()">
-                            <i class="fas fa-play me-1"></i>
+                            <i class="fas fa-play ml-1"></i>
                             تشغيل جميع الفحوصات
                         </button>
                     </div>
@@ -90,7 +90,7 @@
                         <div class="card">
                             <div class="card-header">
                                 <h5 class="mb-0">
-                                    <i class="fas fa-heartbeat me-2"></i>
+                                    <i class="fas fa-heartbeat ml-2"></i>
                                     حالة النظام المحاسبي
                                 </h5>
                             </div>
@@ -331,7 +331,7 @@
             
             return `
                 <div class="alert alert-${statusClass}">
-                    <i class="fas fa-${summary.balance_status === 'BALANCED' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                    <i class="fas fa-${summary.balance_status === 'BALANCED' ? 'check-circle' : 'exclamation-triangle'} ml-2"></i>
                     <strong>حالة التوازن: ${summary.balance_status === 'BALANCED' ? 'متوازن' : 'غير متوازن'}</strong>
                 </div>
                 <div class="row">
@@ -405,7 +405,7 @@
                         ` : ''}
                         ${issues.missing_accounts.length === 0 && issues.inactive_used_accounts.length === 0 ? `
                             <div class="alert alert-success">
-                                <i class="fas fa-check-circle me-2"></i>
+                                <i class="fas fa-check-circle ml-2"></i>
                                 لا توجد مشاكل في اتساق الحسابات ✓
                             </div>
                         ` : ''}
@@ -467,7 +467,7 @@
             
             return `
                 <div class="alert alert-${overallStatus === 'HEALTHY' ? 'success' : 'warning'}">
-                    <i class="fas fa-${overallStatus === 'HEALTHY' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                    <i class="fas fa-${overallStatus === 'HEALTHY' ? 'check-circle' : 'exclamation-triangle'} ml-2"></i>
                     <strong>الحالة العامة: ${overallStatus === 'HEALTHY' ? 'سليم' : 'يحتاج انتباه'}</strong>
                 </div>
                 <div class="row">
@@ -476,7 +476,7 @@
                             <div class="card">
                                 <div class="card-header">
                                     <h6 class="mb-0">
-                                        <span class="badge bg-${result.status === 'PASS' ? 'success' : 'danger'} me-2">
+                                        <span class="badge bg-${result.status === 'PASS' ? 'success' : 'danger'} ml-2">
                                             ${result.status === 'PASS' ? 'نجح' : 'فشل'}
                                         </span>
                                         ${result.check}
@@ -535,7 +535,7 @@
                     `).join('')}
                 </div>
                 <div class="alert alert-info mt-3">
-                    <i class="fas fa-info-circle me-2"></i>
+                    <i class="fas fa-info-circle ml-2"></i>
                     <strong>تاريخ المراجعة:</strong> ${data.audit_date}
                 </div>
             `;
@@ -550,7 +550,7 @@
             checkTitle.textContent = 'نتائج إصلاح القيود غير المتوازنة';
             checkContent.innerHTML = `
                 <div class="alert alert-success">
-                    <i class="fas fa-check-circle me-2"></i>
+                    <i class="fas fa-check-circle ml-2"></i>
                     <strong>تم الإصلاح بنجاح!</strong>
                 </div>
                 <div class="row">
@@ -654,7 +654,7 @@
                         
                         healthElement.innerHTML = `
                             <div class="alert alert-${healthClass}">
-                                <i class="fas fa-${healthIcon} me-2"></i>
+                                <i class="fas fa-${healthIcon} ml-2"></i>
                                 <strong>${healthText}</strong>
                             </div>
                             <div class="row">
@@ -676,7 +676,7 @@
                 .catch(error => {
                     document.getElementById('systemHealth').innerHTML = `
                         <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <i class="fas fa-exclamation-triangle ml-2"></i>
                             خطأ في تحميل حالة النظام
                         </div>
                     `;
@@ -699,7 +699,7 @@
             
             checkContent.innerHTML = `
                 <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <i class="fas fa-exclamation-triangle ml-2"></i>
                     ${message}
                 </div>
             `;

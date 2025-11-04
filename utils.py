@@ -661,9 +661,14 @@ def generate_excel_contacts(customers: Iterable[Any], fields: List[str]) -> Resp
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="contacts.xlsx"'},
     )
+def _get_super_roles():
+    try:
+        from permissions_config.permissions import PermissionsRegistry
+        return PermissionsRegistry.get_super_roles()
+    except Exception:
+        return {"developer", "owner", "super_admin", "super"}
 
-
-_SUPER_ROLES = {"developer", "owner", "super_admin", "super"}
+_SUPER_ROLES = _get_super_roles()
 
 _PERMISSION_ALIASES = {
     "view_warehouses": {"view_warehouses", "view_inventory", "manage_inventory", "manage_warehouses"},
@@ -2392,3 +2397,55 @@ def get_tax_summary(period: str = None) -> dict:
     except Exception as e:
         current_app.logger.error(f'❌ get_tax_summary failed: {e}')
         return {'success': False, 'error': str(e)}
+
+
+def check_ip_allowed(ip: str) -> Dict[str, Any]:
+    from models import SystemSettings
+    
+    enable_whitelist = SystemSettings.get_setting('enable_ip_whitelist', False)
+    enable_blacklist = SystemSettings.get_setting('enable_ip_blacklist', False)
+    enable_country_block = SystemSettings.get_setting('enable_country_blocking', False)
+    
+    if not any([enable_whitelist, enable_blacklist, enable_country_block]):
+        return {'allowed': True, 'reason': 'Security checks disabled'}
+    
+    if enable_blacklist:
+        blacklist_raw = SystemSettings.get_setting('ip_blacklist', '[]')
+        try:
+            blacklist = json.loads(blacklist_raw) if isinstance(blacklist_raw, str) else blacklist_raw
+        except:
+            blacklist = []
+        
+        if ip in blacklist:
+            return {'allowed': False, 'reason': 'IP في القائمة السوداء'}
+    
+    if enable_whitelist:
+        whitelist_raw = SystemSettings.get_setting('ip_whitelist', '[]')
+        try:
+            whitelist = json.loads(whitelist_raw) if isinstance(whitelist_raw, str) else whitelist_raw
+        except:
+            whitelist = []
+        
+        if ip not in whitelist:
+            return {'allowed': False, 'reason': 'IP غير موجود في القائمة البيضاء'}
+    
+    if enable_country_block:
+        try:
+            import requests
+            response = requests.get(f'http://ip-api.com/json/{ip}?fields=countryCode', timeout=2)
+            if response.status_code == 200:
+                data = response.json()
+                country_code = data.get('countryCode', '')
+                
+                blocked_countries_raw = SystemSettings.get_setting('blocked_countries', '[]')
+                try:
+                    blocked_countries = json.loads(blocked_countries_raw) if isinstance(blocked_countries_raw, str) else blocked_countries_raw
+                except:
+                    blocked_countries = []
+                
+                if country_code in blocked_countries:
+                    return {'allowed': False, 'reason': f'الدولة {country_code} محظورة'}
+        except:
+            pass
+    
+    return {'allowed': True, 'reason': 'مسموح'}

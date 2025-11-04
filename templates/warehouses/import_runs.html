@@ -114,16 +114,16 @@
   <div class="card-body">
     <div class="d-flex justify-content-between align-items-center">
       <h5 class="mb-0">
-        <i class="fas fa-list me-2"></i>
+        <i class="fas fa-list ml-2"></i>
         سجل العمليات
         <span class="badge bg-primary">{{ total_operations }}</span>
       </h5>
       <div class="d-flex gap-2">
         <a href="{{ url_for('warehouse_bp.import_products', id=warehouse.id) }}" class="btn btn-success">
-          <i class="fas fa-upload me-1"></i> استيراد جديد
+          <i class="fas fa-upload ml-1"></i> استيراد جديد
         </a>
         <a href="{{ url_for('warehouse_bp.detail', warehouse_id=warehouse.id) }}" class="btn btn-outline-secondary">
-          <i class="fas fa-arrow-right me-1"></i> رجوع للمستودع
+          <i class="fas fa-arrow-right ml-1"></i> رجوع للمستودع
         </a>
       </div>
     </div>
@@ -161,23 +161,23 @@
               <small class="text-muted">{{ run.created_at.strftime('%H:%M:%S') if run.created_at else '-' }}</small>
             </td>
             <td>
-              <i class="fas fa-file-{{ 'csv' if run.filename and '.csv' in run.filename else 'excel' }} me-1 text-{{ 'success' if '.csv' in (run.filename or '') else 'primary' }}"></i>
+              <i class="fas fa-file-{{ 'csv' if run.filename and '.csv' in run.filename else 'excel' }} ml-1 text-{{ 'success' if '.csv' in (run.filename or '') else 'primary' }}"></i>
               <span class="text-truncate d-inline-block" style="max-width: 200px" title="{{ run.filename or 'غير محدد' }}">
                 {{ run.filename or 'غير محدد' }}
               </span>
             </td>
             <td>
-              <i class="fas fa-user me-1 text-muted"></i>
+              <i class="fas fa-user ml-1 text-muted"></i>
               {{ run.user.username if run.user else '-' }}
             </td>
             <td class="text-center">
               {% if run.dry_run %}
                 <span class="badge badge-dry-run">
-                  <i class="fas fa-flask me-1"></i> فحص
+                  <i class="fas fa-flask ml-1"></i> فحص
                 </span>
               {% else %}
                 <span class="badge badge-real">
-                  <i class="fas fa-check-double me-1"></i> حقيقي
+                  <i class="fas fa-check-double ml-1"></i> حقيقي
                 </span>
               {% endif %}
             </td>
@@ -244,7 +244,7 @@
       <h5>لا توجد عمليات استيراد بعد</h5>
       <p class="text-muted mb-3">ابدأ بإضافة منتجات عبر استيراد ملف CSV أو Excel</p>
       <a href="{{ url_for('warehouse_bp.import_products', id=warehouse.id) }}" class="btn btn-success">
-        <i class="fas fa-upload me-1"></i> استيراد الآن
+        <i class="fas fa-upload ml-1"></i> استيراد الآن
       </a>
     </div>
     {% endif %}
@@ -258,7 +258,7 @@
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
         <h5 class="modal-title">
-          <i class="fas fa-info-circle me-2"></i>
+          <i class="fas fa-info-circle ml-2"></i>
           تفاصيل عملية الاستيراد #<span id="modal-id">-</span>
         </h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -361,8 +361,8 @@
       
       const isDryRun = data.dryRun === 'True';
       document.getElementById('modal-type').innerHTML = isDryRun 
-        ? '<span class="badge badge-dry-run"><i class="fas fa-flask me-1"></i> فحص فقط</span>'
-        : '<span class="badge badge-real"><i class="fas fa-check-double me-1"></i> تنفيذ حقيقي</span>';
+        ? '<span class="badge badge-dry-run"><i class="fas fa-flask ml-1"></i> فحص فقط</span>'
+        : '<span class="badge badge-real"><i class="fas fa-check-double ml-1"></i> تنفيذ حقيقي</span>';
       
       document.getElementById('modal-inserted').textContent = data.inserted || '0';
       document.getElementById('modal-updated').textContent = data.updated || '0';

@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, send_file
 from flask_login import login_required, current_user
 from sqlalchemy import text, func, inspect
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from extensions import db
 from models import User, SystemSettings
 import utils
@@ -1981,3 +1981,207 @@ def _create_tenant_database(db_path):
     except Exception as e:
         print(f"Error creating tenant database: {str(e)}")
         return False
+
+
+@advanced_bp.route('/financial-control', methods=['GET', 'POST'])
+@owner_only
+def financial_control():
+    from models import SystemSettings, Budget, FixedAsset, FixedAssetCategory
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'save_budget_settings':
+            settings_data = {
+                'enable_budget_module': request.form.get('enable_budget_module') == 'on',
+                'fiscal_year_start_month': int(request.form.get('fiscal_year_start_month', 1)),
+                'budget_level': request.form.get('budget_level', 'ACCOUNT_BRANCH'),
+                'commitment_mode': request.form.get('commitment_mode', 'ALL'),
+                'enable_budget_alerts': request.form.get('enable_budget_alerts') == 'on',
+                'budget_threshold_warning': float(request.form.get('budget_threshold_warning', 80)),
+                'budget_threshold_critical': float(request.form.get('budget_threshold_critical', 95)),
+                'enable_budget_blocking': request.form.get('enable_budget_blocking') == 'on',
+            }
+            
+            for key, value in settings_data.items():
+                setting = SystemSettings.query.filter_by(key=key).first()
+                if setting:
+                    setting.value = str(value)
+                    setting.updated_at = datetime.now(timezone.utc)
+                else:
+                    dtype = 'boolean' if isinstance(value, bool) else 'number' if isinstance(value, (int, float)) else 'string'
+                    setting = SystemSettings(key=key, value=str(value), data_type=dtype, is_public=False)
+                    db.session.add(setting)
+            
+            db.session.commit()
+            flash('تم حفظ إعدادات الميزانية بنجاح', 'success')
+            return redirect(url_for('advanced.financial_control'))
+        
+        elif action == 'save_asset_settings':
+            settings_data = {
+                'enable_fixed_assets': request.form.get('enable_fixed_assets') == 'on',
+                'enable_auto_depreciation': request.form.get('enable_auto_depreciation') == 'on',
+                'depreciation_frequency': request.form.get('depreciation_frequency', 'YEARLY'),
+                'depreciation_day_of_month': int(request.form.get('depreciation_day_of_month', 1)),
+                'auto_create_asset_from_expense': request.form.get('auto_create_asset_from_expense') == 'on',
+                'asset_capitalization_threshold': float(request.form.get('asset_capitalization_threshold', 1000)),
+            }
+            
+            for key, value in settings_data.items():
+                setting = SystemSettings.query.filter_by(key=key).first()
+                if setting:
+                    setting.value = str(value)
+                    setting.updated_at = datetime.now(timezone.utc)
+                else:
+                    dtype = 'boolean' if isinstance(value, bool) else 'number' if isinstance(value, (int, float)) else 'string'
+                    setting = SystemSettings(key=key, value=str(value), data_type=dtype, is_public=False)
+                    db.session.add(setting)
+            
+            db.session.commit()
+            flash('تم حفظ إعدادات الأصول الثابتة بنجاح', 'success')
+            return redirect(url_for('advanced.financial_control'))
+    
+    budget_settings = {
+        'enable_budget_module': SystemSettings.get_setting('enable_budget_module', False),
+        'fiscal_year_start_month': int(SystemSettings.get_setting('fiscal_year_start_month', 1)),
+        'budget_level': SystemSettings.get_setting('budget_level', 'ACCOUNT_BRANCH'),
+        'commitment_mode': SystemSettings.get_setting('commitment_mode', 'ALL'),
+        'enable_budget_alerts': SystemSettings.get_setting('enable_budget_alerts', True),
+        'budget_threshold_warning': float(SystemSettings.get_setting('budget_threshold_warning', 80)),
+        'budget_threshold_critical': float(SystemSettings.get_setting('budget_threshold_critical', 95)),
+        'enable_budget_blocking': SystemSettings.get_setting('enable_budget_blocking', True),
+    }
+    
+    asset_settings = {
+        'enable_fixed_assets': SystemSettings.get_setting('enable_fixed_assets', False),
+        'enable_auto_depreciation': SystemSettings.get_setting('enable_auto_depreciation', False),
+        'depreciation_frequency': SystemSettings.get_setting('depreciation_frequency', 'YEARLY'),
+        'depreciation_day_of_month': int(SystemSettings.get_setting('depreciation_day_of_month', 1)),
+        'auto_create_asset_from_expense': SystemSettings.get_setting('auto_create_asset_from_expense', False),
+        'asset_capitalization_threshold': float(SystemSettings.get_setting('asset_capitalization_threshold', 1000)),
+    }
+    
+    budget_stats = {
+        'total_budgets': Budget.query.count(),
+        'active_budgets': Budget.query.filter_by(is_active=True).count(),
+        'current_year_budgets': Budget.query.filter_by(fiscal_year=datetime.now().year).count(),
+    }
+    
+    asset_stats = {
+        'total_assets': FixedAsset.query.count(),
+        'active_assets': FixedAsset.query.filter_by(status='ACTIVE').count(),
+        'total_categories': FixedAssetCategory.query.count(),
+    }
+    
+    return render_template('advanced/financial_control.html',
+                         budget_settings=budget_settings,
+                         asset_settings=asset_settings,
+                         budget_stats=budget_stats,
+                         asset_stats=asset_stats)
+
+
+@advanced_bp.route("/accounting-control", methods=["GET", "POST"])
+@owner_only
+def accounting_control():
+    from models import BankAccount, CostCenter, Project
+    
+    if request.method == "POST":
+        action = request.form.get("action")
+        
+        if action == "save_bank_settings":
+            settings = {
+                "enable_bank_reconciliation": request.form.get("enable_bank_reconciliation") == "on",
+                "auto_match_tolerance": float(request.form.get("auto_match_tolerance", 0.01)),
+                "require_bank_approval": request.form.get("require_bank_approval") == "on",
+            }
+            for k, v in settings.items():
+                SystemSettings.set_setting(k, v, "boolean" if isinstance(v, bool) else "number")
+            db.session.commit()
+            flash("تم حفظ إعدادات البنوك", "success")
+            return redirect(url_for("advanced.accounting_control"))
+        
+        elif action == "save_cost_center_settings":
+            settings = {
+                "enable_cost_centers": request.form.get("enable_cost_centers") == "on",
+                "require_cost_center": request.form.get("require_cost_center") == "on",
+                "allow_hierarchy": request.form.get("allow_hierarchy") == "on",
+            }
+            for k, v in settings.items():
+                SystemSettings.set_setting(k, v, "boolean")
+            db.session.commit()
+            flash("تم حفظ إعدادات مراكز التكلفة", "success")
+            return redirect(url_for("advanced.accounting_control"))
+        
+        elif action == "save_project_settings":
+            settings = {
+                "enable_projects": request.form.get("enable_projects") == "on",
+                "auto_link_transactions": request.form.get("auto_link_transactions") == "on",
+                "project_numbering_prefix": request.form.get("project_numbering_prefix", "PRJ"),
+            }
+            for k, v in settings.items():
+                dtype = "boolean" if isinstance(v, bool) else "string"
+                SystemSettings.set_setting(k, v, dtype)
+            db.session.commit()
+            flash("تم حفظ إعدادات المشاريع", "success")
+            return redirect(url_for("advanced.accounting_control"))
+    
+    bank_settings = {
+        "enable_bank_reconciliation": SystemSettings.get_setting("enable_bank_reconciliation", False),
+        "auto_match_tolerance": float(SystemSettings.get_setting("auto_match_tolerance", 0.01)),
+        "require_bank_approval": SystemSettings.get_setting("require_bank_approval", True),
+    }
+    
+    cost_center_settings = {
+        "enable_cost_centers": SystemSettings.get_setting("enable_cost_centers", False),
+        "require_cost_center": SystemSettings.get_setting("require_cost_center", False),
+        "allow_hierarchy": SystemSettings.get_setting("allow_hierarchy", True),
+    }
+    
+    project_settings = {
+        "enable_projects": SystemSettings.get_setting("enable_projects", False),
+        "auto_link_transactions": SystemSettings.get_setting("auto_link_transactions", True),
+        "project_numbering_prefix": SystemSettings.get_setting("project_numbering_prefix", "PRJ"),
+    }
+    
+    stats = {
+        "total_bank_accounts": BankAccount.query.count(),
+        "total_cost_centers": CostCenter.query.count(),
+        "total_projects": Project.query.count(),
+    }
+    
+    return render_template("advanced/accounting_control.html",
+                         bank_settings=bank_settings,
+                         cost_center_settings=cost_center_settings,
+                         project_settings=project_settings,
+                         stats=stats)
+
+
+@advanced_bp.route("/api/advanced-accounting-stats")
+@owner_only
+def api_accounting_stats():
+    from models import BankAccount, CostCenter, Project, BankTransaction
+    from sqlalchemy import func
+    
+    bank_accounts = BankAccount.query.count()
+    active_banks = BankAccount.query.filter_by(is_active=True).count()
+    
+    cost_centers = CostCenter.query.count()
+    total_budget = db.session.query(func.sum(CostCenter.budget)).filter_by(is_active=True).scalar() or 0
+    
+    projects = Project.query.count()
+    active_projects = Project.query.filter(Project.status.in_(['IN_PROGRESS', 'PLANNING'])).count()
+    
+    unmatched = BankTransaction.query.filter_by(matched=False).count()
+    
+    return jsonify({
+        'success': True,
+        'stats': {
+            'bank_accounts': bank_accounts,
+            'active_banks': active_banks,
+            'cost_centers': cost_centers,
+            'total_budget': float(total_budget),
+            'projects': projects,
+            'active_projects': active_projects,
+            'alerts': unmatched
+        }
+    })

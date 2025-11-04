@@ -184,7 +184,6 @@ def login():
         
         login_user(user, remember=remember, fresh=True)
         try:
-            # FIX: استخدام timezone-aware datetime
             user.last_login = datetime.now(timezone.utc)
             user.last_login_ip = ip
             user.login_count = (getattr(user, "login_count", 0) or 0) + 1
@@ -240,7 +239,6 @@ def customer_register():
         return redirect(url_for("shop.catalog"))
     form = CustomerFormOnline()
     if form.validate_on_submit():
-        # SECURITY FIX: منع User Enumeration - رسالة عامة
         email_lower = (form.email.data or "").strip().lower()
         existing_user = User.query.filter(func.lower(User.email) == email_lower).first()
         existing_customer = Customer.query.filter(func.lower(Customer.email) == email_lower).first()

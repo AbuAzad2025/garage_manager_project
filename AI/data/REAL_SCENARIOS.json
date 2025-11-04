@@ -1,0 +1,764 @@
+{
+  "metadata": {
+    "title": "سيناريوهات واقعية كاملة من بداية لنهاية",
+    "version": "1.0",
+    "purpose": "تدريب على حالات حقيقية من العمل اليومي",
+    "total_scenarios": 20
+  },
+
+  "daily_operations": {
+    "scenario_1_complete_sale_cycle": {
+      "title": "دورة مبيعة كاملة من الاستقبال للتحصيل",
+      "timeline": "3 أيام",
+      "actors": ["موظف المبيعات", "أمين المخزن", "المحاسب"],
+      
+      "day_1_sale_creation": {
+        "time": "09:00 صباحاً",
+        "actor": "موظف المبيعات (أحمد)",
+        "customer_arrives": {
+          "name": "محمد عبدالله",
+          "vehicle": "شاحنة مرسيدس",
+          "needs": ["4 إطارات", "2 بطاريات", "زيت محرك"]
+        },
+        "actions": [
+          {
+            "action": "البحث عن العميل",
+            "location": "/customers",
+            "search": "محمد عبدالله",
+            "result": "عميل موجود، ID: 15"
+          },
+          {
+            "action": "فتح المبيعات",
+            "location": "/sales/add",
+            "fill_form": {
+              "customer_id": 15,
+              "sale_date": "2025-01-15",
+              "currency": "ILS",
+              "notes": "شاحنة مرسيدس - صيانة دورية"
+            }
+          },
+          {
+            "action": "إضافة البنود",
+            "lines": [
+              {
+                "product": "إطار 22.5",
+                "barcode_scan": "8938274652819",
+                "quantity": 4,
+                "price": 800,
+                "discount": 100,
+                "subtotal": 3100,
+                "stock_check": "متوفر 20 قطعة"
+              },
+              {
+                "product": "بطارية 200Ah",
+                "barcode_scan": "8938274652826",
+                "quantity": 2,
+                "price": 600,
+                "discount": 0,
+                "subtotal": 1200,
+                "stock_check": "متوفر 8 قطع"
+              },
+              {
+                "product": "زيت محرك 20L",
+                "barcode_scan": "8938274652833",
+                "quantity": 2,
+                "price": 150,
+                "discount": 0,
+                "subtotal": 300,
+                "stock_check": "متوفر 50 قطعة"
+              }
+            ]
+          },
+          {
+            "action": "مراجعة المجاميع",
+            "calculation": {
+              "subtotal": 4600,
+              "discount_total": 100,
+              "net_before_tax": 4500,
+              "tax_16%": 720,
+              "grand_total": 5220
+            }
+          },
+          {
+            "action": "تأكيد المبيعة",
+            "button": "تأكيد",
+            "backend_actions": [
+              "تحديث الحالة إلى CONFIRMED",
+              "خصم من المخزون: إطار (4), بطارية (2), زيت (2)",
+              "إنشاء قيد محاسبي GL-202501-089",
+              "تحديث رصيد العميل: -3500 → -8720"
+            ],
+            "sale_code": "S-202501-067"
+          },
+          {
+            "action": "طباعة الفاتورة",
+            "print": "/sales/67/print",
+            "copies": 2,
+            "give_to": "العميل + نسخة للملف"
+          }
+        ],
+        "result": {
+          "sale_created": "S-202501-067",
+          "total": 5220,
+          "customer_balance": -8720,
+          "stock_updated": true,
+          "time_taken": "15 دقيقة"
+        }
+      },
+
+      "day_2_partial_payment": {
+        "time": "11:00 صباحاً",
+        "actor": "المحاسب (فاطمة)",
+        "customer_returns": {
+          "name": "محمد عبدالله",
+          "brings": "3000 شيكل نقداً",
+          "says": "باقي المبلغ الأسبوع القادم"
+        },
+        "actions": [
+          {
+            "action": "فتح صفحة المدفوعات",
+            "location": "/payments/add"
+          },
+          {
+            "action": "ملء بيانات الدفعة",
+            "form": {
+              "entity_type": "CUSTOMER",
+              "entity_id": 15,
+              "direction": "IN",
+              "amount": 3000,
+              "currency": "ILS",
+              "payment_date": "2025-01-16",
+              "payment_method": "CASH",
+              "notes": "دفعة جزئية - نقداً"
+            }
+          },
+          {
+            "action": "حفظ الدفعة",
+            "backend": [
+              "إنشاء Payment object",
+              "code: P-202501-045",
+              "إنشاء قيد محاسبي",
+              "تحديث رصيد العميل: -8720 → -5720"
+            ]
+          },
+          {
+            "action": "طباعة سند القبض",
+            "print": "/payments/45/print",
+            "give_to": "العميل"
+          }
+        ],
+        "result": {
+          "payment_code": "P-202501-045",
+          "amount": 3000,
+          "customer_balance_now": -5720,
+          "remaining": "5720 شيكل (يدفعها لاحقاً)"
+        }
+      },
+
+      "day_5_final_payment": {
+        "time": "02:00 مساءً",
+        "actor": "المحاسب (فاطمة)",
+        "customer_returns_again": {
+          "brings": "6000 شيكل (أكثر من المطلوب)",
+          "says": "خذوا الباقي رصيد لعمليات قادمة"
+        },
+        "actions": [
+          {
+            "action": "تسجيل الدفعة",
+            "form": {
+              "entity_type": "CUSTOMER",
+              "entity_id": 15,
+              "direction": "IN",
+              "amount": 6000,
+              "currency": "ILS",
+              "payment_date": "2025-01-20",
+              "payment_method": "CASH",
+              "notes": "تسديد كامل + رصيد"
+            }
+          }
+        ],
+        "result": {
+          "payment_code": "P-202501-052",
+          "amount": 6000,
+          "customer_balance_before": -5720,
+          "customer_balance_after": 280,
+          "interpretation": "له عندنا 280 شيكل (دفع زيادة)",
+          "color": "green",
+          "note": "يمكن استخدام الرصيد في مشتريات قادمة"
+        }
+      },
+
+      "summary": {
+        "total_revenue": 5220,
+        "cash_collected": 9000,
+        "customer_credit": 280,
+        "items_sold": "4 إطارات، 2 بطاريات، 2 زيت",
+        "profit_margin": "يُحسب من (سعر البيع - التكلفة)",
+        "customer_satisfaction": "ممتاز - دفع بالزيادة"
+      }
+    },
+
+    "scenario_2_service_request_full": {
+      "title": "طلب صيانة كامل من الاستقبال للتسليم",
+      "equipment": "حفار كاتربيلر 320D",
+      "timeline": "5 أيام",
+
+      "day_1_reception": {
+        "time": "08:30 صباحاً",
+        "customer_arrives": {
+          "name": "شركة الإنشاءات الحديثة",
+          "equipment": "حفار CAT 320D",
+          "problem": "المحرك يطفئ بعد 30 دقيقة عمل",
+          "urgency": "عالية - مشروع متوقف"
+        },
+        "receptionist_actions": [
+          {
+            "action": "إنشاء طلب صيانة",
+            "location": "/service/add",
+            "form": {
+              "customer_id": "شركة الإنشاءات الحديثة (ID: 23)",
+              "equipment_type": "EXCAVATOR",
+              "brand": "Caterpillar",
+              "model": "320D",
+              "serial_number": "CAT0320DUKR04356",
+              "problem_description": "المحرك يطفئ تلقائياً بعد 30 دقيقة عمل، لمبة الحرارة تضيء قبل التوقف",
+              "estimated_cost": 0,
+              "priority": "HIGH"
+            }
+          },
+          {
+            "action": "تعيين ميكانيكي",
+            "mechanic": "خالد الفني (متخصص CAT)",
+            "mechanic_id": 7
+          }
+        ],
+        "result": {
+          "service_code": "SR-202501-034",
+          "status": "NEW",
+          "assigned_to": "خالد الفني"
+        }
+      },
+
+      "day_1_diagnosis": {
+        "time": "10:00 صباحاً",
+        "mechanic": "خالد الفني",
+        "inspection": {
+          "visual_check": [
+            "مستوى سائل التبريد: منخفض جداً",
+            "وجود تسريب من خرطوم الردياتير",
+            "مروحة التبريد تعمل",
+            "فلتر الزيت قديم"
+          ],
+          "diagnostic_tools": [
+            "قراءة الأكواد من ECU: P0118 (حساس حرارة)",
+            "فحص ضغط النظام: طبيعي",
+            "فحص الثرموستات: عالق مفتوح"
+          ],
+          "diagnosis": "تسريب في خرطوم الردياتير + ثرموستات معطل + حساس حرارة تالف"
+        },
+        "required_parts": [
+          {"name": "خرطوم ردياتير علوي", "part_no": "CAT-123-4567", "qty": 1},
+          {"name": "ثرموستات", "part_no": "CAT-234-5678", "qty": 1},
+          {"name": "حساس حرارة", "part_no": "CAT-345-6789", "qty": 1},
+          {"name": "سائل تبريد 20L", "part_no": "COOL-500", "qty": 2},
+          {"name": "فلتر زيت", "part_no": "CAT-456-7890", "qty": 1}
+        ],
+        "estimated_labor": "4 ساعات × 150 ₪ = 600 ₪",
+        "total_estimate": "قطع 1200 ₪ + عمل 600 ₪ = 1800 ₪",
+        "actions": [
+          {
+            "action": "الاتصال بالعميل",
+            "tell": "المشكلة: تسريب + ثرموستات + حساس",
+            "cost": "1800 شيكل تقريباً",
+            "time": "يومين عمل",
+            "approval": "موافق - ابدأوا فوراً"
+          },
+          {
+            "action": "تحديث حالة الطلب",
+            "status": "IN_PROGRESS",
+            "estimated_cost": 1800
+          }
+        ]
+      },
+
+      "day_2_repair": {
+        "time": "09:00 صباحاً",
+        "mechanic": "خالد الفني + مساعد",
+        "work_performed": [
+          {
+            "step": 1,
+            "task": "تفريغ سائل التبريد",
+            "time": "15 دقيقة"
+          },
+          {
+            "step": 2,
+            "task": "فك الخرطوم القديم",
+            "time": "20 دقيقة"
+          },
+          {
+            "step": 3,
+            "task": "تركيب خرطوم جديد",
+            "time": "30 دقيقة",
+            "part_used": "خرطوم ردياتير علوي"
+          },
+          {
+            "step": 4,
+            "task": "استبدال الثرموستات",
+            "time": "45 دقيقة",
+            "part_used": "ثرموستات"
+          },
+          {
+            "step": 5,
+            "task": "استبدال حساس الحرارة",
+            "time": "30 دقيقة",
+            "part_used": "حساس حرارة"
+          },
+          {
+            "step": 6,
+            "task": "تغيير فلتر الزيت (صيانة دورية)",
+            "time": "20 دقيقة",
+            "part_used": "فلتر زيت"
+          },
+          {
+            "step": 7,
+            "task": "تعبئة سائل التبريد",
+            "time": "30 دقيقة",
+            "part_used": "سائل تبريد 20L × 2"
+          },
+          {
+            "step": 8,
+            "task": "تشغيل واختبار",
+            "time": "60 دقيقة",
+            "result": "المحرك يعمل ممتاز، لا ارتفاع حرارة، لا تسريب"
+          }
+        ],
+        "total_time": "4 ساعات 10 دقائق",
+        "parts_used_from_stock": [
+          {"product_id": 145, "quantity": 1, "cost": 400},
+          {"product_id": 146, "quantity": 1, "cost": 250},
+          {"product_id": 147, "quantity": 1, "cost": 180},
+          {"product_id": 148, "quantity": 2, "cost": 80},
+          {"product_id": 149, "quantity": 1, "cost": 50}
+        ],
+        "action": {
+          "record_parts": "تسجيل القطع المستخدمة في النظام",
+          "stock_updated": "خصم تلقائي من المخزون"
+        }
+      },
+
+      "day_3_completion": {
+        "time": "11:00 صباحاً",
+        "final_checks": [
+          "اختبار تشغيل لمدة ساعة",
+          "فحص التسريبات: لا يوجد",
+          "قراءة حرارة المحرك: طبيعية (85°C)",
+          "فحص ECU: لا أكواد خطأ"
+        ],
+        "cost_calculation": {
+          "parts_total": 960,
+          "labor_hours": 4.5,
+          "labor_rate": 150,
+          "labor_total": 675,
+          "subtotal": 1635,
+          "markup_15%": 245,
+          "before_tax": 1880,
+          "tax_16%": 300,
+          "grand_total": 2180
+        },
+        "actions": [
+          {
+            "action": "تحديث الطلب",
+            "status": "COMPLETED",
+            "total_cost": 2180,
+            "completed_at": "2025-01-18 11:00"
+          },
+          {
+            "action": "إنشاء قيد محاسبي",
+            "gl_batch": "GL-202501-112",
+            "entries": [
+              {"account": "1100_AR", "debit": 2180, "credit": 0},
+              {"account": "4100_SERVICE", "debit": 0, "credit": 2180}
+            ]
+          },
+          {
+            "action": "الاتصال بالعميل",
+            "tell": "المعدة جاهزة، التكلفة 2180 شيكل"
+          }
+        ]
+      },
+
+      "day_3_delivery": {
+        "time": "03:00 مساءً",
+        "customer_arrives": true,
+        "inspection_together": {
+          "start_engine": "يعمل ممتاز",
+          "test_drive": "15 دقيقة - لا مشاكل",
+          "customer_satisfied": true
+        },
+        "payment": {
+          "method": "تحويل بنكي",
+          "amount": 2180,
+          "record": {
+            "entity_type": "CUSTOMER",
+            "entity_id": 23,
+            "direction": "IN",
+            "amount": 2180,
+            "payment_method": "BANK",
+            "reference": "TRX-20250118-4567"
+          }
+        },
+        "documents": [
+          "طباعة فاتورة الصيانة",
+          "طباعة سند قبض",
+          "شهادة إتمام الصيانة",
+          "نموذج الضمان (30 يوم)"
+        ],
+        "handover": {
+          "keys": "تسليم مفاتيح المعدة",
+          "documents": "إعطاء الفواتير والضمان",
+          "advice": "نصائح الصيانة الدورية"
+        }
+      },
+
+      "summary": {
+        "duration": "3 أيام",
+        "diagnosis_time": "2 ساعات",
+        "repair_time": "4.5 ساعات",
+        "parts_cost": 960,
+        "labor_cost": 675,
+        "total_revenue": 2180,
+        "profit": "تقريباً 500 شيكل",
+        "customer_satisfaction": "ممتاز - دفع فوراً + شكر للفريق"
+      }
+    }
+  },
+
+  "complex_scenarios": {
+    "scenario_multi_currency_sale": {
+      "title": "مبيعة بعملة أجنبية مع تحويل",
+      "customer": "شركة لبنانية",
+      "currency_preference": "USD",
+      "situation": "شركة تطلب قطع غيار بالدولار لأن فواتيرهم بالدولار",
+      
+      "steps": [
+        {
+          "step": 1,
+          "action": "التحقق من سعر الصرف",
+          "date": "2025-01-20",
+          "check": "/currencies/rates",
+          "rate_found": "1 USD = 3.65 ILS"
+        },
+        {
+          "step": 2,
+          "action": "إنشاء المبيعة بالدولار",
+          "form": {
+            "customer_id": 45,
+            "currency": "USD",
+            "sale_date": "2025-01-20"
+          },
+          "lines": [
+            {"product": "فلتر هواء", "quantity": 10, "price_usd": 25, "total_usd": 250},
+            {"product": "بطارية", "quantity": 5, "price_usd": 120, "total_usd": 600}
+          ],
+          "total_usd": 850
+        },
+        {
+          "step": 3,
+          "action": "التأكيد والتحويل التلقائي",
+          "conversion": {
+            "amount_usd": 850,
+            "exchange_rate": 3.65,
+            "amount_ils": 3102.5
+          },
+          "gl_entry": {
+            "in_system_currency": "ILS",
+            "debit_ar": 3102.5,
+            "credit_sales": 3102.5
+          }
+        },
+        {
+          "step": 4,
+          "action": "الفاتورة تُطبع بالدولار",
+          "invoice_display": {
+            "currency": "USD",
+            "total": "$850.00",
+            "note_bottom": "سعر الصرف: 1 USD = 3.65 ILS"
+          }
+        },
+        {
+          "step": 5,
+          "action": "الدفع (يمكن بالدولار أو الشيكل)",
+          "customer_pays": {
+            "method": "تحويل بنكي دولار",
+            "amount_usd": 850
+          },
+          "record_payment": {
+            "currency": "USD",
+            "amount": 850,
+            "converted_to_ils": 3102.5
+          }
+        }
+      ],
+      
+      "important_notes": [
+        "كل الحسابات داخلياً بـ ILS",
+        "العملة الأجنبية للعرض فقط",
+        "التحويل يتم عند التأكيد",
+        "سعر الصرف يُؤخذ من تاريخ المعاملة"
+      ]
+    },
+
+    "scenario_sale_return": {
+      "title": "مرتجع مبيعات كامل",
+      "original_sale": "S-202501-089",
+      "reason": "العميل اشترى قطعة خاطئة",
+      
+      "timeline": [
+        {
+          "day": "يوم 1",
+          "action": "البيع الأصلي",
+          "sale": {
+            "code": "S-202501-089",
+            "customer": "أحمد محمود",
+            "items": [
+              {"product": "فلتر زيت ABC", "quantity": 4, "price": 50, "total": 200}
+            ],
+            "total": 200,
+            "paid": 200
+          }
+        },
+        {
+          "day": "يوم 3",
+          "action": "العميل يعود",
+          "says": "الفلتر غير مناسب لسيارتي، أريد استبدال",
+          "brings": "4 فلاتر في العلبة الأصلية"
+        },
+        {
+          "day": "يوم 3",
+          "action": "إنشاء مرتجع",
+          "location": "/returns/add",
+          "form": {
+            "customer_id": "أحمد محمود",
+            "original_sale_id": 89,
+            "return_date": "2025-01-18",
+            "reason": "قطعة غير مناسبة",
+            "currency": "ILS"
+          },
+          "lines": [
+            {
+              "product_id": "فلتر زيت ABC",
+              "quantity": 4,
+              "unit_price": 50,
+              "total": 200
+            }
+          ]
+        },
+        {
+          "day": "يوم 3",
+          "action": "تأكيد المرتجع",
+          "status": "CONFIRMED",
+          "effects": [
+            "إرجاع 4 قطع للمخزون",
+            "إنشاء قيد محاسبي عكسي",
+            "تخفيض رصيد العميل بـ 200"
+          ],
+          "gl_entry": {
+            "debit_sales": 200,
+            "credit_ar": 200
+          }
+        },
+        {
+          "day": "يوم 3",
+          "action": "رد المبلغ أو استبدال",
+          "options": [
+            {
+              "option": "رد نقدي",
+              "create_payment": {
+                "entity_type": "CUSTOMER",
+                "direction": "OUT",
+                "amount": 200,
+                "notes": "رد مرتجع"
+              }
+            },
+            {
+              "option": "استبدال",
+              "create_new_sale": {
+                "customer_id": "same",
+                "items": "فلتر زيت XYZ المناسب",
+                "note": "استبدال من مرتجع SR-XXX"
+              }
+            }
+          ],
+          "customer_chose": "استبدال",
+          "new_sale": "S-202501-095"
+        }
+      ],
+      
+      "final_result": {
+        "original_sale": "ملغى جزئياً عبر المرتجع",
+        "return_code": "SR-202501-003",
+        "new_sale": "S-202501-095",
+        "customer_balance": "لم يتأثر (استبدال)",
+        "stock": "4 فلاتر ABC رجعت، 4 فلاتر XYZ خرجت"
+      }
+    }
+  },
+
+  "error_scenarios": {
+    "insufficient_stock": {
+      "problem": "موظف يحاول بيع كمية أكبر من المتوفر",
+      "scenario": {
+        "product": "بطارية 12V",
+        "stock_available": 3,
+        "customer_wants": 5
+      },
+      "what_happens": {
+        "on_confirm": "رسالة خطأ: الكمية المتوفرة 3، المطلوبة 5",
+        "status": "المبيعة تبقى DRAFT",
+        "no_stock_change": true
+      },
+      "solutions": [
+        {
+          "solution": "تقليل الكمية",
+          "action": "تعديل البند ليكون 3 بدلاً من 5"
+        },
+        {
+          "solution": "إضافة شحنة",
+          "action": "طلب شحنة جديدة من المورد أولاً"
+        },
+        {
+          "solution": "تحويل من مستودع آخر",
+          "action": "إذا متوفر في فرع آخر، تحويل أولاً"
+        }
+      ]
+    },
+
+    "duplicate_payment": {
+      "problem": "تسجيل دفعة مرتين بالخطأ",
+      "scenario": {
+        "customer": "محمد علي",
+        "actual_payment": 1000,
+        "recorded_twice": true
+      },
+      "detection": "رصيد العميل أصبح موجباً بشكل غير متوقع",
+      "correction": [
+        {
+          "step": 1,
+          "action": "التحقق من سجل الدفعات",
+          "find": "دفعتان بنفس المبلغ والتاريخ"
+        },
+        {
+          "step": 2,
+          "action": "حذف الدفعة المكررة",
+          "location": "/payments/{id}/delete",
+          "note": "يحذف القيد المحاسبي تلقائياً"
+        },
+        {
+          "step": 3,
+          "action": "التحقق من الرصيد",
+          "check": "عاد للرصيد الصحيح"
+        }
+      ]
+    }
+  },
+
+  "month_end_procedures": {
+    "closing_checklist": {
+      "title": "إجراءات نهاية الشهر",
+      "frequency": "شهرياً",
+      "responsible": "المحاسب الرئيسي",
+      
+      "day_1_preparation": [
+        {
+          "task": "جرد المخزون",
+          "action": "Count all stock physically",
+          "compare": "مع stock.quantity في النظام",
+          "adjust": "تسجيل أي فروقات"
+        },
+        {
+          "task": "مراجعة المبيعات غير المؤكدة",
+          "check": "sales WHERE status = 'DRAFT'",
+          "action": "تأكيد أو حذف"
+        },
+        {
+          "task": "مراجعة طلبات الصيانة المفتوحة",
+          "check": "service_requests WHERE status IN ('NEW', 'IN_PROGRESS')",
+          "action": "إنهاء ما تم أو تأجيل للشهر القادم"
+        }
+      ],
+      
+      "day_2_reconciliation": [
+        {
+          "task": "تسوية البنك",
+          "compare": "كشف البنك vs سجلات النظام",
+          "record": "أي فروقات أو عمولات"
+        },
+        {
+          "task": "مراجعة أرصدة العملاء",
+          "generate": "كشوف حساب لأكبر 20 عميل",
+          "verify": "الأرصدة صحيحة"
+        },
+        {
+          "task": "مراجعة أرصدة الموردين",
+          "generate": "تقرير الموردين",
+          "verify": "المستحقات صحيحة"
+        }
+      ],
+      
+      "day_3_reports": [
+        {
+          "task": "قائمة الدخل الشهرية",
+          "route": "/reports/profit_loss",
+          "parameters": {
+            "period_start": "first day of month",
+            "period_end": "last day of month"
+          },
+          "review": "الإيرادات والمصاريف"
+        },
+        {
+          "task": "الميزانية العمومية",
+          "route": "/reports/balance_sheet",
+          "as_of": "last day of month",
+          "verify": "Assets = Liabilities + Equity"
+        },
+        {
+          "task": "تقرير التدفق النقدي",
+          "calculate": "النقد الوارد - النقد الصادر",
+          "compare": "مع الشهر السابق"
+        }
+      ],
+      
+      "day_4_adjustments": [
+        {
+          "task": "قيود الاستهلاك",
+          "for": "الأصول الثابتة",
+          "auto": "يتم تلقائياً من Cron إذا مفعل",
+          "manual": "أو يدوياً من /assets/depreciation"
+        },
+        {
+          "task": "قيود التسويات",
+          "examples": [
+            "مصاريف مستحقة لم تُدفع",
+            "إيرادات مستحقة لم تُحصل",
+            "مخصصات الديون المشكوك فيها"
+          ]
+        }
+      ],
+      
+      "day_5_backup": [
+        {
+          "task": "نسخة احتياطية كاملة",
+          "route": "/admin/backup",
+          "type": "Full Database Backup",
+          "save_to": "مكان آمن + Cloud"
+        },
+        {
+          "task": "أرشفة الملفات",
+          "scan": "الفواتير والمستندات",
+          "organize": "حسب الشهر والنوع"
+        }
+      ]
+    }
+  }
+}
+

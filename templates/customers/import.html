@@ -15,7 +15,7 @@
 {% block content %}
   <div class="card shadow-sm rounded">
     <div class="card-header bg-primary text-white">
-      <h5 class="card-title m-0"><i class="fas fa-file-import me-2"></i> استيراد عملاء من ملف CSV</h5>
+      <h5 class="card-title m-0"><i class="fas fa-file-import ml-2"></i> استيراد عملاء من ملف CSV</h5>
     </div>
     <div class="card-body">
 
@@ -35,7 +35,7 @@
         {% include 'customers/_import_form.html' %}
         <div class="mt-4 d-flex flex-wrap gap-2">
           <button type="submit" class="btn btn-success">
-            <i class="fas fa-upload me-1"></i> استيراد
+            <i class="fas fa-upload ml-1"></i> استيراد
           </button>
           <a href="{{ url_for('customers_bp.list_customers') }}" class="btn btn-secondary">إلغاء</a>
         </div>

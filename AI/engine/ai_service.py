@@ -4,6 +4,7 @@ import json
 import psutil
 import os
 import re
+from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func, text, desc
 from extensions import db
@@ -3213,8 +3214,72 @@ AR = إجمالي الفواتير - المدفوعات المحصلة
     suggestions = get_question_suggestions('when_unclear')
     return '\n'.join(suggestions)
 
-def ai_chat_with_search(message, session_id='default'):
-    """رد AI محسّن مع Validation و Self-Review + ذاكرة محادثة"""
+def ai_chat_with_search(user_id: int = None, query: str = None, message: str = None, session_id: str = 'default', context: Dict = None):
+    global _last_audit_time
+    
+    if message and not query:
+        query = message
+    elif not query:
+        return {'response': 'لم يتم تقديم سؤال', 'confidence': 0}
+    
+    try:
+        from AI.engine.ai_master_controller import get_master_controller
+        import time
+        
+        start_time = time.time()
+        controller = get_master_controller()
+        
+        if context is None:
+            context = {}
+        
+        context['user_id'] = user_id
+        context['search_results'] = search_database_for_query(query)
+        
+        result = controller.process_intelligent_query(query, context)
+        execution_time = time.time() - start_time
+        
+        success = bool(result.get('answer'))
+        conf = result.get('confidence', 0.7)
+        
+        try:
+            evolution = get_evolution_engine()
+            evolution.record_interaction(
+                query=query,
+                response=result,
+                success=success,
+                confidence=conf,
+                execution_time=execution_time
+            )
+        except Exception as e:
+            print(f"Evolution tracking error: {e}")
+        
+        try:
+            tracker = get_performance_tracker()
+            tracker.record_query(query, result, execution_time)
+        except Exception as e:
+            print(f"Performance tracking error: {e}")
+        
+        add_to_memory(session_id, 'user', query)
+        add_to_memory(session_id, 'assistant', result.get('answer', ''))
+        
+        log_interaction(query, result.get('answer', ''), int(conf * 100), context.get('search_results', {}))
+        
+        return {
+            'response': result.get('answer', ''),
+            'confidence': conf,
+            'sources': result.get('sources', []),
+            'tips': result.get('tips', [])
+        }
+    
+    except Exception as e:
+        print(f"[ERROR] AI error: {e}")
+        import traceback
+        traceback.print_exc()
+        return _ai_chat_original(query, session_id)
+
+
+def _ai_chat_original(message, session_id='default'):
+    """الطريقة الأصلية (Fallback)"""
     global _last_audit_time
     
     # 🧠 حفظ السؤال في الذاكرة

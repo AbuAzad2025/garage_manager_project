@@ -69,18 +69,18 @@
   <nav class="expense-nav no-print">
     <div class="d-flex justify-content-between align-items-center flex-wrap">
       <div class="d-flex align-items-center mb-2 mb-md-0">
-        <i class="fas fa-money-bill-wave fa-2x text-white me-3"></i>
+        <i class="fas fa-money-bill-wave fa-2x text-white ml-3"></i>
         <h4 class="text-white mb-0 fw-bold">وحدة النفقات</h4>
       </div>
       <div class="nav nav-pills" role="tablist">
         <a class="nav-link" href="{{ url_for('expenses_bp.list_expenses') }}">
-          <i class="fas fa-receipt me-2"></i>المصاريف
+          <i class="fas fa-receipt ml-2"></i>المصاريف
         </a>
         <a class="nav-link active" href="{{ url_for('expenses_bp.employees_list') }}">
-          <i class="fas fa-users me-2"></i>الموظفون
+          <i class="fas fa-users ml-2"></i>الموظفون
         </a>
         <a class="nav-link" href="{{ url_for('expenses_bp.types_list') }}">
-          <i class="fas fa-tags me-2"></i>أنواع المصاريف
+          <i class="fas fa-tags ml-2"></i>أنواع المصاريف
         </a>
       </div>
     </div>
@@ -88,14 +88,14 @@
 
   <div class="card shadow-sm mb-3">
     <div class="card-header bg-white d-flex align-items-center justify-content-between">
-      <h2 class="mb-0"><i class="fas fa-users me-2 text-primary"></i>قائمة الموظفين</h2>
+      <h2 class="mb-0"><i class="fas fa-users ml-2 text-primary"></i>قائمة الموظفين</h2>
       <div class="d-flex gap-2 flex-wrap no-print">
         <button class="btn btn-outline-primary" onclick="window.print()">
-          <i class="fas fa-print me-1"></i>طباعة القائمة
+          <i class="fas fa-print ml-1"></i>طباعة القائمة
         </button>
         {% if current_user.has_permission('manage_expenses') %}
         <a href="{{ url_for('expenses_bp.add_employee') }}" class="btn btn-action-add">
-          <i class="fas fa-plus me-1"></i>إضافة موظف
+          <i class="fas fa-plus ml-1"></i>إضافة موظف
         </a>
         {% endif %}
       </div>

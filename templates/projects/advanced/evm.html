@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }} - تحليل القيمة المكتسبة{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-12">
+                <h1><i class="fas fa-chart-line"></i> إدارة القيمة المكتسبة (Earned Value Management): {{ project.name }}</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="alert {% if evm.status == 'healthy' %}alert-success{% elif evm.status == 'at_risk' %}alert-warning{% else %}alert-danger{% endif %}">
+            <h4>
+                <i class="fas fa-info-circle"></i> 
+                حالة المشروع: 
+                {% if evm.status == 'healthy' %}
+                    <strong>صحي</strong> (الأداء جيد)
+                {% elif evm.status == 'at_risk' %}
+                    <strong>معرض للخطر</strong> (يحتاج انتباه)
+                {% else %}
+                    <strong>حرج</strong> (يحتاج تدخل فوري)
+                {% endif %}
+            </h4>
+            <p>
+                <strong>CPI:</strong> {{ "%.2f"|format(evm.cpi) }} | 
+                <strong>SPI:</strong> {{ "%.2f"|format(evm.spi) }}
+                {% if evm.cpi < 1 %}
+                    <span class="text-danger">(فوق الميزانية)</span>
+                {% else %}
+                    <span class="text-success">(ضمن الميزانية)</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header bg-primary">
+                        <h5 class="card-title mb-0">Planned Value (PV)</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3>{{ "%.2f"|format(evm.pv) }} ₪</h3>
+                        <p class="text-muted">القيمة المخططة</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header bg-success">
+                        <h5 class="card-title mb-0">Earned Value (EV)</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3>{{ "%.2f"|format(evm.ev) }} ₪</h3>
+                        <p class="text-muted">القيمة المكتسبة</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header bg-danger">
+                        <h5 class="card-title mb-0">Actual Cost (AC)</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3>{{ "%.2f"|format(evm.ac) }} ₪</h3>
+                        <p class="text-muted">التكلفة الفعلية</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card">
+                    <div class="card-header bg-info">
+                        <h5 class="card-title mb-0">Budget at Completion (BAC)</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <h3>{{ "%.2f"|format(evm.bac) }} ₪</h3>
+                        <p class="text-muted">الميزانية الإجمالية</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-warning">
+                        <h5 class="card-title mb-0"><i class="fas fa-dollar-sign"></i> مؤشرات التكلفة</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Cost Variance (CV)</th>
+                                <td class="text-left {% if evm.cv >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ "%.2f"|format(evm.cv) }} ₪
+                                    {% if evm.cv >= 0 %}
+                                        <span class="badge badge-success">تحت الميزانية</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">فوق الميزانية</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Cost Performance Index (CPI)</th>
+                                <td class="text-left">
+                                    {{ "%.2f"|format(evm.cpi) }}
+                                    {% if evm.cpi >= 1 %}
+                                        <i class="fas fa-arrow-up text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-arrow-down text-danger"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Estimate at Completion (EAC)</th>
+                                <td class="text-left"><strong>{{ "%.2f"|format(evm.eac) }} ₪</strong></td>
+                            </tr>
+                            <tr>
+                                <th>Estimate to Complete (ETC)</th>
+                                <td class="text-left">{{ "%.2f"|format(evm.etc) }} ₪</td>
+                            </tr>
+                            <tr>
+                                <th>Variance at Completion (VAC)</th>
+                                <td class="text-left {% if evm.vac >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ "%.2f"|format(evm.vac) }} ₪
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-info">
+                        <h5 class="card-title mb-0"><i class="fas fa-calendar-alt"></i> مؤشرات الجدول الزمني</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Schedule Variance (SV)</th>
+                                <td class="text-left {% if evm.sv >= 0 %}text-success{% else %}text-warning{% endif %}">
+                                    {{ "%.2f"|format(evm.sv) }} ₪
+                                    {% if evm.sv >= 0 %}
+                                        <span class="badge badge-success">متقدم على الجدول</span>
+                                    {% else %}
+                                        <span class="badge badge-warning">متأخر</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Schedule Performance Index (SPI)</th>
+                                <td class="text-left">
+                                    {{ "%.2f"|format(evm.spi) }}
+                                    {% if evm.spi >= 1 %}
+                                        <i class="fas fa-arrow-up text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-arrow-down text-warning"></i>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>To-Complete Performance Index (TCPI)</th>
+                                <td class="text-left">
+                                    {{ "%.2f"|format(evm.tcpi) }}
+                                    <br><small class="text-muted">الأداء المطلوب لإنهاء المشروع ضمن الميزانية</small>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title"><i class="fas fa-chart-area"></i> منحنى القيمة المكتسبة</h5>
+                <div class="card-tools">
+                    <button class="btn btn-sm btn-success" onclick="window.print()">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="evmChart" height="100"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-secondary">
+                <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> تفسير المؤشرات</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><strong>CPI (Cost Performance Index)</strong></h6>
+                        <ul>
+                            <li>CPI > 1.0: المشروع تحت الميزانية (ممتاز)</li>
+                            <li>CPI = 1.0: المشروع ضمن الميزانية (جيد)</li>
+                            <li>CPI < 1.0: المشروع فوق الميزانية (يحتاج إجراء)</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><strong>SPI (Schedule Performance Index)</strong></h6>
+                        <ul>
+                            <li>SPI > 1.0: المشروع متقدم على الجدول الزمني</li>
+                            <li>SPI = 1.0: المشروع ضمن الجدول الزمني</li>
+                            <li>SPI < 1.0: المشروع متأخر</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+const ctx = document.getElementById('evmChart').getContext('2d');
+const evmChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: ['Start', 'Current'],
+        datasets: [
+            {
+                label: 'Planned Value (PV)',
+                data: [0, {{ evm.pv }}],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.1
+            },
+            {
+                label: 'Earned Value (EV)',
+                data: [0, {{ evm.ev }}],
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                tension: 0.1
+            },
+            {
+                label: 'Actual Cost (AC)',
+                data: [0, {{ evm.ac }}],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.1
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return value.toFixed(0) + ' ₪';
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}
+

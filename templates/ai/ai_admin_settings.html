@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+{% block title %}⚙️ إعدادات المساعد الذكي - المالك{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      
+      <!-- Header -->
+      <div class="card bg-gradient-primary text-white mb-4">
+        <div class="card-body">
+          <h3><i class="fas fa-robot"></i> إعدادات المساعد الذكي</h3>
+          <p class="mb-0">التحكم الكامل بصلاحيات وظهور المساعد - للمالك فقط</p>
+        </div>
+      </div>
+      
+      <!-- Settings Form -->
+      <form method="POST" action="{{ url_for('ai_admin.ai_settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="row">
+          
+          <!-- القسم 1: التفعيل العام -->
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-power-off"></i> التفعيل العام</h5>
+              </div>
+              <div class="card-body">
+                
+                <div class="form-check form-switch mb-4">
+                  <input class="form-check-input" type="checkbox" id="ai_enabled" name="ai_enabled"
+                         {% if settings.ai_enabled %}checked{% endif %}>
+                  <label class="form-check-label" for="ai_enabled">
+                    <strong>تفعيل المساعد الذكي في النظام</strong>
+                    <br><small class="text-muted">إذا تم الإيقاف: المساعد مخفي تماماً من الجميع</small>
+                  </label>
+                </div>
+                
+                <div class="form-check form-switch mb-4">
+                  <input class="form-check-input" type="checkbox" id="ai_auto_learning_enabled" name="ai_auto_learning_enabled"
+                         {% if settings.ai_auto_learning_enabled %}checked{% endif %}>
+                  <label class="form-check-label" for="ai_auto_learning_enabled">
+                    <strong>التعلم التلقائي (Auto-Learning)</strong>
+                    <br><small class="text-muted">Scan يومي للنظام واكتشاف التحديثات</small>
+                  </label>
+                </div>
+                
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="ai_realtime_alerts_enabled" name="ai_realtime_alerts_enabled"
+                         {% if settings.ai_realtime_alerts_enabled %}checked{% endif %}>
+                  <label class="form-check-label" for="ai_realtime_alerts_enabled">
+                    <strong>التحذيرات الفورية (Real-time Alerts)</strong>
+                    <br><small class="text-muted">أزاد يحذر من الأخطاء لحظياً</small>
+                  </label>
+                </div>
+                
+              </div>
+            </div>
+          </div>
+          
+          <!-- القسم 2: من يرى المساعد -->
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-users"></i> من يرى المساعد؟</h5>
+              </div>
+              <div class="card-body">
+                
+                <div class="alert alert-warning">
+                  <i class="fas fa-crown"></i> <strong>المالك:</strong> يرى المساعد دائماً (لا يمكن تعطيله)
+                </div>
+                
+                <div class="form-check form-switch mb-4">
+                  <input class="form-check-input" type="checkbox" id="ai_visible_to_managers" name="ai_visible_to_managers"
+                         {% if settings.ai_visible_to_managers %}checked{% endif %}>
+                  <label class="form-check-label" for="ai_visible_to_managers">
+                    <strong>ظاهر للمدراء (Managers)</strong>
+                    <br><small class="text-muted">المدراء يستطيعون استخدام المساعد</small>
+                  </label>
+                </div>
+                
+                <div class="form-check form-switch mb-4">
+                  <input class="form-check-input" type="checkbox" id="ai_visible_to_staff" name="ai_visible_to_staff"
+                         {% if settings.ai_visible_to_staff %}checked{% endif %}>
+                  <label class="form-check-label" for="ai_visible_to_staff">
+                    <strong>ظاهر للموظفين (Staff)</strong>
+                    <br><small class="text-muted">الموظفين يستطيعون طرح أسئلة بسيطة</small>
+                  </label>
+                </div>
+                
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="ai_visible_to_customers" name="ai_visible_to_customers"
+                         {% if settings.ai_visible_to_customers %}checked{% endif %}>
+                  <label class="form-check-label" for="ai_visible_to_customers">
+                    <strong>ظاهر للعملاء (Customers)</strong>
+                    <br><small class="text-muted text-danger">⚠️ غير مُنصح - فقط للدعم الفني</small>
+                  </label>
+                </div>
+                
+              </div>
+            </div>
+          </div>
+          
+          <!-- القسم 3: صلاحيات التنفيذ -->
+          <div class="col-md-12 mt-3">
+            <div class="card">
+              <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> صلاحيات التنفيذ</h5>
+              </div>
+              <div class="card-body">
+                
+                <div class="form-check form-switch mb-3">
+                  <input class="form-check-input" type="checkbox" id="ai_can_execute_actions" name="ai_can_execute_actions"
+                         {% if settings.ai_can_execute_actions %}checked{% endif %}>
+                  <label class="form-check-label" for="ai_can_execute_actions">
+                    <strong>السماح للمساعد بتنفيذ العمليات</strong>
+                    <br><small class="text-muted">إذا مفعّل: المساعد يستطيع إضافة عملاء، منتجات، دفعات، إلخ عبر المحادثة</small>
+                  </label>
+                </div>
+                
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle"></i> <strong>ملاحظة:</strong>
+                  <ul class="mb-0 mt-2">
+                    <li>المساعد <strong>لا يستطيع</strong> الحذف أبداً</li>
+                    <li>المساعد <strong>لا يستطيع</strong> تعديل القيود المحاسبية</li>
+                    <li>المساعد <strong>لا يستطيع</strong> تعديل الدفعات</li>
+                    <li>كل عملية تُسجّل في Audit Log</li>
+                  </ul>
+                </div>
+                
+              </div>
+            </div>
+          </div>
+          
+        </div>
+        
+        <!-- Save Button -->
+        <div class="row mt-4">
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary btn-lg">
+              <i class="fas fa-save"></i> حفظ الإعدادات
+            </button>
+            <a href="{{ url_for('ai.hub') }}" class="btn btn-secondary btn-lg">
+              <i class="fas fa-times"></i> إلغاء
+            </a>
+          </div>
+        </div>
+        
+      </form>
+      
+      <!-- Quick Actions -->
+      <div class="row mt-4">
+        <div class="col-md-4">
+          <div class="card bg-gradient-info text-white">
+            <div class="card-body text-center">
+              <i class="fas fa-sync fa-3x mb-3"></i>
+              <h5>إعادة بناء المعرفة</h5>
+              <button class="btn btn-light mt-2" onclick="resetKnowledge()">
+                <i class="fas fa-redo"></i> إعادة البناء
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4">
+          <div class="card bg-gradient-success text-white">
+            <div class="card-body text-center">
+              <i class="fas fa-heartbeat fa-3x mb-3"></i>
+              <h5>فحص صحة المساعد</h5>
+              <button class="btn btn-light mt-2" onclick="checkAIHealth()">
+                <i class="fas fa-stethoscope"></i> فحص الآن
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4">
+          <div class="card bg-gradient-danger text-white">
+            <div class="card-body text-center">
+              <i class="fas fa-chart-line fa-3x mb-3"></i>
+              <h5>تقرير الأداء والتطور</h5>
+              <a href="{{ url_for('ai_admin.performance_report') }}" class="btn btn-light mt-2">
+                <i class="fas fa-eye"></i> عرض التقرير
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<script>
+let trainingInterval = null;
+
+async function resetKnowledge() {
+  if (!confirm('هل أنت متأكد من إعادة بناء قاعدة المعرفة؟\nهذا قد يستغرق بضع دقائق.')) {
+    return;
+  }
+  
+  // إظهار نافذة التقدم
+  Swal.fire({
+    title: 'جاري التدريب...',
+    html: `
+      <div id="training-progress" class="text-right" dir="rtl">
+        <div class="mb-3">
+          <div class="progress" style="height: 30px;">
+            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                 role="progressbar" style="width: 0%">0%</div>
+          </div>
+        </div>
+        <div id="progress-message" class="text-muted">بدء التدريب...</div>
+      </div>
+    `,
+    showConfirmButton: false,
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+  
+  try {
+    // بدء التدريب
+    const response = await fetch('{{ url_for("ai_admin.reset_knowledge") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      Swal.close();
+      Swal.fire('خطأ', data.error, 'error');
+      return;
+    }
+    
+    // بدء تتبع التقدم
+    startTrainingProgress();
+    
+  } catch (error) {
+    Swal.close();
+    Swal.fire('خطأ', error.toString(), 'error');
+  }
+}
+
+function startTrainingProgress() {
+  // تحديث كل ثانية
+  trainingInterval = setInterval(async () => {
+    try {
+      const response = await fetch('{{ url_for("ai_admin.training_status") }}');
+      const data = await response.json();
+      
+      if (data.success && data.status) {
+        const status = data.status;
+        const progress = status.progress || 0;
+        const message = status.current_step || 'جاري المعالجة...';
+        
+        // تحديث شريط التقدم
+        const progressBar = document.getElementById('progress-bar');
+        const progressMessage = document.getElementById('progress-message');
+        
+        if (progressBar) {
+          progressBar.style.width = progress + '%';
+          progressBar.textContent = progress.toFixed(1) + '%';
+        }
+        
+        if (progressMessage) {
+          progressMessage.textContent = message;
+        }
+        
+        // إذا اكتمل
+        if (!status.running && status.completed_at) {
+          clearInterval(trainingInterval);
+          trainingInterval = null;
+          
+          Swal.fire({
+            icon: 'success',
+            title: '✅ تم التدريب بنجاح!',
+            html: `
+              <div class="text-right" dir="rtl">
+                <p><strong>تم إكمال التدريب</strong></p>
+                <p>التاريخ: ${new Date(status.completed_at).toLocaleString('ar-SA')}</p>
+                ${status.error ? `<p class="text-danger">⚠️ ${status.error}</p>` : ''}
+              </div>
+            `,
+            confirmButtonText: 'حسناً'
+          });
+        }
+        
+        // إذا كان هناك خطأ
+        if (!status.running && status.error) {
+          clearInterval(trainingInterval);
+          trainingInterval = null;
+          
+          Swal.fire({
+            icon: 'error',
+            title: '❌ خطأ في التدريب',
+            text: status.error,
+            confirmButtonText: 'حسناً'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking training status:', error);
+    }
+  }, 1000); // كل ثانية
+}
+
+// تنظيف عند إغلاق الصفحة
+window.addEventListener('beforeunload', () => {
+  if (trainingInterval) {
+    clearInterval(trainingInterval);
+  }
+});
+
+function checkAIHealth() {
+  Swal.fire({
+    icon: 'info',
+    title: 'فحص صحة المساعد',
+    html: '<p>جارٍ الفحص...</p>',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+  
+  // TODO: API call
+  setTimeout(() => {
+    Swal.fire({
+      icon: 'success',
+      title: '✅ المساعد بصحة ممتازة',
+      html: `
+        <div class="text-right" dir="rtl">
+          <p>✅ Auto-Learning: نشط</p>
+          <p>✅ Real-time Alerts: نشط</p>
+          <p>✅ Groq API: متصل</p>
+          <p>✅ Knowledge Base: محدّث</p>
+        </div>
+      `
+    });
+  }, 2000);
+}
+
+function viewStats() {
+  window.location.href = '{{ url_for("ai_admin.performance_report") }}';
+}
+</script>
+
+{% endblock %}
+

@@ -1,6 +1,9 @@
-{% extends 'base.html' %}
-{% block title %}🚀 إدارة SaaS{% endblock %}
-{% block page_title %}🚀 إدارة SaaS المتقدمة{% endblock %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}saas{% endblock %}
+{% block security_title %}SaaS Manager{% endblock %}
+{% block security_icon %}<i class="fas fa-cloud"></i>{% endblock %}
+{% block security_description %}إدارة SaaS متقدمة - الخطط • الاشتراكات • الفوترة{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">SaaS Manager</li>{% endblock %}
 
 {% block head_extra %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -89,7 +92,7 @@
     <div class="col">
       <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-          <li class="breadcrumb-item"><a href="{{ url_for('security.dashboard') }}"><i class="fas fa-shield-alt"></i> Security</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('security.index') }}"><i class="fas fa-shield-alt"></i> Security</a></li>
           <li class="breadcrumb-item active">SaaS Manager</li>
         </ol>
       </nav>
@@ -101,7 +104,7 @@
     <div class="row align-items-center">
       <div class="col-md-8">
         <div class="d-flex align-items-start">
-          <i class="fas fa-graduation-cap fa-3x me-3 text-primary"></i>
+          <i class="fas fa-graduation-cap fa-3x ml-3 text-primary"></i>
           <div>
             <h5 class="mb-2"><i class="fas fa-rocket"></i> مرحباً بك في SaaS Manager - صديقك في إدارة الاشتراكات!</h5>
             <p class="mb-1"><strong>ما هو SaaS؟</strong> بدلاً من بيع البرنامج مرة واحدة، تؤجره شهرياً = <span class="badge bg-success">💰 دخل ثابت ومستمر</span></p>
@@ -160,27 +163,27 @@
   <ul class="nav nav-pills nav-fill mb-4" id="saasTabsList" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link active" id="plans-tab" data-toggle="tab" data-target="#plans" type="button" role="tab">
-        <i class="fas fa-box me-1"></i> الباقات
+        <i class="fas fa-box ml-1"></i> الباقات
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="subscribers-tab" data-toggle="tab" data-target="#subscribers" type="button" role="tab">
-        <i class="fas fa-users me-1"></i> المشتركين ({{ subscriptions|length }})
+        <i class="fas fa-users ml-1"></i> المشتركين ({{ subscriptions|length }})
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="billing-tab" data-toggle="tab" data-target="#billing" type="button" role="tab">
-        <i class="fas fa-file-invoice-dollar me-1"></i> الفواتير ({{ invoices|length }})
+        <i class="fas fa-file-invoice-dollar ml-1"></i> الفواتير ({{ invoices|length }})
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="analytics-tab" data-toggle="tab" data-target="#analytics" type="button" role="tab">
-        <i class="fas fa-chart-line me-1"></i> التحليلات
+        <i class="fas fa-chart-line ml-1"></i> التحليلات
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" id="settings-tab" data-toggle="tab" data-target="#settings" type="button" role="tab">
-        <i class="fas fa-cog me-1"></i> الإعدادات
+        <i class="fas fa-cog ml-1"></i> الإعدادات
       </button>
     </li>
   </ul>
@@ -189,9 +192,9 @@
     
     <div id="plans" class="tab-pane fade show active" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5><i class="fas fa-layer-group me-2"></i>باقات الاشتراك ({{ plans|length }})</h5>
+        <h5><i class="fas fa-layer-group ml-2"></i>باقات الاشتراك ({{ plans|length }})</h5>
         <button class="btn btn-primary" data-toggle="modal" data-target="#newPlanModal">
-          <i class="fas fa-plus me-1"></i> باقة جديدة
+          <i class="fas fa-plus ml-1"></i> باقة جديدة
         </button>
       </div>
 
@@ -249,7 +252,7 @@
                 {% endif %}
                 <div class="d-grid gap-2 mt-3">
                   <button class="btn {% if plan.is_popular %}btn-danger{% else %}btn-outline-primary{% endif %}" onclick="editPlan({{ plan.id }})">
-                    <i class="fas fa-edit me-1"></i> تعديل
+                    <i class="fas fa-edit ml-1"></i> تعديل
                   </button>
                 </div>
               </div>
@@ -259,7 +262,7 @@
         {% else %}
           <div class="col-12">
             <div class="alert alert-info">
-              <i class="fas fa-info-circle me-2"></i>
+              <i class="fas fa-info-circle ml-2"></i>
               لا توجد باقات. اضغط "باقة جديدة" لإنشاء أول باقة.
             </div>
           </div>
@@ -269,12 +272,12 @@
 
     <div id="subscribers" class="tab-pane fade" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5><i class="fas fa-users me-2"></i>قائمة المشتركين ({{ subscriptions|length }})</h5>
+        <h5><i class="fas fa-users ml-2"></i>قائمة المشتركين ({{ subscriptions|length }})</h5>
         <div class="btn-group">
-          <button class="btn btn-sm btn-outline-primary"><i class="fas fa-filter"></i> فلترة</button>
-          <button class="btn btn-sm btn-outline-success"><i class="fas fa-download"></i> تصدير</button>
+          <button class="btn btn-sm btn-outline-primary" onclick="alert('🔧 ميزة الفلترة قيد التطوير')"><i class="fas fa-filter"></i> فلترة</button>
+          <button class="btn btn-sm btn-outline-success" onclick="window.location.href='/security/saas-manager?export=subscriptions'"><i class="fas fa-download"></i> تصدير</button>
           <button class="btn btn-sm btn-primary" data-toggle="modal" data-target="#newSubscriberModal">
-            <i class="fas fa-plus me-1"></i> مشترك جديد
+            <i class="fas fa-plus ml-1"></i> مشترك جديد
           </button>
         </div>
       </div>
@@ -350,7 +353,7 @@
                       <h5>لا يوجد مشتركين حالياً</h5>
                       <p>ابدأ بإضافة أول مشترك</p>
                       <button class="btn btn-primary" data-toggle="modal" data-target="#newSubscriberModal">
-                        <i class="fas fa-plus me-1"></i> إضافة مشترك
+                        <i class="fas fa-plus ml-1"></i> إضافة مشترك
                       </button>
                     </td>
                   </tr>
@@ -364,12 +367,12 @@
 
     <div id="billing" class="tab-pane fade" role="tabpanel">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5><i class="fas fa-file-invoice-dollar me-2"></i>الفواتير والمدفوعات ({{ invoices|length }})</h5>
+        <h5><i class="fas fa-file-invoice-dollar ml-2"></i>الفواتير والمدفوعات ({{ invoices|length }})</h5>
         <div class="btn-group">
-          <button class="btn btn-sm btn-outline-primary"><i class="fas fa-filter"></i> فلترة</button>
-          <button class="btn btn-sm btn-outline-success"><i class="fas fa-download"></i> تصدير</button>
+          <button class="btn btn-sm btn-outline-primary" onclick="alert('🔧 ميزة الفلترة قيد التطوير')"><i class="fas fa-filter"></i> فلترة</button>
+          <button class="btn btn-sm btn-outline-success" onclick="window.location.href='/security/saas-manager?export=invoices'"><i class="fas fa-download"></i> تصدير</button>
           <button class="btn btn-sm btn-primary" onclick="createInvoice()">
-            <i class="fas fa-plus me-1"></i> فاتورة جديدة
+            <i class="fas fa-plus ml-1"></i> فاتورة جديدة
           </button>
         </div>
       </div>
@@ -444,7 +447,7 @@
     </div>
 
     <div id="analytics" class="tab-pane fade" role="tabpanel">
-      <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>تحليلات SaaS المتقدمة</h5>
+      <h5 class="mb-3"><i class="fas fa-chart-line ml-2"></i>تحليلات SaaS المتقدمة</h5>
       
       <div class="row g-4">
         <div class="col-lg-4">
@@ -485,7 +488,7 @@
         <div class="col-lg-6">
           <div class="card shadow-sm">
             <div class="card-body">
-              <h6 class="mb-3"><i class="fas fa-chart-pie me-2"></i>توزيع الباقات</h6>
+              <h6 class="mb-3"><i class="fas fa-chart-pie ml-2"></i>توزيع الباقات</h6>
               <canvas id="plansChart" height="250"></canvas>
             </div>
           </div>
@@ -494,7 +497,7 @@
         <div class="col-lg-6">
           <div class="card shadow-sm">
             <div class="card-body">
-              <h6 class="mb-3"><i class="fas fa-chart-bar me-2"></i>نمو المشتركين (آخر 12 شهر)</h6>
+              <h6 class="mb-3"><i class="fas fa-chart-bar ml-2"></i>نمو المشتركين (آخر 12 شهر)</h6>
               <canvas id="growthChart" height="250"></canvas>
             </div>
           </div>
@@ -505,7 +508,7 @@
         <div class="col-12">
           <div class="card shadow-sm">
             <div class="card-body">
-              <h6 class="mb-3"><i class="fas fa-table me-2"></i>ملخص الأداء</h6>
+              <h6 class="mb-3"><i class="fas fa-table ml-2"></i>ملخص الأداء</h6>
               <div class="table-responsive">
                 <table class="table">
                   <thead>
@@ -518,25 +521,25 @@
                   </thead>
                   <tbody>
                     <tr>
-                      <td><i class="fas fa-users me-2"></i>إجمالي المشتركين</td>
+                      <td><i class="fas fa-users ml-2"></i>إجمالي المشتركين</td>
                       <td><strong>{{ stats.total_subscribers }}</strong></td>
                       <td>100</td>
                       <td><span class="badge bg-{% if stats.total_subscribers >= 100 %}success{% else %}warning{% endif %}">{{ "%.0f"|format((stats.total_subscribers / 100) * 100) }}%</span></td>
                     </tr>
                     <tr>
-                      <td><i class="fas fa-dollar-sign me-2"></i>الإيرادات الشهرية</td>
+                      <td><i class="fas fa-dollar-sign ml-2"></i>الإيرادات الشهرية</td>
                       <td><strong>{{ stats.monthly_revenue }}</strong></td>
                       <td>$10,000</td>
                       <td><span class="badge bg-info">قيد التقدم</span></td>
                     </tr>
                     <tr>
-                      <td><i class="fas fa-chart-line me-2"></i>معدل التحويل</td>
+                      <td><i class="fas fa-chart-line ml-2"></i>معدل التحويل</td>
                       <td><strong>65%</strong></td>
                       <td>75%</td>
                       <td><span class="badge bg-warning text-dark">يحتاج تحسين</span></td>
                     </tr>
                     <tr>
-                      <td><i class="fas fa-redo me-2"></i>معدل التجديد</td>
+                      <td><i class="fas fa-redo ml-2"></i>معدل التجديد</td>
                       <td><strong>92%</strong></td>
                       <td>90%</td>
                       <td><span class="badge bg-success">ممتاز</span></td>
@@ -551,19 +554,19 @@
     </div>
 
     <div id="settings" class="tab-pane fade" role="tabpanel">
-      <h5 class="mb-3"><i class="fas fa-cog me-2"></i>إعدادات SaaS</h5>
+      <h5 class="mb-3"><i class="fas fa-cog ml-2"></i>إعدادات SaaS</h5>
       
       <div class="row g-4">
         <div class="col-lg-6">
           <div class="card shadow-sm">
             <div class="card-header bg-primary text-white">
-              <h6 class="mb-0"><i class="fas fa-credit-card me-2"></i>إعدادات الدفع</h6>
+              <h6 class="mb-0"><i class="fas fa-credit-card ml-2"></i>إعدادات الدفع</h6>
             </div>
             <div class="card-body">
               <form>
                 <div class="mb-3">
                   <label class="form-label">طريقة الدفع الافتراضية</label>
-                  <select class="form-select">
+                  <select class="custom-select">
                     <option selected>Stripe</option>
                     <option>PayPal</option>
                     <option>Bank Transfer</option>
@@ -572,7 +575,7 @@
                 </div>
                 <div class="mb-3">
                   <label class="form-label">العملة الافتراضية</label>
-                  <select class="form-select">
+                  <select class="custom-select">
                     <option selected>USD - Dollar</option>
                     <option>ILS - Shekel</option>
                     <option>EUR - Euro</option>
@@ -584,7 +587,7 @@
                   <input type="password" class="form-control" placeholder="sk_test_...">
                 </div>
                 <button type="submit" class="btn btn-primary">
-                  <i class="fas fa-save me-1"></i> حفظ إعدادات الدفع
+                  <i class="fas fa-save ml-1"></i> حفظ إعدادات الدفع
                 </button>
               </form>
             </div>
@@ -594,7 +597,7 @@
         <div class="col-lg-6">
           <div class="card shadow-sm">
             <div class="card-header bg-success text-white">
-              <h6 class="mb-0"><i class="fas fa-clock me-2"></i>إعدادات الاشتراك</h6>
+              <h6 class="mb-0"><i class="fas fa-clock ml-2"></i>إعدادات الاشتراك</h6>
             </div>
             <div class="card-body">
               <form>
@@ -623,7 +626,7 @@
                   <small class="text-muted">مهلة إضافية بعد انتهاء الاشتراك</small>
                 </div>
                 <button type="submit" class="btn btn-success">
-                  <i class="fas fa-save me-1"></i> حفظ إعدادات الاشتراك
+                  <i class="fas fa-save ml-1"></i> حفظ إعدادات الاشتراك
                 </button>
               </form>
             </div>
@@ -635,7 +638,7 @@
         <div class="col-12">
           <div class="card shadow-sm">
             <div class="card-header bg-warning text-dark">
-              <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>إعدادات البريد الإلكتروني</h6>
+              <h6 class="mb-0"><i class="fas fa-envelope ml-2"></i>إعدادات البريد الإلكتروني</h6>
             </div>
             <div class="card-body">
               <form>
@@ -674,7 +677,7 @@
                   </div>
                   <div class="col-12">
                     <button type="submit" class="btn btn-warning text-dark">
-                      <i class="fas fa-save me-1"></i> حفظ إعدادات البريد
+                      <i class="fas fa-save ml-1"></i> حفظ إعدادات البريد
                     </button>
                   </div>
                 </div>
@@ -693,7 +696,7 @@
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title"><i class="fas fa-plus me-2"></i>باقة جديدة</h5>
+        <h5 class="modal-title"><i class="fas fa-plus ml-2"></i>باقة جديدة</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
@@ -717,7 +720,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label">العملة</label>
-              <select class="form-select" name="currency">
+              <select class="custom-select" name="currency">
                 <option selected>USD</option>
                 <option>ILS</option>
                 <option>EUR</option>
@@ -755,7 +758,7 @@ API Access
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
         <button type="button" class="btn btn-primary" onclick="savePlan()">
-          <i class="fas fa-save me-1"></i> حفظ
+          <i class="fas fa-save ml-1"></i> حفظ
         </button>
       </div>
     </div>
@@ -767,7 +770,7 @@ API Access
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header bg-warning text-dark">
-        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>تعديل باقة</h5>
+        <h5 class="modal-title"><i class="fas fa-edit ml-2"></i>تعديل باقة</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
@@ -793,7 +796,7 @@ API Access
             </div>
             <div class="col-md-4">
               <label class="form-label">العملة</label>
-              <select class="form-select" id="edit_currency" name="currency">
+              <select class="custom-select" id="edit_currency" name="currency">
                 <option value="USD">USD ($)</option>
                 <option value="ILS">ILS (₪)</option>
                 <option value="JOD">JOD</option>
@@ -829,7 +832,7 @@ API Access
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
         <button type="button" class="btn btn-warning" onclick="saveEditedPlan()">
-          <i class="fas fa-save me-1"></i> حفظ التعديلات
+          <i class="fas fa-save ml-1"></i> حفظ التعديلات
         </button>
       </div>
     </div>
@@ -841,21 +844,21 @@ API Access
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header bg-success text-white">
-        <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>مشترك جديد</h5>
+        <h5 class="modal-title"><i class="fas fa-user-plus ml-2"></i>مشترك جديد</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
         <form id="newSubscriberForm">
           <div class="mb-3">
             <label class="form-label">العميل *</label>
-            <select class="form-select" name="customer_id" id="customer_select" required>
+            <select class="custom-select" name="customer_id" id="customer_select" required>
               <option value="">اختر عميل...</option>
             </select>
             <small class="text-muted">سيتم تحميل العملاء من قاعدة البيانات</small>
           </div>
           <div class="mb-3">
             <label class="form-label">الباقة *</label>
-            <select class="form-select" name="plan_id" required>
+            <select class="custom-select" name="plan_id" required>
               {% for plan in plans %}
               <option value="{{ plan.id }}">{{ plan.name }} - ${{ "%.0f"|format(plan.price_monthly) }}/شهر</option>
               {% endfor %}
@@ -867,7 +870,7 @@ API Access
           </div>
           <div class="mb-3">
             <label class="form-label">الحالة</label>
-            <select class="form-select" name="status">
+            <select class="custom-select" name="status">
               <option value="trial">تجريبي (مجاناً)</option>
               <option value="active" selected>نشط (مدفوع)</option>
             </select>
@@ -877,7 +880,7 @@ API Access
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
         <button type="button" class="btn btn-success" onclick="saveSubscriber()">
-          <i class="fas fa-save me-1"></i> حفظ
+          <i class="fas fa-save ml-1"></i> حفظ
         </button>
       </div>
     </div>
@@ -889,14 +892,14 @@ API Access
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header bg-info text-white">
-        <h5 class="modal-title"><i class="fas fa-file-invoice me-2"></i>فاتورة جديدة</h5>
+        <h5 class="modal-title"><i class="fas fa-file-invoice ml-2"></i>فاتورة جديدة</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
         <form id="newInvoiceForm">
           <div class="mb-3">
             <label class="form-label">الاشتراك *</label>
-            <select class="form-select" name="subscription_id" required>
+            <select class="custom-select" name="subscription_id" required>
               <option value="">اختر اشتراك...</option>
               {% for sub in subscriptions %}
               <option value="{{ sub.id }}">{{ sub.customer_id }} - {{ sub.plan.name if sub.plan else 'باقة محذوفة' }}</option>
@@ -909,7 +912,7 @@ API Access
           </div>
           <div class="mb-3">
             <label class="form-label">العملة</label>
-            <select class="form-select" name="currency">
+            <select class="custom-select" name="currency">
               <option value="USD">USD ($)</option>
               <option value="ILS">ILS (₪)</option>
               <option value="JOD">JOD</option>
@@ -925,7 +928,7 @@ API Access
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
         <button type="button" class="btn btn-info" onclick="saveNewInvoice()">
-          <i class="fas fa-save me-1"></i> إنشاء
+          <i class="fas fa-save ml-1"></i> إنشاء
         </button>
       </div>
     </div>

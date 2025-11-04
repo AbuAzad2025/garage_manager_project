@@ -98,7 +98,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <div class="col-md-5">
         <label class="form-label">اختر المستودعات</label>
-        <select name="warehouse_ids" multiple class="form-select" size="6">
+        <select name="warehouse_ids" multiple class="custom-select" size="6">
           {% for w in warehouses %}
             <option value="{{ w.id }}" selected>{{ w.name }}</option>
           {% endfor %}
@@ -116,7 +116,7 @@
         </button>
         <a href="{{ url_for('warehouse_bp.inventory_summary') }}" class="btn btn-outline-secondary flex-fill">تهيئة</a>
         <button type="submit" name="export" value="csv" class="btn btn-success flex-fill">تصدير CSV</button>
-        <button type="button" class="btn btn-dark flex-fill" onclick="printInventory()"><i class="fas fa-print me-1"></i>طباعة</button>
+        <button type="button" class="btn btn-dark flex-fill" onclick="printInventory()"><i class="fas fa-print ml-1"></i>طباعة</button>
       </div>
     </form>
   </div>

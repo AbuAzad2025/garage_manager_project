@@ -83,20 +83,20 @@
       <!-- أدوات الباركود -->
       <div class="action-group mb-3">
         <h6 class="text-muted mb-2">
-          <i class="fas fa-barcode me-1"></i> أدوات الباركود
+          <i class="fas fa-barcode ml-1"></i> أدوات الباركود
         </h6>
         <div class="d-flex flex-wrap gap-2">
           <button class="btn btn-primary btn-sm" onclick="openBarcodeScanner()" title="فتح ماسح الباركود">
-            <i class="fas fa-barcode me-1"></i> ماسح الباركود
+            <i class="fas fa-barcode ml-1"></i> ماسح الباركود
           </button>
           <button class="btn btn-info btn-sm" onclick="openQuickStockUpdate()" title="تحديث سريع للمخزون">
-            <i class="fas fa-edit me-1"></i> تحديث سريع
+            <i class="fas fa-edit ml-1"></i> تحديث سريع
           </button>
           <button class="btn btn-warning btn-sm" onclick="generateBarcodesForMissing()" title="توليد باركودات للمنتجات المفقودة">
-            <i class="fas fa-qrcode me-1"></i> توليد باركودات
+            <i class="fas fa-qrcode ml-1"></i> توليد باركودات
           </button>
           <a href="{{ url_for('barcode_scanner.bulk_scan_page') }}" class="btn btn-outline-info btn-sm" title="مسح جماعي للمنتجات">
-            <i class="fas fa-barcode me-1"></i> مسح جماعي
+            <i class="fas fa-barcode ml-1"></i> مسح جماعي
           </a>
         </div>
       </div>
@@ -104,14 +104,14 @@
       <!-- أدوات الإدارة -->
       <div class="action-group">
         <h6 class="text-muted mb-2">
-          <i class="fas fa-cogs me-1"></i> أدوات الإدارة
+          <i class="fas fa-cogs ml-1"></i> أدوات الإدارة
         </h6>
         <div class="d-flex flex-wrap gap-2">
           <a href="{{ url_for('warehouse_bp.add_product', id=warehouse.id) }}" class="btn btn-success btn-sm" title="إضافة منتج جديد للمستودع">
-            <i class="fas fa-plus me-1"></i> إضافة منتج
+            <i class="fas fa-plus ml-1"></i> إضافة منتج
           </a>
           <a href="{{ url_for('warehouse_bp.import_products', id=warehouse.id) }}" class="btn btn-outline-secondary btn-sm" title="استيراد منتجات من ملف CSV">
-            <i class="fas fa-file-upload me-1"></i> استيراد (CSV)
+            <i class="fas fa-file-upload ml-1"></i> استيراد (CSV)
           </a>
         </div>
       </div>
@@ -206,7 +206,7 @@
         <div class="card h-100 shadow-sm">
           <div class="card-header bg-light">
             <h5 class="mb-0">
-              <i class="fas fa-info-circle me-2"></i>
+              <i class="fas fa-info-circle ml-2"></i>
               معلومات المستودع
             </h5>
           </div>
@@ -252,7 +252,7 @@
             <hr class="my-3">
 
             <h6 class="mb-3">
-              <i class="fas fa-search me-2"></i>
+              <i class="fas fa-search ml-2"></i>
               بحث سريع عن منتج
             </h6>
             <div class="mb-3">
@@ -270,18 +270,18 @@
             <hr class="my-3">
             
             <h6 class="mb-2">
-              <i class="fas fa-bolt me-2"></i>
+              <i class="fas fa-bolt ml-2"></i>
               إجراءات سريعة
             </h6>
             <div class="d-grid gap-2">
               <a href="{{ url_for('warehouse_bp.products', id=warehouse.id) }}" class="btn btn-outline-primary btn-sm">
-                <i class="fas fa-list me-1"></i> عرض كل المنتجات
+                <i class="fas fa-list ml-1"></i> عرض كل المنتجات
               </a>
               <a href="{{ url_for('warehouse_bp.transfers', id=warehouse.id) }}" class="btn btn-outline-info btn-sm">
-                <i class="fas fa-exchange-alt me-1"></i> التحويلات
+                <i class="fas fa-exchange-alt ml-1"></i> التحويلات
               </a>
               <a href="{{ url_for('warehouse_bp.preview_inventory', warehouse_id=warehouse.id) }}" class="btn btn-outline-success btn-sm">
-                <i class="fas fa-edit me-1"></i> تعديل المخزون
+                <i class="fas fa-edit ml-1"></i> تعديل المخزون
               </a>
             </div>
           </div>
@@ -296,7 +296,7 @@
         <div class="card shadow-sm mb-4">
           <div class="card-header bg-light">
             <h5 class="mb-0">
-              <i class="fas fa-tasks me-2"></i>
+              <i class="fas fa-tasks ml-2"></i>
               العمليات المتاحة
             </h5>
           </div>
@@ -304,17 +304,17 @@
             <ul class="nav nav-tabs" id="operationsTabs" role="tablist">
               <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="stock-tab" data-toggle="tab" data-target="#stock-content" type="button" role="tab">
-                  <i class="fas fa-box me-1"></i> تحديث مخزون
+                  <i class="fas fa-box ml-1"></i> تحديث مخزون
                 </button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="transfer-tab" data-toggle="tab" data-target="#transfer-content" type="button" role="tab">
-                  <i class="fas fa-exchange-alt me-1"></i> تحويل
+                  <i class="fas fa-exchange-alt ml-1"></i> تحويل
                 </button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="exchange-tab" data-toggle="tab" data-target="#exchange-content" type="button" role="tab">
-                  <i class="fas fa-random me-1"></i> وارد/صادر/تسوية
+                  <i class="fas fa-random ml-1"></i> وارد/صادر/تسوية
                 </button>
               </li>
             </ul>
@@ -323,7 +323,7 @@
               <!-- Tab 1: تحديث مخزون مباشر -->
               <div class="tab-pane fade show active" id="stock-content" role="tabpanel">
                 <div class="alert alert-success mb-3">
-                  <i class="fas fa-info-circle me-2"></i>
+                  <i class="fas fa-info-circle ml-2"></i>
                   <strong>شرح التحديث:</strong> يمكنك تحديث كمية أي منتج في مستودع <strong>{{ warehouse.name }}</strong> مباشرة.
                   <br>
                   <small>الكمية التي تدخلها هي الكمية النهائية (وليست الزيادة أو النقصان).</small>
@@ -350,7 +350,7 @@
                   <div class="row g-3">
                     <div class="col-md-6">
                       <label class="form-label">
-                        <i class="fas fa-box me-1"></i>{{ stock_form.product_id.label }} <span class="text-danger">*</span>
+                        <i class="fas fa-box ml-1"></i>{{ stock_form.product_id.label }} <span class="text-danger">*</span>
                         <small class="text-muted d-block">ابحث بالاسم أو رقم القطعة أو امسح الباركود</small>
                       </label>
                       {{ stock_form.product_id(
@@ -362,7 +362,7 @@
                     </div>
                     <div class="col-md-3">
                       <label class="form-label">
-                        <i class="fas fa-hashtag me-1"></i>{{ stock_form.quantity.label }} <span class="text-danger">*</span>
+                        <i class="fas fa-hashtag ml-1"></i>{{ stock_form.quantity.label }} <span class="text-danger">*</span>
                         <small class="text-muted d-block">الكمية الجديدة (النهائية)</small>
                       </label>
                       {{ stock_form.quantity(class_="form-control", placeholder="مثال: 15", id="stock-quantity-input") }}
@@ -370,21 +370,21 @@
                     </div>
                     <div class="col-md-3">
                       <label class="form-label">
-                        <i class="fas fa-exclamation-triangle me-1"></i>{{ stock_form.min_stock.label }}
+                        <i class="fas fa-exclamation-triangle ml-1"></i>{{ stock_form.min_stock.label }}
                         <small class="text-muted d-block">حد أدنى للتنبيه (اختياري)</small>
                       </label>
                       {{ stock_form.min_stock(class_="form-control", placeholder="حد أدنى للتنبيه") }}
                     </div>
                     <div class="col-md-3">
                       <label class="form-label">
-                        <i class="fas fa-exclamation-circle me-1"></i>{{ stock_form.max_stock.label }}
+                        <i class="fas fa-exclamation-circle ml-1"></i>{{ stock_form.max_stock.label }}
                         <small class="text-muted d-block">حد أعلى للتنبيه (اختياري)</small>
                       </label>
                       {{ stock_form.max_stock(class_="form-control", placeholder="حد أعلى للتنبيه") }}
                     </div>
                     <div class="col-12">
                       <button type="submit" class="btn btn-success">
-                        <i class="fas fa-check me-1"></i> تحديث المخزون
+                        <i class="fas fa-check ml-1"></i> تحديث المخزون
                       </button>
                     </div>
                   </div>
@@ -394,14 +394,14 @@
               <!-- Tab 2: تحويل بين مستودعين -->
               <div class="tab-pane fade" id="transfer-content" role="tabpanel">
                 <div class="alert alert-info mb-3">
-                  <i class="fas fa-info-circle me-2"></i>
+                  <i class="fas fa-info-circle ml-2"></i>
                   <strong>شرح التحويل:</strong> يمكنك نقل منتج من أي مستودع إلى أي مستودع آخر.
                   <br>
                   <small>سيتم خصم الكمية من المستودع المصدر وإضافتها للمستودع الوجهة.</small>
                 </div>
                 
                 <div class="alert alert-warning mb-3" style="border-right: 4px solid #ffc107;">
-                  <h6 class="mb-2"><i class="fas fa-exclamation-triangle me-2"></i><strong>قواعد التحويل حسب نوع المستودع:</strong></h6>
+                  <h6 class="mb-2"><i class="fas fa-exclamation-triangle ml-2"></i><strong>قواعد التحويل حسب نوع المستودع:</strong></h6>
                   <ul class="mb-0" style="font-size: 0.9rem; line-height: 1.8;">
                     <li><strong>مستودع شريك:</strong> يحول فقط لمستودع شريك آخر</li>
                     <li><strong>مستودع تبادل:</strong> يحول فقط لمستودع تبادل آخر</li>
@@ -433,7 +433,7 @@
                   <div class="row g-3">
                     <div class="col-12">
                       <label class="form-label fw-bold">
-                        <i class="fas fa-box me-1"></i>
+                        <i class="fas fa-box ml-1"></i>
                         {{ transfer_form.product_id.label }} <span class="text-danger">*</span>
                       </label>
                       {{ transfer_form.product_id(
@@ -447,7 +447,7 @@
                     
                     <div class="col-md-4">
                       <label class="form-label fw-bold">
-                        <i class="fas fa-hashtag me-1"></i>
+                        <i class="fas fa-hashtag ml-1"></i>
                         {{ transfer_form.quantity.label }} <span class="text-danger">*</span>
                       </label>
                       {{ transfer_form.quantity(class_="form-control", placeholder="مثال: 5", type="number", min="1", id="transfer-quantity-input") }}
@@ -458,7 +458,7 @@
                     
                     <div class="col-md-4">
                       <label class="form-label fw-bold">
-                        <i class="fas fa-warehouse text-danger me-1"></i>
+                        <i class="fas fa-warehouse text-danger ml-1"></i>
                         من مستودع <span class="text-danger">*</span>
                       </label>
                       {{ transfer_form.source_id(
@@ -471,7 +471,7 @@
                     
                     <div class="col-md-4">
                       <label class="form-label fw-bold">
-                        <i class="fas fa-warehouse text-success me-1"></i>
+                        <i class="fas fa-warehouse text-success ml-1"></i>
                         إلى مستودع <span class="text-danger">*</span>
                       </label>
                       {{ transfer_form.destination_id(
@@ -484,7 +484,7 @@
                     
                     <div class="col-12">
                       <label class="form-label">
-                        <i class="fas fa-comment me-1"></i>
+                        <i class="fas fa-comment ml-1"></i>
                         {{ transfer_form.notes.label }}
                       </label>
                       {{ transfer_form.notes(class_="form-control", placeholder="ملاحظات (اختياري)") }}
@@ -492,10 +492,10 @@
                     
                     <div class="col-12">
                       <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-exchange-alt me-1"></i> تنفيذ التحويل
+                        <i class="fas fa-exchange-alt ml-1"></i> تنفيذ التحويل
                       </button>
                       <button type="button" class="btn btn-secondary" onclick="$('#transfer-form')[0].reset();">
-                        <i class="fas fa-redo me-1"></i> إعادة تعيين
+                        <i class="fas fa-redo ml-1"></i> إعادة تعيين
                       </button>
                     </div>
                   </div>
@@ -505,7 +505,7 @@
               <!-- Tab 3: وارد/صادر/تسوية -->
               <div class="tab-pane fade" id="exchange-content" role="tabpanel">
                 <div class="alert alert-warning mb-3">
-                  <i class="fas fa-exclamation-triangle me-2"></i>
+                  <i class="fas fa-exclamation-triangle ml-2"></i>
                   <strong>شرح العمليات:</strong>
                   <ul class="mb-0 mt-2">
                     <li><strong>وارد (IN):</strong> إضافة كمية للمستودع (من مورد/شريك)</li>
@@ -538,7 +538,7 @@
                   <div class="row g-3">
                     <div class="col-md-8">
                       <label class="form-label fw-bold">
-                        <i class="fas fa-box me-1"></i>
+                        <i class="fas fa-box ml-1"></i>
                         المنتج <span class="text-danger">*</span>
                       </label>
                       <select name="product_id"
@@ -550,7 +550,7 @@
                     </div>
                     <div class="col-md-4">
                       <label class="form-label fw-bold">
-                        <i class="fas fa-hashtag me-1"></i>
+                        <i class="fas fa-hashtag ml-1"></i>
                         الكمية <span class="text-danger">*</span>
                       </label>
                       <input type="number" name="quantity" min="1" class="form-control" placeholder="مثال: 3" required id="exchange-quantity-input">
@@ -559,7 +559,7 @@
                     </div>
                     <div class="col-md-6">
                       <label class="form-label fw-bold">
-                        <i class="fas fa-arrows-alt-v me-1"></i>
+                        <i class="fas fa-arrows-alt-v ml-1"></i>
                         الاتجاه <span class="text-danger">*</span>
                       </label>
                       <select name="direction" class="form-control" id="exchange-direction">
@@ -570,7 +570,7 @@
                     </div>
                     <div class="col-md-6" id="partner-field-group" style="display: none;">
                       <label class="form-label">
-                        <i class="fas fa-handshake me-1"></i>
+                        <i class="fas fa-handshake ml-1"></i>
                         الشريك <span class="text-danger" id="partner-required">*</span>
                       </label>
                       <select name="partner_id"
@@ -582,7 +582,7 @@
                     
                     <div class="col-md-6" id="supplier-field-group" style="display: none;">
                       <label class="form-label">
-                        <i class="fas fa-truck me-1"></i>
+                        <i class="fas fa-truck ml-1"></i>
                         المورد/التاجر <span class="text-danger" id="supplier-required">*</span>
                       </label>
                       <select name="supplier_id"
@@ -593,7 +593,7 @@
                     </div>
                     <div class="col-md-12">
                       <label class="form-label">
-                        <i class="fas fa-dollar-sign me-1"></i>
+                        <i class="fas fa-dollar-sign ml-1"></i>
                         سعر/تكلفة للوحدة (اختياري)
                       </label>
                       <input type="number" step="0.01" name="unit_cost" class="form-control" placeholder="مثال: 12.50">
@@ -601,17 +601,17 @@
                     </div>
                     <div class="col-12">
                       <label class="form-label">
-                        <i class="fas fa-comment me-1"></i>
+                        <i class="fas fa-comment ml-1"></i>
                         ملاحظات
                       </label>
                       <textarea name="notes" class="form-control" rows="2" placeholder="سبب العملية أو أي تفاصيل إضافية"></textarea>
                     </div>
                     <div class="col-12">
                       <button type="submit" class="btn btn-secondary">
-                        <i class="fas fa-save me-1"></i> تسجيل العملية
+                        <i class="fas fa-save ml-1"></i> تسجيل العملية
                       </button>
                       <button type="button" class="btn btn-light" onclick="$('#exchange-form')[0].reset();">
-                        <i class="fas fa-redo me-1"></i> إعادة تعيين
+                        <i class="fas fa-redo ml-1"></i> إعادة تعيين
                       </button>
                     </div>
                   </div>

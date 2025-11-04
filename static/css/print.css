@@ -1,341 +1,374 @@
-/* 
- * نظام طباعة احترافي موحد - A4 Format
- * يُستخدم لجميع صفحات الطباعة في النظام
- */
-
 @media print {
-  /* إخفاء عناصر غير ضرورية */
-  .no-print,
-  .btn,
-  button,
-  .navbar,
-  .sidebar,
-  .main-header,
-  .main-footer,
-  .breadcrumb,
-  .card-header .btn,
-  .page-link,
-  .pagination,
-  input[type="checkbox"]:not(:checked) ~ label,
-  form,
-  .alert,
-  .toast,
-  .modal,
-  .dropdown-menu,
-  nav,
-  aside,
-  .expense-nav,
-  .filters,
-  .filter-form,
-  .card-body > .row:first-child,
-  .summary-cards {
-    display: none !important;
-  }
-  
-  /* إظهار رأس الطباعة فقط */
-  .print-header {
-    display: block !important;
-  }
+    @page {
+        size: A4;
+        margin: 1cm;
+    }
 
-  /* A4 Page Setup - طباعة أفقية للجداول العريضة */
-  @page {
-    size: A4 landscape;
-    margin: 10mm 8mm;
-  }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-size: 11pt;
+        color: #000;
+        background: white;
+        direction: rtl;
+    }
 
-  /* تصميم الطباعة */
-  body {
-    font-family: 'Arial', 'Tahoma', sans-serif;
-    font-size: 11pt;
-    line-height: 1.4;
-    color: #000;
-    background: #fff;
-    margin: 0;
-    padding: 0;
-  }
+    .main-header,
+    .main-sidebar,
+    .main-footer,
+    .navbar,
+    .sidebar,
+    .btn,
+    button,
+    .no-print,
+    .breadcrumb,
+    .card-tools,
+    .pagination,
+    .page-item,
+    .btn-print,
+    form,
+    input,
+    select,
+    .filters-section,
+    .action-buttons {
+        display: none !important;
+    }
 
-  /* الحاويات */
-  .container,
-  .container-fluid {
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
+    .content-wrapper {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+    }
 
-  /* البطاقات */
-  .card {
-    border: none !important;
-    box-shadow: none !important;
-    page-break-inside: avoid;
-    margin-bottom: 10mm;
-  }
+    .content {
+        padding: 0 !important;
+    }
 
-  .card-header {
-    background: #f8f9fa !important;
-    border-bottom: 2px solid #000 !important;
-    padding: 5mm 3mm !important;
-    font-weight: bold;
-    font-size: 12pt;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    .container-fluid {
+        padding: 0 !important;
+    }
 
-  .card-body {
-    padding: 3mm !important;
-  }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+        page-break-inside: avoid;
+    }
 
-  /* الجداول */
-  table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    page-break-inside: auto;
-    font-size: 9pt;
-    table-layout: auto !important;
-  }
-  
-  /* إظهار جميع الأعمدة في الطباعة */
-  table th,
-  table td {
-    display: table-cell !important;
-    visibility: visible !important;
-    white-space: nowrap !important;
-    overflow: visible !important;
-    text-overflow: clip !important;
-  }
+    .card-header {
+        background: #f8f9fa !important;
+        border-bottom: 2px solid #000 !important;
+        padding: 10px !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 
-  table thead {
-    display: table-header-group;
-  }
+    .card-body {
+        padding: 10px !important;
+    }
 
-  table tfoot {
-    display: table-footer-group;
-  }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        page-break-inside: auto;
+        font-size: 10pt;
+    }
 
-  table tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
-  }
+    thead {
+        display: table-header-group;
+        background: #e9ecef !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 
-  table th {
-    background-color: #e9ecef !important;
-    border: 1px solid #000 !important;
-    padding: 2mm 1mm !important;
-    font-weight: bold;
-    text-align: center !important;
-    font-size: 8pt !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-    max-width: none !important;
-  }
+    tbody {
+        display: table-row-group;
+    }
 
-  table td {
-    border: 1px solid #dee2e6 !important;
-    padding: 1.5mm 1mm !important;
-    text-align: right !important;
-    font-size: 8pt !important;
-    max-width: none !important;
-  }
-  
-  /* إزالة التقطيع للنصوص الطويلة */
-  table td.text-truncate {
-    max-width: none !important;
-    white-space: normal !important;
-    word-wrap: break-word !important;
-  }
+    tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
 
-  /* الصفوف الزوجية */
-  table tbody tr:nth-child(even) {
-    background-color: #f8f9fa !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    th,
+    td {
+        border: 1px solid #000 !important;
+        padding: 6px 8px !important;
+        text-align: right;
+        vertical-align: middle;
+    }
 
-  /* Footer الجدول */
-  table tfoot td {
-    background-color: #e9ecef !important;
-    font-weight: bold !important;
-    border-top: 2px solid #000 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    th {
+        font-weight: bold;
+        background: #e9ecef !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 
-  /* العناوين */
-  h1, h2, h3, h4, h5, h6 {
-    page-break-after: avoid;
-    font-weight: bold;
-    color: #000;
-  }
+    tfoot td {
+        font-weight: bold;
+        background: #f8f9fa !important;
+        border-top: 2px solid #000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 
-  h2 {
-    font-size: 14pt;
-    margin: 5mm 0;
-    border-bottom: 2px solid #000;
-    padding-bottom: 2mm;
-  }
+    .print-header {
+        text-align: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 3px solid #000;
+    }
 
-  h3 {
-    font-size: 12pt;
-    margin: 4mm 0 2mm;
-  }
+    .print-header h1 {
+        font-size: 22pt;
+        margin: 0 0 5px 0;
+        color: #000;
+    }
 
-  /* الألوان */
-  .text-danger {
-    color: #dc3545 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    .print-header h2 {
+        font-size: 16pt;
+        margin: 0 0 5px 0;
+        color: #333;
+    }
 
-  .text-success {
-    color: #28a745 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    .print-header .subtitle {
+        font-size: 12pt;
+        color: #666;
+        margin: 5px 0;
+    }
 
-  .text-warning {
-    color: #ffc107 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    .print-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        font-size: 10pt;
+        page-break-inside: avoid;
+    }
 
-  .text-info {
-    color: #17a2b8 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    .print-info-section {
+        flex: 1;
+    }
 
-  .bg-success, .bg-danger, .bg-warning, .bg-info, .bg-primary, .bg-secondary {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
+    .print-info-row {
+        margin: 3px 0;
+    }
 
-  /* Badges */
-  .badge {
-    border: 1px solid #000;
-    padding: 1mm 2mm;
-    font-size: 9pt;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
+    .print-info-label {
+        font-weight: bold;
+        display: inline-block;
+        min-width: 100px;
+    }
 
-  /* رأس الصفحة للطباعة */
-  .print-header {
-    text-align: center;
-    margin-bottom: 5mm;
-    border-bottom: 2px solid #000;
-    padding-bottom: 3mm;
-  }
+    .print-summary {
+        background: #f8f9fa !important;
+        padding: 10px;
+        margin: 20px 0;
+        border: 2px solid #000;
+        border-radius: 5px;
+        page-break-inside: avoid;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 
-  .print-header h2 {
-    border: none;
-    margin: 0;
-    padding: 0;
-  }
+    .print-summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        border-bottom: 1px solid #ccc;
+    }
 
-  .print-header .company-info {
-    font-size: 9pt;
-    color: #666;
-    margin-top: 2mm;
-  }
+    .print-summary-row:last-child {
+        border-bottom: none;
+        font-weight: bold;
+        font-size: 12pt;
+    }
 
-  /* ذيل الصفحة */
-  .print-footer {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    text-align: center;
-    font-size: 8pt;
-    color: #666;
-    border-top: 1px solid #dee2e6;
-    padding-top: 2mm;
-  }
+    .print-summary-label {
+        font-weight: bold;
+    }
 
-  /* تجنب كسر الصفحات */
-  .row, .col-md-3, .col-md-4, .col-md-6, .col-md-12 {
-    page-break-inside: avoid;
-  }
+    .print-summary-value {
+        text-align: left;
+    }
 
-  /* إزالة الظلال والتأثيرات */
-  .shadow, .shadow-sm, .shadow-lg {
-    box-shadow: none !important;
-  }
+    .print-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 9pt;
+        color: #666;
+        border-top: 1px solid #000;
+        padding-top: 5px;
+    }
 
-  /* الروابط */
-  a {
-    text-decoration: none;
-    color: #000;
-  }
+    .print-footer::after {
+        content: "صفحة " counter(page) " من " counter(pages);
+    }
 
-  a[href]:after {
-    content: none !important;
-  }
+    .text-danger {
+        color: #d32f2f !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 
-  /* الأيقونات */
-  .fas, .fab, .far {
-    font-size: inherit;
-  }
+    .text-success {
+        color: #388e3c !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 
-  /* تحسين المسافات */
-  .mb-4, .mb-3, .mt-4, .mt-3 {
-    margin: 2mm 0 !important;
-  }
+    .text-warning {
+        color: #f57c00 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 
-  /* إخفاء عمود الإجراءات عند الطباعة */
-  table th:last-child,
-  table td:last-child {
-    display: none !important;
-  }
-  
-  /* إظهار جميع الصفوف */
-  table tbody tr {
-    display: table-row !important;
-  }
-  
-  /* تحسين عرض الجداول الطويلة */
-  .table-responsive {
-    overflow: visible !important;
-  }
-  
-  /* إزالة sticky positioning */
-  table.table-sticky th:last-child,
-  table.table-sticky td:last-child {
-    position: static !important;
-    box-shadow: none !important;
-  }
-  
-  /* عرض كامل للطباعة الأفقية */
-  @page :landscape {
-    size: A4 landscape;
-  }
+    .text-info {
+        color: #0288d1 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
 
-  .print-landscape {
-    size: A4 landscape;
-  }
+    .bg-light {
+        background-color: #f8f9fa !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .bg-primary {
+        background-color: #007bff !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .bg-success {
+        background-color: #28a745 !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .bg-danger {
+        background-color: #dc3545 !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .bg-warning {
+        background-color: #ffc107 !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        margin-right: 0;
+        margin-left: 0;
+    }
+
+    .col-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    .col-4 {
+        flex: 0 0 33.333%;
+        max-width: 33.333%;
+    }
+
+    .col-3 {
+        flex: 0 0 25%;
+        max-width: 25%;
+    }
+
+    .col-12 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        page-break-after: avoid;
+        page-break-inside: avoid;
+    }
+
+    .page-break-before {
+        page-break-before: always;
+    }
+
+    .page-break-after {
+        page-break-after: always;
+    }
+
+    .avoid-break {
+        page-break-inside: avoid;
+    }
+
+    .text-center {
+        text-align: center !important;
+    }
+
+    .text-right {
+        text-align: right !important;
+    }
+
+    .text-left {
+        text-align: left !important;
+    }
+
+    .font-weight-bold {
+        font-weight: bold !important;
+    }
+
+    .small {
+        font-size: 9pt !important;
+    }
+
+    .badge {
+        border: 1px solid #000;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 9pt;
+        display: inline-block;
+    }
+
+    .chart-container,
+    canvas {
+        display: none !important;
+    }
+
+    a[href]:after {
+        content: none !important;
+    }
+
+    .company-logo {
+        max-width: 150px;
+        height: auto;
+    }
+
+    .watermark {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-45deg);
+        font-size: 72pt;
+        opacity: 0.1;
+        z-index: -1;
+        color: #000;
+    }
 }
 
-/* نمط خاص للطباعة - تحسين رؤية الجداول */
-@media print {
-  /* ضمان عرض كامل الجدول */
-  .card-body {
-    overflow: visible !important;
-  }
-  
-  .table-responsive {
-    overflow: visible !important;
-  }
-}
-
-/* نمط خاص لزر الطباعة (قبل الطباعة) */
-.btn-print {
-  position: fixed;
-  top: 70px;
-  left: 20px;
-  z-index: 1000;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+.print-only {
+    display: none;
 }
 
 @media print {
-  .btn-print {
-    display: none !important;
-  }
+    .print-only {
+        display: block !important;
+    }
 }

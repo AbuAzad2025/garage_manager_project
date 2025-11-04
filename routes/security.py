@@ -101,15 +101,6 @@ def owner_only(f):
 super_admin_only = owner_only
 
 
-@security_bp.route('/dashboard')
-@owner_only
-def dashboard():
-    """
-    🎯 Dashboard - redirect إلى الصفحة الرئيسية الموحدة
-    """
-    return redirect(url_for('security.index'))
-
-
 @security_bp.route('/saas-manager')
 @owner_only
 def saas_manager():
@@ -783,18 +774,6 @@ def system_cleanup():
     return render_template('security/system_cleanup.html', tables=cleanable_tables)
 
 
-@security_bp.route('/audit-logs')
-@owner_only
-def audit_logs():
-    """Redirect to Database Control Center - Logs tab"""
-    return redirect(url_for('security.database_manager', tab='logs', log_type='audit'))
-
-
-@security_bp.route('/failed-logins')
-@owner_only
-def failed_logins():
-    """Redirect to logs_manager - errors tab"""
-    return redirect(url_for('security.logs_manager', tab='errors'))
 
 
 
@@ -810,11 +789,25 @@ def security_center():
     """
     tab = request.args.get('tab', 'monitoring')
     
+    try:
+        from models import User
+        active_users = User.query.filter(User.last_seen >= datetime.now(timezone.utc) - timedelta(minutes=30)).count()
+    except:
+        active_users = 0
+    
+    try:
+        failed_login_count = AuditLog.query.filter(
+            AuditLog.action.like('%failed%'),
+            AuditLog.created_at >= datetime.now(timezone.utc) - timedelta(hours=24)
+        ).count()
+    except:
+        failed_login_count = 0
+    
     security_stats = {
-        'online_users': 0,
+        'online_users': active_users,
         'blocked_ips': BlockedIP.query.count() if 'BlockedIP' in dir() else 0,
-        'failed_logins': 0,
-        'active_sessions': 1,
+        'failed_logins': failed_login_count,
+        'active_sessions': User.query.filter(User.last_seen.isnot(None)).count() if 'User' in dir() else 1,
         'threats_detected': 0,
         'patterns_found': 0,
         'notifications': 0
@@ -824,11 +817,25 @@ def security_center():
     blocked_ips = []
     patterns = []
     notifications = []
+    recent_audit_logs = []
+    integrations_data = None
     
     if tab == 'firewall':
         blocked_ips = BlockedIP.query.order_by(BlockedIP.created_at.desc()).limit(50).all() if 'BlockedIP' in dir() else []
     elif tab == 'patterns':
         patterns = _detect_suspicious_patterns()
+    elif tab == 'activity':
+        recent_audit_logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(20).all()
+    elif tab == 'notifications':
+        integrations_data = {
+            'email': {
+                'enabled': _get_setting('email_enabled', True),
+                'smtp_host': _get_setting('smtp_host', ''),
+            },
+            'sms': {
+                'enabled': _get_setting('sms_enabled', False),
+            }
+        }
     
     stats = get_cached_security_stats()
     return render_template('security/security_center.html',
@@ -838,6 +845,8 @@ def security_center():
                           blocked_ips=blocked_ips,
                           patterns=patterns,
                           notifications=notifications,
+                          recent_audit_logs=recent_audit_logs,
+                          integrations=integrations_data,
                           stats=stats)
 
 
@@ -1103,85 +1112,7 @@ def database_manager():
 
 
 
-@security_bp.route('/indexes-manager')
-@owner_only
-def indexes_manager():
-    """Redirect to Database Control Center - Indexes tab"""
-    return redirect(url_for('security.database_manager', tab='indexes'))
 
-
-@security_bp.route('/table-manager')
-@owner_only
-def table_manager():
-    """Redirect to Database Control Center - Browse tab"""
-    table = request.args.get('table')
-    if table:
-        return redirect(url_for('security.database_manager', tab='browse', table=table))
-    return redirect(url_for('security.database_manager', tab='browse'))
-
-
-@security_bp.route('/logs-manager')
-@owner_only
-def logs_manager():
-    """Redirect to Database Control Center - Logs tab"""
-    log_type = request.args.get('tab', 'audit')
-    return redirect(url_for('security.database_manager', tab='logs', log_type=log_type))
-
-
-@security_bp.route('/logs-viewer')
-@owner_only
-def logs_viewer():
-    """Redirect to Database Control Center - Logs tab"""
-    return redirect(url_for('security.database_manager', tab='logs'))
-
-
-@security_bp.route('/sql-console', methods=['GET', 'POST'])
-@owner_only
-def sql_console():
-    """Redirect to Database Control Center - SQL tab"""
-    if request.method == 'POST':
-        # إعادة توجيه POST إلى الوحدة الجديدة
-        return redirect(url_for('security.database_manager', tab='sql'), code=307)
-    return redirect(url_for('security.database_manager', tab='sql'))
-
-
-@security_bp.route('/python-console', methods=['GET', 'POST'])
-@owner_only
-def python_console():
-    """Redirect to Database Control Center - Python tab"""
-    if request.method == 'POST':
-        return redirect(url_for('security.database_manager', tab='python'), code=307)
-    return redirect(url_for('security.database_manager', tab='python'))
-
-
-@security_bp.route('/error-tracker')
-@owner_only
-def error_tracker():
-    """Redirect to Database Control Center - Tools tab"""
-    return redirect(url_for('security.database_manager', tab='tools'))
-
-
-@security_bp.route('/decrypt-tool', methods=['GET', 'POST'])
-@owner_only
-def decrypt_tool():
-    """Redirect to Database Control Center - Tools tab"""
-    if request.method == 'POST':
-        return redirect(url_for('security.database_manager', tab='tools'), code=307)
-    return redirect(url_for('security.database_manager', tab='tools'))
-
-
-@security_bp.route('/activity-timeline')
-@owner_only
-def activity_timeline():
-    """Redirect to Security Center - Activity tab"""
-    return redirect(url_for('security.security_center', tab='activity'))
-
-
-@security_bp.route('/notifications-center')
-@owner_only
-def notifications_center():
-    """Redirect to Security Center - Notifications tab"""
-    return redirect(url_for('security.security_center', tab='notifications'))
 
 
 @security_bp.route('/users-center')
@@ -1192,12 +1123,42 @@ def users_center():
     - التحكم بالمستخدمين (User Control)
     - إدارة الصلاحيات (Permissions)
     """
+    from models import User, Role, Permission
+    
     tab = request.args.get('tab', 'users')
+    
+    users_data = {
+        'total': User.query.count(),
+        'active': User.query.filter_by(is_active=True).count(),
+        'blocked': User.query.filter_by(is_active=False).count(),
+        'online': User.query.filter(User.last_seen >= datetime.now(timezone.utc) - timedelta(minutes=30)).count()
+    }
+    
+    users_list = User.query.order_by(User.created_at.desc()).limit(20).all()
+    
+    roles_data = {
+        'total': Role.query.count(),
+    }
+    
+    permissions_data = {
+        'total': Permission.query.count(),
+        'protected': Permission.query.filter_by(is_protected=True).count()
+    }
+    
+    roles_list = Role.query.all()
+    
     stats = get_cached_security_stats()
-    return render_template('security/users_center.html', active_tab=tab, stats=stats)
+    return render_template('security/users_center.html', 
+                          active_tab=tab, 
+                          stats=stats,
+                          users_data=users_data,
+                          users_list=users_list,
+                          roles_data=roles_data,
+                          permissions_data=permissions_data,
+                          roles_list=roles_list)
 
 
-@security_bp.route('/settings-center')
+@security_bp.route('/settings-center', methods=['GET', 'POST'])
 @owner_only
 def settings_center():
     """
@@ -1207,9 +1168,63 @@ def settings_center():
     - الوضع الليلي
     - الفروع والمواقع
     """
+    from models import SystemSettings, Branch
+    
     tab = request.args.get('tab', 'system')
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'update_setting':
+            key = request.form.get('key')
+            value = request.form.get('value')
+            if key:
+                SystemSettings.set_setting(key, value)
+                flash(f'✅ تم تحديث {key} بنجاح', 'success')
+                
+        elif action == 'update_branding':
+            company_name = request.form.get('company_name')
+            primary_color = request.form.get('primary_color')
+            if company_name:
+                SystemSettings.set_setting('COMPANY_NAME', company_name)
+            if primary_color:
+                SystemSettings.set_setting('primary_color', primary_color)
+            flash('✅ تم تحديث العلامة التجارية بنجاح', 'success')
+        
+        db.session.commit()
+        return redirect(url_for('security.settings_center', tab=tab))
+    
+    settings_list = SystemSettings.query.order_by(SystemSettings.key).limit(50).all()
+    
+    settings_stats = {
+        'total': SystemSettings.query.count(),
+        'public': SystemSettings.query.filter_by(is_public=True).count(),
+        'private': SystemSettings.query.filter_by(is_public=False).count(),
+    }
+    
+    branding_settings = {
+        'company_name': _get_setting('COMPANY_NAME', 'Azad Garage'),
+        'company_logo': _get_setting('custom_logo', ''),
+        'primary_color': _get_setting('primary_color', '#007bff'),
+        'custom_favicon': _get_setting('custom_favicon', ''),
+    }
+    
+    branches_data = {
+        'total': Branch.query.count(),
+        'active': Branch.query.filter_by(is_active=True).count(),
+    }
+    
+    branches_list = Branch.query.all()
+    
     stats = get_cached_security_stats()
-    return render_template('security/settings_center.html', active_tab=tab, stats=stats)
+    return render_template('security/settings_center.html', 
+                          active_tab=tab, 
+                          stats=stats,
+                          settings_list=settings_list,
+                          settings_stats=settings_stats,
+                          branding_settings=branding_settings,
+                          branches_data=branches_data,
+                          branches_list=branches_list)
 
 
 @security_bp.route('/reports-center')
@@ -1339,18 +1354,6 @@ def _unused_ai_config_function():
     return render_template('security/ai_config.html', keys=keys)
 
 
-@security_bp.route('/ultimate-control')
-@owner_only
-def ultimate_control():
-    """Redirect to Security Index - المراكز الموحدة في مكان واحد"""
-    return redirect(url_for('security.index'))
-
-
-@security_bp.route('/ledger-control-old')
-@owner_only
-def ledger_control_old_route():
-    """🔀 Redirect قديم - تحويل إلى blueprint الجديد"""
-    return redirect('/security/ledger-control')
 
 
 @security_bp.route('/card-vault')
@@ -3409,6 +3412,32 @@ def api_user_details(user_id):
             AuditLog.created_at.desc()
         ).limit(10).all()
         
+        from permissions_config.permissions import PermissionsRegistry
+        from models import Permission
+        
+        all_permissions = []
+        for code, info in PermissionsRegistry.get_all_permissions().items():
+            all_permissions.append({
+                'code': code,
+                'name': info.get('name_ar', code),
+                'name_ar': info.get('name_ar', code),
+                'module': info.get('module', 'other'),
+                'description': info.get('description', '')
+            })
+        
+        role_permissions = []
+        if user.role:
+            role_perms = PermissionsRegistry.get_role_permissions(user.role.name)
+            role_permissions = list(role_perms)
+        
+        extra_permissions = []
+        if hasattr(user, 'extra_permissions') and user.extra_permissions:
+            try:
+                extra_perms = user.extra_permissions.all() if hasattr(user.extra_permissions, 'all') else user.extra_permissions
+                extra_permissions = [p.code for p in extra_perms if hasattr(p, 'code') and p.code]
+            except:
+                pass
+        
         user_data = {
             'id': user.id,
             'username': user.username,
@@ -3424,6 +3453,9 @@ def api_user_details(user_id):
             'sales_total': float(sales_total),
             'services_count': services_count,
             'payments_count': payments_count,
+            'all_permissions': all_permissions,
+            'role_permissions': role_permissions,
+            'extra_permissions': extra_permissions,
             'recent_activities': [
                 {
                     'action': a.action,
@@ -3699,6 +3731,50 @@ def update_user_role(user_id):
     return redirect(url_for('security.user_control'))
 
 
+@security_bp.route('/update-user-permissions/<int:user_id>', methods=['POST'])
+@owner_only
+def update_user_extra_permissions(user_id):
+    """تحديث الصلاحيات الإضافية للمستخدم - Owner Only"""
+    from models import User, Permission
+    
+    user = User.query.get_or_404(user_id)
+    data = request.get_json()
+    permission_codes = data.get('permissions', [])
+    
+    permissions_to_add = []
+    for code in permission_codes:
+        perm = Permission.query.filter_by(code=code).first()
+        if perm:
+            permissions_to_add.append(perm)
+    
+    if hasattr(user.extra_permissions, 'clear'):
+        user.extra_permissions.clear()
+    else:
+        user.extra_permissions = []
+    
+    for perm in permissions_to_add:
+        user.extra_permissions.append(perm)
+    
+    db.session.commit()
+    
+    utils.clear_user_permission_cache(user.id)
+    
+    AuditLog.create(
+        model_name='User',
+        record_id=user.id,
+        action='UPDATE_EXTRA_PERMISSIONS',
+        user_id=current_user.id,
+        old_data='',
+        new_data=f'extra_permissions_count={len(permissions_to_add)}'
+    )
+    
+    return jsonify({
+        'success': True,
+        'message': 'تم حفظ الصلاحيات بنجاح',
+        'count': len(permissions_to_add)
+    })
+
+
 @security_bp.route('/settings', methods=['GET', 'POST'])
 @security_bp.route('/system-settings', methods=['GET', 'POST'])  # Backward compatibility
 @owner_only
@@ -3901,7 +3977,19 @@ def system_settings():
 @owner_only
 def emergency_tools():
     """أدوات الطوارئ"""
-    return render_template('security/emergency_tools.html')
+    from models import User, AuditLog
+    
+    emergency_data = {
+        'maintenance_mode': _get_setting('maintenance_mode', 'false') == 'true',
+        'total_users': User.query.count(),
+        'active_users': User.query.filter_by(is_active=True).count(),
+        'blocked_users': User.query.filter_by(is_active=False).count(),
+        'recent_errors': AuditLog.query.filter(
+            AuditLog.action.like('%error%') | AuditLog.action.like('%failed%')
+        ).order_by(AuditLog.created_at.desc()).limit(10).count(),
+    }
+    
+    return render_template('security/emergency_tools.html', emergency_data=emergency_data)
 
 
 @security_bp.route('/emergency/maintenance-mode', methods=['POST'])
@@ -3968,11 +4056,6 @@ def export_table_csv(table_name):
     return response
 
 
-@security_bp.route('/advanced-backup', methods=['GET', 'POST'])
-@owner_only
-def advanced_backup():
-    """نسخ احتياطي متقدم - إعادة توجيه للوحدة الجديدة"""
-    return redirect(url_for('advanced.backup_manager'))
 
 
 @security_bp.route('/performance-monitor')
@@ -4090,18 +4173,6 @@ def system_branding():
     return render_template('security/system_branding.html', branding=branding)
 
 
-@security_bp.route('/system-constants', methods=['GET', 'POST'])
-@owner_only
-def system_constants():
-    """إعادة توجيه لصفحة الإعدادات الموحدة - تبويب الثوابت"""
-    return redirect(url_for('security.system_settings', tab='constants'))
-
-
-@security_bp.route('/advanced-config', methods=['GET', 'POST'])
-@owner_only
-def advanced_config():
-    """إعادة توجيه لصفحة الإعدادات الموحدة - تبويب المتقدمة"""
-    return redirect(url_for('security.system_settings', tab='advanced'))
 
 
 
@@ -5079,20 +5150,6 @@ def _get_online_users_detailed():
     return [u for u in all_users if make_aware(u.last_seen) >= threshold]
 
 
-def _set_system_setting(key, value):
-    """حفظ إعداد نظام"""
-    from models import SystemSettings
-    setting = SystemSettings.query.filter_by(key=key).first()
-    if setting:
-        setting.value = str(value)
-    else:
-        setting = SystemSettings(key=key, value=str(value))
-        db.session.add(setting)
-    db.session.commit()
-
-
-
-
 def _get_available_backups():
     """قائمة النسخ الاحتياطية"""
     import os
@@ -5484,8 +5541,29 @@ def _get_security_notifications():
 @owner_only
 def monitoring_dashboard():
     """لوحة مراقبة الأداء الشاملة (Grafana-like)"""
+    from models import User, Sale, Payment, ServiceRequest
+    
+    dashboard_data = {
+        'active_users': User.query.filter(User.last_seen >= datetime.now(timezone.utc) - timedelta(minutes=30)).count(),
+        'total_sales_today': Sale.query.filter(Sale.created_at >= datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)).count(),
+        'total_payments_today': Payment.query.filter(Payment.created_at >= datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)).count(),
+        'pending_services': ServiceRequest.query.filter_by(status='pending').count(),
+    }
+    
+    try:
+        import psutil
+        system_metrics = {
+            'cpu': round(psutil.cpu_percent(interval=1), 2),
+            'memory': round(psutil.virtual_memory().percent, 2),
+            'disk': round(psutil.disk_usage('/').percent, 2),
+        }
+    except:
+        system_metrics = {'cpu': 0, 'memory': 0, 'disk': 0}
+    
     return render_template('security/monitoring_dashboard.html',
-                         title='لوحة المراقبة الشاملة')
+                         title='لوحة المراقبة الشاملة',
+                         dashboard_data=dashboard_data,
+                         system_metrics=system_metrics)
 
 
 @security_bp.route('/dark-mode-settings', methods=['GET', 'POST'])
@@ -6375,18 +6453,6 @@ def advanced_check_linking():
         return redirect(url_for('security.advanced_check_linking'))
 
 
-@security_bp.route('/archive')
-@owner_only
-def archive_redirect():
-    """Redirect to Database Manager - Archive tab"""
-    return redirect(url_for('security.database_manager', tab='archive'))
-
-
-@security_bp.route('/branches')
-@owner_only
-def branches_redirect():
-    """Redirect to Settings Center - Branches tab"""
-    return redirect(url_for('security.settings_center', tab='branches'))
 
 
 @security_bp.route('/help')
@@ -6401,7 +6467,13 @@ def help_page():
     - الأسئلة الشائعة
     - حل المشاكل
     """
-    return render_template('security/help.html')
+    help_data = {
+        'total_centers': 7,
+        'total_features': 41,
+        'total_routes': 97,
+        'version': '5.0.0'
+    }
+    return render_template('security/help.html', help_data=help_data)
 
 
 @security_bp.route('/sitemap')
@@ -6416,7 +6488,20 @@ def sitemap():
     - أدوات الأمان والحظر
     - روابط سريعة
     """
-    return render_template('security/sitemap.html')
+    sitemap_data = {
+        'centers': [
+            {'name': 'Database Control Center', 'url': 'security.database_manager', 'tabs': 11},
+            {'name': 'Users & Permissions Center', 'url': 'security.users_center', 'tabs': 2},
+            {'name': 'Settings & Customization Center', 'url': 'security.settings_center', 'tabs': 8},
+            {'name': 'Reports & Performance Center', 'url': 'security.reports_center', 'tabs': 4},
+            {'name': 'Tools & Integration Center', 'url': 'security.tools_center', 'tabs': 5},
+            {'name': 'Security & Monitoring Center', 'url': 'security.security_center', 'tabs': 4},
+            {'name': 'Ledger Control', 'url': 'ledger_control.index', 'tabs': 0},
+        ],
+        'total_routes': 97,
+        'total_tabs': 34
+    }
+    return render_template('security/sitemap.html', sitemap_data=sitemap_data)
 
 
 @security_bp.route('/api/system-constants')
@@ -6592,15 +6677,281 @@ def tax_reports():
 @security_bp.route('/tax-reports/export/<period>')
 @owner_only
 def export_tax_report(period):
-    """تصدير تقرير ضريبي"""
-    from utils import get_tax_summary
+    from flask import Response, send_file
+    from models import TaxEntry
+    from decimal import Decimal
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    import io
     
-    summary = get_tax_summary(period)
-    return jsonify({
-        'success': True,
-        'period': period,
-        'data': summary
-    })
+    year, month = period.split('-')
+    
+    output_entries = TaxEntry.query.filter(
+        TaxEntry.entry_type == 'OUTPUT_VAT',
+        TaxEntry.tax_period == period
+    ).all()
+    
+    input_entries = TaxEntry.query.filter(
+        TaxEntry.entry_type == 'INPUT_VAT',
+        TaxEntry.tax_period == period
+    ).all()
+    
+    total_sales = sum(Decimal(str(e.base_amount or 0)) for e in output_entries)
+    output_vat = sum(Decimal(str(e.tax_amount or 0)) for e in output_entries)
+    total_purchases = sum(Decimal(str(e.base_amount or 0)) for e in input_entries)
+    input_vat = sum(Decimal(str(e.tax_amount or 0)) for e in input_entries)
+    net_vat = output_vat - input_vat
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"VAT-{period}"
+    
+    header_font = Font(bold=True, size=14, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    ws['A1'] = 'إقرار ضريبة القيمة المضافة - فلسطين'
+    ws['A1'].font = Font(bold=True, size=16)
+    ws.merge_cells('A1:D1')
+    
+    ws['A2'] = f'الفترة: {month}/{year}'
+    ws['A2'].font = Font(bold=True, size=12)
+    
+    ws['A4'] = 'البند'
+    ws['B4'] = 'الوصف'
+    ws['C4'] = 'المبلغ الأساسي (₪)'
+    ws['D4'] = 'ضريبة القيمة المضافة (₪)'
+    for cell in ['A4', 'B4', 'C4', 'D4']:
+        ws[cell].font = header_font
+        ws[cell].fill = header_fill
+        ws[cell].border = border
+        ws[cell].alignment = Alignment(horizontal='center')
+    
+    ws['A5'] = '1'
+    ws['B5'] = 'المبيعات الخاضعة للضريبة'
+    ws['C5'] = float(total_sales)
+    ws['D5'] = float(output_vat)
+    
+    ws['A6'] = '2'
+    ws['B6'] = 'المشتريات القابلة للخصم'
+    ws['C6'] = float(total_purchases)
+    ws['D6'] = float(input_vat)
+    
+    ws['A8'] = '3'
+    ws['B8'] = 'صافي الضريبة المستحقة/المستردة'
+    ws['D8'] = float(net_vat)
+    ws['D8'].font = Font(bold=True, color="FF0000" if net_vat > 0 else "00AA00")
+    
+    for row in range(5, 9):
+        for col in ['A', 'B', 'C', 'D']:
+            ws[f'{col}{row}'].border = border
+    
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 40
+    ws.column_dimensions['C'].width = 20
+    ws.column_dimensions['D'].width = 20
+    
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'VAT_Declaration_{period}.xlsx'
+    )
+
+
+# ==================== وحدة سجل التدقيق - Audit Log ====================
+
+@security_bp.route('/audit-log')
+@owner_only
+def audit_log_viewer():
+    from flask import Response
+    import csv
+    import io
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    export = request.args.get('export', '').strip()
+    
+    model_name = request.args.get('model', '').strip()
+    user_id = request.args.get('user', type=int)
+    action = request.args.get('action', '').strip()
+    start_date = request.args.get('start_date', '').strip()
+    end_date = request.args.get('end_date', '').strip()
+    search = request.args.get('search', '').strip()
+    
+    query = AuditLog.query
+    
+    if model_name:
+        query = query.filter_by(model_name=model_name)
+    if user_id:
+        query = query.filter_by(user_id=user_id)
+    if action:
+        query = query.filter_by(action=action.upper())
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+            query = query.filter(AuditLog.created_at >= start_dt)
+        except:
+            pass
+    if end_date:
+        try:
+            end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+            query = query.filter(AuditLog.created_at <= end_dt)
+        except:
+            pass
+    if search:
+        query = query.filter(
+            db.or_(
+                AuditLog.model_name.ilike(f'%{search}%'),
+                AuditLog.action.ilike(f'%{search}%')
+            )
+        )
+    
+    if export == 'csv':
+        logs_data = query.order_by(AuditLog.created_at.desc()).limit(10000).all()
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['الوقت', 'المستخدم', 'الجدول', 'رقم السجل', 'الإجراء', 'IP'])
+        
+        for log in logs_data:
+            user_name = User.query.get(log.user_id).username if log.user_id else 'نظام'
+            writer.writerow([
+                log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '',
+                user_name,
+                log.model_name,
+                log.record_id or '',
+                log.action,
+                log.ip_address or ''
+            ])
+        
+        output.seek(0)
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename=audit_log_{datetime.now().strftime("%Y%m%d")}.csv'}
+        )
+    
+    logs = query.order_by(AuditLog.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    total_logs = AuditLog.query.count()
+    last_24h = AuditLog.query.filter(
+        AuditLog.created_at >= datetime.now(timezone.utc) - timedelta(days=1)
+    ).count()
+    
+    by_action = db.session.query(
+        AuditLog.action,
+        func.count(AuditLog.id)
+    ).group_by(AuditLog.action).order_by(func.count(AuditLog.id).desc()).limit(10).all()
+    
+    top_users = db.session.query(
+        User.username,
+        func.count(AuditLog.id).label('count')
+    ).join(User, User.id == AuditLog.user_id).group_by(User.username).order_by(func.count(AuditLog.id).desc()).limit(10).all()
+    
+    all_models = db.session.query(AuditLog.model_name).distinct().order_by(AuditLog.model_name).all()
+    all_actions = db.session.query(AuditLog.action).distinct().order_by(AuditLog.action).all()
+    all_users = User.query.order_by(User.username).all()
+    
+    stats = {
+        'total_logs': total_logs,
+        'last_24h': last_24h,
+        'by_action': by_action,
+        'top_users': top_users
+    }
+    
+    return render_template('security/audit_log.html',
+                         logs=logs,
+                         stats=stats,
+                         all_models=[m[0] for m in all_models],
+                         all_actions=[a[0] for a in all_actions],
+                         all_users=all_users,
+                         filters={
+                             'model': model_name,
+                             'user': user_id,
+                             'action': action,
+                             'start_date': start_date,
+                             'end_date': end_date,
+                             'search': search
+                         })
+
+@security_bp.route('/audit-log/<int:log_id>')
+@owner_only
+def audit_log_detail(log_id):
+    log = db.session.get(AuditLog, log_id)
+    if not log:
+        if request.accept_mimetypes.best == 'application/json':
+            return jsonify({'success': False, 'error': 'السجل غير موجود'}), 404
+        flash('السجل غير موجود', 'danger')
+        return redirect(url_for('security.audit_log_viewer'))
+    
+    old_data = {}
+    new_data = {}
+    changes = []
+    
+    if log.old_data:
+        try:
+            old_data = json.loads(log.old_data)
+        except:
+            old_data = {}
+    
+    if log.new_data:
+        try:
+            new_data = json.loads(log.new_data)
+        except:
+            new_data = {}
+    
+    all_keys = set(old_data.keys()) | set(new_data.keys())
+    for key in sorted(all_keys):
+        old_val = old_data.get(key, '')
+        new_val = new_data.get(key, '')
+        if old_val != new_val:
+            changes.append({
+                'field': key,
+                'old': str(old_val) if old_val else '-',
+                'new': str(new_val) if new_val else '-'
+            })
+    
+    user_name = User.query.get(log.user_id).username if log.user_id else 'نظام'
+    
+    if request.accept_mimetypes.best == 'application/json':
+        log_dict = {
+            'id': log.id,
+            'model_name': log.model_name,
+            'record_id': log.record_id,
+            'action': log.action,
+            'user_id': log.user_id,
+            'ip_address': log.ip_address,
+            'created_at': log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else None
+        }
+        
+        return jsonify({
+            'success': True,
+            'log': log_dict,
+            'old_data': old_data,
+            'new_data': new_data,
+            'changes': changes,
+            'user': user_name
+        })
+    
+    return render_template('security/audit_log_detail.html',
+                         log=log,
+                         user_name=user_name,
+                         old_data=old_data,
+                         new_data=new_data,
+                         changes=changes)
 
 
 # ==================== وحدة التكامل مع الأجهزة والأنظمة ====================

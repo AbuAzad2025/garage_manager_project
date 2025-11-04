@@ -18,51 +18,12 @@
       }
     },
 
-    showToast(message, type = 'info', duration = 3000) {
-      let container = document.querySelector('.toast-container');
-      if (!container) {
-        container = document.createElement('div');
-        container.className = 'toast-container';
-        document.body.appendChild(container);
-      }
-
-      const toast = document.createElement('div');
-      toast.className = `toast ${type}`;
-      
-      const icon = {
-        success: 'fa-check-circle',
-        error: 'fa-exclamation-circle',
-        warning: 'fa-exclamation-triangle',
-        info: 'fa-info-circle'
-      }[type] || 'fa-info-circle';
-
-      toast.innerHTML = `
-        <i class="fas ${icon}"></i>
-        <span>${message}</span>
-      `;
-
-      container.appendChild(toast);
-
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 300);
-      }, duration);
+    showToast(message, type = 'info', duration = 0) {
+      return;
     },
 
     initToasts() {
       window.showToast = this.showToast.bind(this);
-
-      const alerts = document.querySelectorAll('.alert');
-      alerts.forEach(alert => {
-        const message = alert.textContent.trim();
-        const type = alert.classList.contains('alert-success') ? 'success' :
-                     alert.classList.contains('alert-danger') ? 'error' :
-                     alert.classList.contains('alert-warning') ? 'warning' : 'info';
-        
-        if (message && !alert.classList.contains('no-toast')) {
-          this.showToast(message, type);
-        }
-      });
     },
 
     initQuickActionsFAB() {

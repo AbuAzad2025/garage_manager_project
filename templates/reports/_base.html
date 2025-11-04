@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% macro active_class(eps) -%}
-  {%- if request.endpoint in eps %}active{% endif -%}
+  {%- if request.endpoint in eps %}active{%- endif -%}
 {%- endmacro %}
 
 {% block content %}
@@ -138,12 +138,24 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
-// سكريبت عام للطباعة في جميع التقارير
+(function() {
+  if (typeof Chart === 'undefined') {
+    const script1 = document.createElement('script');
+    script1.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js';
+    document.head.appendChild(script1);
+  }
+  if (typeof XLSX === 'undefined') {
+    const script2 = document.createElement('script');
+    script2.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    document.head.appendChild(script2);
+  }
+})();
+
 (function() {
   'use strict';
   
-  // زر الطباعة الرئيسي
   const printBtn = document.getElementById('btn-print');
   if (printBtn) {
     printBtn.addEventListener('click', function() {
@@ -151,7 +163,6 @@
     });
   }
   
-  // دعم Ctrl+P
   document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
       e.preventDefault();
@@ -159,7 +170,6 @@
     }
   });
   
-  // تحسين DataTable للطباعة إذا كانت موجودة
   if (typeof $ !== 'undefined' && $.fn.DataTable) {
     $(document).ready(function() {
       const tables = $('table[id^="report"]');

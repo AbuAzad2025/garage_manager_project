@@ -1,6 +1,14 @@
-{% extends 'base.html' %}
-{% block title %}مركز المساعدة - الوحدة السرية{% endblock %}
-{% block page_title %}❓ مركز المساعدة{% endblock %}
+{% extends 'security/base_security.html' %}
+
+{% block tour_name %}help{% endblock %}
+
+{% block security_title %}Help Center{% endblock %}
+{% block security_icon %}<i class="fas fa-question-circle"></i>{% endblock %}
+{% block security_description %}دليل شامل لاستخدام الوحدة السرية وجميع أدواتها{% endblock %}
+
+{% block security_breadcrumb %}
+<li class="breadcrumb-item active">Help Center</li>
+{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/security_responsive.css') }}">
@@ -403,7 +411,7 @@
           <div class="accordion-item">
             <h2 class="accordion-header">
               <button class="accordion-button" type="button" data-toggle="collapse" data-target="#faq1">
-                <i class="fas fa-question-circle text-primary me-2"></i>
+                <i class="fas fa-question-circle text-primary ml-2"></i>
                 كيف أصل للتكاملات (Integrations)؟
               </button>
             </h2>
@@ -423,7 +431,7 @@
           <div class="accordion-item">
             <h2 class="accordion-header">
               <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#faq2">
-                <i class="fas fa-question-circle text-primary me-2"></i>
+                <i class="fas fa-question-circle text-primary ml-2"></i>
                 لماذا لا أرى رابط "اللوحة السرية" في القائمة؟
               </button>
             </h2>
@@ -444,7 +452,7 @@
           <div class="accordion-item">
             <h2 class="accordion-header">
               <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#faq3">
-                <i class="fas fa-question-circle text-primary me-2"></i>
+                <i class="fas fa-question-circle text-primary ml-2"></i>
                 ما الفرق بين الوحدة السرية والـ Super Admin؟
               </button>
             </h2>
@@ -490,7 +498,7 @@
           <div class="accordion-item">
             <h2 class="accordion-header">
               <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#faq4">
-                <i class="fas fa-question-circle text-primary me-2"></i>
+                <i class="fas fa-question-circle text-primary ml-2"></i>
                 كيف أستعيد نسخة احتياطية؟
               </button>
             </h2>

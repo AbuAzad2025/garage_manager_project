@@ -93,16 +93,16 @@
 
     {% if has_any('manage_shop','manage_reports','view_reports') %}
     <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
-      <div class="small text-muted"><i class="fas fa-shield-alt me-1"></i> عرض موسّع حسب الصلاحيات</div>
+      <div class="small text-muted"><i class="fas fa-shield-alt ml-1"></i> عرض موسّع حسب الصلاحيات</div>
       <div class="btn-group">
         {% if has_any('manage_shop','manage_inventory') %}
           <a href="{{ url_for('shop.admin_products') }}" class="btn btn-sm btn-danger">
-            <i class="fas fa-cogs me-1"></i> إدارة المنتجات
+            <i class="fas fa-cogs ml-1"></i> إدارة المنتجات
           </a>
         {% endif %}
         {% if has_any('view_reports','manage_reports') and 'admin_reports.cards' in current_app.view_functions %}
           <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-sm btn-warning">
-            <i class="fas fa-chart-line me-1"></i> تقارير البطاقات
+            <i class="fas fa-chart-line ml-1"></i> تقارير البطاقات
           </a>
         {% endif %}
       </div>
@@ -134,10 +134,10 @@
             <td class="text-center">
               {% set status_colors = {'FULFILLED':'success','CONFIRMED':'warning','PENDING':'info','CANCELLED':'secondary'} %}
               <span class="badge bg-{{ status_colors.get(order.status, 'danger') }}">
-                {% if order.status == 'FULFILLED' %}<i class="fas fa-check-circle me-1"></i>مكتمل{% endif %}
-                {% if order.status == 'CONFIRMED' %}<i class="fas fa-hourglass-half me-1"></i>مؤكد{% endif %}
-                {% if order.status == 'PENDING' %}<i class="fas fa-clock me-1"></i>قيد الانتظار{% endif %}
-                {% if order.status == 'CANCELLED' %}<i class="fas fa-times-circle me-1"></i>ملغي{% endif %}
+                {% if order.status == 'FULFILLED' %}<i class="fas fa-check-circle ml-1"></i>مكتمل{% endif %}
+                {% if order.status == 'CONFIRMED' %}<i class="fas fa-hourglass-half ml-1"></i>مؤكد{% endif %}
+                {% if order.status == 'PENDING' %}<i class="fas fa-clock ml-1"></i>قيد الانتظار{% endif %}
+                {% if order.status == 'CANCELLED' %}<i class="fas fa-times-circle ml-1"></i>ملغي{% endif %}
                 {% if order.status not in ['FULFILLED','CONFIRMED','PENDING','CANCELLED'] %}{{ order.status }}{% endif %}
               </span>
             </td>
@@ -145,7 +145,7 @@
               <td>
                 {{ order.customer.name if order.customer else '' }}
                 {% if order.customer and order.customer.phone %}
-                  <div class="text-muted small"><i class="fas fa-phone me-1"></i>{{ order.customer.phone }}</div>
+                  <div class="text-muted small"><i class="fas fa-phone ml-1"></i>{{ order.customer.phone }}</div>
                 {% endif %}
               </td>
             {% endif %}
@@ -180,7 +180,7 @@
     <h4 class="mb-3">لا توجد طلبات سابقة</h4>
     <p class="text-muted mb-4">يمكنك البدء بالتسوق وإنشاء طلبك الأول</p>
     <a href="{{ url_for('shop.catalog') }}" class="btn btn-primary px-4">
-      <i class="fas fa-store me-2"></i> تصفح المنتجات
+      <i class="fas fa-store ml-2"></i> تصفح المنتجات
     </a>
   </div>
 </div>

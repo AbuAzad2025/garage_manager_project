@@ -1,0 +1,713 @@
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file
+from flask_login import login_required, current_user
+from extensions import db
+from models import (BankAccount, BankStatement, BankTransaction, BankReconciliation, 
+                   Account, Branch, Payment, Expense, Sale, GLEntry, SystemSettings)
+from sqlalchemy import func, and_, or_, desc, asc
+from datetime import datetime, date, timedelta
+from decimal import Decimal
+from functools import wraps
+import csv
+import io
+from werkzeug.utils import secure_filename
+
+bank_bp = Blueprint('bank', __name__, url_prefix='/bank')
+
+
+def owner_only(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            flash('يجب تسجيل الدخول أولاً', 'warning')
+            return redirect(url_for('auth.login'))
+        if not (current_user.role and current_user.role.name == 'Owner'):
+            flash('هذه الصفحة للمالك فقط', 'danger')
+            return redirect(url_for('main.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+@bank_bp.route('/accounts')
+@login_required
+@owner_only
+def accounts():
+    bank_accounts = BankAccount.query.order_by(BankAccount.code).all()
+    
+    accounts_data = []
+    for account in bank_accounts:
+        unreconciled = account.get_unreconciled_balance()
+        last_statement = BankStatement.query.filter_by(
+            bank_account_id=account.id
+        ).order_by(BankStatement.statement_date.desc()).first()
+        
+        total_deposits = db.session.query(func.sum(BankTransaction.debit)).filter_by(
+            bank_account_id=account.id
+        ).scalar() or 0
+        
+        total_withdrawals = db.session.query(func.sum(BankTransaction.credit)).filter_by(
+            bank_account_id=account.id
+        ).scalar() or 0
+        
+        accounts_data.append({
+            'account': account,
+            'unreconciled': unreconciled,
+            'last_statement_date': last_statement.statement_date if last_statement else None,
+            'total_deposits': total_deposits,
+            'total_withdrawals': total_withdrawals,
+            'net_balance': float(account.current_balance)
+        })
+    
+    return render_template('bank/accounts.html', accounts=accounts_data)
+
+
+@bank_bp.route('/accounts/add', methods=['GET', 'POST'])
+@login_required
+@owner_only
+def add_account():
+    if request.method == 'POST':
+        try:
+            code = request.form.get('code')
+            name = request.form.get('name')
+            bank_name = request.form.get('bank_name')
+            account_number = request.form.get('account_number')
+            iban = request.form.get('iban', '')
+            swift_code = request.form.get('swift_code', '')
+            currency = request.form.get('currency', 'ILS')
+            branch_id = request.form.get('branch_id', type=int)
+            gl_account_code = request.form.get('gl_account_code')
+            opening_balance = Decimal(request.form.get('opening_balance', 0))
+            notes = request.form.get('notes', '')
+            
+            if BankAccount.query.filter_by(code=code).first():
+                flash(f'رمز الحساب {code} موجود مسبقاً', 'danger')
+                return redirect(request.url)
+            
+            if BankAccount.query.filter_by(account_number=account_number).first():
+                flash(f'رقم الحساب {account_number} موجود مسبقاً', 'danger')
+                return redirect(request.url)
+            
+            bank_account = BankAccount(
+                code=code,
+                name=name,
+                bank_name=bank_name,
+                account_number=account_number,
+                iban=iban,
+                swift_code=swift_code,
+                currency=currency,
+                branch_id=branch_id,
+                gl_account_code=gl_account_code,
+                opening_balance=opening_balance,
+                current_balance=opening_balance,
+                notes=notes,
+                is_active=True,
+                created_by=current_user.id,
+                updated_by=current_user.id
+            )
+            
+            db.session.add(bank_account)
+            db.session.flush()
+            
+            if opening_balance != 0:
+                gl_entry = GLEntry(
+                    entry_date=date.today(),
+                    reference_type='BANK_OPENING',
+                    reference_id=bank_account.id,
+                    account_code=gl_account_code,
+                    debit=opening_balance if opening_balance > 0 else 0,
+                    credit=abs(opening_balance) if opening_balance < 0 else 0,
+                    description=f'رصيد افتتاحي للحساب البنكي: {name}',
+                    branch_id=branch_id,
+                    currency=currency,
+                    created_by=current_user.id
+                )
+                db.session.add(gl_entry)
+            
+            db.session.commit()
+            
+            flash(f'✅ تم إضافة الحساب البنكي {code} - {name} بنجاح', 'success')
+            return redirect(url_for('bank.accounts'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ خطأ في إضافة الحساب: {str(e)}', 'danger')
+    
+    gl_accounts = Account.query.filter_by(type='ASSET', is_active=True).filter(
+        Account.code.like('101%')
+    ).order_by(Account.code).all()
+    branches = Branch.query.filter_by(is_active=True).order_by(Branch.name).all()
+    
+    return render_template('bank/account_form.html',
+                         gl_accounts=gl_accounts,
+                         branches=branches,
+                         account=None)
+
+
+@bank_bp.route('/accounts/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+@owner_only
+def edit_account(id):
+    account = BankAccount.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        try:
+            account.name = request.form.get('name')
+            account.bank_name = request.form.get('bank_name')
+            account.iban = request.form.get('iban', '')
+            account.swift_code = request.form.get('swift_code', '')
+            account.branch_id = request.form.get('branch_id', type=int)
+            account.notes = request.form.get('notes', '')
+            account.is_active = request.form.get('is_active') == 'on'
+            account.updated_by = current_user.id
+            account.updated_at = datetime.now()
+            
+            db.session.commit()
+            
+            flash(f'✅ تم تحديث الحساب البنكي بنجاح', 'success')
+            return redirect(url_for('bank.view_account', id=id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ خطأ في التحديث: {str(e)}', 'danger')
+    
+    gl_accounts = Account.query.filter_by(type='ASSET', is_active=True).filter(
+        Account.code.like('101%')
+    ).order_by(Account.code).all()
+    branches = Branch.query.filter_by(is_active=True).order_by(Branch.name).all()
+    
+    return render_template('bank/account_form.html',
+                         gl_accounts=gl_accounts,
+                         branches=branches,
+                         account=account)
+
+
+@bank_bp.route('/accounts/<int:id>')
+@login_required
+@owner_only
+def view_account(id):
+    account = BankAccount.query.get_or_404(id)
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = 50
+    
+    transactions = BankTransaction.query.filter_by(bank_account_id=id).order_by(
+        BankTransaction.transaction_date.desc(),
+        BankTransaction.id.desc()
+    ).paginate(page=page, per_page=per_page, error_out=False)
+    
+    reconciliations = BankReconciliation.query.filter_by(bank_account_id=id).order_by(
+        BankReconciliation.period_end.desc()
+    ).limit(10).all()
+    
+    unmatched_count = BankTransaction.query.filter_by(bank_account_id=id, matched=False).count()
+    
+    total_debit = db.session.query(func.sum(BankTransaction.debit)).filter_by(
+        bank_account_id=id
+    ).scalar() or 0
+    
+    total_credit = db.session.query(func.sum(BankTransaction.credit)).filter_by(
+        bank_account_id=id
+    ).scalar() or 0
+    
+    stats = {
+        'total_transactions': BankTransaction.query.filter_by(bank_account_id=id).count(),
+        'matched': BankTransaction.query.filter_by(bank_account_id=id, matched=True).count(),
+        'unmatched': unmatched_count,
+        'total_deposits': float(total_debit),
+        'total_withdrawals': float(total_credit),
+        'net_movement': float(total_debit - total_credit),
+        'total_reconciliations': len(reconciliations),
+        'unreconciled_balance': account.get_unreconciled_balance(),
+        'current_balance': float(account.current_balance)
+    }
+    
+    return render_template('bank/account_view.html',
+                         account=account,
+                         transactions=transactions,
+                         reconciliations=reconciliations,
+                         stats=stats)
+
+
+@bank_bp.route('/statements')
+@login_required
+@owner_only
+def statements():
+    bank_account_id = request.args.get('account', type=int)
+    
+    query = BankStatement.query
+    if bank_account_id:
+        query = query.filter_by(bank_account_id=bank_account_id)
+    
+    statements = query.order_by(BankStatement.statement_date.desc()).all()
+    
+    bank_accounts = BankAccount.query.filter_by(is_active=True).order_by(BankAccount.name).all()
+    
+    return render_template('bank/statements.html',
+                         statements=statements,
+                         bank_accounts=bank_accounts,
+                         selected_account=bank_account_id)
+
+
+@bank_bp.route('/statements/upload', methods=['GET', 'POST'])
+@login_required
+@owner_only
+def upload_statement():
+    if request.method == 'POST':
+        try:
+            bank_account_id = int(request.form.get('bank_account_id'))
+            statement_date = datetime.strptime(request.form.get('statement_date'), '%Y-%m-%d').date()
+            statement_number = request.form.get('statement_number')
+            opening_balance = Decimal(request.form.get('opening_balance', 0))
+            closing_balance = Decimal(request.form.get('closing_balance', 0))
+            
+            bank_account = BankAccount.query.get_or_404(bank_account_id)
+            
+            if BankStatement.query.filter_by(
+                bank_account_id=bank_account_id,
+                statement_number=statement_number
+            ).first():
+                flash(f'كشف بنفس الرقم {statement_number} موجود مسبقاً', 'danger')
+                return redirect(request.url)
+            
+            statement = BankStatement(
+                bank_account_id=bank_account_id,
+                statement_number=statement_number,
+                statement_date=statement_date,
+                opening_balance=opening_balance,
+                closing_balance=closing_balance,
+                uploaded_by=current_user.id
+            )
+            
+            db.session.add(statement)
+            db.session.flush()
+            
+            file = request.files.get('csv_file')
+            if file and file.filename.endswith('.csv'):
+                content = file.read().decode('utf-8')
+                csv_reader = csv.DictReader(io.StringIO(content))
+                
+                transaction_count = 0
+                for row in csv_reader:
+                    trans_date = datetime.strptime(row.get('date', row.get('Date')), '%Y-%m-%d').date()
+                    description = row.get('description', row.get('Description', ''))
+                    debit = Decimal(row.get('debit', row.get('Debit', 0)))
+                    credit = Decimal(row.get('credit', row.get('Credit', 0)))
+                    reference = row.get('reference', row.get('Reference', ''))
+                    
+                    transaction = BankTransaction(
+                        bank_account_id=bank_account_id,
+                        statement_id=statement.id,
+                        transaction_date=trans_date,
+                        description=description,
+                        reference=reference,
+                        debit=debit,
+                        credit=credit,
+                        matched=False
+                    )
+                    
+                    db.session.add(transaction)
+                    transaction_count += 1
+                
+                flash(f'✅ تم رفع {transaction_count} معاملة من الكشف', 'info')
+            
+            db.session.commit()
+            
+            flash(f'✅ تم رفع كشف الحساب بنجاح', 'success')
+            return redirect(url_for('bank.view_statement', id=statement.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ خطأ في رفع الكشف: {str(e)}', 'danger')
+    
+    bank_accounts = BankAccount.query.filter_by(is_active=True).order_by(BankAccount.name).all()
+    
+    return render_template('bank/statement_upload.html',
+                         bank_accounts=bank_accounts)
+
+
+@bank_bp.route('/statements/<int:id>')
+@login_required
+@owner_only
+def view_statement(id):
+    statement = BankStatement.query.get_or_404(id)
+    
+    transactions = BankTransaction.query.filter_by(statement_id=id).order_by(
+        BankTransaction.transaction_date,
+        BankTransaction.id
+    ).all()
+    
+    matched_count = sum(1 for t in transactions if t.matched)
+    total_debit = sum(float(t.debit or 0) for t in transactions)
+    total_credit = sum(float(t.credit or 0) for t in transactions)
+    
+    stats = {
+        'total_transactions': len(transactions),
+        'matched': matched_count,
+        'unmatched': len(transactions) - matched_count,
+        'total_debit': total_debit,
+        'total_credit': total_credit,
+        'net_movement': total_debit - total_credit,
+        'calculated_closing': float(statement.opening_balance) + (total_debit - total_credit),
+        'difference': float(statement.closing_balance) - (float(statement.opening_balance) + (total_debit - total_credit))
+    }
+    
+    return render_template('bank/statement_view.html',
+                         statement=statement,
+                         transactions=transactions,
+                         stats=stats)
+
+
+@bank_bp.route('/reconciliation')
+@login_required
+@owner_only
+def reconciliations():
+    bank_account_id = request.args.get('account', type=int)
+    status = request.args.get('status')
+    
+    query = BankReconciliation.query
+    if bank_account_id:
+        query = query.filter_by(bank_account_id=bank_account_id)
+    if status:
+        query = query.filter_by(status=status)
+    
+    reconciliations = query.order_by(BankReconciliation.period_end.desc()).all()
+    
+    bank_accounts = BankAccount.query.filter_by(is_active=True).order_by(BankAccount.name).all()
+    
+    return render_template('bank/reconciliations.html',
+                         reconciliations=reconciliations,
+                         bank_accounts=bank_accounts,
+                         selected_status=status)
+
+
+@bank_bp.route('/reconciliation/new', methods=['GET', 'POST'])
+@login_required
+@owner_only
+def new_reconciliation():
+    if request.method == 'POST':
+        try:
+            bank_account_id = int(request.form.get('bank_account_id'))
+            period_start = datetime.strptime(request.form.get('period_start'), '%Y-%m-%d').date()
+            period_end = datetime.strptime(request.form.get('period_end'), '%Y-%m-%d').date()
+            bank_balance = Decimal(request.form.get('bank_balance'))
+            
+            bank_account = BankAccount.query.get_or_404(bank_account_id)
+            
+            book_balance = float(bank_account.current_balance)
+            
+            last_recon = BankReconciliation.query.order_by(BankReconciliation.id.desc()).first()
+            next_num = (last_recon.id + 1) if last_recon else 1
+            recon_number = f"RECON-{datetime.now().year}{next_num:05d}"
+            
+            reconciliation = BankReconciliation(
+                bank_account_id=bank_account_id,
+                reconciliation_number=recon_number,
+                period_start=period_start,
+                period_end=period_end,
+                book_balance=book_balance,
+                bank_balance=float(bank_balance),
+                reconciled_by=current_user.id,
+                reconciled_at=datetime.now(),
+                status='DRAFT'
+            )
+            
+            db.session.add(reconciliation)
+            db.session.commit()
+            
+            flash(f'✅ تم إنشاء التسوية {recon_number}', 'success')
+            return redirect(url_for('bank.view_reconciliation', id=reconciliation.id))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'❌ خطأ في إنشاء التسوية: {str(e)}', 'danger')
+    
+    bank_accounts = BankAccount.query.filter_by(is_active=True).order_by(BankAccount.name).all()
+    
+    return render_template('bank/reconciliation_form.html',
+                         bank_accounts=bank_accounts,
+                         reconciliation=None)
+
+
+@bank_bp.route('/reconciliation/<int:id>')
+@login_required
+@owner_only
+def view_reconciliation(id):
+    reconciliation = BankReconciliation.query.get_or_404(id)
+    
+    book_transactions = Payment.query.filter(
+        Payment.payment_method.in_(['bank_transfer', 'check']),
+        Payment.payment_date.between(reconciliation.period_start, reconciliation.period_end)
+    ).all()
+    
+    bank_transactions = BankTransaction.query.filter(
+        BankTransaction.bank_account_id == reconciliation.bank_account_id,
+        BankTransaction.transaction_date.between(reconciliation.period_start, reconciliation.period_end),
+        BankTransaction.matched == False
+    ).all()
+    
+    total_book_in = sum(float(p.amount_received or 0) for p in book_transactions if p.payment_type == 'IN')
+    total_book_out = sum(float(p.amount_paid or 0) for p in book_transactions if p.payment_type == 'OUT')
+    total_bank_in = sum(float(t.debit or 0) for t in bank_transactions)
+    total_bank_out = sum(float(t.credit or 0) for t in bank_transactions)
+    
+    stats = {
+        'book_count': len(book_transactions),
+        'bank_count': len(bank_transactions),
+        'total_book_in': total_book_in,
+        'total_book_out': total_book_out,
+        'total_bank_in': total_bank_in,
+        'total_bank_out': total_bank_out,
+        'book_net': total_book_in - total_book_out,
+        'bank_net': total_bank_in - total_bank_out,
+        'difference': reconciliation.bank_balance - reconciliation.book_balance
+    }
+    
+    return render_template('bank/reconciliation_view.html',
+                         reconciliation=reconciliation,
+                         book_transactions=book_transactions,
+                         bank_transactions=bank_transactions,
+                         stats=stats)
+
+
+@bank_bp.route('/reconciliation/<int:id>/complete', methods=['POST'])
+@login_required
+@owner_only
+def complete_reconciliation(id):
+    try:
+        reconciliation = BankReconciliation.query.get_or_404(id)
+        
+        if reconciliation.status == 'COMPLETED':
+            flash('التسوية مكتملة بالفعل', 'warning')
+            return redirect(url_for('bank.view_reconciliation', id=id))
+        
+        matched_ids = request.form.getlist('matched_transactions[]', type=int)
+        
+        for trans_id in matched_ids:
+            transaction = BankTransaction.query.get(trans_id)
+            if transaction:
+                transaction.matched = True
+                transaction.reconciliation_id = id
+        
+        reconciliation.status = 'COMPLETED'
+        reconciliation.completed_at = datetime.now()
+        reconciliation.notes = request.form.get('notes', '')
+        
+        db.session.commit()
+        
+        flash(f'✅ تم إكمال التسوية {reconciliation.reconciliation_number}', 'success')
+        return redirect(url_for('bank.view_reconciliation', id=id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ خطأ في إكمال التسوية: {str(e)}', 'danger')
+        return redirect(url_for('bank.view_reconciliation', id=id))
+
+
+@bank_bp.route('/reports/unmatched')
+@login_required
+@owner_only
+def report_unmatched():
+    bank_account_id = request.args.get('account', type=int)
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    
+    query = BankTransaction.query.filter_by(matched=False)
+    
+    if bank_account_id:
+        query = query.filter_by(bank_account_id=bank_account_id)
+    
+    if date_from:
+        date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+        query = query.filter(BankTransaction.transaction_date >= date_from_obj)
+    
+    if date_to:
+        date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+        query = query.filter(BankTransaction.transaction_date <= date_to_obj)
+    
+    unmatched_transactions = query.order_by(
+        BankTransaction.transaction_date.desc(),
+        BankTransaction.id.desc()
+    ).all()
+    
+    total_debit = sum(float(t.debit or 0) for t in unmatched_transactions)
+    total_credit = sum(float(t.credit or 0) for t in unmatched_transactions)
+    
+    stats = {
+        'total_count': len(unmatched_transactions),
+        'total_debit': total_debit,
+        'total_credit': total_credit,
+        'net_unmatched': total_debit - total_credit
+    }
+    
+    bank_accounts = BankAccount.query.filter_by(is_active=True).order_by(BankAccount.name).all()
+    
+    return render_template('bank/report_unmatched.html',
+                         transactions=unmatched_transactions,
+                         bank_accounts=bank_accounts,
+                         stats=stats,
+                         selected_account=bank_account_id,
+                         date_from=date_from,
+                         date_to=date_to)
+
+
+@bank_bp.route('/reports/aged')
+@login_required
+@owner_only
+def report_aged():
+    bank_account_id = request.args.get('account', type=int)
+    
+    query = BankTransaction.query.filter_by(matched=False)
+    
+    if bank_account_id:
+        query = query.filter_by(bank_account_id=bank_account_id)
+    
+    all_unmatched = query.all()
+    
+    today = date.today()
+    
+    aged_data = {
+        'current': [],
+        '30_days': [],
+        '60_days': [],
+        '90_days': [],
+        'over_90': []
+    }
+    
+    for trans in all_unmatched:
+        days_old = (today - trans.transaction_date).days
+        
+        if days_old <= 30:
+            aged_data['current'].append(trans)
+        elif days_old <= 60:
+            aged_data['30_days'].append(trans)
+        elif days_old <= 90:
+            aged_data['60_days'].append(trans)
+        elif days_old <= 120:
+            aged_data['90_days'].append(trans)
+        else:
+            aged_data['over_90'].append(trans)
+    
+    totals = {
+        'current': sum(float(t.debit or 0) - float(t.credit or 0) for t in aged_data['current']),
+        '30_days': sum(float(t.debit or 0) - float(t.credit or 0) for t in aged_data['30_days']),
+        '60_days': sum(float(t.debit or 0) - float(t.credit or 0) for t in aged_data['60_days']),
+        '90_days': sum(float(t.debit or 0) - float(t.credit or 0) for t in aged_data['90_days']),
+        'over_90': sum(float(t.debit or 0) - float(t.credit or 0) for t in aged_data['over_90'])
+    }
+    
+    bank_accounts = BankAccount.query.filter_by(is_active=True).order_by(BankAccount.name).all()
+    
+    return render_template('bank/report_aged.html',
+                         aged_data=aged_data,
+                         totals=totals,
+                         bank_accounts=bank_accounts,
+                         selected_account=bank_account_id)
+
+
+@bank_bp.route('/reports/summary')
+@login_required
+@owner_only
+def report_summary():
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    
+    bank_accounts = BankAccount.query.filter_by(is_active=True).order_by(BankAccount.name).all()
+    
+    summary_data = []
+    
+    for account in bank_accounts:
+        query = BankTransaction.query.filter_by(bank_account_id=account.id)
+        
+        if date_from:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            query = query.filter(BankTransaction.transaction_date >= date_from_obj)
+        
+        if date_to:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            query = query.filter(BankTransaction.transaction_date <= date_to_obj)
+        
+        transactions = query.all()
+        
+        total_debit = sum(float(t.debit or 0) for t in transactions)
+        total_credit = sum(float(t.credit or 0) for t in transactions)
+        unmatched_count = sum(1 for t in transactions if not t.matched)
+        
+        summary_data.append({
+            'account': account,
+            'transaction_count': len(transactions),
+            'total_debit': total_debit,
+            'total_credit': total_credit,
+            'net_movement': total_debit - total_credit,
+            'current_balance': float(account.current_balance),
+            'unmatched_count': unmatched_count
+        })
+    
+    grand_totals = {
+        'total_debit': sum(d['total_debit'] for d in summary_data),
+        'total_credit': sum(d['total_credit'] for d in summary_data),
+        'total_balance': sum(d['current_balance'] for d in summary_data),
+        'total_unmatched': sum(d['unmatched_count'] for d in summary_data)
+    }
+    
+    return render_template('bank/report_summary.html',
+                         summary_data=summary_data,
+                         grand_totals=grand_totals,
+                         date_from=date_from,
+                         date_to=date_to)
+
+
+@bank_bp.route('/api/auto-match/<int:bank_account_id>', methods=['POST'])
+@login_required
+@owner_only
+def auto_match(bank_account_id):
+    try:
+        bank_account = BankAccount.query.get_or_404(bank_account_id)
+        
+        unmatched_bank = BankTransaction.query.filter_by(
+            bank_account_id=bank_account_id,
+            matched=False
+        ).all()
+        
+        unmatched_book = Payment.query.filter(
+            Payment.payment_method.in_(['bank_transfer', 'check']),
+            Payment.bank_account_id == bank_account_id
+        ).all()
+        
+        matched_count = 0
+        
+        for bank_trans in unmatched_bank:
+            if bank_trans.matched:
+                continue
+            
+            for book_trans in unmatched_book:
+                amount_match = False
+                
+                if bank_trans.debit and bank_trans.debit > 0:
+                    if book_trans.payment_type == 'IN' and abs(float(bank_trans.debit) - float(book_trans.amount_received or 0)) < 0.01:
+                        amount_match = True
+                
+                if bank_trans.credit and bank_trans.credit > 0:
+                    if book_trans.payment_type == 'OUT' and abs(float(bank_trans.credit) - float(book_trans.amount_paid or 0)) < 0.01:
+                        amount_match = True
+                
+                date_diff = abs((bank_trans.transaction_date - book_trans.payment_date).days)
+                
+                if amount_match and date_diff <= 3:
+                    bank_trans.matched = True
+                    bank_trans.matched_payment_id = book_trans.id
+                    matched_count += 1
+                    break
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'matched_count': matched_count,
+            'message': f'تم مطابقة {matched_count} معاملة تلقائياً'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

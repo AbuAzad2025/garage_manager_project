@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}جدول الاستهلاك{% endblock %}
+{% block page_title %}📊 جدول الاستهلاك - {{ fiscal_year }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <table class="table table-hover table-bordered">
+        <thead>
+          <tr>
+            <th>الأصل</th>
+            <th>السنة</th>
+            <th>الشهر</th>
+            <th>التاريخ</th>
+            <th>مبلغ الاستهلاك</th>
+            <th>الاستهلاك المتراكم</th>
+            <th>القيمة الدفترية</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for dep in depreciations %}
+          <tr>
+            <td>{{ dep.asset.name }} ({{ dep.asset.asset_number }})</td>
+            <td>{{ dep.fiscal_year }}</td>
+            <td>{{ dep.fiscal_month or '-' }}</td>
+            <td>{{ dep.depreciation_date.strftime('%Y-%m-%d') }}</td>
+            <td>{{ "{:,.2f}".format(dep.depreciation_amount) }} ₪</td>
+            <td>{{ "{:,.2f}".format(dep.accumulated_depreciation) }} ₪</td>
+            <td>{{ "{:,.2f}".format(dep.book_value) }} ₪</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

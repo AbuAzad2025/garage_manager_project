@@ -290,12 +290,52 @@ def confirm(settlement_id):
 
 @partner_settlements_bp.route("/settlements/<int:settlement_id>", methods=["GET"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def show(settlement_id):
+    from flask import jsonify
     ps = db.session.get(PartnerSettlement, settlement_id)
     if not ps:
         abort(404)
-    return render_template("vendors/partners/settlement_preview.html", ps=ps)
+    
+    try:
+        settlement_data = {
+            "code": ps.code or "N/A",
+            "from_date": ps.from_date,
+            "to_date": ps.to_date,
+            "opening_balance": float(ps.opening_balance or 0),
+            "rights": {
+                "inventory": float(ps.rights_inventory or 0),
+                "sales_share": float(ps.rights_sales_share or 0),
+                "preorders": float(ps.rights_preorders or 0),
+                "total": float(ps.rights_total or 0)
+            },
+            "obligations": {
+                "sales": float(ps.obligations_sales_to_partner or 0),
+                "services": float(ps.obligations_services or 0),
+                "damaged": float(ps.obligations_damaged or 0),
+                "expenses": float(ps.obligations_expenses or 0),
+                "returns": float(ps.obligations_returns or 0),
+                "total": float(ps.obligations_total or 0)
+            },
+            "payments": {
+                "out": float(ps.payments_out or 0),
+                "in": float(ps.payments_in or 0),
+                "net": float(ps.payments_net or 0)
+            },
+            "closing_balance": float(ps.closing_balance or 0),
+            "approved_by": ps.approved_by_user.username if ps.approved_by_user else "N/A",
+            "approved_at": ps.approved_at
+        }
+        
+        return render_template(
+            "vendors/partners/settlement_detail.html",
+            settlement=ps,
+            settlement_data=settlement_data,
+            partner=ps.partner
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 # ===== نظام التسوية الذكي للشركاء =====
@@ -485,6 +525,12 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
                 "total_received": float(received_from_partner),
                 "total_settled": float(paid_to_partner + received_from_partner)
             },
+            "rights": {
+                "inventory": inventory,
+                "sales_share": sales_share,
+                "preorders_share": preorders_prepaid,
+                "total": float(partner_rights)
+            },
             # 🎯 الرصيد
             "balance": {
                 "gross": float(net_before_payments),  # قبل الدفعات
@@ -555,11 +601,14 @@ def _calculate_partner_incoming(partner_id: int, date_from: datetime, date_to: d
 def _calculate_partner_outgoing(partner_id: int, date_from: datetime, date_to: datetime):
     """حساب الصادر للشريك"""
     from models import Expense, ExchangeTransaction
-    from sqlalchemy import func
+    from sqlalchemy import func, or_, and_
     
     # حصة الشريك من المشتريات
     purchases_share = db.session.query(func.sum(Expense.amount)).filter(
+        or_(
         Expense.partner_id == partner_id,
+            and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner_id)
+        ),
         Expense.date >= date_from,
         Expense.date <= date_to
     ).scalar() or 0
@@ -689,7 +738,10 @@ def _get_partner_operations_details(partner_id: int, date_from: datetime, date_t
     
     # النفقات الأخيرة
     recent_expenses = db.session.query(Expense).filter(
+        or_(
         Expense.partner_id == partner_id,
+            and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner_id)
+        ),
         Expense.date >= date_from,
         Expense.date <= date_to
     ).order_by(desc(Expense.date)).limit(10).all()
@@ -1609,10 +1661,13 @@ def _get_partner_preorders_prepaid(partner_id: int, partner: Partner, date_from:
 def _get_partner_expenses(partner_id: int, date_from: datetime, date_to: datetime):
     """جلب المصروفات المخصومة من حصة الشريك"""
     from models import Expense
+    from sqlalchemy import or_, and_
     
     expenses = db.session.query(Expense).filter(
-        Expense.payee_type == "PARTNER",
-        Expense.payee_entity_id == partner_id,
+        or_(
+            Expense.partner_id == partner_id,
+            and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner_id)
+        ),
         Expense.date >= date_from,
         Expense.date <= date_to
     ).all()
@@ -2014,3 +2069,134 @@ def _get_partner_damaged_items(partner_id: int, date_from: datetime, date_to: da
         "total_ils": float(total_ils),
         "count": len(items)
     }
+
+
+@partner_settlements_bp.route("/<int:partner_id>/settlement/approve", methods=["POST"], endpoint="approve_settlement")
+@login_required
+def approve_settlement(partner_id):
+    from flask import flash, redirect
+    from flask_login import current_user
+    from models import PartnerSettlement
+    
+    partner = db.session.get(Partner, partner_id)
+    if not partner:
+        abort(404)
+    
+    date_from = request.form.get("date_from")
+    date_to = request.form.get("date_to")
+    
+    if not date_from or not date_to:
+        flash("يجب تحديد الفترة الزمنية", "error")
+        return redirect(url_for("partner_settlements_bp.partner_settlement", partner_id=partner_id))
+    
+    try:
+        date_from_dt = datetime.fromisoformat(date_from.replace("Z", "+00:00")) if isinstance(date_from, str) else date_from
+        date_to_dt = datetime.fromisoformat(date_to.replace("Z", "+00:00")) if isinstance(date_to, str) else date_to
+    except:
+        flash("تنسيق التاريخ غير صحيح", "error")
+        return redirect(url_for("partner_settlements_bp.partner_settlement", partner_id=partner_id))
+    
+    balance_data = _calculate_smart_partner_balance(partner_id, date_from_dt, date_to_dt)
+    
+    if not balance_data.get("success"):
+        flash(balance_data.get("error", "خطأ في حساب التسوية"), "error")
+        return redirect(url_for("partner_settlements_bp.partner_settlement", partner_id=partner_id))
+    
+    prev_settlement = db.session.query(PartnerSettlement).filter(
+        PartnerSettlement.partner_id == partner_id,
+        PartnerSettlement.is_approved == True
+    ).order_by(PartnerSettlement.to_date.desc()).first()
+    
+    settlement = PartnerSettlement(
+        partner_id=partner_id,
+        from_date=date_from_dt,
+        to_date=date_to_dt,
+        currency="ILS",
+        status=PartnerSettlementStatus.CONFIRMED.value,
+        previous_settlement_id=prev_settlement.id if prev_settlement else None,
+        opening_balance=Decimal(str(balance_data.get("opening_balance", {}).get("amount", 0))),
+        rights_inventory=Decimal(str(balance_data.get("rights", {}).get("inventory", {}).get("total_ils", 0) if isinstance(balance_data.get("rights", {}).get("inventory"), dict) else balance_data.get("rights", {}).get("inventory", {}).get("total", 0))),
+        rights_sales_share=Decimal(str(balance_data.get("rights", {}).get("sales_share", {}).get("total_share_ils", 0) if isinstance(balance_data.get("rights", {}).get("sales_share"), dict) else balance_data.get("rights", {}).get("sales_share", {}).get("total", 0))),
+        rights_preorders=Decimal(str(balance_data.get("payments", {}).get("preorders_prepaid", {}).get("total_ils", 0))),
+        rights_total=Decimal(str(balance_data.get("rights", {}).get("total", 0))),
+        obligations_sales_to_partner=Decimal(str(balance_data.get("obligations", {}).get("sales_to_partner", {}).get("total_ils", 0))),
+        obligations_services=Decimal(str(balance_data.get("obligations", {}).get("service_fees", {}).get("total_ils", 0))),
+        obligations_damaged=Decimal(str(balance_data.get("obligations", {}).get("damaged_items", {}).get("total_ils", 0))),
+        obligations_expenses=Decimal(str(balance_data.get("obligations", {}).get("expenses", {}).get("total_ils", 0))),
+        obligations_returns=0,
+        obligations_total=Decimal(str(balance_data.get("obligations", {}).get("total", 0))),
+        payments_out=Decimal(str(balance_data.get("payments", {}).get("total_paid", 0))),
+        payments_in=Decimal(str(balance_data.get("payments", {}).get("total_received", 0))),
+        payments_net=Decimal(str(balance_data.get("payments", {}).get("total_settled", 0))),
+        closing_balance=Decimal(str(balance_data.get("balance", {}).get("net", 0))),
+        is_approved=True,
+        approved_by=current_user.id,
+        approved_at=datetime.utcnow()
+    )
+    
+    db.session.add(settlement)
+    db.session.flush()
+    
+    try:
+        from models import _gl_upsert_batch_and_entries, GL_ACCOUNTS
+        
+        partner_account = GL_ACCOUNTS.get("PARTNER_EQUITY", "3200_PARTNER_EQUITY")
+        cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
+        
+        closing_balance_amount = float(settlement.closing_balance or 0)
+        
+        if abs(closing_balance_amount) > 0.01:
+            if closing_balance_amount > 0:
+                entries = [
+                    (partner_account, closing_balance_amount, 0),
+                    (cash_account, 0, closing_balance_amount),
+                ]
+                memo = f"تسوية شريك #{settlement.code} - له علينا {closing_balance_amount:.2f} ₪"
+            else:
+                entries = [
+                    (cash_account, abs(closing_balance_amount), 0),
+                    (partner_account, 0, abs(closing_balance_amount)),
+                ]
+                memo = f"تسوية شريك #{settlement.code} - عليه لنا {abs(closing_balance_amount):.2f} ₪"
+            
+            _gl_upsert_batch_and_entries(
+                db.session.connection(),
+                source_type="PARTNER_SETTLEMENT",
+                source_id=settlement.id,
+                purpose="SETTLEMENT",
+                currency="ILS",
+                memo=memo,
+                entries=entries,
+                ref=f"PSETTLEMENT-{settlement.code}",
+                entity_type="PARTNER",
+                entity_id=partner_id
+            )
+    except Exception as e:
+        import sys
+        print(f"⚠️ تحذير: فشل إنشاء قيد GL للتسوية: {str(e)}", file=sys.stderr)
+    
+    db.session.commit()
+    
+    flash("تم اعتماد التسوية بنجاح ✅ وإنشاء القيد المحاسبي", "success")
+    return redirect(url_for("partner_settlements_bp.partner_settlement", partner_id=partner_id))
+
+
+@partner_settlements_bp.route("/<int:partner_id>/settlements", methods=["GET"], endpoint="partner_settlements_list")
+@login_required
+def partner_settlements_list(partner_id):
+    from models import PartnerSettlement
+    
+    partner = db.session.get(Partner, partner_id)
+    if not partner:
+        abort(404)
+    
+    settlements = db.session.query(PartnerSettlement).filter(
+        PartnerSettlement.partner_id == partner_id,
+        PartnerSettlement.is_approved == True
+    ).order_by(PartnerSettlement.to_date.desc()).all()
+    
+    return render_template(
+        "vendors/partners/settlements_list.html",
+        partner=partner,
+        settlements=settlements
+    )

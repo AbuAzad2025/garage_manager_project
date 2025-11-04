@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block title %}عرض الأصل - {{ asset.asset_number }}{% endblock %}
+{% block page_title %}🏢 {{ asset.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">سعر الشراء</h6>
+          <h4>{{ "{:,.2f}".format(asset.purchase_price) }} ₪</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">القيمة الدفترية</h6>
+          <h4 class="text-success">{{ "{:,.2f}".format(book_value) }} ₪</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">الاستهلاك المتراكم</h6>
+          <h4 class="text-danger">{{ "{:,.2f}".format(total_depreciation) }} ₪</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">الحالة</h6>
+          <h4>
+            {% if asset.status == 'ACTIVE' %}
+            <span class="badge bg-success">نشط</span>
+            {% else %}
+            <span class="badge bg-secondary">{{ asset.status }}</span>
+            {% endif %}
+          </h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">معلومات الأصل</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr>
+              <th>رقم الأصل:</th>
+              <td>{{ asset.asset_number }}</td>
+            </tr>
+            <tr>
+              <th>التصنيف:</th>
+              <td>{{ asset.category.name }}</td>
+            </tr>
+            <tr>
+              <th>الفرع:</th>
+              <td>{{ asset.branch.name if asset.branch else '-' }}</td>
+            </tr>
+            <tr>
+              <th>تاريخ الشراء:</th>
+              <td>{{ asset.purchase_date.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            <tr>
+              <th>المورد:</th>
+              <td>{{ asset.supplier.name if asset.supplier else '-' }}</td>
+            </tr>
+            <tr>
+              <th>الرقم التسلسلي:</th>
+              <td>{{ asset.serial_number or '-' }}</td>
+            </tr>
+            <tr>
+              <th>الموقع:</th>
+              <td>{{ asset.location or '-' }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">جدول الاستهلاك</h5>
+        </div>
+        <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+          <table class="table table-sm table-hover">
+            <thead>
+              <tr>
+                <th>السنة</th>
+                <th>الشهر</th>
+                <th>المبلغ</th>
+                <th>المتراكم</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for dep in depreciations %}
+              <tr>
+                <td>{{ dep.fiscal_year }}</td>
+                <td>{{ dep.fiscal_month or '-' }}</td>
+                <td>{{ "{:,.2f}".format(dep.depreciation_amount) }}</td>
+                <td>{{ "{:,.2f}".format(dep.accumulated_depreciation) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header">
+          <h5 class="mb-0">سجل الصيانة</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>التاريخ</th>
+                <th>النوع</th>
+                <th>التكلفة</th>
+                <th>الوصف</th>
+                <th>الصيانة القادمة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for maint in maintenance_records %}
+              <tr>
+                <td>{{ maint.maintenance_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ maint.maintenance_type or '-' }}</td>
+                <td>{{ "{:,.2f}".format(maint.cost) }} ₪</td>
+                <td>{{ maint.description or '-' }}</td>
+                <td>{{ maint.next_maintenance_date.strftime('%Y-%m-%d') if maint.next_maintenance_date else '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <a href="{{ url_for('assets.index') }}" class="btn btn-secondary">
+      <i class="fas fa-arrow-left"></i> رجوع
+    </a>
+  </div>
+
+</div>
+{% endblock %}
+

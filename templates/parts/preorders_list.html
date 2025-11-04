@@ -148,7 +148,7 @@
                     class="d-inline"
                     onsubmit="return confirm('تحويل الحجز إلى مبيعة وشحن البضاعة؟');">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-sm btn-success" title="تسليم المنتج المحجوز - المبلغ المتبقي: {{ '%.2f'|format(balance) }}">
+                <button type="submit" class="btn btn-sm btn-success" title="تسليم المنتج المحجوز - المبلغ المتبقي: {{ '%.2f'|format(balance) }}">
                   <i class="fas fa-truck"></i> تسليم
                 </button>
               </form>

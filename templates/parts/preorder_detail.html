@@ -116,7 +116,7 @@
         <form method="post" action="{{ url_for('warehouse_bp.preorder_convert_to_sale', preorder_id=preorder.id) }}" class="d-inline">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-success" onclick="return confirm('تحويل الحجز إلى مبيعة وشحن البضاعة؟');" title="تسليم المنتج - المبلغ المتبقي: {{ '%.2f'|format(balance) }} {{ currency }}">
-            <i class="fas fa-truck me-1"></i> تسليم المنتج (المتبقي: {{ '%.2f'|format(balance) }} {{ currency }})
+            <i class="fas fa-truck ml-1"></i> تسليم المنتج (المتبقي: {{ '%.2f'|format(balance) }} {{ currency }})
           </button>
         </form>
         {% endif %}
@@ -125,7 +125,7 @@
         {% if current_user.has_permission('delete_preorder') %}
         <form method="post" action="{{ url_for('warehouse_bp.preorder_cancel', preorder_id=preorder.id) }}" class="d-inline" onsubmit="return confirm('إلغاء الحجز؟');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-danger"><i class="fas fa-times me-1"></i> إلغاء</button>
+          <button type="submit" class="btn btn-danger"><i class="fas fa-times ml-1"></i> إلغاء</button>
         </form>
         {% endif %}
 
@@ -133,7 +133,7 @@
         <form method="post" action="{{ url_for('warehouse_bp.preorder_mark_fulfilled', preorder_id=preorder.id) }}" class="d-inline" onsubmit="return confirm('تمييز الحجز كمنفذ؟ سيتم خصم الكمية من المخزون.');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn btn-outline-success" type="submit" title="تمييز الحجز كمنفذ يدوياً">
-            <i class="fas fa-check-circle me-1"></i> تمييز كمنفذ
+            <i class="fas fa-check-circle ml-1"></i> تمييز كمنفذ
           </button>
         </form>
 
@@ -142,22 +142,22 @@
         {# الحجز منفّذ - عرض زر الأرشيف #}
         {% if preorder.status == 'FULFILLED' %}
           <div class="alert alert-success mb-3">
-            <i class="fas fa-check-circle me-2"></i>
+            <i class="fas fa-check-circle ml-2"></i>
             <strong>تم تسليم الحجز بنجاح!</strong> تم خصم الكمية من المخزون وإنشاء المبيعة.
           </div>
           {% if preorder.sale %}
           <a href="{{ url_for('sales_bp.sale_detail', id=preorder.sale.id) }}" class="btn btn-primary btn-lg">
-            <i class="fas fa-file-invoice me-2"></i> عرض تفاصيل المبيعة #{{ preorder.sale.id }}
+            <i class="fas fa-file-invoice ml-2"></i> عرض تفاصيل المبيعة #{{ preorder.sale.id }}
           </a>
           {% else %}
           <a href="{{ url_for('sales_bp.list_sales') }}" class="btn btn-outline-primary btn-lg">
-            <i class="fas fa-file-invoice me-2"></i> عرض جميع المبيعات
+            <i class="fas fa-file-invoice ml-2"></i> عرض جميع المبيعات
           </a>
           {% endif %}
         {% endif %}
 
       {% endif %}
-      <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.preorders_list') }}"><i class="fas fa-arrow-right me-1"></i> رجوع</a>
+      <a class="btn btn-secondary" href="{{ url_for('warehouse_bp.preorders_list') }}"><i class="fas fa-arrow-right ml-1"></i> رجوع</a>
     </div>
   </div>
 </div>

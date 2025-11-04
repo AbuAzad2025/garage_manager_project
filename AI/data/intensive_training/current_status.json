@@ -1,0 +1,11 @@
+{
+  "running": false,
+  "progress": 100,
+  "current_phase": "Training Complete",
+  "total_phases": 10,
+  "items_learned": 1576,
+  "started_at": "2025-11-02T04:16:51.025106",
+  "estimated_completion": null,
+  "errors": [],
+  "completed_at": "2025-11-02T04:17:13.540112"
+}

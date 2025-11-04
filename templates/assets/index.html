@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}الأصول الثابتة{% endblock %}
+{% block page_title %}🏢 إدارة الأصول الثابتة{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="mb-3">
+    <a href="{{ url_for('assets.add') }}" class="btn btn-primary">
+      <i class="fas fa-plus"></i> إضافة أصل
+    </a>
+    <a href="{{ url_for('assets.categories') }}" class="btn btn-secondary">
+      <i class="fas fa-list"></i> التصنيفات
+    </a>
+    <a href="{{ url_for('assets.asset_register') }}" class="btn btn-info">
+      <i class="fas fa-book"></i> سجل الأصول
+    </a>
+    <a href="{{ url_for('assets.depreciation_schedule') }}" class="btn btn-warning">
+      <i class="fas fa-chart-line"></i> جدول الاستهلاك
+    </a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header">
+      <h5 class="mb-0">قائمة الأصول</h5>
+    </div>
+    <div class="card-body">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>رقم الأصل</th>
+            <th>الاسم</th>
+            <th>التصنيف</th>
+            <th>تاريخ الشراء</th>
+            <th>سعر الشراء</th>
+            <th>القيمة الدفترية</th>
+            <th>الاستهلاك</th>
+            <th>الحالة</th>
+            <th>إجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in assets %}
+          <tr>
+            <td>{{ item.asset.asset_number }}</td>
+            <td>{{ item.asset.name }}</td>
+            <td>{{ item.asset.category.name }}</td>
+            <td>{{ item.asset.purchase_date.strftime('%Y-%m-%d') }}</td>
+            <td>{{ "{:,.2f}".format(item.asset.purchase_price) }} ₪</td>
+            <td>{{ "{:,.2f}".format(item.book_value) }} ₪</td>
+            <td>{{ "{:,.2f}".format(item.total_depreciation) }} ₪</td>
+            <td>
+              {% if item.asset.status == 'ACTIVE' %}
+              <span class="badge bg-success">نشط</span>
+              {% elif item.asset.status == 'DISPOSED' %}
+              <span class="badge bg-secondary">تم التخلص</span>
+              {% elif item.asset.status == 'SOLD' %}
+              <span class="badge bg-info">مباع</span>
+              {% else %}
+              <span class="badge bg-danger">{{ item.asset.status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <a href="{{ url_for('assets.view', id=item.asset.id) }}" class="btn btn-sm btn-info">
+                <i class="fas fa-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

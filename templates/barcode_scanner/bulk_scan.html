@@ -517,14 +517,14 @@
                     <div class="card card-modern">
                         <div class="card-header-modern">
                             <h3>
-                                <i class="fas fa-cog me-2"></i>
+                                <i class="fas fa-cog ml-2"></i>
                                 إعدادات المسح
                             </h3>
                         </div>
                         <div class="card-body p-4">
                             <!-- توضيح المسح الجماعي -->
                             <div class="alert alert-info mb-4" style="border-right: 4px solid #4facfe;">
-                                <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i><strong>عن المسح الجماعي:</strong></h6>
+                                <h6 class="mb-2"><i class="fas fa-info-circle ml-2"></i><strong>عن المسح الجماعي:</strong></h6>
                                 <ul class="mb-0" style="font-size: 0.9rem; line-height: 1.8;">
                                     <li>يمكنك استيراد عدة منتجات دفعة واحدة باستخدام الباركود</li>
                                     <li>الحقول المطلوبة تختلف حسب نوع المستودع المختار</li>
@@ -535,7 +535,7 @@
                             
                             <div class="form-group mb-4">
                                 <label class="form-label fw-bold">
-                                    <i class="fas fa-warehouse me-1 text-primary"></i>
+                                    <i class="fas fa-warehouse ml-1 text-primary"></i>
                                     المستودع:
                                 </label>
                                 <select class="form-control form-control-modern" id="warehouse-select" onchange="loadWarehouseFields()">
@@ -543,14 +543,14 @@
                                     <!-- سيتم ملؤها بالـ JavaScript -->
                                 </select>
                                 <small class="form-text text-muted mt-2">
-                                    <i class="fas fa-info-circle me-1"></i>
+                                    <i class="fas fa-info-circle ml-1"></i>
                                     سيتم تحديث الحقول المطلوبة حسب نوع المستودع المختار
                                 </small>
                             </div>
                             
                             <div id="warehouse-info" class="alert-modern notification-success" style="display: none;">
                                 <div class="d-flex align-items-center">
-                                    <i class="fas fa-info-circle fa-2x me-3"></i>
+                                    <i class="fas fa-info-circle fa-2x ml-3"></i>
                                     <div>
                                         <h6 class="mb-1">معلومات المستودع</h6>
                                         <p class="mb-0" id="warehouse-type-info"></p>
@@ -561,7 +561,7 @@
                             <!-- حقول خاصة بمستودع الشركاء -->
                             <div id="partner-fields" class="partner-fields" style="display: none;">
                                 <h6 class="mb-3">
-                                    <i class="fas fa-handshake me-2"></i>
+                                    <i class="fas fa-handshake ml-2"></i>
                                     معلومات الشريك
                                 </h6>
                                 <div class="row">
@@ -575,7 +575,7 @@
                                                 <!-- سيتم ملؤها بالـ JavaScript -->
                                             </select>
                                             <small class="form-text text-muted mt-2">
-                                                <i class="fas fa-info-circle me-1"></i>
+                                                <i class="fas fa-info-circle ml-1"></i>
                                                 سيتم ربط المنتجات المستوردة بهذا الشريك
                                             </small>
                                         </div>
@@ -594,7 +594,7 @@
                                                 </div>
                                             </div>
                                             <small class="form-text text-muted mt-2">
-                                                <i class="fas fa-percentage me-1"></i>
+                                                <i class="fas fa-percentage ml-1"></i>
                                                 نسبة مساهمة الشريك في المنتجات
                                             </small>
                                         </div>
@@ -604,7 +604,7 @@
                                 <!-- معلومات إضافية عن الشريك -->
                                 <div id="partner-info-display" class="alert alert-info mt-3" style="display: none;">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-info-circle fa-2x me-3"></i>
+                                        <i class="fas fa-info-circle fa-2x ml-3"></i>
                                         <div id="partner-details"></div>
                                     </div>
                                 </div>
@@ -613,7 +613,7 @@
                             <!-- حقول خاصة بمستودع التبادل -->
                             <div id="supplier-fields" class="supplier-fields" style="display: none;">
                                 <h6 class="mb-3">
-                                    <i class="fas fa-truck me-2"></i>
+                                    <i class="fas fa-truck ml-2"></i>
                                     معلومات المورد/التاجر
                                 </h6>
                                 <div class="form-group">
@@ -625,7 +625,7 @@
                                         <!-- سيتم ملؤها بالـ JavaScript -->
                                     </select>
                                     <small class="form-text text-muted mt-2">
-                                        <i class="fas fa-info-circle me-1"></i>
+                                        <i class="fas fa-info-circle ml-1"></i>
                                         سيتم ربط المنتجات المستوردة بهذا المورد
                                     </small>
                                 </div>
@@ -654,37 +654,37 @@
                             
                             <hr class="my-4">
                             <h6 class="mb-3">
-                                <i class="fas fa-cog me-2"></i>
+                                <i class="fas fa-cog ml-2"></i>
                                 القيم الافتراضية
                             </h6>
                             
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">
-                                    <i class="fas fa-dollar-sign me-1 text-success"></i>
+                                    <i class="fas fa-dollar-sign ml-1 text-success"></i>
                                     السعر الافتراضي:
                                 </label>
                                 <input type="number" class="form-control form-control-modern" id="default-price" value="0" step="0.01">
                                 <small class="form-text text-muted mt-1">
-                                    <i class="fas fa-info-circle me-1"></i>
+                                    <i class="fas fa-info-circle ml-1"></i>
                                     سيتم تطبيق هذا السعر على المنتجات الجديدة
                                 </small>
                             </div>
                             
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">
-                                    <i class="fas fa-calculator me-1 text-success"></i>
+                                    <i class="fas fa-calculator ml-1 text-success"></i>
                                     الكمية الافتراضية:
                                 </label>
                                 <input type="number" class="form-control form-control-modern" id="default-quantity" value="1" min="1">
                                 <small class="form-text text-muted mt-1">
-                                    <i class="fas fa-info-circle me-1"></i>
+                                    <i class="fas fa-info-circle ml-1"></i>
                                     سيتم تطبيق هذه الكمية على المنتجات الجديدة
                                 </small>
                             </div>
                             
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">
-                                    <i class="fas fa-tag me-1 text-success"></i>
+                                    <i class="fas fa-tag ml-1 text-success"></i>
                                     الماركة الافتراضية:
                                 </label>
                                 <input type="text" class="form-control form-control-modern" id="default-brand" placeholder="مثال: Toyota">
@@ -692,7 +692,7 @@
                             
                             <div class="form-group mb-3">
                                 <label class="form-label fw-bold">
-                                    <i class="fas fa-hashtag me-1 text-success"></i>
+                                    <i class="fas fa-hashtag ml-1 text-success"></i>
                                     رقم القطعة الافتراضي:
                                 </label>
                                 <input type="text" class="form-control form-control-modern" id="default-part-number" placeholder="مثال: 12345">

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -20,13 +20,13 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top shadow-sm nav-glow modern-nav">
   <div class="container">
-    <button class="btn btn-link text-white d-lg-none me-2" onclick="toggleShopSidebar()" style="font-size: 24px;">
+    <button class="btn btn-link text-white d-lg-none ml-2" onclick="toggleShopSidebar()" style="font-size: 24px;">
       <i class="fas fa-bars"></i>
     </button>
     
     <a class="navbar-brand fw-bold" href="{{ url_for('shop.catalog') }}">
       <div class="brand-logo">
-        <i class="fas fa-store me-2"></i>
+        <i class="fas fa-store ml-2"></i>
         <span>متجرنا الإلكتروني</span>
       </div>
     </a>
@@ -34,7 +34,7 @@
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="shopNav">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+      <ul class="navbar-nav ml-auto mb-2 mb-lg-0">
         {% set active_catalog = request.endpoint in ['shop.catalog', 'shop.products'] %}
         <li class="nav-item">
           <a class="nav-link {{ 'active' if active_catalog }}" href="{{ url_for('shop.catalog') }}" {% if active_catalog %}aria-current="page"{% endif %}>المنتجات</a>
@@ -51,17 +51,17 @@
         {% if can_manage_shop or can_view_reports or can_view_cards %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown">
-            <i class="fas fa-shield-halved me-1"></i> لوحة الإدارة
+            <i class="fas fa-shield-halved ml-1"></i> لوحة الإدارة
           </a>
           <ul class="dropdown-menu">
             {% if can_manage_shop %}
-            <li><a class="dropdown-item" href="{{ url_for('shop.admin_products') }}"><i class="fas fa-cogs me-2"></i> إدارة المنتجات</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('shop.admin_products') }}"><i class="fas fa-cogs ml-2"></i> إدارة المنتجات</a></li>
             {% if 'shop.admin_preorders' in current_app.view_functions %}
-            <li><a class="dropdown-item" href="{{ url_for('shop.admin_preorders') }}"><i class="fas fa-clipboard-list me-2"></i> تقرير الحجوزات</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('shop.admin_preorders') }}"><i class="fas fa-clipboard-list ml-2"></i> تقرير الحجوزات</a></li>
             {% endif %}
             {% endif %}
             {% if can_view_cards and 'admin_reports.cards' in current_app.view_functions %}
-            <li><a class="dropdown-item" href="{{ url_for('admin_reports.cards') }}"><i class="fas fa-credit-card me-2"></i> تقرير معاملات البطاقات</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('admin_reports.cards') }}"><i class="fas fa-credit-card ml-2"></i> تقرير معاملات البطاقات</a></li>
             {% endif %}
           </ul>
         </li>
@@ -75,7 +75,7 @@
         {% if current_user.is_authenticated %}
         <div class="dropdown">
           <button class="btn btn-outline-light dropdown-toggle" type="button" data-toggle="dropdown">
-            <i class="fas fa-user me-2"></i> {{ current_user.name or current_user.username }}
+            <i class="fas fa-user ml-2"></i> {{ current_user.name or current_user.username }}
           </button>
           <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="{{ url_for('shop.preorder_list') }}">طلباتي</a></li>
@@ -87,7 +87,7 @@
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         </form>
         {% else %}
-        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light"><i class="fas fa-sign-in-alt me-2"></i> تسجيل الدخول</a>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light"><i class="fas fa-sign-in-alt ml-2"></i> تسجيل الدخول</a>
         {% endif %}
       </div>
     </div>
@@ -101,7 +101,7 @@
   {% if messages %}
   {% for category, message in messages %}
   <div class="alert alert-{{ category or 'info' }} alert-dismissible fade show modern-alert" role="alert">
-    <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'warning' else 'info-circle' }} me-2"></i>
+    <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category == 'warning' else 'info-circle' }} ml-2"></i>
     {{ message }}
     <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق"><span aria-hidden="true">&times;</span></button>
   </div>
@@ -116,7 +116,7 @@
       <div class="col-lg-4 col-md-6 mb-4">
         <div class="footer-section">
           <h5 class="footer-title">
-            <i class="fas fa-store me-2"></i>
+            <i class="fas fa-store ml-2"></i>
             متجرنا الإلكتروني
           </h5>
           <p class="footer-description">
@@ -153,10 +153,10 @@
         <div class="footer-section">
           <h6 class="footer-subtitle">خدماتنا</h6>
           <ul class="footer-links">
-            <li><a href="#">قطع غيار أصلية</a></li>
-            <li><a href="#">توصيل سريع</a></li>
-            <li><a href="#">ضمان شامل</a></li>
-            <li><a href="#">دعم فني</a></li>
+            <li><a href="{{ url_for('shop.catalog') }}">قطع غيار أصلية</a></li>
+            <li><a href="{{ url_for('shop.catalog') }}">توصيل سريع</a></li>
+            <li><a href="{{ url_for('shop.catalog') }}">ضمان شامل</a></li>
+            <li><a href="https://wa.me/970562150193?text=أحتاج دعم فني">دعم فني</a></li>
           </ul>
         </div>
       </div>
@@ -165,15 +165,15 @@
           <h6 class="footer-subtitle">تواصل معنا</h6>
           <div class="footer-contact">
             <div class="contact-item">
-              <i class="fas fa-phone me-2"></i>
+              <i class="fas fa-phone ml-2"></i>
               <span>+972 56 215 0193</span>
             </div>
             <div class="contact-item">
-              <i class="fas fa-envelope me-2"></i>
+              <i class="fas fa-envelope ml-2"></i>
               <span>info@azad-systems.com</span>
             </div>
             <div class="contact-item">
-              <i class="fas fa-map-marker-alt me-2"></i>
+              <i class="fas fa-map-marker-alt ml-2"></i>
               <span>رام الله، فلسطين</span>
             </div>
           </div>

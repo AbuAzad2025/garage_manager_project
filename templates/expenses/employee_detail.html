@@ -6,7 +6,7 @@
   <div class="card card-outline card-primary shadow-sm mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h3 class="card-title mb-0">
-        <i class="fas fa-user me-2"></i> تفاصيل الموظف
+        <i class="fas fa-user ml-2"></i> تفاصيل الموظف
       </h3>
       <div class="d-flex gap-2">
         <a href="{{ url_for('expenses_bp.employees_list') }}" class="btn btn-outline-secondary">
@@ -14,11 +14,11 @@
         </a>
         {% if current_user.has_permission('manage_expenses') %}
         <a href="{{ url_for('expenses_bp.edit_employee', emp_id=employee.id) }}" class="btn btn-warning">
-          <i class="fas fa-edit me-1"></i> تعديل
+          <i class="fas fa-edit ml-1"></i> تعديل
         </a>
         <form method="post" action="{{ url_for('expenses_bp.delete_employee', emp_id=employee.id) }}" style="display:inline;" onsubmit="return confirm('هل أنت متأكد من حذف الموظف؟');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-danger"><i class="fas fa-trash me-1"></i> حذف</button>
+          <button class="btn btn-danger"><i class="fas fa-trash ml-1"></i> حذف</button>
         </form>
         {% endif %}
       </div>
@@ -91,7 +91,7 @@
   {% if employee.expenses and employee.expenses|length > 0 %}
   <div class="card shadow-sm">
     <div class="card-header d-flex align-items-center justify-content-between">
-      <h5 class="mb-0"><i class="fas fa-receipt me-2"></i> مصاريف الموظف</h5>
+      <h5 class="mb-0"><i class="fas fa-receipt ml-2"></i> مصاريف الموظف</h5>
       <div class="d-flex gap-2">
         {% set total_emp_amount = employee.expenses|map(attribute='amount')|sum|float %}
         {% set total_emp_paid = employee.expenses|map(attribute='total_paid')|sum|float %}
@@ -173,7 +173,7 @@
   </div>
   {% else %}
   <div class="alert alert-light border d-flex align-items-center" role="alert">
-    <i class="fas fa-info-circle me-2"></i>
+    <i class="fas fa-info-circle ml-2"></i>
     لا توجد مصاريف مسجلة لهذا الموظف.
   </div>
   {% endif %}

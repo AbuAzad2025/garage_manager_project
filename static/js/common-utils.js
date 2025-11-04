@@ -64,7 +64,7 @@ function badgeForStatus(st) {
 }
 
 // ✅ عرض رسالة تنبيه
-function showAlert(type, message, duration = 5000) {
+function showAlert(type, message, duration = 0) {
     const alertTypes = {
         'success': 'alert-success',
         'error': 'alert-danger',
@@ -86,13 +86,6 @@ function showAlert(type, message, duration = 5000) {
     const alertDiv = document.createElement('div');
     alertDiv.innerHTML = alertHtml;
     document.body.appendChild(alertDiv);
-    
-    if (duration > 0) {
-        setTimeout(() => {
-            alertDiv.querySelector('.alert')?.classList.remove('show');
-            setTimeout(() => alertDiv.remove(), 150);
-        }, duration);
-    }
 }
 
 // ✅ تحميل البيانات مع Loading

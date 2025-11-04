@@ -223,12 +223,12 @@
     font-weight: 600 !important;
 }
 
-.form-control, .form-select {
+.form-control, .custom-select {
     border: 2px solid #e0e0e0 !important;
     border-radius: 8px !important;
 }
 
-.form-control:focus, .form-select:focus {
+.form-control:focus, .custom-select:focus {
     border-color: #667eea !important;
     box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
 }
@@ -1427,7 +1427,7 @@ function updateLedgerTable(data, totals) {
                 badgeColor = 'secondary';
                 icon = 'fa-building';
             }
-            entityBadge = `<span class="badge bg-${badgeColor}"><i class="fas ${icon} me-1"></i>${entry.entity_name}</span>`;
+            entityBadge = `<span class="badge bg-${badgeColor}"><i class="fas ${icon} ml-1"></i>${entry.entity_name}</span>`;
         } else {
             entityBadge = '<span class="text-muted">—</span>';
         }

@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}تسوية معتمدة - {{ settlement.code }}{% endblock %}
+
+{% block content %}
+<div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">
+                        <i class="fas fa-file-invoice"></i> تسوية معتمدة
+                    </h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('supplier_settlements_bp.approved_settlements_list') }}">التسويات المعتمدة</a></li>
+                        <li class="breadcrumb-item active">{{ settlement.code }}</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            
+            <div class="alert alert-success mb-3">
+                <small><strong>ℹ️</strong> عرض تفاصيل تسوية معتمدة مع القيد المحاسبي المسجل</small>
+            </div>
+            
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0"><i class="fas fa-check-circle"></i> {{ settlement.code }}</h3>
+                        <span class="badge bg-light text-dark fs-6">
+                            <i class="fas fa-calendar"></i> {{ settlement.approved_at.strftime('%Y-%m-%d') if settlement.approved_at else '-' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5><i class="fas fa-truck"></i> {{ supplier.name }}</h5>
+                            <p class="mb-1">
+                                <strong>الفترة:</strong> 
+                                {{ settlement.from_date.strftime('%Y-%m-%d') }} 
+                                <i class="fas fa-arrow-left"></i> 
+                                {{ settlement.to_date.strftime('%Y-%m-%d') }}
+                            </p>
+                            <p class="mb-0">
+                                <small class="text-muted">
+                                    <i class="fas fa-user"></i> المعتمد: {{ settlement.approved_by_user.username if settlement.approved_by_user else '-' }}
+                                </small>
+                            </p>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            {% if gl_batch %}
+                            <div class="alert alert-success mb-0">
+                                <h6><i class="fas fa-book"></i> القيد المحاسبي</h6>
+                                <code class="fs-6">{{ gl_batch.code }}</code>
+                                <br><small>مسجل في دفتر الأستاذ</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <div class="card border-secondary">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">الافتتاحي</h6>
+                                    <h3 class="{% if settlement.opening_balance > 0 %}text-success{% elif settlement.opening_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                                        {{ "%.2f"|format(settlement.opening_balance|abs) }}
+                                    </h3>
+                                    <small class="badge {% if settlement.opening_balance > 0 %}bg-success{% elif settlement.opening_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ "له" if settlement.opening_balance > 0 else "عليه" if settlement.opening_balance < 0 else "0" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center bg-light">
+                                    <h6 class="text-success">🟢 الحقوق</h6>
+                                    <h3 class="text-success">{{ "%.2f"|format(settlement.rights_total) }}</h3>
+                                    <small class="text-muted">{{ "%.0f"|format(settlement.rights_exchange) }} قطعة</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-danger">
+                                <div class="card-body text-center bg-light">
+                                    <h6 class="text-danger">🔴 الالتزامات</h6>
+                                    <h3 class="text-danger">{{ "%.2f"|format(settlement.obligations_total) }}</h3>
+                                    <small class="text-muted">
+                                        🛒 {{ "%.0f"|format(settlement.obligations_sales) }} | 
+                                        🔧 {{ "%.0f"|format(settlement.obligations_services) }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-primary shadow">
+                                <div class="card-body text-center" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+                                    <h6 class="text-primary">🎯 الختامي</h6>
+                                    <h2 class="{% if settlement.closing_balance > 0 %}text-success{% elif settlement.closing_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                                        {{ "%.2f"|format(settlement.closing_balance|abs) }}
+                                    </h2>
+                                    <span class="badge {% if settlement.closing_balance > 0 %}bg-success{% elif settlement.closing_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ "له علينا" if settlement.closing_balance > 0 else "عليه لنا" if settlement.closing_balance < 0 else "متوازن" }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0"><i class="fas fa-calculator"></i> المعادلة المحاسبية</h5>
+                        </div>
+                        <div class="card-body bg-light">
+                            <div class="text-center" style="font-size: 1.1rem;">
+                                <span class="badge bg-secondary">{{ "%.2f"|format(settlement.opening_balance) }}</span>
+                                <span class="mx-2">+</span>
+                                <span class="badge bg-success">{{ "%.2f"|format(settlement.rights_total) }}</span>
+                                <span class="mx-2">-</span>
+                                <span class="badge bg-danger">{{ "%.2f"|format(settlement.obligations_total) }}</span>
+                                <span class="mx-2">-</span>
+                                <span class="badge bg-warning">{{ "%.2f"|format(settlement.payments_out) }}</span>
+                                <span class="mx-2">+</span>
+                                <span class="badge bg-info">{{ "%.2f"|format(settlement.payments_in) }}</span>
+                                <span class="mx-2">-</span>
+                                <span class="badge bg-warning">{{ "%.2f"|format(settlement.payments_returns) }}</span>
+                                <span class="mx-2">=</span>
+                                <span class="badge bg-primary fs-5">{{ "%.2f"|format(settlement.closing_balance) }} ₪</span>
+                            </div>
+                            <div class="text-center mt-2">
+                                <small class="text-muted">الافتتاحي + الحقوق - الالتزامات - دفعنا له + دفع لنا - المرتجعات = الختامي</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-success text-white">
+                                    <h6 class="mb-0"><i class="fas fa-hand-holding-usd"></i> تفاصيل الحقوق</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm mb-0">
+                                        <tr>
+                                            <td>قطع التبادل</td>
+                                            <td class="text-end"><strong>{{ "%.2f"|format(settlement.rights_exchange) }} ₪</strong></td>
+                                        </tr>
+                                        <tr class="table-success fw-bold">
+                                            <td>الإجمالي</td>
+                                            <td class="text-end">{{ "%.2f"|format(settlement.rights_total) }} ₪</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-danger text-white">
+                                    <h6 class="mb-0"><i class="fas fa-file-invoice"></i> تفاصيل الالتزامات</h6>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-sm mb-0">
+                                        <tr>
+                                            <td>مبيعات له</td>
+                                            <td class="text-end"><strong>{{ "%.2f"|format(settlement.obligations_sales) }} ₪</strong></td>
+                                        </tr>
+                                        <tr>
+                                            <td>صيانة له</td>
+                                            <td class="text-end"><strong>{{ "%.2f"|format(settlement.obligations_services) }} ₪</strong></td>
+                                        </tr>
+                                        {% if settlement.obligations_preorders > 0 %}
+                                        <tr>
+                                            <td>حجوزات مسبقة</td>
+                                            <td class="text-end"><strong>{{ "%.2f"|format(settlement.obligations_preorders) }} ₪</strong></td>
+                                        </tr>
+                                        {% endif %}
+                                        <tr class="table-danger fw-bold">
+                                            <td>الإجمالي</td>
+                                            <td class="text-end">{{ "%.2f"|format(settlement.obligations_total) }} ₪</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-3 mt-3">
+                        <div class="card-header bg-warning">
+                            <h6 class="mb-0"><i class="fas fa-money-bill-wave"></i> تفاصيل الدفعات</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-md-4">
+                                    <h6 class="text-danger">💸 دفعنا له (OUT)</h6>
+                                    <h4 class="text-danger">{{ "%.2f"|format(settlement.payments_out) }} ₪</h4>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6 class="text-success">💵 دفع لنا (IN)</h6>
+                                    <h4 class="text-success">{{ "%.2f"|format(settlement.payments_in) }} ₪</h4>
+                                </div>
+                                <div class="col-md-4">
+                                    <h6 class="text-warning">🔄 المرتجعات</h6>
+                                    <h4 class="text-warning">{{ "%.2f"|format(settlement.payments_returns) }} ₪</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 no-print">
+                        <a href="{{ url_for('supplier_settlements_bp.approved_settlements_list') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> العودة للقائمة
+                        </a>
+                        <a href="{{ url_for('supplier_settlements_bp.supplier_settlement', supplier_id=supplier.id) }}" class="btn btn-primary">
+                            <i class="fas fa-calculator"></i> تسوية جديدة
+                        </a>
+                        <button class="btn btn-success" onclick="window.print()">
+                            <i class="fas fa-print"></i> طباعة
+                        </button>
+                    </div>
+                    
+                </div>
+            </div>
+            
+        </div>
+    </section>
+{% endblock %}
+
+
+

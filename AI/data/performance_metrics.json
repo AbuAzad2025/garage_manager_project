@@ -1,0 +1,105 @@
+{
+  "metrics": {
+    "total_queries": 12,
+    "successful_queries": 12,
+    "failed_queries": 0,
+    "avg_confidence": 0.7416666666666666,
+    "avg_response_time": 0.0967558224995931,
+    "queries_by_type": {
+      "general": 6,
+      "tutorial": 6
+    },
+    "errors_by_type": {},
+    "expert_usage": {
+      "Memory": 2,
+      "User Guide": 6
+    }
+  },
+  "log": [
+    {
+      "timestamp": "2025-11-02T01:44:11.860122",
+      "query_type": "general",
+      "confidence": 0.6,
+      "execution_time": 0.10991549491882324,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:44:12.017259",
+      "query_type": "general",
+      "confidence": 0.95,
+      "execution_time": 0.0014870166778564453,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:44:19.373566",
+      "query_type": "general",
+      "confidence": 0.6,
+      "execution_time": 0.029786348342895508,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:44:22.601495",
+      "query_type": "tutorial",
+      "confidence": 0.85,
+      "execution_time": 0.16017794609069824,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:44:27.406068",
+      "query_type": "general",
+      "confidence": 0.6,
+      "execution_time": 0.004215240478515625,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:44:30.589337",
+      "query_type": "tutorial",
+      "confidence": 0.6,
+      "execution_time": 0.005335807800292969,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:44:35.375799",
+      "query_type": "tutorial",
+      "confidence": 0.6,
+      "execution_time": 0.004743337631225586,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:44:49.131701",
+      "query_type": "general",
+      "confidence": 0.6,
+      "execution_time": 0.0063741207122802734,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:59:14.990068",
+      "query_type": "general",
+      "confidence": 0.95,
+      "execution_time": 0.15374541282653809,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:59:23.342584",
+      "query_type": "tutorial",
+      "confidence": 0.85,
+      "execution_time": 0.6323599815368652,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:59:30.934194",
+      "query_type": "tutorial",
+      "confidence": 0.85,
+      "execution_time": 0.018390893936157227,
+      "success": true
+    },
+    {
+      "timestamp": "2025-11-02T01:59:37.696156",
+      "query_type": "tutorial",
+      "confidence": 0.85,
+      "execution_time": 0.03453826904296875,
+      "success": true
+    }
+  ],
+  "last_updated": "2025-11-02T01:59:37.697267"
+}

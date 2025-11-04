@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}التسويات المعتمدة - {{ partner.name }}{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">
+                        <i class="fas fa-file-invoice"></i> التسويات المعتمدة - {{ partner.name }}
+                    </h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('vendors_bp.partners_list') }}">الشركاء</a></li>
+                        <li class="breadcrumb-item active">التسويات المعتمدة</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">قائمة التسويات المعتمدة</h3>
+                    <div class="card-tools">
+                        <a href="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=partner.id) }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-plus"></i> تسوية جديدة
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if settlements %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>الكود</th>
+                                    <th>الفترة</th>
+                                    <th>الافتتاحي</th>
+                                    <th>الحقوق</th>
+                                    <th>الالتزامات</th>
+                                    <th>الدفعات (صافي)</th>
+                                    <th>الرصيد الختامي</th>
+                                    <th>المعتمد بواسطة</th>
+                                    <th>تاريخ الاعتماد</th>
+                                    <th>القيد المحاسبي</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for settlement in settlements %}
+                                <tr>
+                                    <td><strong>{{ settlement.code }}</strong></td>
+                                    <td>
+                                        {{ settlement.from_date.strftime('%Y-%m-%d') }}<br>
+                                        <small>→ {{ settlement.to_date.strftime('%Y-%m-%d') }}</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="{% if settlement.opening_balance > 0 %}text-success{% elif settlement.opening_balance < 0 %}text-danger{% endif %}">
+                                            {{ "%.2f"|format(settlement.opening_balance|abs) }} ₪
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-success">{{ "%.2f"|format(settlement.rights_total) }} ₪</strong>
+                                        <br><small class="text-muted">
+                                            مخزون: {{ "%.0f"|format(settlement.rights_inventory) }} |
+                                            مبيعات: {{ "%.0f"|format(settlement.rights_sales_share) }}
+                                            {% if settlement.rights_preorders > 0 %}| حجوزات: {{ "%.0f"|format(settlement.rights_preorders) }}{% endif %}
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-danger">{{ "%.2f"|format(settlement.obligations_total) }} ₪</strong>
+                                        <br><small class="text-muted">
+                                            مبيعات: {{ "%.0f"|format(settlement.obligations_sales_to_partner) }} |
+                                            صيانة: {{ "%.0f"|format(settlement.obligations_services) }}
+                                            {% if settlement.obligations_damaged > 0 %}| تالف: {{ "%.0f"|format(settlement.obligations_damaged) }}{% endif %}
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-warning">{{ "%.2f"|format(settlement.payments_net|abs) }} ₪</strong>
+                                        <br><small class="text-muted">
+                                            خارج: {{ "%.0f"|format(settlement.payments_out) }} | 
+                                            وارد: {{ "%.0f"|format(settlement.payments_in) }}
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="{% if settlement.closing_balance > 0 %}text-success{% elif settlement.closing_balance < 0 %}text-danger{% endif %}">
+                                            {{ "%.2f"|format(settlement.closing_balance|abs) }} ₪
+                                        </strong>
+                                        <br><small>{{ "له علينا" if settlement.closing_balance > 0 else "عليه لنا" if settlement.closing_balance < 0 else "متوازن" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if settlement.approved_by_user %}
+                                        {{ settlement.approved_by_user.username }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if settlement.approved_at %}
+                                        {{ settlement.approved_at.strftime('%Y-%m-%d %H:%M') }}
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-book"></i> GL
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('partner_settlements_bp.show', settlement_id=settlement.id) }}" class="btn btn-info btn-sm">
+                                            <i class="fas fa-eye"></i> عرض
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> لا توجد تسويات معتمدة حتى الآن.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+        </div>
+    </section>
+</div>
+{% endblock %}
+

@@ -55,16 +55,16 @@
 {% block content %}
     <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <h2 class="mb-0">
-            <i class="fas fa-handshake text-primary me-2"></i>
+            <i class="fas fa-handshake text-primary ml-2"></i>
             كشف مفصل للشريك: {{ partner.name }}
         </h2>
         <div class="btn-group">
             <a href="{{ url_for('reports_bp.partners_report') }}" class="btn btn-outline-secondary">
-                <i class="fas fa-arrow-right me-1"></i>
+                <i class="fas fa-arrow-right ml-1"></i>
                 العودة
             </a>
             <button onclick="printPartnerFullReport()" class="btn btn-outline-primary">
-                <i class="fas fa-print me-1"></i>
+                <i class="fas fa-print ml-1"></i>
                 طباعة الكل
             </button>
         </div>
@@ -75,7 +75,7 @@
         <div class="col-md-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>معلومات الشريك</h5>
+                    <h5 class="mb-0"><i class="fas fa-info-circle ml-2"></i>معلومات الشريك</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
@@ -99,7 +99,7 @@
         <div class="col-md-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>ملخص الإجماليات</h5>
+                    <h5 class="mb-0"><i class="fas fa-chart-bar ml-2"></i>ملخص الإجماليات</h5>
                 </div>
                 <div class="card-body">
                     {% if balance_data and balance_data.get('success') %}
@@ -180,11 +180,11 @@
                     <input type="date" class="form-control" id="end" name="end" value="{{ end_date }}">
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary me-2">
-                        <i class="fas fa-search me-1"></i>تصفية
+                    <button type="submit" class="btn btn-primary ml-2">
+                        <i class="fas fa-search ml-1"></i>تصفية
                     </button>
                     <a href="{{ url_for('reports_bp.partner_detail_report', partner_id=partner.id) }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times me-1"></i>إلغاء
+                        <i class="fas fa-times ml-1"></i>إلغاء
                     </a>
                 </div>
             </form>
@@ -197,11 +197,11 @@
         <div class="card-header bg-sales text-white collapsible-section collapsed" data-toggle="collapse" data-target="#salesSection">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-shopping-cart me-2"></i>
+                    <i class="fas fa-shopping-cart ml-2"></i>
                     🛒 المبيعات للشريك - {{ sales|length }} فاتورة
                 </h5>
                 <div>
-                    <span class="badge bg-light text-dark me-2">{{ total_sales|format_currency }}</span>
+                    <span class="badge bg-light text-dark ml-2">{{ total_sales|format_currency }}</span>
                     <button class="btn btn-sm btn-light no-print" onclick="printSection('salesSection')">
                         <i class="fas fa-print"></i>
                     </button>
@@ -263,11 +263,11 @@
         <div class="card-header bg-services text-white collapsible-section collapsed" data-toggle="collapse" data-target="#servicesSection">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-wrench me-2"></i>
+                    <i class="fas fa-wrench ml-2"></i>
                     🔧 الصيانة للشريك - {{ services|length }} طلب
                 </h5>
                 <div>
-                    <span class="badge bg-light text-dark me-2">{{ total_services|format_currency }}</span>
+                    <span class="badge bg-light text-dark ml-2">{{ total_services|format_currency }}</span>
                     <button class="btn btn-sm btn-light no-print" onclick="printSection('servicesSection')">
                         <i class="fas fa-print"></i>
                     </button>
@@ -340,11 +340,11 @@
         <div class="card-header bg-preorders text-white collapsible-section collapsed" data-toggle="collapse" data-target="#preordersSection">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-calendar-check me-2"></i>
+                    <i class="fas fa-calendar-check ml-2"></i>
                     📅 الحجوزات المسبقة (حصة الشريك) - {{ preorders|length }} حجز
                 </h5>
                 <div>
-                    <span class="badge bg-light text-dark me-2">{{ total_preorders|format_currency }}</span>
+                    <span class="badge bg-light text-dark ml-2">{{ total_preorders|format_currency }}</span>
                     <button class="btn btn-sm btn-light no-print" onclick="printSection('preordersSection')">
                         <i class="fas fa-print"></i>
                     </button>
@@ -401,11 +401,11 @@
         <div class="card-header bg-service-parts text-white collapsible-section collapsed" data-toggle="collapse" data-target="#servicePartsSection">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-cogs me-2"></i>
+                    <i class="fas fa-cogs ml-2"></i>
                     🔩 قطع الغيار في الصيانة - {{ service_parts|length }} قطعة
                 </h5>
                 <div>
-                    <span class="badge bg-light text-dark me-2">{{ total_service_parts|format_currency }}</span>
+                    <span class="badge bg-light text-dark ml-2">{{ total_service_parts|format_currency }}</span>
                     <button class="btn btn-sm btn-light no-print" onclick="printSection('servicePartsSection')">
                         <i class="fas fa-print"></i>
                     </button>
@@ -460,11 +460,11 @@
         <div class="card-header bg-payments-in text-white collapsible-section collapsed" data-toggle="collapse" data-target="#paymentsInSection">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-hand-holding-usd me-2"></i>
+                    <i class="fas fa-hand-holding-usd ml-2"></i>
                     💰 الدفعات الواردة (دفع لنا) - {{ payments_in|length }} دفعة
                 </h5>
                 <div>
-                    <span class="badge bg-light text-dark me-2">{{ total_payments_in|format_currency }}</span>
+                    <span class="badge bg-light text-dark ml-2">{{ total_payments_in|format_currency }}</span>
                     <button class="btn btn-sm btn-light no-print" onclick="printSection('paymentsInSection')">
                         <i class="fas fa-print"></i>
                     </button>
@@ -517,11 +517,11 @@
         <div class="card-header bg-payments-out text-white collapsible-section collapsed" data-toggle="collapse" data-target="#paymentsOutSection">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-money-bill-wave me-2"></i>
+                    <i class="fas fa-money-bill-wave ml-2"></i>
                     💸 الدفعات الصادرة (دفعنا له) - {{ payments_out|length }} دفعة
                 </h5>
                 <div>
-                    <span class="badge bg-light text-dark me-2">{{ total_payments_out|format_currency }}</span>
+                    <span class="badge bg-light text-dark ml-2">{{ total_payments_out|format_currency }}</span>
                     <button class="btn btn-sm btn-light no-print" onclick="printSection('paymentsOutSection')">
                         <i class="fas fa-print"></i>
                     </button>
@@ -574,11 +574,11 @@
         <div class="card-header bg-info text-white collapsible-section collapsed" data-toggle="collapse" data-target="#inventorySection">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-boxes me-2"></i>
+                    <i class="fas fa-boxes ml-2"></i>
                     📦 المخزون (نصيب الشريك) - {{ inventory|length }} منتج
                 </h5>
                 <div>
-                    <span class="badge bg-light text-dark me-2">{{ total_inventory|format_currency }} ₪</span>
+                    <span class="badge bg-light text-dark ml-2">{{ total_inventory|format_currency }} ₪</span>
                     <button class="btn btn-sm btn-light no-print" onclick="printSection('inventorySection')">
                         <i class="fas fa-print"></i>
                     </button>
@@ -629,11 +629,11 @@
         <div class="card-header bg-expenses text-white collapsible-section collapsed" data-toggle="collapse" data-target="#expensesSection">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-receipt me-2"></i>
+                    <i class="fas fa-receipt ml-2"></i>
                     💼 المصاريف - {{ expenses|length }} مصروف
                 </h5>
                 <div>
-                    <span class="badge bg-light text-dark me-2">{{ total_expenses|format_currency }}</span>
+                    <span class="badge bg-light text-dark ml-2">{{ total_expenses|format_currency }}</span>
                     <button class="btn btn-sm btn-light no-print" onclick="printSection('expensesSection')">
                         <i class="fas fa-print"></i>
                     </button>

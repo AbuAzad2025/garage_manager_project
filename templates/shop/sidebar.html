@@ -2,7 +2,7 @@
 <aside class="shop-sidebar" id="shopSidebar">
   <div class="sidebar-header">
     <h5 class="mb-0">
-      <i class="fas fa-bars me-2"></i>
+      <i class="fas fa-bars ml-2"></i>
       القائمة
     </h5>
     <button class="btn-close-sidebar" onclick="toggleShopSidebar()">
@@ -15,7 +15,7 @@
     <!-- للزوار والعملاء -->
     <div class="sidebar-section">
       <h6 class="sidebar-section-title">
-        <i class="fas fa-shopping-bag me-2"></i>
+        <i class="fas fa-shopping-bag ml-2"></i>
         التسوق
       </h6>
       <ul class="sidebar-menu">
@@ -52,7 +52,7 @@
     {% if can_manage_shop or can_view_reports or can_view_cards %}
     <div class="sidebar-section">
       <h6 class="sidebar-section-title">
-        <i class="fas fa-shield-halved me-2"></i>
+        <i class="fas fa-shield-halved ml-2"></i>
         لوحة الإدارة
       </h6>
       <ul class="sidebar-menu">
@@ -88,7 +88,7 @@
     <!-- الحساب -->
     <div class="sidebar-section">
       <h6 class="sidebar-section-title">
-        <i class="fas fa-user me-2"></i>
+        <i class="fas fa-user ml-2"></i>
         حسابي
       </h6>
       <ul class="sidebar-menu">
@@ -129,7 +129,7 @@
     {% if current_user.is_authenticated and (shop_is_super_admin or has_any('manage_customers', 'manage_service')) %}
     <div class="sidebar-section">
       <h6 class="sidebar-section-title">
-        <i class="fas fa-cog me-2"></i>
+        <i class="fas fa-cog ml-2"></i>
         النظام الرئيسي
       </h6>
       <ul class="sidebar-menu">

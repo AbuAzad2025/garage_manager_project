@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}إدارة البريد{% endblock %}
-{% block page_title %}📧 إدارة البريد - Email Manager{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}email_manager{% endblock %}
+{% block security_title %}Email Manager{% endblock %}
+{% block security_icon %}<i class="fas fa-envelope"></i>{% endblock %}
+{% block security_description %}إدارة إعدادات SMTP والبريد الإلكتروني{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Email Manager</li>{% endblock %}
+{% block security_content %}
 
   <div class="row">
     <div class="col-md-8 mx-auto">

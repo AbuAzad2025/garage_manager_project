@@ -361,17 +361,17 @@
         </div>
         <div class="col-md-4">
           <label class="form-label">حالة الشحنة</label>
-          {{ render_field(form.status, {'id': form.status.id, 'class': 'form-select'}) }}
+          {{ render_field(form.status, {'id': form.status.id, 'class': 'custom-select'}) }}
         </div>
         
         <div class="col-md-4">
           <label class="form-label">الأولوية</label>
-          {{ render_field(form.priority, {'id': form.priority.id, 'class': 'form-select'}) }}
+          {{ render_field(form.priority, {'id': form.priority.id, 'class': 'custom-select'}) }}
         </div>
         
         <div class="col-md-4">
           <label class="form-label">طريقة التسليم</label>
-          {{ render_field(form.delivery_method, {'id': form.delivery_method.id, 'class': 'form-select'}) }}
+          {{ render_field(form.delivery_method, {'id': form.delivery_method.id, 'class': 'custom-select'}) }}
         </div>
       </div>
       
@@ -387,7 +387,7 @@
         {% if form.currency is defined %}
         <div class="col-md-4">
           <label class="form-label">العملة</label>
-          {{ render_field(form.currency, {'id': form.currency.id, 'class': 'form-select'}) }}
+          {{ render_field(form.currency, {'id': form.currency.id, 'class': 'custom-select'}) }}
         </div>
         {% endif %}
       </div>
@@ -548,7 +548,7 @@
   </div>
 
   <div class="mt-3">
-    <button class="btn btn-primary">{{ is_edit and 'تحديث الشحنة' or 'حفظ الشحنة' }}</button>
+    <button type="submit" class="btn btn-primary">{{ is_edit and 'تحديث الشحنة' or 'حفظ الشحنة' }}</button>
     <a class="btn btn-secondary" href="{{ url_for('shipments_bp.list_shipments') }}">عودة</a>
   </div>
 </form>

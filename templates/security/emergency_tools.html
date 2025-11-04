@@ -1,15 +1,61 @@
-{% extends 'base.html' %}
-{% block title %}أدوات الطوارئ{% endblock %}
-{% block page_title %}🚨 أدوات الطوارئ{% endblock %}
+{% extends 'security/base_security.html' %}
 
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% block tour_name %}emergency_tools{% endblock %}
+
+{% block security_title %}Emergency Tools{% endblock %}
+{% block security_icon %}<i class="fas fa-exclamation-triangle"></i>{% endblock %}
+{% block security_description %}أدوات الطوارئ للحالات الحرجة فقط - استخدام حذر{% endblock %}
+
+{% block security_breadcrumb %}
+<li class="breadcrumb-item active">Emergency Tools</li>
+{% endblock %}
+
+{% block security_content %}
   
   <div class="alert alert-danger border-0 shadow">
     <i class="fas fa-radiation"></i> <strong>تحذير شديد:</strong> هذه الأدوات للحالات الحرجة فقط!
   </div>
+  
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-primary text-white">
+        <div class="card-body">
+          <h6 class="text-white-50 mb-1">إجمالي المستخدمين</h6>
+          <h3 class="mb-0 fw-bold">{{ emergency_data.total_users if emergency_data else 0 }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-success text-white">
+        <div class="card-body">
+          <h6 class="text-white-50 mb-1">نشط</h6>
+          <h3 class="mb-0 fw-bold">{{ emergency_data.active_users if emergency_data else 0 }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-danger text-white">
+        <div class="card-body">
+          <h6 class="text-white-50 mb-1">محظور</h6>
+          <h3 class="mb-0 fw-bold">{{ emergency_data.blocked_users if emergency_data else 0 }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="card border-0 shadow-sm bg-warning text-white">
+        <div class="card-body">
+          <h6 class="text-white-50 mb-1">أخطاء حديثة</h6>
+          <h3 class="mb-0 fw-bold">{{ emergency_data.recent_errors if emergency_data else 0 }}</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  {% if emergency_data and emergency_data.maintenance_mode %}
+  <div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i> <strong>وضع الصيانة مفعّل حالياً!</strong>
+  </div>
+  {% endif %}
 
   <div class="row g-3">
     <div class="col-md-6">
@@ -70,7 +116,7 @@
         </div>
         <div class="card-body">
           <p>إنشاء نسخة احتياطية فورية لقاعدة البيانات.</p>
-          <a href="{{ url_for('security.advanced_backup') }}" class="btn btn-info">
+          <a href="{{ url_for('main.backup_db') }}" class="btn btn-info">
             <i class="fas fa-database"></i> نسخ احتياطي
           </a>
         </div>

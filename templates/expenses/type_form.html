@@ -43,7 +43,7 @@
       </div>
 
       <div class="card-footer d-flex gap-2">
-        <button class="btn btn-success">{{ is_edit and '💾 حفظ التعديلات' or '💾 حفظ النوع' }}</button>
+        <button type="submit" class="btn btn-success">{{ is_edit and '💾 حفظ التعديلات' or '💾 حفظ النوع' }}</button>
         <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-outline-secondary">إلغاء</a>
       </div>
     </div>

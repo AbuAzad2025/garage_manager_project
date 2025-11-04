@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}إدارة الصلاحيات{% endblock %}
-{% block page_title %}🔑 إدارة الصلاحيات - Permissions Manager{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}permissions{% endblock %}
+{% block security_title %}Permissions Manager{% endblock %}
+{% block security_icon %}<i class="fas fa-key"></i>{% endblock %}
+{% block security_description %}إدارة شاملة للصلاحيات والأدوار{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Permissions</li>{% endblock %}
+{% block security_content %}
 
   <div class="row g-4">
     <div class="col-md-6">

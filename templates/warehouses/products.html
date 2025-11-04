@@ -302,30 +302,30 @@
     <form id="filter-form" class="row g-3 align-items-end" method="get">
       <div class="col-lg-6">
         <label for="warehouse_ids" class="form-label">
-          <i class="fas fa-warehouse me-1"></i>اختر المستودعات
+          <i class="fas fa-warehouse ml-1"></i>اختر المستودعات
         </label>
-        <select id="warehouse_ids" class="form-select" name="warehouse_ids" multiple size="4">
+        <select id="warehouse_ids" class="custom-select" name="warehouse_ids" multiple size="4">
           {% for w in warehouses %}
             <option value="{{ w.id }}" {% if w.id in selected_ids %}selected{% endif %}>{{ w.name }}</option>
           {% endfor %}
         </select>
         <small class="text-muted">
-          <i class="fas fa-info-circle me-1"></i>استخدم Ctrl أو ⌘ للاختيار المتعدد
+          <i class="fas fa-info-circle ml-1"></i>استخدم Ctrl أو ⌘ للاختيار المتعدد
         </small>
       </div>
       <div class="col-lg-4">
         <label for="q" class="form-label">
-          <i class="fas fa-search me-1"></i>بحث
+          <i class="fas fa-search ml-1"></i>بحث
         </label>
         <input id="q" name="q" type="search" class="form-control" value="{{ search }}" 
                placeholder="الاسم أو SKU أو رقم القطعة أو الماركة">
       </div>
       <div class="col-lg-2 d-flex gap-2">
         <button class="btn btn-primary flex-fill" type="submit">
-          <i class="fas fa-filter me-1"></i>تطبيق
+          <i class="fas fa-filter ml-1"></i>تطبيق
         </button>
         <a class="btn btn-secondary flex-fill" href="{{ url_for('warehouse_bp.detail', warehouse_id=active_warehouse_id) }}">
-          <i class="fas fa-arrow-right me-1"></i>رجوع
+          <i class="fas fa-arrow-right ml-1"></i>رجوع
         </a>
       </div>
     </form>
@@ -337,7 +337,7 @@
   <div class="card-header bg-light">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
       <h6 class="mb-0">
-        <i class="fas fa-boxes me-2"></i>قائمة المنتجات
+        <i class="fas fa-boxes ml-2"></i>قائمة المنتجات
         <span class="badge bg-primary ms-2">{{ rows|length }}</span>
       </h6>
       
@@ -357,7 +357,7 @@
       </div>
       
       <button type="button" class="btn btn-success btn-sm" onclick="window.print()">
-        <i class="fas fa-print me-1"></i>طباعة
+        <i class="fas fa-print ml-1"></i>طباعة
       </button>
     </div>
   </div>
@@ -367,16 +367,16 @@
       <table class="table table-striped table-hover mb-0" id="products-table">
         <thead class="table-light">
           <tr>
-            <th class="sticky-column"><i class="fas fa-box me-1"></i>القطعة</th>
-            <th class="column-sku column-hidden"><i class="fas fa-tag me-1"></i>SKU</th>
-            <th class="column-part_number column-hidden"><i class="fas fa-hashtag me-1"></i>رقم القطعة</th>
-            <th class="column-brand column-hidden"><i class="fas fa-star me-1"></i>الماركة</th>
-            <th class="text-center"><i class="fas fa-money-bill me-1"></i>العملة</th>
-            <th class="text-end column-purchase_price column-hidden"><i class="fas fa-receipt me-1"></i>التكلفة</th>
-            <th class="text-end"><i class="fas fa-dollar-sign me-1"></i>سعر البيع</th>
-            <th class="text-end"><i class="fas fa-cubes me-1"></i>الكمية</th>
-            <th class="text-end"><i class="fas fa-calculator me-1"></i>الإجمالي</th>
-            <th class="text-center no-print" style="width: 100px;"><i class="fas fa-cog me-1"></i>إجراءات</th>
+            <th class="sticky-column"><i class="fas fa-box ml-1"></i>القطعة</th>
+            <th class="column-sku column-hidden"><i class="fas fa-tag ml-1"></i>SKU</th>
+            <th class="column-part_number column-hidden"><i class="fas fa-hashtag ml-1"></i>رقم القطعة</th>
+            <th class="column-brand column-hidden"><i class="fas fa-star ml-1"></i>الماركة</th>
+            <th class="text-center"><i class="fas fa-money-bill ml-1"></i>العملة</th>
+            <th class="text-end column-purchase_price column-hidden"><i class="fas fa-receipt ml-1"></i>التكلفة</th>
+            <th class="text-end"><i class="fas fa-dollar-sign ml-1"></i>سعر البيع</th>
+            <th class="text-end"><i class="fas fa-cubes ml-1"></i>الكمية</th>
+            <th class="text-end"><i class="fas fa-calculator ml-1"></i>الإجمالي</th>
+            <th class="text-center no-print" style="width: 100px;"><i class="fas fa-cog ml-1"></i>إجراءات</th>
           </tr>
         </thead>
         <tbody>
@@ -400,7 +400,7 @@
                          data-id="{{ p.id }}" value="{{ p.brand or '' }}">
                 </td>
                 <td class="text-center">
-                  <select class="form-select form-select-sm inline-input" data-field="currency" 
+                  <select class="custom-select custom-select-sm inline-input" data-field="currency" 
                           data-id="{{ p.id }}" style="max-width:90px">
                     <option value="ILS" {% if p.currency=='ILS' %}selected{% endif %}>₪ ILS</option>
                     <option value="USD" {% if p.currency=='USD' %}selected{% endif %}>$ USD</option>

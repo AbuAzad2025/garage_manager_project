@@ -1,0 +1,200 @@
+{
+  "version": "2.0",
+  "created": "2025-11-01",
+  "purpose": "قاعدة معرفة ضخمة - كل شيء عن النظام",
+  
+  "system_deep_knowledge": {
+    "every_table": {
+      "description": "معرفة تفصيلية بكل جدول (87 جدول)",
+      "note": "يتم تحديثها تلقائياً عبر Auto-Learning"
+    },
+    
+    "every_field": {
+      "description": "معرفة بكل حقل في كل جدول",
+      "includes": [
+        "نوع البيانات",
+        "nullable أم required",
+        "القيمة الافتراضية",
+        "العلاقات (Foreign Keys)",
+        "الفهارس (Indexes)",
+        "القيود (Constraints)"
+      ]
+    },
+    
+    "every_route": {
+      "description": "معرفة بكل مسار (362+ route)",
+      "includes": [
+        "URL path",
+        "HTTP methods",
+        "الصلاحيات المطلوبة",
+        "المعاملات (parameters)",
+        "القالب المستخدم",
+        "ماذا يفعل بالضبط"
+      ]
+    },
+    
+    "every_form": {
+      "description": "معرفة بكل فورم",
+      "includes": [
+        "الحقول وأنواعها",
+        "Validators",
+        "رسائل الخطأ",
+        "القيم الافتراضية"
+      ]
+    },
+    
+    "every_template": {
+      "description": "معرفة بكل قالب HTML",
+      "includes": [
+        "Blocks المتاحة",
+        "JavaScript functions",
+        "CSS classes مستخدمة",
+        "Includes و extends"
+      ]
+    },
+    
+    "every_function": {
+      "description": "معرفة بكل دالة في النظام",
+      "count": "2000+ function",
+      "includes": [
+        "Parameters",
+        "Return type",
+        "ماذا تفعل",
+        "أين تُستخدم"
+      ]
+    },
+    
+    "every_class": {
+      "description": "معرفة بكل class",
+      "includes": [
+        "Models (87+ class)",
+        "Forms (50+ class)",
+        "Services",
+        "Helpers"
+      ]
+    },
+    
+    "every_enum": {
+      "description": "معرفة بكل Enum",
+      "examples": {
+        "PaymentDirection": ["IN", "OUT"],
+        "PaymentMethod": ["CASH", "BANK", "CARD", "CHECK"],
+        "WarehouseType": ["MAIN", "ONLINE", "PARTNER", "INVENTORY", "EXCHANGE"],
+        "ServiceStatus": ["pending", "in_progress", "completed", "cancelled"]
+      }
+    },
+    
+    "every_relationship": {
+      "description": "معرفة بكل علاقة (150+ relationship)",
+      "includes": [
+        "من → إلى",
+        "نوع العلاقة (1:N, N:1, N:M)",
+        "back_populates",
+        "Cascade behavior"
+      ]
+    }
+  },
+  
+  "business_logic_deep": {
+    "customer_lifecycle": {
+      "creation": "إضافة عميل → GL Entry (opening balance)",
+      "sales": "بيع للعميل → زيادة رصيده (مدين)",
+      "payments": "دفع من العميل → نقص رصيده (دائن)",
+      "statements": "كشف حساب يعرض كل المعاملات",
+      "balance_formula": "(مبيعات + فواتير + خدمات) - (دفعات واردة)",
+      "colors": "سالب=أحمر (عليه), موجب=أخضر (له)"
+    },
+    
+    "sale_complete_flow": {
+      "step1": "User opens /sales/create",
+      "step2": "Selects customer + warehouse",
+      "step3": "Adds products (SaleLines)",
+      "step4": "Calculates: subtotal - discount + VAT",
+      "step5": "Saves → Sale + SaleLines",
+      "step6": "Event Listener: _sale_gl_batch_upsert",
+      "step7": "Creates GLBatch: AR (debit) | SALES + VAT (credit)",
+      "step8": "Updates customer balance",
+      "step9": "Updates StockLevel (decrease)",
+      "step10": "If partner warehouse → creates partner AP"
+    },
+    
+    "payment_complete_flow": {
+      "step1": "User opens /payments/create",
+      "step2": "Selects direction (IN/OUT)",
+      "step3": "Selects method (CASH/BANK/CARD/CHECK)",
+      "step4": "Selects entity (customer/supplier/partner)",
+      "step5": "Enters amount",
+      "step6": "Saves → Payment",
+      "step7": "Event Listener: _payment_gl_batch_upsert",
+      "step8_IN": "GLBatch: CASH/BANK (debit) | AR (credit)",
+      "step9_OUT": "GLBatch: AP (debit) | CASH/BANK (credit)",
+      "step10": "Updates entity balance",
+      "step11": "Links to sale/invoice if specified"
+    },
+    
+    "gl_auto_creation": {
+      "description": "كل معاملة تنشئ GL تلقائياً عبر Event Listeners",
+      "listeners_count": 15,
+      "examples": [
+        "_customer_opening_balance_gl",
+        "_sale_gl_batch_upsert",
+        "_payment_gl_batch_upsert",
+        "_expense_gl_batch_upsert",
+        "_shipment_gl_arrival",
+        "_service_gl_complete"
+      ]
+    },
+    
+    "vat_system": {
+      "palestine_rate": 16,
+      "israel_rate": 17,
+      "calculation_inclusive": "net = total / 1.16",
+      "calculation_exclusive": "vat = net * 0.16",
+      "gl_account": "2100_VAT_PAYABLE",
+      "filing": "شهري أو ربع سنوي",
+      "formula": "VAT = output_vat - input_vat"
+    }
+  },
+  
+  "ai_self_knowledge": {
+    "what_i_am": "مساعد ذكي محاسبي محترف مدمج في نظام أزاد",
+    "my_capabilities": [
+      "قراءة مباشرة من 87 جدول",
+      "شرح أي رقم بالتفصيل",
+      "تنفيذ عمليات عبر المحادثة",
+      "مراقبة فورية وتحذيرات",
+      "تحليل محاسبي عميق",
+      "خبرة ضريبية (فلسطين + إسرائيل)",
+      "تعلم تلقائي من النظام",
+      "كشف أخطاء واقتراح حلول"
+    ],
+    
+    "my_knowledge_sources": [
+      "قاعدة البيانات (real-time queries)",
+      "ملفات المعرفة (knowledge bases)",
+      "Auto-Discovery (system map)",
+      "Auto-Learning (daily scans)",
+      "Event Listeners (real-time monitoring)",
+      "Groq API (Llama 3.3 70B)",
+      "محاسبة احترافية (87+ حساب)",
+      "قوانين ضرائب (قانونين كاملين)"
+    ],
+    
+    "my_limitations": [
+      "لا أستطيع الحذف أبداً",
+      "لا أستطيع تعديل GL مباشرة",
+      "لا أستطيع تعديل دفعات محفوظة",
+      "كل عملية أنفذها تُسجّل في Audit Log"
+    ]
+  },
+  
+  "ai_intelligence_level": {
+    "accounting": "Professor Level - خبير محاسبة",
+    "taxation": "Expert Level - قانونين كاملين",
+    "system_knowledge": "Complete - 100% of system",
+    "error_detection": "Advanced - 9 detection rules",
+    "proactive": "Smart - behavioral analysis",
+    "learning": "Auto - daily self-improvement"
+  }
+}
+

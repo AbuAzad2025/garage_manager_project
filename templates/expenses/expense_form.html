@@ -7,18 +7,18 @@
   <!-- شريط الأدوات -->
   <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="mb-0">
-          <i class="fas fa-{{ is_edit and 'edit' or 'plus' }} me-2"></i>
+          <i class="fas fa-{{ is_edit and 'edit' or 'plus' }} ml-2"></i>
           {{ is_edit and 'تعديل مصروف' or 'إضافة مصروف جديد' }}
         </h3>
     <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-secondary">
-      <i class="fas fa-arrow-right me-1"></i> رجوع للقائمة
+      <i class="fas fa-arrow-right ml-1"></i> رجوع للقائمة
           </a>
         </div>
 
   <!-- عرض أخطاء النموذج -->
   {% if form.errors %}
   <div class="alert alert-danger alert-dismissible fade show" role="alert">
-    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>أخطاء في النموذج:</h5>
+    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle ml-2"></i>أخطاء في النموذج:</h5>
     <ul class="mb-0">
       {% for field_name, errors in form.errors.items() %}
         {% for error in errors %}
@@ -50,7 +50,7 @@
 
           <div class="col-md-3">
             {{ form.type_id.label(class="form-label fw-bold text-danger") }}
-            {{ form.type_id(class="form-select", id="type_id", required=true) }}
+            {{ form.type_id(class="custom-select", id="type_id", required=true) }}
             <small class="text-muted">نوع المصروف</small>
             {% for e in form.type_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
@@ -64,31 +64,31 @@
 
           <div class="col-md-3">
             {{ form.currency.label(class="form-label fw-bold text-danger") }}
-            {{ form.currency(class="form-select", id="currency", required=true) }}
+            {{ form.currency(class="custom-select", id="currency", required=true) }}
             <small class="text-muted">العملة</small>
               {% for e in form.currency.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
 
           <!-- الجهة المرتبطة (ديناميكية حسب النوع) -->
-          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-link me-1"></i>الجهة المرتبطة (حسب النوع)</h6></div>
+          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-link ml-1"></i>الجهة المرتبطة (حسب النوع)</h6></div>
 
           <div class="col-md-3">
             {{ form.branch_id.label(class="form-label fw-bold text-danger") }}
-            {{ form.branch_id(class="form-select", id="branch_id", required=true) }}
+            {{ form.branch_id(class="custom-select", id="branch_id", required=true) }}
             <small class="text-muted">فرع الشركة (إلزامي)</small>
             {% for e in form.branch_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
           <div class="col-md-3">
             {{ form.site_id.label(class="form-label") }}
-            {{ form.site_id(class="form-select", id="site_id") }}
+            {{ form.site_id(class="custom-select", id="site_id") }}
             <small class="text-muted">موقع داخل الفرع (اختياري)</small>
             {% for e in form.site_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
           <div id="employee-field" class="col-md-6">
             {{ form.employee_id.label(class="form-label fw-bold") }}
-            {{ form.employee_id(class="form-select ajax", id="employee_id", **{
+            {{ form.employee_id(class="custom-select ajax", id="employee_id", **{
               'data-url': url_for('api.search_employees'),
               'data-current': form.employee_id.data or ''
             }) }}
@@ -111,7 +111,7 @@
 
           <div id="utility-field" class="col-md-4">
             {{ form.utility_account_id.label(class="form-label") }}
-            {{ form.utility_account_id(class="form-select form-select-sm ajax", id="utility_account_id", **{
+            {{ form.utility_account_id(class="custom-select custom-select-sm ajax", id="utility_account_id", **{
               'data-url': url_for('api.search_utility_accounts'),
               'data-current': form.utility_account_id.data or ''
             }) }}
@@ -120,7 +120,7 @@
 
           <div id="warehouse-field" class="col-md-4">
             {{ form.warehouse_id.label(class="form-label") }}
-            {{ form.warehouse_id(class="form-select form-select-sm ajax", id="warehouse_id", **{
+            {{ form.warehouse_id(class="custom-select custom-select-sm ajax", id="warehouse_id", **{
               'data-url': url_for('api.search_warehouses'),
               'data-current': form.warehouse_id.data or ''
             }) }}
@@ -129,8 +129,40 @@
 
           <div id="shipment-field" class="col-md-4">
             {{ form.shipment_id.label(class="form-label") }}
-            {{ form.shipment_id(class="form-select form-select-sm", id="shipment_id") }}
+            {{ form.shipment_id(class="custom-select custom-select-sm", id="shipment_id") }}
             <small class="text-muted">للشحنات</small>
+          </div>
+
+          <div id="partner-field" class="col-md-4">
+            {{ form.partner_id.label(class="form-label") }}
+            <div class="input-group input-group-sm">
+              {{ form.partner_id(class="custom-select custom-select-sm ajax", id="partner_id", **{
+                'data-url': url_for('api.search_partners'),
+                'data-current': form.partner_id.data or ''
+              }) }}
+              <div class="input-group-append">
+                <a href="{{ url_for('vendors_bp.partners_create') }}" target="_blank" class="btn btn-sm btn-success" title="إضافة شريك جديد">
+                  <i class="fas fa-plus"></i>
+                </a>
+              </div>
+            </div>
+            <small class="text-muted">لمصروفات الشريك</small>
+          </div>
+
+          <div id="supplier-field" class="col-md-4">
+            {{ form.supplier_id.label(class="form-label") }}
+            <div class="input-group input-group-sm">
+              {{ form.supplier_id(class="custom-select custom-select-sm ajax", id="supplier_id", **{
+                'data-url': url_for('api.search_suppliers'),
+                'data-current': form.supplier_id.data or ''
+              }) }}
+              <div class="input-group-append">
+                <a href="{{ url_for('vendors_bp.suppliers_create') }}" target="_blank" class="btn btn-sm btn-success" title="إضافة مورد جديد">
+                  <i class="fas fa-plus"></i>
+                </a>
+              </div>
+            </div>
+            <small class="text-muted">لمصروفات المورد</small>
           </div>
 
           <div id="beneficiary-field" class="col-md-4">
@@ -141,7 +173,7 @@
 
           <div id="stock-field" class="col-md-4">
             {{ form.stock_adjustment_id.label(class="form-label") }}
-            {{ form.stock_adjustment_id(class="form-select form-select-sm", id="stock_adjustment_id") }}
+            {{ form.stock_adjustment_id(class="custom-select custom-select-sm", id="stock_adjustment_id") }}
             <small class="text-muted">لتسويات المخزون</small>
           </div>
 
@@ -166,11 +198,18 @@
           </div>
 
           <!-- حقول الدفع -->
-          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-money-bill me-1"></i>تفاصيل الدفع</h6></div>
+          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-money-bill ml-1"></i>تفاصيل الدفع</h6></div>
+
+          <div class="col-md-4">
+            {{ form.disbursed_by.label(class="form-label fw-bold") }}
+            {{ form.disbursed_by(class="form-control", id="disbursed_by", placeholder="من سلم المال؟") }}
+            <small class="text-muted">الشخص الذي سلم المال (إلزامي في جميع النفقات)</small>
+            {% for e in form.disbursed_by.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
 
           <div class="col-md-4">
             {{ form.payment_method.label(class="form-label fw-bold") }}
-              {{ form.payment_method(class="form-select", id="payment_method") }}
+              {{ form.payment_method(class="custom-select", id="payment_method") }}
             <small class="text-muted">طريقة الدفع</small>
               {% for e in form.payment_method.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
@@ -241,7 +280,7 @@
           <div class="col-12">
             <hr class="my-2">
             <button class="btn btn-sm btn-outline-secondary" type="button" data-toggle="collapse" data-target="#optionalSection" aria-expanded="false" aria-controls="optionalSection">
-              <i class="fas fa-sliders-h me-1"></i> حقول اختيارية
+              <i class="fas fa-sliders-h ml-1"></i> حقول اختيارية
             </button>
           </div>
 
@@ -272,11 +311,11 @@
 
     <div class="d-flex gap-2 mt-3">
       <button type="submit" class="btn btn-success btn-lg">
-        <i class="fas fa-save me-1"></i>
+        <i class="fas fa-save ml-1"></i>
         {{ is_edit and 'حفظ التعديلات' or 'حفظ المصروف' }}
       </button>
       <a class="btn btn-outline-secondary btn-lg" href="{{ url_for('expenses_bp.list_expenses') }}">
-        <i class="fas fa-times me-1"></i>
+        <i class="fas fa-times ml-1"></i>
         إلغاء
       </a>
     </div>
@@ -292,6 +331,8 @@ document.addEventListener('DOMContentLoaded', function() {
   const utilityField = document.getElementById('utility-field');
   const warehouseField = document.getElementById('warehouse-field');
   const shipmentField = document.getElementById('shipment-field');
+  const partnerField = document.getElementById('partner-field');
+  const supplierField = document.getElementById('supplier-field');
   const beneficiaryField = document.getElementById('beneficiary-field');
   const stockField = document.getElementById('stock-field');
   
@@ -339,13 +380,15 @@ document.addEventListener('DOMContentLoaded', function() {
       utilityField: !!utilityField,
       warehouseField: !!warehouseField,
       shipmentField: !!shipmentField,
+      partnerField: !!partnerField,
+      supplierField: !!supplierField,
       beneficiaryField: !!beneficiaryField,
       stockField: !!stockField
     });
     
     // ✅ إخفاء وتعطيل كل الحقول أولاً ومسح القيم
     [employeeField, periodFields, utilityField, warehouseField, shipmentField, 
-     beneficiaryField, stockField].forEach(f => {
+     partnerField, supplierField, beneficiaryField, stockField].forEach(f => {
       if (f) {
         const wasVisible = f.style.display !== 'none';
         f.style.display = 'none';
@@ -374,6 +417,8 @@ document.addEventListener('DOMContentLoaded', function() {
     showIf('utility_account_id', utilityField);
     showIf('warehouse_id', warehouseField);
     showIf('shipment_id', shipmentField);
+    showIf('partner_id', partnerField);
+    showIf('supplier_id', supplierField);
     showIf('stock_adjustment_id', stockField);
     showIf('beneficiary_name', beneficiaryField);
     
@@ -407,10 +452,33 @@ document.addEventListener('DOMContentLoaded', function() {
   const form = document.getElementById('expenseForm');
   if (form) {
     form.addEventListener('submit', function(e) {
-      // إزالة خاصية 'name' من جميع الحقول المعطلة
+      const branchSelect = document.getElementById('branch_id');
+      const siteSelect = document.getElementById('site_id');
+      const typeSelect = document.getElementById('type_id');
+      const amountInput = document.getElementById('amount');
+      const disbursedInput = document.getElementById('disbursed_by');
+      
+      if (!branchSelect || !branchSelect.value || branchSelect.value === '0') {
+        e.preventDefault();
+        alert('⚠️ يرجى اختيار الفرع');
+        branchSelect.focus();
+        return false;
+      }
+      
+      if (!disbursedInput || !disbursedInput.value || disbursedInput.value.trim() === '') {
+        e.preventDefault();
+        alert('⚠️ يرجى إدخال اسم الشخص الذي سلم المال');
+        disbursedInput.focus();
+        return false;
+      }
+      
+      const criticalFields = [branchSelect, siteSelect, typeSelect, amountInput, disbursedInput];
+      
       const disabledFields = form.querySelectorAll('input:disabled, select:disabled, textarea:disabled');
       disabledFields.forEach(field => {
-        field.removeAttribute('name'); // لن يُرسل مع النموذج
+        if (!criticalFields.includes(field)) {
+          field.removeAttribute('name');
+        }
       });
     });
   }

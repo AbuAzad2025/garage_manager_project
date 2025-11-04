@@ -242,7 +242,7 @@
                 
                 <div class="mb-4">
                   <label class="form-label fw-bold">نوع الجدولة</label>
-                  <select name="schedule_type" class="form-select form-select-lg" required>
+                  <select name="schedule_type" class="custom-select custom-select-lg" required>
                     <option value="hourly" {% if schedule_info.type == 'hourly' %}selected{% endif %}>كل ساعة</option>
                     <option value="daily" {% if schedule_info.type == 'daily' or not schedule_info.type %}selected{% endif %}>يومياً</option>
                     <option value="weekly" {% if schedule_info.type == 'weekly' %}selected{% endif %}>أسبوعياً</option>
@@ -354,7 +354,7 @@
                 
                 <div class="mb-4">
                   <label class="form-label fw-bold">نوع قاعدة البيانات المستهدفة</label>
-                  <select class="form-select form-select-lg" id="db_type_select" onchange="updateConnectionString()" required>
+                  <select class="custom-select custom-select-lg" id="db_type_select" onchange="updateConnectionString()" required>
                     <option value="">-- اختر النوع --</option>
                     <option value="sqlite">SQLite</option>
                     <option value="postgresql">PostgreSQL</option>

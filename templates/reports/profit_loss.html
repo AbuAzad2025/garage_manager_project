@@ -1,0 +1,165 @@
+{% extends 'reports/_base.html' %}
+
+{% block page_title %}تقرير الأرباح والخسائر{% endblock %}
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">الأرباح والخسائر</li>
+{% endblock %}
+
+{% block report_content %}
+<div class="container-fluid" dir="rtl">
+
+<div class="mb-3">
+  <h4 class="fw-bold m-0"><i class="fas fa-chart-line"></i> تقرير الأرباح والخسائر (P&L)</h4>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-info text-white">
+    <i class="fas fa-calendar-alt"></i> الفترة
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-3">
+<div class="col-md-4">
+  <label class="form-label"><i class="fas fa-calendar"></i> من تاريخ</label>
+  <input type="date" name="start_date" value="{{ request.args.get('start_date', start_date) }}" class="form-control">
+</div>
+<div class="col-md-4">
+  <label class="form-label"><i class="fas fa-calendar"></i> إلى تاريخ</label>
+  <input type="date" name="end_date" value="{{ request.args.get('end_date', end_date) }}" class="form-control">
+</div>
+<div class="col-md-4 align-self-end">
+  <button type="submit" class="btn btn-primary">
+    <i class="fas fa-sync-alt"></i> تحديث
+  </button>
+  <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+    <i class="fas fa-print"></i> طباعة
+  </button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card summary-card border-success h-100">
+      <div class="card-body text-center">
+        <div class="text-success mb-2"><i class="fas fa-arrow-up fa-2x"></i></div>
+        <h4 class="mb-0 text-success">{{ "{:,.2f}".format(data.total_revenue) }} ₪</h4>
+        <small class="text-muted">إجمالي الإيرادات</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card summary-card border-danger h-100">
+      <div class="card-body text-center">
+        <div class="text-danger mb-2"><i class="fas fa-arrow-down fa-2x"></i></div>
+        <h4 class="mb-0 text-danger">{{ "{:,.2f}".format(data.total_expenses) }} ₪</h4>
+        <small class="text-muted">إجمالي المصروفات</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card summary-card border-{% if data.net_profit >= 0 %}primary{% else %}warning{% endif %} h-100">
+      <div class="card-body text-center">
+        <div class="text-{% if data.net_profit >= 0 %}primary{% else %}warning{% endif %} mb-2">
+          <i class="fas fa-{% if data.net_profit >= 0 %}trophy{% else %}exclamation-triangle{% endif %} fa-2x"></i>
+        </div>
+        <h4 class="mb-0 text-{% if data.net_profit >= 0 %}primary{% else %}warning{% endif %}">
+          {{ "{:,.2f}".format(data.net_profit) }} ₪
+        </h4>
+        <small class="text-muted">صافي {% if data.net_profit >= 0 %}الربح{% else %}الخسارة{% endif %}</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0"><i class="fas fa-arrow-up"></i> الإيرادات</h5>
+  </div>
+  <div class="card-body">
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-shopping-cart"></i> المبيعات</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.sales_revenue) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-wrench"></i> الصيانة</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.service_revenue) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-hand-holding-usd"></i> إيرادات أخرى</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.other_revenue) }} ₪</td>
+        </tr>
+        <tr class="table-success">
+          <td class="fw-bold">إجمالي الإيرادات</td>
+          <td class="text-end fw-bold">{{ "{:,.2f}".format(data.total_revenue) }} ₪</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-danger text-white">
+    <h5 class="mb-0"><i class="fas fa-arrow-down"></i> المصروفات</h5>
+  </div>
+  <div class="card-body">
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-wallet"></i> مصاريف تشغيلية</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.operational_expenses) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-users"></i> رواتب</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.salary_expenses) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-dollar-sign"></i> مصاريف أخرى</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.other_expenses) }} ₪</td>
+        </tr>
+        <tr class="table-danger">
+          <td class="fw-bold">إجمالي المصروفات</td>
+          <td class="text-end fw-bold">{{ "{:,.2f}".format(data.total_expenses) }} ₪</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0"><i class="fas fa-calculator"></i> النتيجة النهائية</h5>
+  </div>
+  <div class="card-body">
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <td class="fw-bold">إجمالي الإيرادات</td>
+          <td class="text-end text-success fw-bold">{{ "{:,.2f}".format(data.total_revenue) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold">إجمالي المصروفات</td>
+          <td class="text-end text-danger fw-bold">{{ "{:,.2f}".format(data.total_expenses) }} ₪</td>
+        </tr>
+        <tr class="table-{% if data.net_profit >= 0 %}primary{% else %}warning{% endif %}">
+          <td class="fw-bold fs-5">صافي {% if data.net_profit >= 0 %}الربح{% else %}الخسارة{% endif %}</td>
+          <td class="text-end fw-bold fs-5">{{ "{:,.2f}".format(data.net_profit|abs) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold">هامش الربح %</td>
+          <td class="text-end">{{ "{:.2f}".format(data.profit_margin) }}%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+{% endblock %}
+
+
+

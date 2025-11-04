@@ -27,7 +27,7 @@ except ImportError:
             pass
         def init_app(self, app):
             pass
-from sqlalchemy import event
+from sqlalchemy import event, func
 from sqlalchemy.engine import Engine
 
 try:
@@ -346,8 +346,108 @@ def perform_backup_db(app):
         app.logger.error(f"Backup process failed: {e}")
 
 
+def process_asset_depreciation(app):
+    try:
+        with app.app_context():
+            from models import SystemSettings, FixedAsset, FixedAssetCategory, AssetDepreciation, db
+            from datetime import date
+            from decimal import Decimal
+            
+            enable_auto = SystemSettings.get_setting('enable_auto_depreciation', False)
+            if not enable_auto:
+                return
+            
+            today = date.today()
+            current_year = today.year
+            current_month = today.month
+            
+            day_of_month = int(SystemSettings.get_setting('depreciation_day_of_month', 1))
+            if today.day != day_of_month:
+                return
+            
+            assets = FixedAsset.query.filter_by(status='ACTIVE').all()
+            
+            for asset in assets:
+                existing = AssetDepreciation.query.filter_by(
+                    asset_id=asset.id,
+                    fiscal_year=current_year,
+                    fiscal_month=current_month
+                ).first()
+                
+                if existing:
+                    continue
+                
+                category = asset.category
+                if not category:
+                    continue
+                
+                years_owned = (today - asset.purchase_date).days / 365.25
+                if years_owned >= category.useful_life_years:
+                    continue
+                
+                if category.depreciation_method == 'STRAIGHT_LINE':
+                    annual_depreciation = float(asset.purchase_price) / category.useful_life_years
+                    monthly_depreciation = annual_depreciation / 12
+                else:
+                    rate = float(category.depreciation_rate or 0) / 100
+                    current_value = asset.get_current_book_value(today)
+                    annual_depreciation = current_value * rate
+                    monthly_depreciation = annual_depreciation / 12
+                
+                total_previous = db.session.query(func.sum(AssetDepreciation.depreciation_amount)).filter(
+                    AssetDepreciation.asset_id == asset.id
+                ).scalar() or 0
+                
+                accumulated = float(total_previous) + monthly_depreciation
+                book_value = float(asset.purchase_price) - accumulated
+                
+                if book_value < 0:
+                    book_value = 0
+                    monthly_depreciation = float(asset.purchase_price) - float(total_previous)
+                
+                depreciation = AssetDepreciation(
+                    asset_id=asset.id,
+                    fiscal_year=current_year,
+                    fiscal_month=current_month,
+                    depreciation_date=today,
+                    depreciation_amount=Decimal(str(round(monthly_depreciation, 2))),
+                    accumulated_depreciation=Decimal(str(round(accumulated, 2))),
+                    book_value=Decimal(str(round(book_value, 2)))
+                )
+                db.session.add(depreciation)
+                
+                from models import _gl_upsert_batch_and_entries, GL_ACCOUNTS
+                
+                entries = [
+                    (GL_ACCOUNTS.get("DEPRECIATION_EXP", "6800_DEPRECIATION"), monthly_depreciation, 0),
+                    (category.depreciation_account_code, 0, monthly_depreciation),
+                ]
+                
+                try:
+                    batch_id = _gl_upsert_batch_and_entries(
+                        db.session.connection(),
+                        source_type="DEPRECIATION",
+                        source_id=asset.id,
+                        purpose="DEPRECIATION",
+                        currency="ILS",
+                        memo=f"استهلاك {asset.name} - {current_year}/{current_month}",
+                        entries=entries,
+                        ref=f"DEP-{asset.asset_number}-{current_year}{current_month:02d}",
+                        entity_type=None,
+                        entity_id=None
+                    )
+                    depreciation.gl_batch_id = batch_id
+                except Exception as e:
+                    app.logger.warning(f"Failed to create GL for depreciation: {e}")
+            
+            db.session.commit()
+            app.logger.info(f"[Depreciation] Processed {len(assets)} assets")
+            
+    except Exception as e:
+        app.logger.error(f"[Depreciation] Job failed: {e}")
+
+
 def update_exchange_rates_job(app):
-    """تحديث أسعار الصرف دورياً من السيرفرات العالمية"""
     try:
         with app.app_context():
             from models import auto_update_missing_rates
@@ -362,6 +462,170 @@ def update_exchange_rates_job(app):
                 
     except Exception as e:
         app.logger.error(f"[FX Update] Job failed: {e}")
+
+
+def process_recurring_invoices(app):
+    try:
+        with app.app_context():
+            from models import RecurringInvoiceTemplate, RecurringInvoiceSchedule, db
+            from datetime import date
+            from routes.recurring_invoices import _generate_recurring_invoice
+            
+            today = date.today()
+            
+            templates = RecurringInvoiceTemplate.query.filter(
+                RecurringInvoiceTemplate.is_active == True,
+                RecurringInvoiceTemplate.next_invoice_date <= today,
+                db.or_(
+                    RecurringInvoiceTemplate.end_date.is_(None),
+                    RecurringInvoiceTemplate.end_date >= today
+                )
+            ).all()
+            
+            generated_count = 0
+            error_count = 0
+            
+            for template in templates:
+                try:
+                    scheduled_date = template.next_invoice_date
+                    
+                    if scheduled_date > today:
+                        continue
+                    
+                    existing = RecurringInvoiceSchedule.query.filter_by(
+                        template_id=template.id,
+                        scheduled_date=scheduled_date,
+                        status='GENERATED'
+                    ).first()
+                    
+                    if existing:
+                        continue
+                    
+                    _generate_recurring_invoice(template, scheduled_date)
+                    db.session.commit()
+                    generated_count += 1
+                    
+                except Exception as e:
+                    error_count += 1
+                    db.session.rollback()
+                    
+                    try:
+                        schedule = RecurringInvoiceSchedule(
+                            template_id=template.id,
+                            scheduled_date=scheduled_date,
+                            status='FAILED',
+                            error_message=str(e)[:500]
+                        )
+                        db.session.add(schedule)
+                        db.session.commit()
+                    except:
+                        pass
+                    
+                    app.logger.error(f"[Recurring Invoices] Failed to generate invoice for template {template.id}: {e}")
+            
+            if generated_count > 0 or error_count > 0:
+                app.logger.info(f"[Recurring Invoices] Generated {generated_count} invoices, {error_count} errors")
+                
+    except Exception as e:
+        app.logger.error(f"[Recurring Invoices] Job failed: {e}")
+
+
+def process_payment_reminders(app):
+    try:
+        with app.app_context():
+            from utils import notify_payment_reminder
+            
+            result = notify_payment_reminder()
+            
+            if result.get('success'):
+                sent = result.get('sent', 0)
+                if sent > 0:
+                    app.logger.info(f"[Payment Reminders] Sent {sent} reminders")
+            else:
+                app.logger.warning(f"[Payment Reminders] Failed: {result.get('error', 'Unknown')}")
+                
+    except Exception as e:
+        app.logger.error(f"[Payment Reminders] Job failed: {e}")
+
+
+def process_low_stock_alerts(app):
+    try:
+        with app.app_context():
+            from models import Product, StockLevel, db
+            from sqlalchemy import func
+            from notifications import notify_low_stock
+            
+            products = db.session.query(
+                Product,
+                func.coalesce(func.sum(StockLevel.quantity), 0).label('total_stock')
+            ).outerjoin(
+                StockLevel, StockLevel.product_id == Product.id
+            ).group_by(Product.id).having(
+                func.coalesce(func.sum(StockLevel.quantity), 0) <= Product.min_qty
+            ).all()
+            
+            alerted_count = 0
+            
+            for product, stock in products:
+                if product.min_qty and stock <= product.min_qty:
+                    try:
+                        notify_low_stock(
+                            product_id=product.id,
+                            product_name=product.name,
+                            current_stock=int(stock),
+                            min_stock=int(product.min_qty or 0)
+                        )
+                        alerted_count += 1
+                    except Exception as e:
+                        app.logger.error(f"[Low Stock] Failed to notify for product {product.id}: {e}")
+            
+            if alerted_count > 0:
+                app.logger.info(f"[Low Stock Alerts] Sent {alerted_count} alerts")
+                
+    except Exception as e:
+        app.logger.error(f"[Low Stock Alerts] Job failed: {e}")
+
+
+def process_check_reminders(app):
+    try:
+        with app.app_context():
+            from models import Check, CheckStatus, db
+            from datetime import datetime, timedelta
+            from notifications import notify_system_alert, NotificationPriority
+            
+            today = datetime.utcnow().date()
+            reminder_days = 3
+            target_date = today + timedelta(days=reminder_days)
+            
+            upcoming_checks = Check.query.filter(
+                Check.status == CheckStatus.PENDING.value,
+                Check.check_due_date >= today,
+                Check.check_due_date <= target_date
+            ).all()
+            
+            overdue_checks = Check.query.filter(
+                Check.status == CheckStatus.PENDING.value,
+                Check.check_due_date < today
+            ).all()
+            
+            if upcoming_checks:
+                notify_system_alert(
+                    title=f"تذكير: {len(upcoming_checks)} شيك مستحق خلال {reminder_days} أيام",
+                    message=f"يوجد {len(upcoming_checks)} شيك يستحق التحصيل قريباً",
+                    priority=NotificationPriority.MEDIUM
+                )
+                app.logger.info(f"[Check Reminders] {len(upcoming_checks)} upcoming checks")
+            
+            if overdue_checks:
+                notify_system_alert(
+                    title=f"تنبيه: {len(overdue_checks)} شيك متأخر!",
+                    message=f"يوجد {len(overdue_checks)} شيك متأخر عن موعد الاستحقاق",
+                    priority=NotificationPriority.HIGH
+                )
+                app.logger.warning(f"[Check Reminders] {len(overdue_checks)} overdue checks")
+                
+    except Exception as e:
+        app.logger.error(f"[Check Reminders] Job failed: {e}")
 
 
 def perform_backup_sql(app):
@@ -549,12 +813,57 @@ def init_extensions(app):
             replace_existing=True,
         )
         
-        # مهمة تحديث أسعار الصرف دورياً
         scheduler.add_job(
             lambda: update_exchange_rates_job(app),
             "interval",
-            hours=1,  # كل ساعة
+            hours=1,
             id="update_fx_rates",
+            replace_existing=True,
+        )
+        
+        scheduler.add_job(
+            lambda: process_asset_depreciation(app),
+            "cron",
+            day=1,
+            hour=2,
+            minute=0,
+            id="asset_depreciation",
+            replace_existing=True,
+        )
+        
+        scheduler.add_job(
+            lambda: process_recurring_invoices(app),
+            "cron",
+            hour=0,
+            minute=5,
+            id="recurring_invoices",
+            replace_existing=True,
+        )
+        
+        scheduler.add_job(
+            lambda: process_payment_reminders(app),
+            "cron",
+            hour=9,
+            minute=0,
+            id="payment_reminders",
+            replace_existing=True,
+        )
+        
+        scheduler.add_job(
+            lambda: process_low_stock_alerts(app),
+            "cron",
+            hour=8,
+            minute=0,
+            id="low_stock_alerts",
+            replace_existing=True,
+        )
+        
+        scheduler.add_job(
+            lambda: process_check_reminders(app),
+            "cron",
+            hour=7,
+            minute=30,
+            id="check_reminders",
             replace_existing=True,
         )
     except Exception as e:

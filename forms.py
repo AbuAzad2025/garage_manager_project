@@ -2478,12 +2478,14 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
     stock_adjustment_id= AjaxSelectField('تسوية مخزون', endpoint='api.search_stock_adjustments', get_label='id', validators=[Optional()], coerce=int)
     warehouse_id       = AjaxSelectField('المستودع', endpoint='api.search_warehouses',    get_label='name', validators=[Optional()], coerce=int)
     partner_id         = AjaxSelectField('الشريك', endpoint='api.search_partners',         get_label='name', validators=[Optional()], coerce=int)
+    supplier_id        = AjaxSelectField('المورد', endpoint='api.search_suppliers',        get_label='name', validators=[Optional()], coerce=int)
     
     installments_count = IntegerField('عدد الأقساط', validators=[Optional(), NumberRange(min=1, max=60)], default=1)
     create_deduction = BooleanField('خصم شهري تلقائي', default=False)
 
     beneficiary_name = StrippedStringField('اسم الجهة المستفيدة', validators=[Optional(), Length(max=200)])
     paid_to          = StrippedStringField('مدفوع إلى',            validators=[Optional(), Length(max=200)])
+    disbursed_by     = StrippedStringField('الشخص الذي سلم المال', validators=[Optional(), Length(max=200)])
 
     period_start = DateField('بداية الفترة', validators=[Optional()])
     period_end   = DateField('نهاية الفترة', validators=[Optional()])
@@ -2652,12 +2654,14 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
         exp.employee_id = int(self.employee_id.data) if getattr(self.employee_id, "data", None) else None
         exp.warehouse_id = int(self.warehouse_id.data) if getattr(self.warehouse_id, "data", None) else None
         exp.partner_id = int(self.partner_id.data) if getattr(self.partner_id, "data", None) else None
+        exp.supplier_id = int(self.supplier_id.data) if getattr(self.supplier_id, "data", None) else None
         exp.shipment_id = int(self.shipment_id.data) if getattr(self.shipment_id, "data", None) else None
         exp.utility_account_id = int(self.utility_account_id.data) if getattr(self.utility_account_id, "data", None) else None
         exp.stock_adjustment_id = int(self.stock_adjustment_id.data) if getattr(self.stock_adjustment_id, "data", None) else None
         exp.period_start = self.period_start.data or None
         exp.period_end = self.period_end.data or None
         exp.paid_to = (self.paid_to.data or '').strip() or None
+        exp.disbursed_by = (self.disbursed_by.data or '').strip() or None
         exp.description = (self.description.data or '').strip() or None
         exp.notes = (self.notes.data or '').strip() or None
         exp.tax_invoice_number = (self.tax_invoice_number.data or '').strip() or None
@@ -2738,6 +2742,34 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
                 exp.payee_type = 'SHIPMENT'
                 exp.payee_entity_id = exp.shipment_id
                 exp.payee_name = f'شحنة #{ship.id}' if ship else None
+                if not exp.paid_to: exp.paid_to = exp.payee_name
+            else:
+                exp.payee_type = 'OTHER'
+                exp.payee_entity_id = None
+                exp.payee_name = (self.beneficiary_name.data or self.paid_to.data or '').strip() or None
+                if not exp.paid_to: exp.paid_to = exp.payee_name
+                
+        elif kind == 'SUPPLIER_EXPENSE':
+            if exp.supplier_id:
+                from models import Supplier
+                supplier = Supplier.query.get(exp.supplier_id)
+                exp.payee_type = 'SUPPLIER'
+                exp.payee_entity_id = exp.supplier_id
+                exp.payee_name = supplier.name if supplier else None
+                if not exp.paid_to: exp.paid_to = exp.payee_name
+            else:
+                exp.payee_type = 'OTHER'
+                exp.payee_entity_id = None
+                exp.payee_name = (self.beneficiary_name.data or self.paid_to.data or '').strip() or None
+                if not exp.paid_to: exp.paid_to = exp.payee_name
+                
+        elif kind == 'PARTNER_EXPENSE':
+            if exp.partner_id:
+                from models import Partner
+                partner = Partner.query.get(exp.partner_id)
+                exp.payee_type = 'PARTNER'
+                exp.payee_entity_id = exp.partner_id
+                exp.payee_name = partner.name if partner else None
                 if not exp.paid_to: exp.paid_to = exp.payee_name
             else:
                 exp.payee_type = 'OTHER'
@@ -4546,3 +4578,125 @@ class SaleReturnForm(FlaskForm):
                 return False
         
         return True
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ARCHIVE FORMS - نماذج الأرشفة
+# ═══════════════════════════════════════════════════════════════════════════
+
+class ArchiveForm(FlaskForm):
+    reason = TextAreaField(
+        'سبب الأرشفة',
+        validators=[DataRequired(message='سبب الأرشفة مطلوب'), Length(max=200)],
+        render_kw={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'أدخل سبب أرشفة هذا السجل...'
+        }
+    )
+    submit = SubmitField(
+        'أرشفة السجل',
+        render_kw={'class': 'btn btn-warning fw-bold'}
+    )
+
+class ArchiveSearchForm(FlaskForm):
+    record_type = SelectField(
+        'نوع السجل',
+        choices=[
+            ('', 'جميع الأنواع'),
+            ('service_requests', 'طلبات الصيانة'),
+            ('payments', 'الدفعات'),
+            ('sales', 'المبيعات'),
+            ('customers', 'العملاء'),
+            ('products', 'المنتجات'),
+            ('inventory', 'المخزون'),
+            ('expenses', 'النفقات'),
+            ('checks', 'الشيكات')
+        ],
+        render_kw={'class': 'form-select'}
+    )
+    
+    date_from = DateField(
+        'من تاريخ',
+        validators=[Optional()],
+        render_kw={'class': 'form-control', 'type': 'date'}
+    )
+    
+    date_to = DateField(
+        'إلى تاريخ',
+        validators=[Optional()],
+        render_kw={'class': 'form-control', 'type': 'date'}
+    )
+    
+    search_term = StringField(
+        'البحث',
+        validators=[Optional()],
+        render_kw={
+            'class': 'form-control',
+            'placeholder': 'البحث في البيانات المؤرشفة...'
+        }
+    )
+    
+    submit = SubmitField(
+        'بحث',
+        render_kw={'class': 'btn btn-primary fw-bold'}
+    )
+
+class BulkArchiveForm(FlaskForm):
+    """نموذج الأرشفة الجماعية"""
+    record_type = SelectField(
+        'نوع السجل',
+        choices=[
+            ('service_requests', 'طلبات الصيانة'),
+            ('payments', 'الدفعات'),
+            ('sales', 'المبيعات'),
+            ('expenses', 'النفقات'),
+            ('checks', 'الشيكات')
+        ],
+        validators=[DataRequired()],
+        render_kw={'class': 'form-select'}
+    )
+    
+    date_from = DateField(
+        'من تاريخ',
+        validators=[DataRequired()],
+        render_kw={'class': 'form-control', 'type': 'date'}
+    )
+    
+    date_to = DateField(
+        'إلى تاريخ',
+        validators=[DataRequired()],
+        render_kw={'class': 'form-control', 'type': 'date'}
+    )
+    
+    reason = TextAreaField(
+        'سبب الأرشفة',
+        validators=[DataRequired(), Length(max=200)],
+        render_kw={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'أدخل سبب الأرشفة الجماعية...'
+        }
+    )
+    
+    submit = SubmitField(
+        'أرشفة جماعية',
+        render_kw={'class': 'btn btn-danger fw-bold'}
+    )
+
+class ArchiveRestoreForm(FlaskForm):
+    """نموذج استعادة الأرشيف"""
+    reason = TextAreaField(
+        'سبب الاستعادة',
+        validators=[DataRequired(), Length(max=200)],
+        render_kw={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'أدخل سبب استعادة هذا السجل...'
+        }
+    )
+    
+    submit = SubmitField(
+        'استعادة السجل',
+        render_kw={'class': 'btn btn-success fw-bold'}
+    )
+

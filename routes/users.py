@@ -68,11 +68,16 @@ def change_password():
     """تغيير كلمة المرور للمستخدم الحالي"""
     from flask_wtf import FlaskForm
     from wtforms import PasswordField, SubmitField
-    from wtforms.validators import DataRequired, Length, EqualTo
+    from wtforms.validators import DataRequired, Length, EqualTo, Regexp
     
     class ChangePasswordForm(FlaskForm):
         current_password = PasswordField('كلمة المرور الحالية', validators=[DataRequired()])
-        new_password = PasswordField('كلمة المرور الجديدة', validators=[DataRequired(), Length(min=6)])
+        new_password = PasswordField('كلمة المرور الجديدة', validators=[
+            DataRequired(), 
+            Length(min=8, max=128, message='كلمة المرور يجب أن تكون 8 أحرف على الأقل'),
+            Regexp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)|(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&#])|(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])', 
+                   message='كلمة المرور يجب أن تحتوي على: أحرف وأرقام، أو أحرف ورموز خاصة')
+        ])
         confirm_password = PasswordField('تأكيد كلمة المرور', validators=[DataRequired(), EqualTo('new_password', message='كلمات المرور غير متطابقة')])
         submit = SubmitField('تغيير كلمة المرور')
     

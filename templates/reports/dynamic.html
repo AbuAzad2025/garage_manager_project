@@ -55,7 +55,7 @@
 ```
     <div class="col-md-3">
       <label class="form-label fw-semibold">الجدول</label>
-      <select name="table" id="table" class="form-select" required>
+      <select name="table" id="table" class="custom-select" required>
         {% for m in model_names %}
           <option value="{{ m }}" {% if selected_table == m %}selected{% endif %}>
             {{ MODEL_LABELS.get(m, m) }}
@@ -69,7 +69,7 @@
       <select
         name="date_field"
         id="date_field"
-        class="form-select"
+        class="custom-select"
         data-default="{{ defaults.get(selected_table) }}"
         data-selected="{{ date_field or '' }}"
       >
@@ -94,7 +94,7 @@
         id="selected_fields"
         multiple
         size="6"
-        class="form-select"
+        class="custom-select"
         data-selected='{{ (columns or [])|tojson }}'
       ></select>
       <div class="form-text">اتركها فارغة لعرض جميع الأعمدة.</div>

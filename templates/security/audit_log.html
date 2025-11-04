@@ -1,0 +1,274 @@
+{% extends 'security/base_security.html' %}
+
+{% block tour_name %}audit_log{% endblock %}
+
+{% block security_title %}Audit Log{% endblock %}
+{% block security_icon %}<i class="fas fa-history"></i>{% endblock %}
+{% block security_description %}سجل شامل لجميع الإجراءات والنشاطات في النظام{% endblock %}
+
+{% block security_breadcrumb %}
+<li class="breadcrumb-item active">Audit Log</li>
+{% endblock %}
+
+{% block head_extra %}
+<style>
+.audit-card {
+  border-radius: 12px;
+  border: none;
+  transition: all 0.3s ease;
+}
+.audit-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+.log-row {
+  transition: background 0.2s;
+}
+.log-row:hover {
+  background: #f8f9fa;
+  cursor: pointer;
+}
+.action-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.action-create {background: #d1ecf1; color: #0c5460;}
+.action-update {background: #d4edda; color: #155724;}
+.action-delete {background: #f8d7da; color: #721c24;}
+.stat-card {
+  border-left: 4px solid;
+  border-radius: 8px;
+}
+.model-tag {
+  background: #e7f3ff;
+  color: #004085;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="row mb-3">
+    <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="/security/"><i class="fas fa-shield-alt"></i> لوحة المالك</a></li>
+          <li class="breadcrumb-item active">سجل التدقيق</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="alert alert-info border-0 shadow-sm mb-4">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-info-circle fa-2x ml-3"></i>
+      <div>
+        <strong>سجل التدقيق (Audit Log):</strong> يعرض جميع العمليات في النظام تلقائياً.
+        <br><small>تسجيل تلقائي لكل: إضافة، تعديل، حذف - مع تفاصيل التغييرات</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card audit-card shadow-sm stat-card" style="border-left-color: #17a2b8;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-database"></i> إجمالي السجلات</h6>
+          <h2 class="mb-0 text-info">{{ "{:,}".format(stats.total_logs or 0) }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card audit-card shadow-sm stat-card" style="border-left-color: #28a745;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-clock"></i> آخر 24 ساعة</h6>
+          <h2 class="mb-0 text-success">{{ stats.last_24h }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card audit-card shadow-sm stat-card" style="border-left-color: #ffc107;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-bolt"></i> أكثر عملية</h6>
+          <h2 class="mb-0 text-warning">{{ stats.by_action[0][0] if stats.by_action else '-' }}</h2>
+          <small class="text-muted">{{ stats.by_action[0][1] if stats.by_action else 0 }} مرة</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card audit-card shadow-sm stat-card" style="border-left-color: #dc3545;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-user"></i> أكثر مستخدم نشاط</h6>
+          <h2 class="mb-0 text-danger">{{ stats.top_users[0][0] if stats.top_users else '-' }}</h2>
+          <small class="text-muted">{{ stats.top_users[0][1] if stats.top_users else 0 }} عملية</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card audit-card shadow">
+    <div class="card-header bg-gradient-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-search"></i> فلاتر البحث</h5>
+    </div>
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-2">
+          <label class="form-label"><i class="fas fa-table"></i> الجدول <small class="text-muted">(اختياري)</small></label>
+          <select name="model" class="form-select">
+            <option value="">الكل</option>
+            {% for model in all_models %}
+            <option value="{{ model }}" {% if filters.model == model %}selected{% endif %}>{{ model }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label"><i class="fas fa-user"></i> المستخدم <small class="text-muted">(اختياري)</small></label>
+          <select name="user" class="form-select">
+            <option value="">الكل</option>
+            {% for user in all_users %}
+            <option value="{{ user.id }}" {% if filters.user == user.id %}selected{% endif %}>{{ user.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label"><i class="fas fa-cog"></i> الإجراء <small class="text-muted">(اختياري)</small></label>
+          <select name="action" class="form-select">
+            <option value="">الكل</option>
+            {% for action in all_actions %}
+            <option value="{{ action }}" {% if filters.action == action %}selected{% endif %}>{{ action }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label"><i class="fas fa-calendar"></i> من تاريخ <small class="text-muted">(اختياري)</small></label>
+          <input type="date" name="start_date" class="form-control" value="{{ filters.start_date }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label"><i class="fas fa-calendar"></i> إلى تاريخ <small class="text-muted">(اختياري)</small></label>
+          <input type="date" name="end_date" class="form-control" value="{{ filters.end_date }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i> بحث</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card audit-card shadow mt-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-list"></i> السجلات ({{ logs.total }} سجل)</h5>
+      <div>
+        <button class="btn btn-sm btn-success" onclick="exportCSV()"><i class="fas fa-file-excel"></i> Export CSV</button>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th>الوقت</th>
+              <th>المستخدم</th>
+              <th>الجدول</th>
+              <th>رقم السجل</th>
+              <th>الإجراء</th>
+              <th>IP</th>
+              <th>تفاصيل</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if logs.items %}
+              {% for log in logs.items %}
+              <tr class="log-row">
+                <td>
+                  <small class="text-muted">{{ log.created_at.strftime('%Y-%m-%d') if log.created_at else '-' }}</small>
+                  <br>
+                  <strong>{{ log.created_at.strftime('%H:%M:%S') if log.created_at else '-' }}</strong>
+                </td>
+                <td>
+                  {% if log.user_id %}
+                    <i class="fas fa-user-circle text-primary"></i> {{ log.user_id }}
+                  {% else %}
+                    <i class="fas fa-robot text-secondary"></i> نظام
+                  {% endif %}
+                </td>
+                <td><span class="model-tag">{{ log.model_name }}</span></td>
+                <td><code>{{ log.record_id if log.record_id else '-' }}</code></td>
+                <td>
+                  <span class="action-badge action-{{ log.action.lower() if log.action else 'default' }}">
+                    <i class="fas fa-{{ _get_action_icon(log.action) }}"></i> {{ log.action }}
+                  </span>
+                </td>
+                <td><small class="text-muted">{{ log.ip_address or '-' }}</small></td>
+                <td>
+                  <a href="{{ url_for('security.audit_log_detail', log_id=log.id) }}" class="btn btn-sm btn-outline-info" title="عرض التفاصيل">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-5">
+                  <i class="fas fa-inbox fa-3x mb-3"></i>
+                  <p>لا توجد سجلات</p>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% if logs.pages > 1 %}
+    <div class="card-footer bg-light">
+      <nav>
+        <ul class="pagination justify-content-center mb-0">
+          {% if logs.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('security.audit_log_viewer', page=logs.prev_num, **filters) }}">السابق</a>
+          </li>
+          {% endif %}
+          
+          {% for p in logs.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+            {% if p %}
+              <li class="page-item {% if p == logs.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('security.audit_log_viewer', page=p, **filters) }}">{{ p }}</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+          {% endfor %}
+          
+          {% if logs.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('security.audit_log_viewer', page=logs.next_num, **filters) }}">التالي</a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function exportCSV() {
+  const params = new URLSearchParams(window.location.search);
+  params.append('export', 'csv');
+  window.location.href = '{{ url_for("security.audit_log_viewer") }}?' + params.toString();
+}
+</script>
+{% endblock %}
+

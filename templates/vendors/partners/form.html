@@ -7,7 +7,7 @@
     <div class="col-md-7">
       <div class="card shadow-sm rounded-4">
         <div class="card-header d-flex justify-content-between align-items-center bg-info text-white">
-          <h4 class="mb-0"><i class="fas fa-handshake me-2"></i>{{ form.name.data and 'تعديل' or 'إضافة' }} شريك</h4>
+          <h4 class="mb-0"><i class="fas fa-handshake ml-2"></i>{{ form.name.data and 'تعديل' or 'إضافة' }} شريك</h4>
           {% if partner %}
           <div class="btn-group">
             {% if partner.balance and partner.balance > 0 %}
@@ -19,11 +19,11 @@
                            reference='دفع لشريك: ' ~ partner.name,
                            notes='دفع مستحقات الشريك: ' ~ partner.name,
                            partner_id=partner.id) }}" class="btn btn-sm btn-primary">
-              <i class="fas fa-coins me-1"></i> دفع ({{ '%.2f'|format(partner.balance) }} ₪)
+              <i class="fas fa-coins ml-1"></i> دفع ({{ '%.2f'|format(partner.balance) }} ₪)
             </a>
             {% endif %}
             <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ partner.id }}" class="btn btn-sm btn-warning">
-              <i class="fas fa-file-invoice-dollar me-1"></i> دفعات
+              <i class="fas fa-file-invoice-dollar ml-1"></i> دفعات
             </a>
             <button type="button"
                     class="btn btn-sm btn-success btn-settle"
@@ -32,7 +32,7 @@
                     data-name="{{ partner.name }}"
                     data-balance="{{ '%.2f'|format(partner.net_balance) }}"
                     data-currency="{{ partner.currency or 'ILS' }}">
-              <i class="fas fa-scale-balanced me-1"></i> تسوية
+              <i class="fas fa-scale-balanced ml-1"></i> تسوية
             </button>
           </div>
           {% endif %}
@@ -90,7 +90,7 @@
               </div>
               <div class="col-md-4">
                 {{ form.currency.label(class="form-label") }}
-                {{ form.currency(class="form-select") }}
+                {{ form.currency(class="custom-select") }}
                 {% for err in form.currency.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
               </div>
             </div>
@@ -110,7 +110,7 @@
 
             <div class="d-flex gap-2 mt-4">
               <button type="submit" class="btn btn-{{ form.name.data and 'warning' or 'success' }}">
-                <i class="fas fa-save me-1"></i> حفظ
+                <i class="fas fa-save ml-1"></i> حفظ
               </button>
               <a href="{{ url_for('vendors_bp.partners_list') }}" class="btn btn-outline-secondary">عودة</a>
             </div>
@@ -127,7 +127,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4">
       <div class="modal-header bg-light">
-        <h5 class="modal-title"><i class="fas fa-scale-balanced me-2"></i> تسوية رصيد</h5>
+        <h5 class="modal-title"><i class="fas fa-scale-balanced ml-2"></i> تسوية رصيد</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"></button>
       </div>
       <div class="modal-body">
@@ -152,7 +152,7 @@
         </div>
         <div class="mb-3">
           <label class="form-label">طريقة الدفع</label>
-          <select id="stlMethod" class="form-select">
+          <select id="stlMethod" class="custom-select">
             <option value="cash">نقداً</option>
             <option value="bank">تحويل بنكي</option>
             <option value="cheque">شيك</option>
@@ -164,8 +164,8 @@
         <input type="hidden" id="stlEntityId">
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print me-1"></i> طباعة</button>
-        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check me-1"></i> إنشاء سند</button>
+        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print ml-1"></i> طباعة</button>
+        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check ml-1"></i> إنشاء سند</button>
       </div>
     </div>
   </div>

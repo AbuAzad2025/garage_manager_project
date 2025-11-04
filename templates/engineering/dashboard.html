@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% block title %}لوحة الإدارة الهندسية{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-hard-hat text-primary"></i> لوحة الإدارة الهندسية</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>{{ stats.total_teams }}</h3>
+                <p>الفرق الهندسية</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <a href="{{ url_for('engineering.teams') }}" class="small-box-footer">
+                إدارة الفرق <i class="fas fa-arrow-circle-left"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3>{{ stats.total_engineers }}</h3>
+                <p>المهندسين والفنيين</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-user-tie"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3>{{ stats.active_tasks }}</h3>
+                <p>مهام نشطة</p>
+                <small>{{ stats.overdue_tasks }} متأخرة</small>
+            </div>
+            <div class="icon">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <a href="{{ url_for('engineering.tasks') }}" class="small-box-footer">
+                إدارة المهام <i class="fas fa-arrow-circle-left"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="small-box bg-primary">
+            <div class="inner">
+                <h3>{{ stats.completed_this_month }}</h3>
+                <p>مهام مكتملة هذا الشهر</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-info text-white">
+                <h3 class="card-title"><i class="fas fa-users"></i> حالة الفرق</h3>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>الفريق</th>
+                            <th>التخصص</th>
+                            <th>الأعضاء</th>
+                            <th>المهام النشطة</th>
+                            <th>الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in teams_status %}
+                        <tr>
+                            <td>{{ item.team.name }}</td>
+                            <td>{{ item.team.specialty }}</td>
+                            <td>{{ item.members_count }}</td>
+                            <td>{{ item.active_tasks_count }}/{{ item.team.max_concurrent_tasks }}</td>
+                            <td>
+                                {% if item.status == 'available' %}
+                                    <span class="badge badge-success">متاح</span>
+                                {% else %}
+                                    <span class="badge badge-warning">مشغول</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-warning text-white">
+                <h3 class="card-title"><i class="fas fa-exclamation-triangle"></i> تنبيهات</h3>
+            </div>
+            <div class="card-body">
+                {% if expiring_certs %}
+                <h6>شهادات قريبة من الانتهاء:</h6>
+                <ul class="list-unstyled">
+                    {% for cert in expiring_certs %}
+                    <li class="mb-2">
+                        <i class="fas fa-certificate text-warning"></i>
+                        <strong>{{ cert[1].name }}</strong> - {{ cert[0].skill.name }}
+                        <br>
+                        <small class="text-danger">تنتهي في: {{ cert[0].expiry_date.strftime('%Y-%m-%d') }}</small>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted">لا توجد شهادات قريبة من الانتهاء</p>
+                {% endif %}
+                
+                {% if stats.overdue_tasks > 0 %}
+                <h6 class="mt-3">مهام متأخرة:</h6>
+                <p class="text-danger"><i class="fas fa-clock"></i> {{ stats.overdue_tasks }} مهمة متأخرة</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-header bg-primary text-white">
+        <h3 class="card-title"><i class="fas fa-calendar-alt"></i> المهام القادمة (الأسبوع القادم)</h3>
+    </div>
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>رقم المهمة</th>
+                    <th>العنوان</th>
+                    <th>النوع</th>
+                    <th>الأولوية</th>
+                    <th>موعد البدء</th>
+                    <th>المسؤول</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in upcoming_tasks %}
+                <tr>
+                    <td>{{ task.task_number }}</td>
+                    <td>{{ task.title }}</td>
+                    <td>{{ task.task_type }}</td>
+                    <td>
+                        <span class="badge badge-{% if task.priority == 'CRITICAL' %}danger{% elif task.priority == 'URGENT' %}warning{% elif task.priority == 'HIGH' %}info{% else %}secondary{% endif %}">
+                            {{ task.priority }}
+                        </span>
+                    </td>
+                    <td>{{ task.scheduled_start.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>{{ task.assigned_to.name if task.assigned_to else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h3 class="card-title"><i class="fas fa-link"></i> روابط سريعة</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <a href="{{ url_for('engineering.teams') }}" class="btn btn-block btn-outline-info">
+                            <i class="fas fa-users"></i> الفرق الهندسية
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('engineering.tasks') }}" class="btn btn-block btn-outline-warning">
+                            <i class="fas fa-tasks"></i> المهام الهندسية
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('engineering.timesheets') }}" class="btn btn-block btn-outline-success">
+                            <i class="fas fa-clock"></i> سجل الحضور
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('engineering.report_productivity') }}" class="btn btn-block btn-outline-primary">
+                            <i class="fas fa-chart-line"></i> تقرير الإنتاجية
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+</section>
+{% endblock %}
+
+

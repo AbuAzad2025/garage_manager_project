@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}عرض الحساب البنكي - {{ account.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-university text-primary"></i>
+                    {{ account.code }} - {{ account.name }}
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('advanced.accounting_control') }}"><i class="fas fa-sliders-h"></i> المحاسبة المتقدمة</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('bank.accounts') }}">الحسابات البنكية</a></li>
+                    <li class="breadcrumb-item active">{{ account.name }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3 no-print">
+            <div class="col-12">
+                <div class="btn-group">
+                    <a href="{{ url_for('bank.accounts') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> العودة للحسابات
+                    </a>
+                    <a href="{{ url_for('bank.edit_account', id=account.id) }}" class="btn btn-warning">
+                        <i class="fas fa-edit"></i> تعديل
+                    </a>
+                    <a href="{{ url_for('bank.statements', account=account.id) }}" class="btn btn-info">
+                        <i class="fas fa-file-invoice"></i> الكشوف
+                    </a>
+                    <button class="btn btn-secondary btn-print" onclick="printReport('.content')">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                    <button class="btn btn-success" onclick="exportToCSV('transactions-table', 'bank_account_{{ account.code }}.csv')">
+                        <i class="fas fa-file-csv"></i> تصدير CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card card-primary card-outline">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-info-circle"></i> معلومات الحساب</h3>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <th width="40%">الرمز:</th>
+                                <td>{{ account.code }}</td>
+                            </tr>
+                            <tr>
+                                <th>الاسم:</th>
+                                <td>{{ account.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>البنك:</th>
+                                <td>{{ account.bank_name }}</td>
+                            </tr>
+                            <tr>
+                                <th>رقم الحساب:</th>
+                                <td>{{ account.account_number }}</td>
+                            </tr>
+                            {% if account.iban %}
+                            <tr>
+                                <th>IBAN:</th>
+                                <td><small>{{ account.iban }}</small></td>
+                            </tr>
+                            {% endif %}
+                            {% if account.swift_code %}
+                            <tr>
+                                <th>SWIFT:</th>
+                                <td>{{ account.swift_code }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th>العملة:</th>
+                                <td>{{ account.currency }}</td>
+                            </tr>
+                            <tr>
+                                <th>الحالة:</th>
+                                <td>
+                                    {% if account.is_active %}
+                                    <span class="badge badge-success">نشط</span>
+                                    {% else %}
+                                    <span class="badge badge-danger">معطل</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="row">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="small-box bg-success">
+                            <div class="inner">
+                                <h3>{{ "%.2f"|format(stats.current_balance) }} ₪</h3>
+                                <p>الرصيد الحالي</p>
+                            </div>
+                            <div class="icon"><i class="fas fa-wallet"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-sm-6">
+                        <div class="small-box bg-info">
+                            <h3>{{ "%.2f"|format(stats.total_deposits) }} ₪</h3>
+                            <p>إجمالي الإيداعات</p>
+                            <div class="icon"><i class="fas fa-arrow-down"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-sm-6">
+                        <div class="small-box bg-danger">
+                            <div class="inner">
+                                <h3>{{ "%.2f"|format(stats.total_withdrawals) }} ₪</h3>
+                                <p>إجمالي السحوبات</p>
+                            </div>
+                            <div class="icon"><i class="fas fa-arrow-up"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 col-sm-6">
+                        <div class="small-box {% if stats.unmatched > 0 %}bg-warning{% else %}bg-primary{% endif %}">
+                            <div class="inner">
+                                <h3>{{ stats.unmatched }}</h3>
+                                <p>معاملات غير مطابقة</p>
+                            </div>
+                            <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-chart-line"></i> الحركة الصافية</h3>
+                    </div>
+                    <div class="card-body">
+                        <h4 class="text-center {% if stats.net_movement > 0 %}text-success{% elif stats.net_movement < 0 %}text-danger{% else %}text-muted{% endif %}">
+                            {{ "%.2f"|format(stats.net_movement) }} ₪
+                        </h4>
+                        <p class="text-center text-muted">
+                            {% if stats.net_movement > 0 %}
+                            <i class="fas fa-arrow-up text-success"></i> صافي إيداعات
+                            {% elif stats.net_movement < 0 %}
+                            <i class="fas fa-arrow-down text-danger"></i> صافي سحوبات
+                            {% else %}
+                            <i class="fas fa-minus text-muted"></i> متوازن
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-exchange-alt"></i> آخر المعاملات</h3>
+                        <div class="card-tools">
+                            <span class="badge badge-info">{{ stats.total_transactions }} معاملة</span>
+                        </div>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover table-striped text-nowrap" id="transactions-table">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>الوصف</th>
+                                    <th>المرجع</th>
+                                    <th class="text-center">مدين</th>
+                                    <th class="text-center">دائن</th>
+                                    <th class="text-center">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if transactions.items %}
+                                {% for trans in transactions.items %}
+                                <tr>
+                                    <td>{{ trans.transaction_date.strftime('%Y-%m-%d') }}</td>
+                                    <td>{{ trans.description }}</td>
+                                    <td><small>{{ trans.reference or '-' }}</small></td>
+                                    <td class="text-center text-success">
+                                        {% if trans.debit %}{{ "%.2f"|format(trans.debit) }} ₪{% else %}-{% endif %}
+                                    </td>
+                                    <td class="text-center text-danger">
+                                        {% if trans.credit %}{{ "%.2f"|format(trans.credit) }} ₪{% else %}-{% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if trans.matched %}
+                                        <span class="badge badge-success"><i class="fas fa-check"></i> مطابق</span>
+                                        {% else %}
+                                        <span class="badge badge-warning"><i class="fas fa-exclamation"></i> غير مطابق</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                                        <br>لا توجد معاملات
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if transactions.has_prev or transactions.has_next %}
+                    <div class="card-footer clearfix no-print">
+                        <ul class="pagination pagination-sm m-0 float-right">
+                            {% if transactions.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('bank.view_account', id=account.id, page=transactions.prev_num) }}">السابق</a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for page_num in transactions.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                                {% if page_num %}
+                                    <li class="page-item {% if page_num == transactions.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('bank.view_account', id=account.id, page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if transactions.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('bank.view_account', id=account.id, page=transactions.next_num) }}">التالي</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if reconciliations %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-balance-scale"></i> آخر التسويات</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>رقم التسوية</th>
+                                    <th>الفترة</th>
+                                    <th class="text-center">رصيد الدفاتر</th>
+                                    <th class="text-center">رصيد البنك</th>
+                                    <th class="text-center">الفرق</th>
+                                    <th class="text-center">الحالة</th>
+                                    <th class="no-print">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for recon in reconciliations %}
+                                <tr>
+                                    <td><strong>{{ recon.reconciliation_number }}</strong></td>
+                                    <td>{{ recon.period_start.strftime('%Y-%m-%d') }} → {{ recon.period_end.strftime('%Y-%m-%d') }}</td>
+                                    <td class="text-center">{{ "%.2f"|format(recon.book_balance) }} ₪</td>
+                                    <td class="text-center">{{ "%.2f"|format(recon.bank_balance) }} ₪</td>
+                                    <td class="text-center {% if (recon.bank_balance - recon.book_balance) != 0 %}text-danger{% else %}text-success{% endif %}">
+                                        {{ "%.2f"|format(recon.bank_balance - recon.book_balance) }} ₪
+                                    </td>
+                                    <td class="text-center">
+                                        {% if recon.status == 'COMPLETED' %}
+                                        <span class="badge badge-success">مكتملة</span>
+                                        {% elif recon.status == 'DRAFT' %}
+                                        <span class="badge badge-warning">مسودة</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">{{ recon.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="no-print">
+                                        <a href="{{ url_for('bank.view_reconciliation', id=recon.id) }}" class="btn btn-sm btn-info">
+                                            <i class="fas fa-eye"></i> عرض
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print.js') }}"></script>
+{% endblock %}

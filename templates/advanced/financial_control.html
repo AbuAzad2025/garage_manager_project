@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% block title %}التحكم المالي المتقدم{% endblock %}
+{% block page_title %}💰 التحكم المالي المتقدم - لوحة المالك{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  {% include 'advanced/_navigation.html' %}
+  
+  <div class="alert alert-info border-0 shadow-sm mb-4">
+    <i class="fas fa-shield-alt"></i> <strong>لوحة التحكم المالي:</strong> إعدادات حساسة - للمالك فقط
+  </div>
+
+  <div class="row g-4">
+    
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-line"></i> وحدة الميزانية</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_budget_settings">
+            
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input type="checkbox" name="enable_budget_module" class="form-check-input" id="enable_budget" 
+                       {% if budget_settings.enable_budget_module %}checked{% endif %}>
+                <label class="form-check-label" for="enable_budget">
+                  <strong>تفعيل وحدة الميزانية</strong>
+                </label>
+              </div>
+              <small class="text-muted">إدارة الميزانيات السنوية ومراقبة النفقات</small>
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <label class="form-label">بداية السنة المالية</label>
+              <select name="fiscal_year_start_month" class="custom-select">
+                <option value="1" {% if budget_settings.fiscal_year_start_month == 1 %}selected{% endif %}>يناير (ميلادي)</option>
+                <option value="3" {% if budget_settings.fiscal_year_start_month == 3 %}selected{% endif %}>مارس</option>
+                <option value="7" {% if budget_settings.fiscal_year_start_month == 7 %}selected{% endif %}>يوليو</option>
+                <option value="9" {% if budget_settings.fiscal_year_start_month == 9 %}selected{% endif %}>سبتمبر (هجري تقريبي)</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">مستوى الميزانية</label>
+              <select name="budget_level" class="custom-select">
+                <option value="ACCOUNT" {% if budget_settings.budget_level == 'ACCOUNT' %}selected{% endif %}>حساب فقط</option>
+                <option value="ACCOUNT_BRANCH" {% if budget_settings.budget_level == 'ACCOUNT_BRANCH' %}selected{% endif %}>حساب + فرع</option>
+                <option value="ACCOUNT_BRANCH_SITE" {% if budget_settings.budget_level == 'ACCOUNT_BRANCH_SITE' %}selected{% endif %}>حساب + فرع + موقع</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">نظام الالتزامات</label>
+              <select name="commitment_mode" class="custom-select">
+                <option value="NONE" {% if budget_settings.commitment_mode == 'NONE' %}selected{% endif %}>معطل</option>
+                <option value="EXPENSE" {% if budget_settings.commitment_mode == 'EXPENSE' %}selected{% endif %}>النفقات فقط</option>
+                <option value="PURCHASE" {% if budget_settings.commitment_mode == 'PURCHASE' %}selected{% endif %}>طلبات الشراء فقط</option>
+                <option value="QUOTE" {% if budget_settings.commitment_mode == 'QUOTE' %}selected{% endif %}>عروض الأسعار المقبولة</option>
+                <option value="ALL" {% if budget_settings.commitment_mode == 'ALL' %}selected{% endif %}>الجميع</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input type="checkbox" name="enable_budget_alerts" class="form-check-input" id="enable_alerts" 
+                       {% if budget_settings.enable_budget_alerts %}checked{% endif %}>
+                <label class="form-check-label" for="enable_alerts">تفعيل التنبيهات</label>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">عتبة التحذير (%)</label>
+                <input type="number" name="budget_threshold_warning" class="form-control" 
+                       value="{{ budget_settings.budget_threshold_warning }}" min="0" max="100" step="1">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">عتبة الخطر (%)</label>
+                <input type="number" name="budget_threshold_critical" class="form-control" 
+                       value="{{ budget_settings.budget_threshold_critical }}" min="0" max="100" step="1">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input type="checkbox" name="enable_budget_blocking" class="form-check-input" id="enable_blocking" 
+                       {% if budget_settings.enable_budget_blocking %}checked{% endif %}>
+                <label class="form-check-label" for="enable_blocking">منع تجاوز الميزانية</label>
+              </div>
+              <small class="text-muted">منع إنشاء نفقات تتجاوز الميزانية المتاحة</small>
+            </div>
+
+            <div class="alert alert-light border">
+              <strong>الإحصائيات:</strong><br>
+              <span class="badge bg-secondary">{{ budget_stats.total_budgets }}</span> ميزانية إجمالي
+              <span class="badge bg-success">{{ budget_stats.active_budgets }}</span> نشطة
+              <span class="badge bg-info">{{ budget_stats.current_year_budgets }}</span> السنة الحالية
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-save"></i> حفظ إعدادات الميزانية
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-building"></i> وحدة الأصول الثابتة</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="save_asset_settings">
+            
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input type="checkbox" name="enable_fixed_assets" class="form-check-input" id="enable_assets" 
+                       {% if asset_settings.enable_fixed_assets %}checked{% endif %}>
+                <label class="form-check-label" for="enable_assets">
+                  <strong>تفعيل وحدة الأصول الثابتة</strong>
+                </label>
+              </div>
+              <small class="text-muted">إدارة الأصول والاستهلاك والصيانة</small>
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input type="checkbox" name="enable_auto_depreciation" class="form-check-input" id="enable_depreciation" 
+                       {% if asset_settings.enable_auto_depreciation %}checked{% endif %}>
+                <label class="form-check-label" for="enable_depreciation">تفعيل الاستهلاك التلقائي</label>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">تكرار الاستهلاك</label>
+              <select name="depreciation_frequency" class="custom-select">
+                <option value="MONTHLY" {% if asset_settings.depreciation_frequency == 'MONTHLY' %}selected{% endif %}>شهري</option>
+                <option value="QUARTERLY" {% if asset_settings.depreciation_frequency == 'QUARTERLY' %}selected{% endif %}>ربع سنوي</option>
+                <option value="YEARLY" {% if asset_settings.depreciation_frequency == 'YEARLY' %}selected{% endif %}>سنوي</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">يوم احتساب الاستهلاك (من الشهر)</label>
+              <input type="number" name="depreciation_day_of_month" class="form-control" 
+                     value="{{ asset_settings.depreciation_day_of_month }}" min="1" max="28" step="1">
+            </div>
+
+            <hr>
+
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input type="checkbox" name="auto_create_asset_from_expense" class="form-check-input" id="auto_asset" 
+                       {% if asset_settings.auto_create_asset_from_expense %}checked{% endif %}>
+                <label class="form-check-label" for="auto_asset">تحويل النفقات الكبيرة لأصول تلقائياً</label>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">حد الرسملة (₪)</label>
+              <input type="number" name="asset_capitalization_threshold" class="form-control" 
+                     value="{{ asset_settings.asset_capitalization_threshold }}" min="0" step="100">
+              <small class="text-muted">النفقات الأكبر من هذا المبلغ تتحول لأصول ثابتة</small>
+            </div>
+
+            <div class="alert alert-light border">
+              <strong>الإحصائيات:</strong><br>
+              <span class="badge bg-secondary">{{ asset_stats.total_assets }}</span> أصل إجمالي
+              <span class="badge bg-success">{{ asset_stats.active_assets }}</span> نشط
+              <span class="badge bg-info">{{ asset_stats.total_categories }}</span> فئة
+            </div>
+
+            <button type="submit" class="btn btn-success w-100">
+              <i class="fas fa-save"></i> حفظ إعدادات الأصول الثابتة
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-dark text-white">
+          <h5 class="mb-0"><i class="fas fa-link"></i> روابط سريعة</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3">
+              <a href="#" class="btn btn-outline-primary w-100 mb-2">
+                <i class="fas fa-chart-bar"></i> لوحة الميزانية
+              </a>
+            </div>
+            <div class="col-md-3">
+              <a href="#" class="btn btn-outline-primary w-100 mb-2">
+                <i class="fas fa-file-invoice"></i> تقارير الميزانية
+              </a>
+            </div>
+            <div class="col-md-3">
+              <a href="#" class="btn btn-outline-success w-100 mb-2">
+                <i class="fas fa-warehouse"></i> سجل الأصول
+              </a>
+            </div>
+            <div class="col-md-3">
+              <a href="#" class="btn btn-outline-success w-100 mb-2">
+                <i class="fas fa-tools"></i> صيانة الأصول
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

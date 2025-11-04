@@ -146,7 +146,7 @@
 function updateReport() {
     const fromDate = document.getElementById('from_date').value;
     const toDate = document.getElementById('to_date').value;
-    window.location.href = `/financial-reports/cash-flow?from_date=${fromDate}&to_date=${toDate}`;
+    window.location.href = `/reports/financial/cash-flow?start_date=${fromDate}&end_date=${toDate}`;
 }
 
 function exportToExcel() {

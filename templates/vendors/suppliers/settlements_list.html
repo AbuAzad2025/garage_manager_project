@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}التسويات المعتمدة - الموردين{% endblock %}
+
+{% block content %}
+<div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">
+                        <i class="fas fa-file-invoice"></i> التسويات المعتمدة - الموردين
+                    </h1>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-right">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('vendors_bp.suppliers_list') }}">الموردين</a></li>
+                        <li class="breadcrumb-item active">التسويات المعتمدة</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <section class="content">
+        <div class="container-fluid">
+            
+            <div class="alert alert-info mb-3">
+                <small><strong>ℹ️</strong> قائمة جميع التسويات المالية المعتمدة للموردين</small>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-list-alt"></i> قائمة التسويات المعتمدة
+                        <span class="badge bg-primary">{{ settlements|length }}</span>
+                    </h3>
+                    <button class="btn btn-sm btn-outline-success no-print" onclick="window.print()">
+                        <i class="fas fa-print"></i> طباعة القائمة
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if settlements %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered table-hover">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th class="text-center">#</th>
+                                    <th>الكود</th>
+                                    <th>المورد</th>
+                                    <th>الفترة</th>
+                                    <th class="text-end">حقوق 🟢</th>
+                                    <th class="text-end">التزامات 🔴</th>
+                                    <th class="text-end">الرصيد 🎯</th>
+                                    <th>المعتمد</th>
+                                    <th class="text-center">قيد GL</th>
+                                    <th class="text-center no-print">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for settlement in settlements %}
+                                <tr>
+                                    <td class="text-center">{{ loop.index }}</td>
+                                    <td>
+                                        <strong>{{ settlement.code }}</strong><br>
+                                        <small class="text-muted">{{ settlement.supplier.name }}</small>
+                                    </td>
+                                    <td>
+                                        <i class="fas fa-truck"></i> {{ settlement.supplier.name }}
+                                    </td>
+                                    <td>
+                                        <small>{{ settlement.from_date.strftime('%Y-%m-%d') }}</small><br>
+                                        <small class="text-muted">→ {{ settlement.to_date.strftime('%Y-%m-%d') }}</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-success">{{ "%.2f"|format(settlement.rights_total) }}</strong>
+                                        <br><small class="text-muted">{{ "%.0f"|format(settlement.rights_exchange) }} قطعة</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="text-danger">{{ "%.2f"|format(settlement.obligations_total) }}</strong>
+                                        <br><small class="text-muted">
+                                            <span title="مبيعات">🛒 {{ "%.0f"|format(settlement.obligations_sales) }}</span> | 
+                                            <span title="صيانة">🔧 {{ "%.0f"|format(settlement.obligations_services) }}</span>
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <strong class="{% if settlement.closing_balance > 0 %}text-success{% elif settlement.closing_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                                            {{ "%.2f"|format(settlement.closing_balance|abs) }}
+                                        </strong>
+                                        <br><small class="badge {% if settlement.closing_balance > 0 %}bg-success{% elif settlement.closing_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %}">
+                                            {{ "له" if settlement.closing_balance > 0 else "عليه" if settlement.closing_balance < 0 else "متوازن" }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            <i class="fas fa-user"></i> {{ settlement.approved_by_user.username if settlement.approved_by_user else '-' }}<br>
+                                            <i class="fas fa-clock"></i> {{ settlement.approved_at.strftime('%m-%d %H:%M') if settlement.approved_at else '-' }}
+                                        </small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success" title="القيد المحاسبي">
+                                            <i class="fas fa-book"></i> GL
+                                        </span>
+                                    </td>
+                                    <td class="text-center no-print">
+                                        <a href="{{ url_for('supplier_settlements_bp.show_settlement', settlement_id=settlement.id) }}" class="btn btn-sm btn-outline-info" title="عرض التفاصيل">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> لا توجد تسويات معتمدة حتى الآن.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+        </div>
+    </section>
+{% endblock %}
+

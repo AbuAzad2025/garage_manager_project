@@ -134,6 +134,8 @@ def income_statement():
         data = {
             'start_date': start_date,
             'end_date': end_date,
+            'from_date': start_date,
+            'to_date': end_date,
             'total_revenue': total_revenue,
             'total_cogs': total_cogs,
             'gross_profit': gross_profit,
@@ -142,6 +144,8 @@ def income_statement():
             'total_taxes': total_taxes,
             'net_profit': net_profit,
             'is_profit': net_profit >= 0,
+            'revenues': revenue_details,
+            'expenses': expense_details,
             'revenue_details': revenue_details,
             'expense_details': expense_details
         }
@@ -410,26 +414,52 @@ def cash_flow():
         net_financing_cash = float(financing_cash_in) - float(financing_cash_out)
         net_cash_flow = net_operating_cash + net_investing_cash + net_financing_cash
         
-        return jsonify({
-            'success': True,
-            'report_type': 'cash_flow',
-            'period': {
-                'start_date': start_date.isoformat(),
-                'end_date': end_date.isoformat()
+        data = {
+            'start_date': start_date,
+            'end_date': end_date,
+            'from_date': start_date,
+            'to_date': end_date,
+            'operating': {
+                'inflows': float(operating_cash_in),
+                'outflows': float(operating_cash_out),
+                'net': net_operating_cash
             },
-            'summary': {
-                'operating_cash_in': float(operating_cash_in),
-                'operating_cash_out': float(operating_cash_out),
-                'net_operating_cash': net_operating_cash,
-                'investing_cash_in': float(investing_cash_in),
-                'investing_cash_out': float(investing_cash_out),
-                'net_investing_cash': net_investing_cash,
-                'financing_cash_in': float(financing_cash_in),
-                'financing_cash_out': float(financing_cash_out),
-                'net_financing_cash': net_financing_cash,
-                'net_cash_flow': net_cash_flow
-            }
-        })
+            'investing': {
+                'inflows': float(investing_cash_in),
+                'outflows': float(investing_cash_out),
+                'net': net_investing_cash
+            },
+            'financing': {
+                'inflows': float(financing_cash_in),
+                'outflows': float(financing_cash_out),
+                'net': net_financing_cash
+            },
+            'total_net_cash_flow': net_cash_flow
+        }
+        
+        if request.args.get('format') == 'json' or request.headers.get('Accept') == 'application/json':
+            return jsonify({
+                'success': True,
+                'report_type': 'cash_flow',
+                'period': {
+                    'start_date': start_date.isoformat(),
+                    'end_date': end_date.isoformat()
+                },
+                'summary': {
+                    'operating_cash_in': float(operating_cash_in),
+                    'operating_cash_out': float(operating_cash_out),
+                    'net_operating_cash': net_operating_cash,
+                    'investing_cash_in': float(investing_cash_in),
+                    'investing_cash_out': float(investing_cash_out),
+                    'net_investing_cash': net_investing_cash,
+                    'financing_cash_in': float(financing_cash_in),
+                    'financing_cash_out': float(financing_cash_out),
+                    'net_financing_cash': net_financing_cash,
+                    'net_cash_flow': net_cash_flow
+                }
+            })
+        
+        return render_template('reports/financial/cash_flow.html', **data)
         
     except Exception as e:
         current_app.logger.error(f"خطأ في التدفق النقدي: {str(e)}")

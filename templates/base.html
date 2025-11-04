@@ -82,10 +82,17 @@
       --primary-color: {{ system_settings.primary_color }};
     }
     
-    /* Apply primary color dynamically */
-    .btn-primary, .badge-primary, .bg-primary,
-    .alert-primary, .text-primary, .border-primary {
+    .btn-primary, .badge-primary, .bg-primary, .alert-primary {
       background-color: {{ system_settings.primary_color }} !important;
+      border-color: {{ system_settings.primary_color }} !important;
+    }
+    
+    .text-primary {
+      color: {{ system_settings.primary_color }} !important;
+      background-color: transparent !important;
+    }
+    
+    .border-primary {
       border-color: {{ system_settings.primary_color }} !important;
     }
     
@@ -497,7 +504,7 @@
           {% if messages %}
             {% for category, message in messages %}
               <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert" style="position: relative; z-index: 1050;">
-                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>{{ message }}
+                <i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' or category == 'error' %}exclamation-circle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} ml-2"></i>{{ message }}
                 <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق">
                   <span aria-hidden="true">&times;</span>
                 </button>
@@ -566,12 +573,7 @@
 <script src="{{ url_for('static', filename='js/module_specific_enhancements.js') }}"></script>
 
 <script>
-// ========== إدارة التنبيهات التلقائية ==========
 (function() {
-  // ✅ تعطيل الإخفاء التلقائي - جميع الرسائل ثابتة
-  // المستخدم يغلقها يدوياً بالضغط على × فقط
-  
-  // منع التنبيهات من التأثير على الأداء
   const originalAlert = window.alert;
   window.alert = function(message) {
     console.log('[Alert]', message);
@@ -952,6 +954,7 @@ window.addEventListener('resize', function() {
   
 })();
 </script>
+
 
 {% block scripts %}{% endblock %}
 </body>

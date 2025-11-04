@@ -52,7 +52,7 @@
               <tr class="cart-row" data-item-id="{{ item.id }}">
                 <td>
                   <div class="d-flex align-items-center">
-                    <img src="{{ src }}" class="rounded me-3" width="60" height="60" loading="lazy" alt="{{ display_name }}" style="object-fit:cover;" onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
+                    <img src="{{ src }}" class="rounded ml-3" width="60" height="60" loading="lazy" alt="{{ display_name }}" style="object-fit:cover;" onerror="this.onerror=null;this.src='{{ url_for('static', filename='products/default.png') }}'">
                     <div>
                       <h6 class="mb-0">{{ display_name }}</h6>
                       {% if item.product.sku %}<small class="text-muted">{{ item.product.sku }}</small>{% endif %}

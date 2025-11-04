@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% block title %}إدارة تنبيهات مراكز التكلفة{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-bell text-warning"></i> إدارة التنبيهات</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cost_centers.index') }}">مراكز التكلفة</a></li>
+                    <li class="breadcrumb-item active">التنبيهات</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="row mb-3">
+    <div class="col-12">
+        <button class="btn btn-primary" data-toggle="modal" data-target="#addAlertModal">
+            <i class="fas fa-plus"></i> إضافة تنبيه جديد
+        </button>
+        <a href="{{ url_for('cost_centers_advanced.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-chart-pie"></i> لوحة التحكم
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-warning text-white">
+        <h3 class="card-title"><i class="fas fa-list"></i> قائمة التنبيهات</h3>
+    </div>
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>مركز التكلفة</th>
+                    <th>نوع التنبيه</th>
+                    <th>العتبة</th>
+                    <th>آخر تفعيل</th>
+                    <th>عدد التفعيلات</th>
+                    <th>الحالة</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in alerts %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ alert.cost_center.name }} ({{ alert.cost_center.code }})</td>
+                    <td>
+                        {% if alert.alert_type == 'BUDGET_EXCEEDED' %}
+                            <span class="badge badge-danger">تجاوز الميزانية</span>
+                        {% elif alert.alert_type == 'BUDGET_WARNING' %}
+                            <span class="badge badge-warning">تحذير ميزانية</span>
+                        {% elif alert.alert_type == 'NO_ACTIVITY' %}
+                            <span class="badge badge-info">لا نشاط</span>
+                        {% elif alert.alert_type == 'UNUSUAL_SPIKE' %}
+                            <span class="badge badge-primary">ارتفاع غير عادي</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {{ alert.threshold_value }}
+                        {% if alert.threshold_type == 'PERCENTAGE' %}%{% else %}₪{% endif %}
+                    </td>
+                    <td>{{ alert.last_triggered_at.strftime('%Y-%m-%d %H:%M') if alert.last_triggered_at else '-' }}</td>
+                    <td>{{ alert.trigger_count }}</td>
+                    <td>
+                        {% if alert.is_active %}
+                            <span class="badge badge-success">نشط</span>
+                        {% else %}
+                            <span class="badge badge-secondary">معطل</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="POST" action="{{ url_for('cost_centers_advanced.toggle_alert', alert_id=alert.id) }}" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-{% if alert.is_active %}warning{% else %}success{% endif %}" title="{% if alert.is_active %}تعطيل{% else %}تفعيل{% endif %}">
+                                <i class="fas fa-{% if alert.is_active %}pause{% else %}play{% endif %}"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+</section>
+
+<div class="modal fade" id="addAlertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('cost_centers_advanced.add_alert') }}">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="fas fa-bell"></i> إضافة تنبيه جديد</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>مركز التكلفة *</label>
+                        <select name="cost_center_id" class="form-control" required>
+                            <option value="">اختر المركز</option>
+                            {% for cc in cost_centers %}
+                            <option value="{{ cc.id }}">{{ cc.name }} ({{ cc.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>نوع التنبيه *</label>
+                        <select name="alert_type" class="form-control" required>
+                            <option value="BUDGET_WARNING">تحذير ميزانية (قبل التجاوز)</option>
+                            <option value="BUDGET_EXCEEDED">تجاوز الميزانية</option>
+                            <option value="NO_ACTIVITY">لا نشاط</option>
+                            <option value="UNUSUAL_SPIKE">ارتفاع غير عادي</option>
+                        </select>
+                        <small class="form-text text-muted">نوع التنبيه المراد تفعيله</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>نوع العتبة *</label>
+                                <select name="threshold_type" class="form-control" required>
+                                    <option value="PERCENTAGE">نسبة مئوية (%)</option>
+                                    <option value="AMOUNT">مبلغ (₪)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>القيمة *</label>
+                                <input type="number" name="threshold_value" class="form-control" step="0.01" required>
+                                <small class="form-text text-muted">مثال: 80 للتنبيه عند 80%</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="notify_manager" name="notify_manager" checked>
+                            <label class="custom-control-label" for="notify_manager">
+                                إخطار مدير مركز التكلفة
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                        <i class="fas fa-times"></i> إلغاء
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> حفظ
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+

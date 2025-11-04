@@ -1,0 +1,268 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }} - لوحة التحكم المتقدمة{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-12">
+                <h1><i class="fas fa-tachometer-alt"></i> لوحة التحكم المتقدمة: {{ project.name }}</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-primary">
+                        <h3 class="card-title"><i class="fas fa-tasks"></i> نظرة سريعة على المشروع</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <h6>الحالة:</h6>
+                                <h4>
+                                    {% if project.status == 'ACTIVE' %}
+                                        <span class="badge badge-success">نشط</span>
+                                    {% elif project.status == 'PLANNED' %}
+                                        <span class="badge badge-info">مخطط</span>
+                                    {% elif project.status == 'ON_HOLD' %}
+                                        <span class="badge badge-warning">معلق</span>
+                                    {% elif project.status == 'COMPLETED' %}
+                                        <span class="badge badge-primary">مكتمل</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">ملغي</span>
+                                    {% endif %}
+                                </h4>
+                            </div>
+                            <div class="col-md-3">
+                                <h6>نسبة الإنجاز:</h6>
+                                <div class="progress" style="height: 30px;">
+                                    <div class="progress-bar bg-success" style="width: {{ project.completion_percentage or 0 }}%">
+                                        {{ "%.0f"|format(project.completion_percentage or 0) }}%
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <h6>الميزانية:</h6>
+                                <h4>{{ "%.2f"|format(project.budget_amount or 0) }} ₪</h4>
+                            </div>
+                            <div class="col-md-3">
+                                <h6>التكلفة الفعلية:</h6>
+                                <h4 class="{% if project.actual_cost > project.budget_amount %}text-danger{% else %}text-success{% endif %}">
+                                    {{ "%.2f"|format(project.actual_cost or 0) }} ₪
+                                </h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3>{{ data.tasks.total }}</h3>
+                        <p>المهام الإجمالية</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <a href="{{ url_for('project_advanced.tasks', project_id=project.id) }}" class="small-box-footer">
+                        عرض المهام <i class="fas fa-arrow-circle-left"></i>
+                    </a>
+                </div>
+                <div class="info-box bg-success">
+                    <span class="info-box-icon"><i class="fas fa-check"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">مهام مكتملة</span>
+                        <span class="info-box-number">{{ data.tasks.completed }}</span>
+                    </div>
+                </div>
+                <div class="info-box bg-warning">
+                    <span class="info-box-icon"><i class="fas fa-clock"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">مهام متأخرة</span>
+                        <span class="info-box-number">{{ data.tasks.overdue }}</span>
+                    </div>
+                </div>
+                <div class="info-box bg-danger">
+                    <span class="info-box-icon"><i class="fas fa-ban"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">مهام محظورة</span>
+                        <span class="info-box-number">{{ data.tasks.blocked }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3>{{ data.resources.total }}</h3>
+                        <p>الموارد المخصصة</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-users-cog"></i>
+                    </div>
+                    <a href="{{ url_for('project_advanced.resources', project_id=project.id) }}" class="small-box-footer">
+                        عرض الموارد <i class="fas fa-arrow-circle-left"></i>
+                    </a>
+                </div>
+                <div class="info-box bg-danger">
+                    <span class="info-box-icon"><i class="fas fa-dollar-sign"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">تكلفة الموارد</span>
+                        <span class="info-box-number">{{ "%.0f"|format(data.resources.total_cost) }} ₪</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="small-box bg-primary">
+                    <div class="inner">
+                        <h3>{{ data.milestones.total }}</h3>
+                        <p>المحطات</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-flag-checkered"></i>
+                    </div>
+                    <a href="{{ url_for('project_advanced.milestones', project_id=project.id) }}" class="small-box-footer">
+                        عرض المحطات <i class="fas fa-arrow-circle-left"></i>
+                    </a>
+                </div>
+                <div class="info-box bg-success">
+                    <span class="info-box-icon"><i class="fas fa-check-circle"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">محطات مكتملة</span>
+                        <span class="info-box-number">{{ data.milestones.completed }}</span>
+                    </div>
+                </div>
+                <div class="info-box bg-info">
+                    <span class="info-box-icon"><i class="fas fa-file-invoice"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">محطات مفوترة</span>
+                        <span class="info-box-number">{{ data.milestones.billed }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="small-box bg-warning">
+                    <div class="inner">
+                        <h3>{{ data.risks.total }}</h3>
+                        <p>المخاطر المسجلة</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <a href="{{ url_for('project_advanced.risks', project_id=project.id) }}" class="small-box-footer">
+                        عرض المخاطر <i class="fas fa-arrow-circle-left"></i>
+                    </a>
+                </div>
+                <div class="info-box bg-danger">
+                    <span class="info-box-icon"><i class="fas fa-skull-crossbones"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">مخاطر حرجة</span>
+                        <span class="info-box-number">{{ data.risks.critical }}</span>
+                    </div>
+                </div>
+                <div class="info-box bg-info">
+                    <span class="info-box-icon"><i class="fas fa-eye"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">مخاطر مفتوحة</span>
+                        <span class="info-box-number">{{ data.risks.open }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-warning">
+                        <h3 class="card-title"><i class="fas fa-exchange-alt"></i> أوامر التغيير</h3>
+                        <div class="card-tools">
+                            <a href="{{ url_for('project_advanced.change_orders', project_id=project.id) }}" class="btn btn-sm btn-default">
+                                عرض الكل
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <th>إجمالي الطلبات:</th>
+                                <td class="text-left">{{ data.change_orders.total }}</td>
+                            </tr>
+                            <tr>
+                                <th>قيد المراجعة:</th>
+                                <td class="text-left"><span class="badge badge-warning">{{ data.change_orders.pending }}</span></td>
+                            </tr>
+                            <tr>
+                                <th>موافق عليها:</th>
+                                <td class="text-left"><span class="badge badge-success">{{ data.change_orders.approved }}</span></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary">
+                        <h3 class="card-title"><i class="fas fa-chart-line"></i> القيمة المكتسبة (EVM)</h3>
+                        <div class="card-tools">
+                            <a href="{{ url_for('project_advanced.earned_value_analysis', project_id=project.id) }}" class="btn btn-sm btn-default">
+                                عرض التحليل الكامل
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <a href="{{ url_for('project_advanced.earned_value_analysis', project_id=project.id) }}" class="btn btn-lg btn-block btn-primary">
+                            <i class="fas fa-chart-area"></i> تحليل الأداء والقيمة المكتسبة
+                        </a>
+                        <p class="text-muted text-center mt-2">
+                            <small>عرض تفصيلي لمؤشرات الأداء (CPI, SPI, EVM)</small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-secondary">
+                <h3 class="card-title"><i class="fas fa-link"></i> روابط سريعة</h3>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <a href="{{ url_for('projects.view_project', id=project.id) }}" class="btn btn-block btn-default">
+                            <i class="fas fa-eye"></i> عرض المشروع الأساسي
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('projects.index') }}" class="btn btn-block btn-default">
+                            <i class="fas fa-arrow-left"></i> العودة لقائمة المشاريع
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-block btn-success" onclick="window.print()">
+                            <i class="fas fa-print"></i> طباعة التقرير
+                        </button>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-block btn-primary">
+                            <i class="fas fa-home"></i> الصفحة الرئيسية
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+

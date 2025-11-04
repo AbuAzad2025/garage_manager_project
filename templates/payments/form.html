@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}{{ payment and 'تعديل دفعة' or 'إنشاء دفعة' }}{% endblock %}
 
 {% block head_extra %}
@@ -157,7 +157,7 @@ form .row:nth-of-type(3) .card-header {
 }
 
 /* Form Controls - عصرية ومريحة */
-.form-control, .form-select {
+.form-control, .custom-select {
     border: 2px solid #e8ecf1 !important;
     border-radius: 12px !important;
     padding: 12px 18px !important;
@@ -168,7 +168,7 @@ form .row:nth-of-type(3) .card-header {
     background: #f8f9fa !important;
 }
 
-.form-control:focus, .form-select:focus {
+.form-control:focus, .custom-select:focus {
     border-color: #667eea !important;
     background: white !important;
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1) !important;
@@ -569,7 +569,7 @@ h2, h3, h4 {
                 {{ form.entity_type.label.text }}
                 <span class="text-danger fw-bold">*</span>
               </label>
-              {{ form.entity_type(class="form-select") }}
+              {{ form.entity_type(class="custom-select") }}
               <small class="form-text text-muted">
                 <i class="fas fa-info-circle"></i> اختر نوع الجهة التي تتعامل معها
               </small>
@@ -587,7 +587,7 @@ h2, h3, h4 {
                 {{ form.direction.label.text }}
                 <span class="text-danger fw-bold">*</span>
               </label>
-              {{ form.direction(class="form-select") }}
+              {{ form.direction(class="custom-select") }}
               <small class="form-text text-muted">
                 <i class="fas fa-info-circle"></i> وارد (قبض منهم) أو صادر (دفع لهم)
               </small>
@@ -605,7 +605,7 @@ h2, h3, h4 {
                 {{ form.status.label.text }}
                 <span class="text-danger fw-bold">*</span>
               </label>
-              {{ form.status(class="form-select") }}
+              {{ form.status(class="custom-select") }}
               <small class="form-text text-muted">
                 <i class="fas fa-info-circle"></i> حالة الدفعة (مكتملة، معلقة، إلخ)
               </small>
@@ -654,7 +654,7 @@ h2, h3, h4 {
                 {{ form.currency.label.text }}
                 <span class="text-danger fw-bold">*</span>
               </label>
-              {{ form.currency(class="form-select") }}
+              {{ form.currency(class="custom-select") }}
               <small class="form-text text-muted">
                 <i class="fas fa-info-circle"></i> عملة الدفع (شيكل، دولار، دينار)
               </small>
@@ -699,7 +699,7 @@ h2, h3, h4 {
             <!-- طريقة الدفع - مخفي (يُستخرج من الدفعات الجزئية) -->
             {% if form.method is not none %}
             <div class="mb-4" style="display: none;">
-              {{ form.method(class="form-select", value="cash") }}
+              {{ form.method(class="custom-select", value="cash") }}
             </div>
             {% endif %}
 
@@ -805,11 +805,11 @@ h2, h3, h4 {
           <div class="split-form border p-3 mb-3 rounded" data-index="{{ loop.index0 }}">
             <div class="d-flex justify-content-between align-items-center mb-3">
               <h5 class="mb-0">
-                <i class="fas fa-credit-card me-2"></i>
+                <i class="fas fa-credit-card ml-2"></i>
                 طريقة الدفع #{{ loop.index }}
               </h5>
               <button type="button" class="btn btn-danger btn-sm remove-split" {% if loop.first %}disabled{% endif %}>
-                <i class="fas fa-trash me-1"></i>حذف
+                <i class="fas fa-trash ml-1"></i>حذف
               </button>
             </div>
 
@@ -820,7 +820,7 @@ h2, h3, h4 {
                   {{ split.method.label.text }}
                   <span class="text-danger fw-bold">*</span>
                 </label>
-                {{ split.method(class="form-select split-method") }}
+                {{ split.method(class="custom-select split-method") }}
                 <small class="form-text text-muted">
                   <i class="fas fa-info-circle"></i> كيف ستدفع هذا الجزء
                 </small>
@@ -878,7 +878,7 @@ h2, h3, h4 {
         </div>
 
         <button type="button" id="addSplit" class="btn btn-secondary">
-          <i class="fas fa-plus-circle me-1"></i> إضافة طريقة دفع أخرى
+          <i class="fas fa-plus-circle ml-1"></i> إضافة طريقة دفع أخرى
         </button>
         <small class="form-text text-muted d-block mt-2">
           <i class="fas fa-info-circle"></i> إذا كانت الدفعة بأكثر من طريقة، اضغط هنا لإضافة طريقة ثانية أو ثالثة
@@ -916,11 +916,11 @@ h2, h3, h4 {
       <div class="card-body text-center" style="padding: 30px 0;">
         <div class="d-flex justify-content-center align-items-center gap-3">
           <button type="button" id="submitPaymentBtn" class="btn btn-success btn-lg px-5 py-3">
-            <i class="fas fa-save me-2"></i>
+            <i class="fas fa-save ml-2"></i>
             <span class="fw-bold">حفظ الدفعة</span>
           </button>
           <a href="{{ url_for('payments.index') }}" class="btn btn-secondary btn-lg px-5 py-3">
-            <i class="fas fa-times me-2"></i>
+            <i class="fas fa-times ml-2"></i>
             <span class="fw-bold">إلغاء</span>
           </a>
         </div>
@@ -931,7 +931,7 @@ h2, h3, h4 {
         {% if payment %}
         <div class="mt-3">
           <button type="button" class="btn btn-warning btn-lg px-4 py-2" data-toggle="modal" data-target="#archiveModal">
-            <i class="fas fa-archive me-2"></i> أرشفة الدفعة
+            <i class="fas fa-archive ml-2"></i> أرشفة الدفعة
           </button>
         </div>
         {% endif %}
@@ -1029,11 +1029,11 @@ h2, h3, h4 {
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <div class="fw-bold text-primary">
-                <i class="fas fa-user-circle me-1"></i>
+                <i class="fas fa-user-circle ml-1"></i>
                 ${entity.name || entity.display}
               </div>
-              ${entity.phone ? `<small class="text-muted"><i class="fas fa-phone me-1"></i>${entity.phone}</small>` : ''}
-              ${entity.email ? `<small class="text-muted d-block"><i class="fas fa-envelope me-1"></i>${entity.email}</small>` : ''}
+              ${entity.phone ? `<small class="text-muted"><i class="fas fa-phone ml-1"></i>${entity.phone}</small>` : ''}
+              ${entity.email ? `<small class="text-muted d-block"><i class="fas fa-envelope ml-1"></i>${entity.email}</small>` : ''}
               ${entity.balance !== undefined ? `<small class="badge bg-info mt-1">الرصيد: ${parseFloat(entity.balance).toFixed(0)}</small>` : ''}
             </div>
             <i class="fas fa-check-circle text-success"></i>

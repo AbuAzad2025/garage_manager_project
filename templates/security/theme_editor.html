@@ -1,11 +1,10 @@
-﻿{% extends 'base.html' %}
-{% block title %}محرر الكود الموحد v5.0{% endblock %}
-{% block page_title %}💻 محرر الكود الموحد <span class="badge bg-dark ms-2">CSS + HTML + Text</span>{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+﻿{% extends 'security/base_security.html' %}
+{% block tour_name %}theme_editor{% endblock %}
+{% block security_title %}Theme Editor{% endblock %}
+{% block security_icon %}<i class="fas fa-palette"></i>{% endblock %}
+{% block security_description %}محرر الكود الموحد - CSS • HTML • Text{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Theme Editor</li>{% endblock %}
+{% block security_content %}
   
   <div class="alert alert-warning border-0 shadow-sm">
     <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> احفظ نسخة احتياطية قبل التعديل!

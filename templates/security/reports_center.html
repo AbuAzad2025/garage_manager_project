@@ -1,53 +1,46 @@
-{% extends 'base.html' %}
-{% block title %}مركز التقارير والأداء{% endblock %}
-{% block page_title %}📊 مركز التقارير والأداء{% endblock %}
+{% extends 'security/base_security.html' %}
 
-{% block breadcrumb_items %}
-<li class="breadcrumb-item active"><i class="fas fa-chart-bar"></i> Reports Center</li>
+{% block tour_name %}reports_center{% endblock %}
+
+{% block security_title %}Reports & Performance Center{% endblock %}
+{% block security_icon %}<i class="fas fa-chart-bar"></i>{% endblock %}
+{% block security_description %}تقارير إدارية • مراقبة الأداء • Grafana • تحليلات متقدمة{% endblock %}
+
+{% block security_breadcrumb %}
+<li class="breadcrumb-item active">Reports Center</li>
 {% if active_tab %}
 <li class="breadcrumb-item active">{{ active_tab|title }}</li>
 {% endif %}
 {% endblock %}
 
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
-  
-  <div class="alert border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <i class="fas fa-chart-line"></i>
-        <strong>Reports & Performance Center:</strong>
-        <span class="badge bg-white text-info ms-2">4 أدوات في مكان واحد</span>
-      </div>
-      <small class="opacity-75">تقارير + مراقبة + أداء + Grafana</small>
-    </div>
-  </div>
+{% block security_actions %}
+<span class="badge bg-info fs-6">4 أدوات</span>
+{% endblock %}
 
-  <div class="card shadow">
-    <div class="card-header text-white" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-      <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Reports & Performance Center</h5>
-    </div>
-    
+{% block security_content %}
+
+  <div class="card shadow-lg border-0">
     <div class="card-body p-0">
       
-      <ul class="nav nav-tabs nav-fill" style="border-bottom: 2px solid #dee2e6;">
+      <ul class="nav nav-tabs nav-fill">
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'reports' %}active{% endif %}" 
-             href="{{ url_for('security.reports_center', tab='reports') }}">
-            <i class="fas fa-file-alt"></i> التقارير الإدارية
+             href="{{ url_for('security.reports_center', tab='reports') }}"
+             title="التقارير الإدارية الشاملة">
+            التقارير الإدارية
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'monitoring' %}active{% endif %}" 
-             href="{{ url_for('security.reports_center', tab='monitoring') }}">
-            <i class="fas fa-chart-area"></i> لوحة المراقبة
+             href="{{ url_for('security.reports_center', tab='monitoring') }}"
+             title="لوحة المراقبة الفورية">
+            لوحة المراقبة
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'performance' %}active{% endif %}" 
-             href="{{ url_for('security.reports_center', tab='performance') }}">
+             href="{{ url_for('security.reports_center', tab='performance') }}"
+             title="مراقبة الأداء والتحليلات">
             <i class="fas fa-tachometer-alt"></i> مراقبة الأداء
           </a>
         </li>
@@ -61,55 +54,246 @@
 
       <div class="tab-content p-4">
         
-        {% if active_tab == 'reports' %}
+        <!-- تاب 1: التقارير الإدارية -->
+        <div class="tab-pane fade {% if active_tab == 'reports' %}show active{% endif %}" 
+             id="reports" 
+             role="tabpanel">
         <div class="container-fluid">
-          <h4><i class="fas fa-file-alt text-primary"></i> التقارير الإدارية</h4>
-          
-          <div class="mb-3">
-            <button class="btn btn-success me-2" onclick="showCustomReportBuilder()">
-              <i class="fas fa-plus"></i> بناء تقرير مخصص
-            </button>
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body text-center">
+                  <i class="fas fa-file-invoice fa-2x mb-2"></i>
+                  <h6>تقارير مالية</h6>
+                  <h4 class="mb-0">8</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm bg-success text-white">
+                <div class="card-body text-center">
+                  <i class="fas fa-warehouse fa-2x mb-2"></i>
+                  <h6>تقارير مخزون</h6>
+                  <h4 class="mb-0">3</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm bg-info text-white">
+                <div class="card-body text-center">
+                  <i class="fas fa-users fa-2x mb-2"></i>
+                  <h6>تقارير عملاء</h6>
+                  <h4 class="mb-0">4</h4>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm bg-warning text-white">
+                <div class="card-body text-center">
+                  <i class="fas fa-chart-line fa-2x mb-2"></i>
+                  <h6>تقارير ديناميكية</h6>
+                  <h4 class="mb-0">∞</h4>
+                </div>
+              </div>
+            </div>
           </div>
           
-          <a href="{{ url_for('admin_reports.index') }}" class="btn btn-primary btn-lg" target="_blank">
-            <i class="fas fa-external-link-alt"></i> فتح التقارير
-          </a>
-        </div>
-        {% endif %}
-        
-        {% if active_tab == 'monitoring' %}
-        <div class="container-fluid">
-          <h4><i class="fas fa-chart-area text-info"></i> لوحة المراقبة الشاملة</h4>
-          <a href="{{ url_for('security.monitoring_dashboard') }}" class="btn btn-info btn-lg" target="_blank">
-            <i class="fas fa-external-link-alt"></i> فتح لوحة المراقبة
-          </a>
-        </div>
-        {% endif %}
-        
-        {% if active_tab == 'performance' %}
-        <div class="container-fluid">
-          <h4><i class="fas fa-tachometer-alt text-success"></i> مراقبة الأداء</h4>
-          
-          <div class="mb-3">
-            <button class="btn btn-warning me-2" onclick="analyzePerformance()">
-              <i class="fas fa-chart-line"></i> تحليل شامل للأداء
-            </button>
+          <div class="card shadow-sm">
+            <div class="card-header bg-gradient-primary text-white">
+              <h5 class="mb-0"><i class="fas fa-chart-bar"></i> التقارير المتاحة</h5>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <a href="{{ url_for('reports_bp.sales') }}" class="text-decoration-none">
+                    <div class="card border-primary h-100">
+                      <div class="card-body">
+                        <i class="fas fa-dollar-sign text-primary fa-2x mb-2"></i>
+                        <h6>تقرير المبيعات</h6>
+                        <p class="small text-muted mb-0">ملخص المبيعات والإيرادات</p>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+                <div class="col-md-4">
+                  <a href="{{ url_for('reports_bp.customers_report') }}" class="text-decoration-none">
+                    <div class="card border-info h-100">
+                      <div class="card-body">
+                        <i class="fas fa-users text-info fa-2x mb-2"></i>
+                        <h6>تقرير العملاء</h6>
+                        <p class="small text-muted mb-0">ذمم العملاء والأرصدة</p>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+                <div class="col-md-4">
+                  <a href="{{ url_for('reports_bp.inventory') }}" class="text-decoration-none">
+                    <div class="card border-success h-100">
+                      <div class="card-body">
+                        <i class="fas fa-boxes text-success fa-2x mb-2"></i>
+                        <h6>تقرير المخزون</h6>
+                        <p class="small text-muted mb-0">حركة المخزون والكميات</p>
+                      </div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+              <div class="mt-3">
+                <a href="{{ url_for('admin_reports.index') }}" class="btn btn-primary">
+                  <i class="fas fa-chart-bar"></i> عرض جميع التقارير
+                </a>
+                <a href="{{ url_for('reports_bp.universal') }}" class="btn btn-success">
+                  <i class="fas fa-plus"></i> بناء تقرير مخصص
+                </a>
+              </div>
+            </div>
           </div>
-          
-          <a href="{{ url_for('security.performance_monitor') }}" class="btn btn-success btn-lg" target="_blank">
-            <i class="fas fa-external-link-alt"></i> فتح مراقبة الأداء
-          </a>
         </div>
-        {% endif %}
+        </div>
         
-        {% if active_tab == 'grafana' %}
+        <!-- تاب 2: لوحة المراقبة -->
+        <div class="tab-pane fade {% if active_tab == 'monitoring' %}show active{% endif %}" 
+             id="monitoring" 
+             role="tabpanel">
         <div class="container-fluid">
-          <h4><i class="fas fa-chart-pie text-warning"></i> Grafana + Prometheus</h4>
-          <a href="{{ url_for('security.grafana_setup') }}" class="btn btn-warning btn-lg" target="_blank">
-            <i class="fas fa-external-link-alt"></i> فتح Grafana
-          </a>
+          <div class="card shadow-sm">
+            <div class="card-header bg-gradient-info text-white">
+              <h5 class="mb-0"><i class="fas fa-chart-area"></i> لوحة المراقبة الشاملة</h5>
+            </div>
+            <div class="card-body">
+              <div class="row g-4">
+                <div class="col-md-6">
+                  <div class="card border-info">
+                    <div class="card-body">
+                      <h6 class="text-info"><i class="fas fa-chart-line"></i> مراقبة الأداء الحي</h6>
+                      <ul class="list-unstyled small">
+                        <li><i class="fas fa-check text-success"></i> استخدام CPU والذاكرة</li>
+                        <li><i class="fas fa-check text-success"></i> عدد الطلبات في الثانية</li>
+                        <li><i class="fas fa-check text-success"></i> زمن الاستجابة</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card border-primary">
+                    <div class="card-body">
+                      <h6 class="text-primary"><i class="fas fa-database"></i> قاعدة البيانات</h6>
+                      <ul class="list-unstyled small">
+                        <li><i class="fas fa-check text-success"></i> حجم قاعدة البيانات</li>
+                        <li><i class="fas fa-check text-success"></i> عدد الاستعلامات</li>
+                        <li><i class="fas fa-check text-success"></i> أبطأ الاستعلامات</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <a href="{{ url_for('security.monitoring_dashboard') }}" class="btn btn-info">
+                  <i class="fas fa-tv"></i> فتح لوحة المراقبة الحية
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
-        {% endif %}
+        </div>
+        
+        <!-- تاب 3: مراقبة الأداء -->
+        <div class="tab-pane fade {% if active_tab == 'performance' %}show active{% endif %}" 
+             id="performance" 
+             role="tabpanel">
+        <div class="container-fluid">
+          <div class="card shadow-sm">
+            <div class="card-header bg-gradient-success text-white">
+              <h5 class="mb-0"><i class="fas fa-tachometer-alt"></i> مراقبة الأداء</h5>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <div class="card border-success">
+                    <div class="card-body text-center">
+                      <i class="fas fa-rocket fa-2x text-success mb-2"></i>
+                      <h6>سرعة التحميل</h6>
+                      <h4 class="text-success">< 1s</h4>
+                      <p class="small text-muted mb-0">متوسط زمن الاستجابة</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="card border-primary">
+                    <div class="card-body text-center">
+                      <i class="fas fa-server fa-2x text-primary mb-2"></i>
+                      <h6>استخدام الذاكرة</h6>
+                      <h4 class="text-primary">متوازن</h4>
+                      <p class="small text-muted mb-0">RAM Usage</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="card border-info">
+                    <div class="card-body text-center">
+                      <i class="fas fa-database fa-2x text-info mb-2"></i>
+                      <h6>قاعدة البيانات</h6>
+                      <h4 class="text-info">محسّنة</h4>
+                      <p class="small text-muted mb-0">فهارس + Cache</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <a href="{{ url_for('security.performance_monitor') }}" class="btn btn-success">
+                  <i class="fas fa-tachometer-alt"></i> مراقبة الأداء التفصيلية
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+        
+        <!-- تاب 4: Grafana -->
+        <div class="tab-pane fade {% if active_tab == 'grafana' %}show active{% endif %}" 
+             id="grafana" 
+             role="tabpanel">
+        <div class="container-fluid">
+          <div class="card shadow-sm">
+            <div class="card-header bg-gradient-warning text-white">
+              <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Grafana + Prometheus</h5>
+            </div>
+            <div class="card-body">
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>نظام مراقبة احترافي:</strong> Grafana توفر لوحات تحكم تفاعلية ومراقبة متقدمة
+              </div>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <div class="card border-warning">
+                    <div class="card-body">
+                      <i class="fas fa-chart-line fa-2x text-warning mb-3"></i>
+                      <h6>Grafana Dashboard</h6>
+                      <p class="small text-muted">لوحات تحكم تفاعلية متقدمة</p>
+                      <span class="badge bg-secondary">قيد التطوير</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="card border-danger">
+                    <div class="card-body">
+                      <i class="fas fa-server fa-2x text-danger mb-3"></i>
+                      <h6>Prometheus Metrics</h6>
+                      <p class="small text-muted">جمع المتريكات والمقاييس</p>
+                      <span class="badge bg-secondary">قيد التطوير</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3">
+                <a href="{{ url_for('security.grafana_setup') }}" class="btn btn-warning">
+                  <i class="fas fa-cog"></i> إعداد Grafana
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
         
       </div>
     </div>

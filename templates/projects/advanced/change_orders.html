@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }} - أوامر التغيير{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-exchange-alt"></i> أوامر التغيير: {{ project.name }}</h1>
+            </div>
+            <div class="col-sm-6">
+                <button class="btn btn-warning float-left" data-toggle="modal" data-target="#addChangeOrderModal">
+                    <i class="fas fa-plus"></i> طلب تغيير
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3">
+            <div class="col-md-2">
+                <div class="info-box bg-secondary">
+                    <span class="info-box-icon"><i class="fas fa-list"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">الإجمالي</span>
+                        <span class="info-box-number">{{ stats.total }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-warning">
+                    <span class="info-box-icon"><i class="fas fa-clock"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">قيد المراجعة</span>
+                        <span class="info-box-number">{{ stats.pending }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-success">
+                    <span class="info-box-icon"><i class="fas fa-check"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">موافق عليها</span>
+                        <span class="info-box-number">{{ stats.approved }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-danger">
+                    <span class="info-box-icon"><i class="fas fa-dollar-sign"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">أثر التكلفة</span>
+                        <span class="info-box-number">{{ "%.0f"|format(stats.total_cost_impact) }} ₪</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-info">
+                    <span class="info-box-icon"><i class="fas fa-calendar-alt"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">أثر الجدول الزمني</span>
+                        <span class="info-box-number">{{ stats.total_schedule_impact }} يوم</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-exchange-alt"></i> سجل أوامر التغيير</h3>
+                <div class="card-tools">
+                    <button class="btn btn-sm btn-success" onclick="window.print()">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>رقم الأمر</th>
+                            <th>العنوان</th>
+                            <th>مقدم الطلب</th>
+                            <th>تاريخ الطلب</th>
+                            <th>أثر التكلفة</th>
+                            <th>أثر الجدول (أيام)</th>
+                            <th>الحالة</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for co in change_orders %}
+                        <tr>
+                            <td><strong>{{ co.change_number }}</strong></td>
+                            <td>
+                                <strong>{{ co.title }}</strong>
+                                <br><small class="text-muted">{{ co.description[:100] }}...</small>
+                            </td>
+                            <td>{{ co.requester.username if co.requester else '-' }}</td>
+                            <td>{{ co.requested_date.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                {% if co.cost_impact > 0 %}
+                                    <span class="text-danger">+{{ "%.2f"|format(co.cost_impact) }} ₪</span>
+                                {% elif co.cost_impact < 0 %}
+                                    <span class="text-success">{{ "%.2f"|format(co.cost_impact) }} ₪</span>
+                                {% else %}
+                                    <span class="text-muted">0.00 ₪</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if co.schedule_impact_days > 0 %}
+                                    <span class="text-warning">+{{ co.schedule_impact_days }} يوم</span>
+                                {% else %}
+                                    <span class="text-muted">0 يوم</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if co.status == 'APPROVED' %}
+                                    <span class="badge badge-success"><i class="fas fa-check"></i> موافق</span>
+                                {% elif co.status == 'REJECTED' %}
+                                    <span class="badge badge-danger"><i class="fas fa-times"></i> مرفوض</span>
+                                {% elif co.status == 'UNDER_REVIEW' %}
+                                    <span class="badge badge-warning"><i class="fas fa-search"></i> قيد المراجعة</span>
+                                {% elif co.status == 'SUBMITTED' %}
+                                    <span class="badge badge-info"><i class="fas fa-paper-plane"></i> مُقدم</span>
+                                {% elif co.status == 'IMPLEMENTED' %}
+                                    <span class="badge badge-primary"><i class="fas fa-check-double"></i> منفذ</span>
+                                {% else %}
+                                    <span class="badge badge-secondary"><i class="fas fa-edit"></i> مسودة</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if co.status in ['SUBMITTED', 'UNDER_REVIEW'] %}
+                                <form method="POST" action="{{ url_for('project_advanced.approve_change_order', project_id=project.id, co_id=co.id) }}" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="approve">
+                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('تأكيد الموافقة؟')">
+                                        <i class="fas fa-check"></i> موافقة
+                                    </button>
+                                </form>
+                                <button class="btn btn-sm btn-danger" data-toggle="modal" data-target="#rejectModal{{ co.id }}">
+                                    <i class="fas fa-times"></i> رفض
+                                </button>
+                                
+                                <div class="modal fade" id="rejectModal{{ co.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <form method="POST" action="{{ url_for('project_advanced.approve_change_order', project_id=project.id, co_id=co.id) }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <input type="hidden" name="action" value="reject">
+                                                <div class="modal-header bg-danger">
+                                                    <h5 class="modal-title">رفض أمر التغيير</h5>
+                                                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="form-group">
+                                                        <label>سبب الرفض:</label>
+                                                        <textarea name="rejection_reason" class="form-control" rows="3" required></textarea>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                                                    <button type="submit" class="btn btn-danger">رفض</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="addChangeOrderModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('project_advanced.add_change_order', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fas fa-plus"></i> تقديم طلب تغيير</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> عنوان التغيير:</label>
+                                <input type="text" name="title" class="form-control" required placeholder="عنوان واضح للتغيير المطلوب">
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> وصف التغيير:</label>
+                                <textarea name="description" class="form-control" rows="3" required placeholder="وصف تفصيلي للتغيير المطلوب"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>سبب التغيير:</label>
+                                <textarea name="reason" class="form-control" rows="2" placeholder="لماذا نحتاج لهذا التغيير؟"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>تغيير في النطاق (Scope Change):</label>
+                                <textarea name="scope_change" class="form-control" rows="2" placeholder="كيف سيؤثر على نطاق المشروع؟"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>أثر التكلفة (₪):</label>
+                                <input type="number" name="cost_impact" class="form-control" step="0.01" value="0" placeholder="القيمة الإضافية أو التوفير (سالب)">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>أثر الجدول الزمني (أيام):</label>
+                                <input type="number" name="schedule_impact_days" class="form-control" min="0" value="0" placeholder="عدد الأيام الإضافية">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-paper-plane"></i> تقديم الطلب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

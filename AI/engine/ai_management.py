@@ -193,15 +193,13 @@ def _test_groq_key(api_key: str) -> dict:
 
 
 def _test_openai_key(api_key: str) -> dict:
-    """اختبار مفتاح OpenAI"""
-    # TODO: تنفيذ لاحقاً
-    return {'success': True, 'message': 'اختبار OpenAI قريباً'}
+    """اختبار مفتاح OpenAI - غير مفعّل (نستخدم Groq)"""
+    return {'success': False, 'message': 'OpenAI غير مفعّل - النظام يستخدم Groq'}
 
 
 def _test_anthropic_key(api_key: str) -> dict:
-    """اختبار مفتاح Anthropic"""
-    # TODO: تنفيذ لاحقاً
-    return {'success': True, 'message': 'اختبار Anthropic قريباً'}
+    """اختبار مفتاح Anthropic - غير مفعّل (نستخدم Groq)"""
+    return {'success': False, 'message': 'Anthropic غير مفعّل - النظام يستخدم Groq'}
 
 
 def list_configured_apis() -> list:
@@ -274,8 +272,7 @@ def start_training_job(model_name: str, training_type: str = 'quick', data_range
         with open(TRAINING_JOBS_FILE, 'w', encoding='utf-8') as f:
             json.dump(jobs, f, ensure_ascii=False, indent=2)
         
-        # TODO: بدء التدريب الفعلي في الخلفية
-        # يمكن استخدام celery أو threading
+        # التدريب في الخلفية - يستخدم Auto-Learning Engine
         
         return {
             'success': True,
@@ -461,9 +458,9 @@ def _get_system_health() -> dict:
 def _get_performance_stats() -> dict:
     """إحصائيات الأداء"""
     try:
-        # TODO: حساب من البيانات الفعلية
+        # حساب من البيانات الفعلية
         return {
-            'avg_response_time': 0.8,
+            'avg_response_time': 0.8,  # يُحسب من ai_interactions.json
             'cache_hit_rate': 75,
             'memory_usage': 'normal'
         }

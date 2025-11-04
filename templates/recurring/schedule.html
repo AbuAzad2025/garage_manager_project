@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+{% block title %}جدولة الفواتير{% endblock %}
+{% block page_title %}جدولة الفواتير - {{ template.template_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="row mb-3">
+    <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('recurring.index') }}"><i class="fas fa-repeat"></i> الفواتير المتكررة</a></li>
+          <li class="breadcrumb-item active">الجدولة</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="card shadow mb-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-file-invoice"></i> {{ template.template_name }}</h5>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-md-3">
+          <strong>العميل:</strong> {{ template.customer.name if template.customer else '-' }}
+        </div>
+        <div class="col-md-3">
+          <strong>المبلغ:</strong> {{ template.amount|number_format }} {{ template.currency }}
+        </div>
+        <div class="col-md-3">
+          <strong>التكرار:</strong> {{ template.frequency }}
+        </div>
+        <div class="col-md-3">
+          <strong>التاريخ القادم:</strong> {{ template.next_invoice_date.strftime('%Y-%m-%d') if template.next_invoice_date else '-' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card shadow-sm" style="border-left: 4px solid #ffc107;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-clock"></i> معلقة</h6>
+          <h2 class="mb-0 text-warning">{{ stats.pending }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm" style="border-left: 4px solid #28a745;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-check-circle"></i> مولّدة</h6>
+          <h2 class="mb-0 text-success">{{ stats.generated }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card shadow-sm" style="border-left: 4px solid #dc3545;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-exclamation-triangle"></i> فشلت</h6>
+          <h2 class="mb-0 text-danger">{{ stats.failed }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow">
+    <div class="card-header bg-white">
+      <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> سجل الجدولة</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th>التاريخ المجدول</th>
+              <th>الحالة</th>
+              <th>تم التوليد</th>
+              <th>رقم الفاتورة</th>
+              <th>ملاحظات</th>
+              <th>الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if schedules %}
+              {% for schedule in schedules %}
+              <tr>
+                <td><strong>{{ schedule.scheduled_date.strftime('%Y-%m-%d') }}</strong></td>
+                <td>
+                  {% if schedule.status == 'PENDING' %}
+                  <span class="badge badge-warning"><i class="fas fa-clock"></i> معلقة</span>
+                  {% elif schedule.status == 'GENERATED' %}
+                  <span class="badge badge-success"><i class="fas fa-check"></i> مولّدة</span>
+                  {% elif schedule.status == 'FAILED' %}
+                  <span class="badge badge-danger"><i class="fas fa-times"></i> فشلت</span>
+                  {% else %}
+                  <span class="badge badge-secondary">{{ schedule.status }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ schedule.generated_at.strftime('%Y-%m-%d %H:%M') if schedule.generated_at else '-' }}</td>
+                <td>
+                  {% if schedule.invoice_id %}
+                  <code class="text-primary">{{ schedule.invoice.invoice_number if schedule.invoice else schedule.invoice_id }}</code>
+                  {% else %}
+                  -
+                  {% endif %}
+                </td>
+                <td><small class="text-danger">{{ schedule.error_message if schedule.error_message else '-' }}</small></td>
+                <td>
+                  {% if schedule.invoice_id and schedule.invoice %}
+                  <a href="{{ url_for('customers_bp.account_statement', customer_id=schedule.invoice.customer_id) }}" class="btn btn-sm btn-info" title="عرض كشف حساب العميل">
+                    <i class="fas fa-file-invoice"></i> كشف الحساب
+                  </a>
+                  {% else %}
+                  -
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-5">
+                  <i class="fas fa-inbox fa-3x mb-3"></i>
+                  <p>لا توجد جدولة بعد</p>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

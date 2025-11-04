@@ -1,0 +1,6827 @@
+{
+  "b42362e07df7044ea43b7e6754777350": {
+    "id": "b42362e07df7044ea43b7e6754777350",
+    "category": "system",
+    "key": "test_key",
+    "value": "test_value",
+    "importance": 8,
+    "created_at": "2025-11-02T03:02:08.823824",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "42e3d2e41f21edca7cc34f99681eca64": {
+    "id": "42e3d2e41f21edca7cc34f99681eca64",
+    "category": "model_relationship",
+    "key": "AuthAudit.user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.503855",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a55392ba6e67e3858a0b0f55f2940276": {
+    "id": "a55392ba6e67e3858a0b0f55f2940276",
+    "category": "model_relationship",
+    "key": "Branch.manager_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.577309",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "082662f999f6006508869dd44a9a734c": {
+    "id": "082662f999f6006508869dd44a9a734c",
+    "category": "model_relationship",
+    "key": "Branch.manager_employee",
+    "value": {
+      "target": "Employee",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.644970",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3dda4d181af4784681dc364d4c80323d": {
+    "id": "3dda4d181af4784681dc364d4c80323d",
+    "category": "model_relationship",
+    "key": "Branch.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.695202",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3c1e705b1096d7008ab522e33b41cfc9": {
+    "id": "3c1e705b1096d7008ab522e33b41cfc9",
+    "category": "model_relationship",
+    "key": "Branch.sites",
+    "value": {
+      "target": "Site",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.739679",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2c0804a7fd360a328531a5e67e3986ec": {
+    "id": "2c0804a7fd360a328531a5e67e3986ec",
+    "category": "model_relationship",
+    "key": "Branch.employees",
+    "value": {
+      "target": "Employee",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.764199",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "00b394987ed473fbada70fc65e188fa2": {
+    "id": "00b394987ed473fbada70fc65e188fa2",
+    "category": "model_relationship",
+    "key": "Branch.expenses",
+    "value": {
+      "target": "Expense",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.779959",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "13af463b901e87a63e5d3d086fe92606": {
+    "id": "13af463b901e87a63e5d3d086fe92606",
+    "category": "model_relationship",
+    "key": "Branch.warehouses",
+    "value": {
+      "target": "Warehouse",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.830983",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "201aa8979e94050336c2f4a15e235f48": {
+    "id": "201aa8979e94050336c2f4a15e235f48",
+    "category": "model_relationship",
+    "key": "Branch.user_branches",
+    "value": {
+      "target": "UserBranch",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.870462",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "342cbc5d6b48de259809b6563079061e": {
+    "id": "342cbc5d6b48de259809b6563079061e",
+    "category": "model_relationship",
+    "key": "Branch.budgets",
+    "value": {
+      "target": "Budget",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.897994",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3c6c7dd6ec31b5cc0a83dd777efe66f9": {
+    "id": "3c6c7dd6ec31b5cc0a83dd777efe66f9",
+    "category": "model_relationship",
+    "key": "Branch.assets",
+    "value": {
+      "target": "FixedAsset",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.930596",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "39ce51acb079389847ca860cf43a37a2": {
+    "id": "39ce51acb079389847ca860cf43a37a2",
+    "category": "model_relationship",
+    "key": "Branch.bank_accounts",
+    "value": {
+      "target": "BankAccount",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.962734",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "535f4f5913285506309011d71663440e": {
+    "id": "535f4f5913285506309011d71663440e",
+    "category": "model_relationship",
+    "key": "Branch.projects",
+    "value": {
+      "target": "Project",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.990906",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ebefc629411dae1eba6da374a45d862a": {
+    "id": "ebefc629411dae1eba6da374a45d862a",
+    "category": "model_relationship",
+    "key": "ShipmentPartner.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.056019",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e3379fdc139cd71ae0ff204236b474ee": {
+    "id": "e3379fdc139cd71ae0ff204236b474ee",
+    "category": "model_relationship",
+    "key": "ShipmentPartner.shipment",
+    "value": {
+      "target": "Shipment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.092272",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4032c342ce7e5e1c853a56cf124a302e": {
+    "id": "4032c342ce7e5e1c853a56cf124a302e",
+    "category": "model_relationship",
+    "key": "SaaSPlan.subscriptions",
+    "value": {
+      "target": "SaaSSubscription",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.147876",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ef8f30b5900ce831ea61690ee67dab87": {
+    "id": "ef8f30b5900ce831ea61690ee67dab87",
+    "category": "model_relationship",
+    "key": "Customer.sales",
+    "value": {
+      "target": "Sale",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.208986",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "14afd317ac52069a72ec403b083244bb": {
+    "id": "14afd317ac52069a72ec403b083244bb",
+    "category": "model_relationship",
+    "key": "Customer.preorders",
+    "value": {
+      "target": "PreOrder",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.236301",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c3a9cdc9e1d6c3e2d26b3a5704c8a8bd": {
+    "id": "c3a9cdc9e1d6c3e2d26b3a5704c8a8bd",
+    "category": "model_relationship",
+    "key": "Customer.invoices",
+    "value": {
+      "target": "Invoice",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.267853",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8a518059c185100dd70aab4d3a6f5675": {
+    "id": "8a518059c185100dd70aab4d3a6f5675",
+    "category": "model_relationship",
+    "key": "Customer.payments",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.285204",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "93e0acd7d1a7fc2c71bd991f25c74684": {
+    "id": "93e0acd7d1a7fc2c71bd991f25c74684",
+    "category": "model_relationship",
+    "key": "Customer.service_requests",
+    "value": {
+      "target": "ServiceRequest",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.318434",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "bec357544fa90fa355e6a8b9b19c3e23": {
+    "id": "bec357544fa90fa355e6a8b9b19c3e23",
+    "category": "model_relationship",
+    "key": "Customer.online_carts",
+    "value": {
+      "target": "OnlineCart",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.347485",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6599be6f188abc5b973209a7f33cb989": {
+    "id": "6599be6f188abc5b973209a7f33cb989",
+    "category": "model_relationship",
+    "key": "Customer.online_preorders",
+    "value": {
+      "target": "OnlinePreOrder",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.373543",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "61a7cc6c5da4f06d67b2ddc14f5f11e0": {
+    "id": "61a7cc6c5da4f06d67b2ddc14f5f11e0",
+    "category": "model_relationship",
+    "key": "Customer.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.392496",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "74a624f47148947b981abe6f7df63573": {
+    "id": "74a624f47148947b981abe6f7df63573",
+    "category": "model_relationship",
+    "key": "Customer.notifications",
+    "value": {
+      "target": "NotificationLog",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.410279",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e26d60c26a656ed14805fa323519eb5e": {
+    "id": "e26d60c26a656ed14805fa323519eb5e",
+    "category": "model_relationship",
+    "key": "Customer.tax_entries",
+    "value": {
+      "target": "TaxEntry",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.431170",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8648f8fd34b3248dc57931d44987b574": {
+    "id": "8648f8fd34b3248dc57931d44987b574",
+    "category": "model_relationship",
+    "key": "Customer.supplier_link",
+    "value": {
+      "target": "Supplier",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.448192",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "984a0ff23f3eed69f5a67417711373aa": {
+    "id": "984a0ff23f3eed69f5a67417711373aa",
+    "category": "model_relationship",
+    "key": "Customer.partner_link",
+    "value": {
+      "target": "Partner",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.461790",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ba4fc8ca88b14fcf868bf077053ffe9e": {
+    "id": "ba4fc8ca88b14fcf868bf077053ffe9e",
+    "category": "model_relationship",
+    "key": "Customer.product_ratings",
+    "value": {
+      "target": "ProductRating",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.476836",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2a8cffac1bae2171982d540060ce5a20": {
+    "id": "2a8cffac1bae2171982d540060ce5a20",
+    "category": "model_relationship",
+    "key": "Customer.loyalty",
+    "value": {
+      "target": "CustomerLoyalty",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.493150",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c3b24e111585dc2955f94f7f24398a48": {
+    "id": "c3b24e111585dc2955f94f7f24398a48",
+    "category": "model_relationship",
+    "key": "Customer.loyalty_points",
+    "value": {
+      "target": "CustomerLoyaltyPoints",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.517260",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0955eda140aeaa5836ae175f9fc75deb": {
+    "id": "0955eda140aeaa5836ae175f9fc75deb",
+    "category": "model_relationship",
+    "key": "Customer.independent_checks",
+    "value": {
+      "target": "Check",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.547074",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2972c95cc28c963746d6906d5b797c78": {
+    "id": "2972c95cc28c963746d6906d5b797c78",
+    "category": "model_relationship",
+    "key": "Customer.saas_subscriptions",
+    "value": {
+      "target": "SaaSSubscription",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.576727",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "653ef5846d70ad193dc38b8633d2174c": {
+    "id": "653ef5846d70ad193dc38b8633d2174c",
+    "category": "model_relationship",
+    "key": "Customer.projects",
+    "value": {
+      "target": "Project",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.620195",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "86f41340d7a49551f7313745745d5684": {
+    "id": "86f41340d7a49551f7313745745d5684",
+    "category": "model_relationship",
+    "key": "OnlinePreOrder.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.685995",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5965bb8ee48177210142350436db6546": {
+    "id": "5965bb8ee48177210142350436db6546",
+    "category": "model_relationship",
+    "key": "OnlinePreOrder.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.715346",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2dc59e03347db683e1133959c798cc96": {
+    "id": "2dc59e03347db683e1133959c798cc96",
+    "category": "model_relationship",
+    "key": "OnlinePreOrder.cart",
+    "value": {
+      "target": "OnlineCart",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.742995",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b029609e8c103398b411bb40b537dd24": {
+    "id": "b029609e8c103398b411bb40b537dd24",
+    "category": "model_relationship",
+    "key": "OnlinePreOrder.items",
+    "value": {
+      "target": "OnlinePreOrderItem",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.764028",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a6c1092ed4e8ff72539e8d0655d83242": {
+    "id": "a6c1092ed4e8ff72539e8d0655d83242",
+    "category": "model_relationship",
+    "key": "OnlinePreOrder.payments",
+    "value": {
+      "target": "OnlinePayment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.782489",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6b9ac0481ca6ed4e89572beeb496f841": {
+    "id": "6b9ac0481ca6ed4e89572beeb496f841",
+    "category": "model_relationship",
+    "key": "NotificationLog.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.870210",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "27e6d30fa37ce62075460e6c2880253b": {
+    "id": "27e6d30fa37ce62075460e6c2880253b",
+    "category": "model_relationship",
+    "key": "NotificationLog.user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.881526",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8df01607e91012a59bbbee01563ca837": {
+    "id": "8df01607e91012a59bbbee01563ca837",
+    "category": "model_relationship",
+    "key": "PartnerSettlement.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.812395",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "bf1dc233db3240df92c7c0b782074a82": {
+    "id": "bf1dc233db3240df92c7c0b782074a82",
+    "category": "model_relationship",
+    "key": "PartnerSettlement.lines",
+    "value": {
+      "target": "PartnerSettlementLine",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.829109",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c70d04a5c80961f8924a5c5451faa15a": {
+    "id": "c70d04a5c80961f8924a5c5451faa15a",
+    "category": "model_relationship",
+    "key": "Sale.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.037412",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "566759e9c7150c4a89b5b716f3711f78": {
+    "id": "566759e9c7150c4a89b5b716f3711f78",
+    "category": "model_relationship",
+    "key": "Sale.seller",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.052177",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fe656dcdad0a4bf3db7050fa2ebf586b": {
+    "id": "fe656dcdad0a4bf3db7050fa2ebf586b",
+    "category": "model_relationship",
+    "key": "Sale.cancelled_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.073671",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f663bc14c3dadfdd76187a7e951b6300": {
+    "id": "f663bc14c3dadfdd76187a7e951b6300",
+    "category": "model_relationship",
+    "key": "Sale.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.092229",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "859d440d01077f9719639a9e55fbdc80": {
+    "id": "859d440d01077f9719639a9e55fbdc80",
+    "category": "model_relationship",
+    "key": "Sale.preorder",
+    "value": {
+      "target": "PreOrder",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.111655",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "22d3baf465ea0bb39c1095a859e2ebb4": {
+    "id": "22d3baf465ea0bb39c1095a859e2ebb4",
+    "category": "model_relationship",
+    "key": "Sale.refund_of",
+    "value": {
+      "target": "Sale",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.130414",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4349ffa4d9326991e4d7c2376f2a0dce": {
+    "id": "4349ffa4d9326991e4d7c2376f2a0dce",
+    "category": "model_relationship",
+    "key": "Sale.lines",
+    "value": {
+      "target": "SaleLine",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.145619",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "21e797fc4b76a39062b1e0a535328a90": {
+    "id": "21e797fc4b76a39062b1e0a535328a90",
+    "category": "model_relationship",
+    "key": "Sale.payments",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.165408",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "09746215fe34b6d9104b18e7f644a628": {
+    "id": "09746215fe34b6d9104b18e7f644a628",
+    "category": "model_relationship",
+    "key": "Sale.invoice",
+    "value": {
+      "target": "Invoice",
+      "direction": "ONETOMANY",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.183637",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8a3c7ac7124a95cea91ea54f1ed856cb": {
+    "id": "8a3c7ac7124a95cea91ea54f1ed856cb",
+    "category": "model_relationship",
+    "key": "Sale.shipments",
+    "value": {
+      "target": "Shipment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.202732",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ea9f9bd9524ea459ef5897369c72192f": {
+    "id": "ea9f9bd9524ea459ef5897369c72192f",
+    "category": "model_relationship",
+    "key": "Sale.gl_batches",
+    "value": {
+      "target": "GLBatch",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.219269",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "535ae1c05065c1dc04e65977763c4193": {
+    "id": "535ae1c05065c1dc04e65977763c4193",
+    "category": "model_relationship",
+    "key": "ExpenseType.expenses",
+    "value": {
+      "target": "Expense",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.527210",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b611bbbe3eeb5473ff8e0dac099d8d14": {
+    "id": "b611bbbe3eeb5473ff8e0dac099d8d14",
+    "category": "model_relationship",
+    "key": "CostCenter.parent",
+    "value": {
+      "target": "CostCenter",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.298897",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ce02b0bf84b4dcf73156be33b44cb830": {
+    "id": "ce02b0bf84b4dcf73156be33b44cb830",
+    "category": "model_relationship",
+    "key": "CostCenter.manager",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.326216",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f046a45ca5b9bb160cd9716836d4bfd1": {
+    "id": "f046a45ca5b9bb160cd9716836d4bfd1",
+    "category": "model_relationship",
+    "key": "CostCenter.children",
+    "value": {
+      "target": "CostCenter",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.353063",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "70b5da06da557b37c1ed5703009d1f97": {
+    "id": "70b5da06da557b37c1ed5703009d1f97",
+    "category": "model_relationship",
+    "key": "CostCenter.allocations",
+    "value": {
+      "target": "CostCenterAllocation",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.392857",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "190a2dacd92aff09b1870d3687fe9929": {
+    "id": "190a2dacd92aff09b1870d3687fe9929",
+    "category": "model_relationship",
+    "key": "CostCenter.projects",
+    "value": {
+      "target": "Project",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.440677",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8d00840a813566d9ab33a5ef6ee4a6a1": {
+    "id": "8d00840a813566d9ab33a5ef6ee4a6a1",
+    "category": "model_relationship",
+    "key": "EquipmentType.products",
+    "value": {
+      "target": "Product",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.861948",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8819ec049e4207eabd12771b7ccbaca2": {
+    "id": "8819ec049e4207eabd12771b7ccbaca2",
+    "category": "model_relationship",
+    "key": "EquipmentType.service_requests",
+    "value": {
+      "target": "ServiceRequest",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:26.879226",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "55deecd8d26ef8993eda8f89594539ae": {
+    "id": "55deecd8d26ef8993eda8f89594539ae",
+    "category": "model_relationship",
+    "key": "ExchangeTransaction.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.696385",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f91908c80f73edf6cbfa2355425966d1": {
+    "id": "f91908c80f73edf6cbfa2355425966d1",
+    "category": "model_relationship",
+    "key": "ExchangeTransaction.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.707666",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fd4140a922b93a0bd95dd50d3c16df06": {
+    "id": "fd4140a922b93a0bd95dd50d3c16df06",
+    "category": "model_relationship",
+    "key": "ExchangeTransaction.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.722960",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "dfded77cc5eeb1700c5b2e49a5c82660": {
+    "id": "dfded77cc5eeb1700c5b2e49a5c82660",
+    "category": "model_relationship",
+    "key": "ExchangeTransaction.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.737042",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "39d0aa943b328b818740c1102155a15c": {
+    "id": "39d0aa943b328b818740c1102155a15c",
+    "category": "model_relationship",
+    "key": "ExchangeTransaction.gl_batches",
+    "value": {
+      "target": "GLBatch",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.749806",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d92ba09b7f7332f5dbc83387ddfea3c1": {
+    "id": "d92ba09b7f7332f5dbc83387ddfea3c1",
+    "category": "model_relationship",
+    "key": "AssetDepreciation.asset",
+    "value": {
+      "target": "FixedAsset",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.770208",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5d9a5179b383789b0c92a2efd807da31": {
+    "id": "5d9a5179b383789b0c92a2efd807da31",
+    "category": "model_relationship",
+    "key": "AssetDepreciation.gl_batch",
+    "value": {
+      "target": "GLBatch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.783050",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a01905a0bd1cade584c741cbfc518bae": {
+    "id": "a01905a0bd1cade584c741cbfc518bae",
+    "category": "model_relationship",
+    "key": "ProductSupplierLoan.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.802390",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0afda4af766bcbc1023c1c5c4e24d8ba": {
+    "id": "0afda4af766bcbc1023c1c5c4e24d8ba",
+    "category": "model_relationship",
+    "key": "ProductSupplierLoan.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.814095",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e712168bc1c4f93bcec4aab65b90a756": {
+    "id": "e712168bc1c4f93bcec4aab65b90a756",
+    "category": "model_relationship",
+    "key": "ProductSupplierLoan.settlements",
+    "value": {
+      "target": "SupplierLoanSettlement",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.825295",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7bfe202252f0587037e2c8f95311d41e": {
+    "id": "7bfe202252f0587037e2c8f95311d41e",
+    "category": "model_relationship",
+    "key": "ProductRating.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.844920",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8c64614c3d93d93451a2703f78d7fb3b": {
+    "id": "8c64614c3d93d93451a2703f78d7fb3b",
+    "category": "model_relationship",
+    "key": "ProductRating.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.855978",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "04c96036c952266bbf26b15a5d7a1bfa": {
+    "id": "04c96036c952266bbf26b15a5d7a1bfa",
+    "category": "model_relationship",
+    "key": "DeletionLog.deleted_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.084765",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3ad607a647b6dffaa29aa0a1d634e354": {
+    "id": "3ad607a647b6dffaa29aa0a1d634e354",
+    "category": "model_relationship",
+    "key": "DeletionLog.restored_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.098819",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "363f5f2b352904bbe077b64b41ec4273": {
+    "id": "363f5f2b352904bbe077b64b41ec4273",
+    "category": "model_relationship",
+    "key": "User.role",
+    "value": {
+      "target": "Role",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.875660",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3404c558b926fd93addaf9a9b7757d97": {
+    "id": "3404c558b926fd93addaf9a9b7757d97",
+    "category": "model_relationship",
+    "key": "User.extra_permissions",
+    "value": {
+      "target": "Permission",
+      "direction": "MANYTOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.886595",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "227cb5cc967cfd70d93a396c6e8d17ac": {
+    "id": "227cb5cc967cfd70d93a396c6e8d17ac",
+    "category": "model_relationship",
+    "key": "User.mechanic_service_requests",
+    "value": {
+      "target": "ServiceRequest",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.898046",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fbb46a0c355b2eecab360ba9cc76a5ed": {
+    "id": "fbb46a0c355b2eecab360ba9cc76a5ed",
+    "category": "model_relationship",
+    "key": "User.cancelled_service_requests",
+    "value": {
+      "target": "ServiceRequest",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.908857",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "224fca775838fdc44dcf4e23d2c1c799": {
+    "id": "224fca775838fdc44dcf4e23d2c1c799",
+    "category": "model_relationship",
+    "key": "User.sales",
+    "value": {
+      "target": "Sale",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.919965",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a4e09ce28182ac02efcc4ebe818779fa": {
+    "id": "a4e09ce28182ac02efcc4ebe818779fa",
+    "category": "model_relationship",
+    "key": "User.cancelled_sales",
+    "value": {
+      "target": "Sale",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.931121",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "008a654cbe8f2b30a8499dfe37a5ea06": {
+    "id": "008a654cbe8f2b30a8499dfe37a5ea06",
+    "category": "model_relationship",
+    "key": "User.archived_records",
+    "value": {
+      "target": "Archive",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.942071",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f21456dfe8cc165b1efb4f54e966619e": {
+    "id": "f21456dfe8cc165b1efb4f54e966619e",
+    "category": "model_relationship",
+    "key": "User.archives",
+    "value": {
+      "target": "Archive",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.953284",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f82a1b72f27c9655f8c12284ce46e359": {
+    "id": "f82a1b72f27c9655f8c12284ce46e359",
+    "category": "model_relationship",
+    "key": "User.notifications_sent",
+    "value": {
+      "target": "NotificationLog",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.964441",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "51130c5b275c3d3267e1b053c3184eba": {
+    "id": "51130c5b275c3d3267e1b053c3184eba",
+    "category": "model_relationship",
+    "key": "User.tax_entries_created",
+    "value": {
+      "target": "TaxEntry",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.975427",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "96a056cc7dc2447ae6e1745addce7dfb": {
+    "id": "96a056cc7dc2447ae6e1745addce7dfb",
+    "category": "model_relationship",
+    "key": "User.deletions_made",
+    "value": {
+      "target": "DeletionLog",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.987347",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5d40b3da6ac745083a9bd15211834752": {
+    "id": "5d40b3da6ac745083a9bd15211834752",
+    "category": "model_relationship",
+    "key": "User.deletions_restored",
+    "value": {
+      "target": "DeletionLog",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.998622",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "689110f0d6e66d2f5da30367ffe82282": {
+    "id": "689110f0d6e66d2f5da30367ffe82282",
+    "category": "model_relationship",
+    "key": "User.auth_events",
+    "value": {
+      "target": "AuthAudit",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.009483",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d29b9bef899dbd315d9332f319501abb": {
+    "id": "d29b9bef899dbd315d9332f319501abb",
+    "category": "model_relationship",
+    "key": "User.user_branches",
+    "value": {
+      "target": "UserBranch",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.020345",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "01e47706a3cb61e48664df9c05f8951b": {
+    "id": "01e47706a3cb61e48664df9c05f8951b",
+    "category": "model_relationship",
+    "key": "User.import_runs",
+    "value": {
+      "target": "ImportRun",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.031451",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "89f23e7c8fa7d896c4ddf223838065e1": {
+    "id": "89f23e7c8fa7d896c4ddf223838065e1",
+    "category": "model_relationship",
+    "key": "User.payments_created",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.042284",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7611bb03affaf19f507b63d71ee52436": {
+    "id": "7611bb03affaf19f507b63d71ee52436",
+    "category": "model_relationship",
+    "key": "User.notes",
+    "value": {
+      "target": "Note",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.053310",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1a8d09a37e8b210cf69992b54abaaba2": {
+    "id": "1a8d09a37e8b210cf69992b54abaaba2",
+    "category": "model_relationship",
+    "key": "User.checks_created",
+    "value": {
+      "target": "Check",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.063627",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "47537c22a3d22010bc8d3012ec26e4eb": {
+    "id": "47537c22a3d22010bc8d3012ec26e4eb",
+    "category": "model_relationship",
+    "key": "User.imported_statements",
+    "value": {
+      "target": "BankStatement",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.077091",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ac0d4960e6f7eb43426e016f4f34af17": {
+    "id": "ac0d4960e6f7eb43426e016f4f34af17",
+    "category": "model_relationship",
+    "key": "User.reconciliations_done",
+    "value": {
+      "target": "BankReconciliation",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.089860",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d54b7059aaa44e6e9d51c004722b3e1e": {
+    "id": "d54b7059aaa44e6e9d51c004722b3e1e",
+    "category": "model_relationship",
+    "key": "User.reconciliations_approved",
+    "value": {
+      "target": "BankReconciliation",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.100993",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6ab5d134b141dd6b081c3ac2f4e0d06f": {
+    "id": "6ab5d134b141dd6b081c3ac2f4e0d06f",
+    "category": "model_relationship",
+    "key": "User.managed_cost_centers",
+    "value": {
+      "target": "CostCenter",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.112308",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2c95dad7c2a89b01669201530679d7f6": {
+    "id": "2c95dad7c2a89b01669201530679d7f6",
+    "category": "model_relationship",
+    "key": "User.managed_projects",
+    "value": {
+      "target": "Project",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.122988",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "cd827ec48dd91faab737603b5de4a226": {
+    "id": "cd827ec48dd91faab737603b5de4a226",
+    "category": "model_relationship",
+    "key": "Site.branch",
+    "value": {
+      "target": "Branch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.142291",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "380d469062311009f527024a2e00c76d": {
+    "id": "380d469062311009f527024a2e00c76d",
+    "category": "model_relationship",
+    "key": "Site.manager_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.153300",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "658202f8e31443ebc60ad6e4914a3148": {
+    "id": "658202f8e31443ebc60ad6e4914a3148",
+    "category": "model_relationship",
+    "key": "Site.manager_employee",
+    "value": {
+      "target": "Employee",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.163615",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "41af05545c2ba341afcf55b4ada54481": {
+    "id": "41af05545c2ba341afcf55b4ada54481",
+    "category": "model_relationship",
+    "key": "Site.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.174791",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3103805d374255dc86d5b0b6c0e04414": {
+    "id": "3103805d374255dc86d5b0b6c0e04414",
+    "category": "model_relationship",
+    "key": "Site.employees",
+    "value": {
+      "target": "Employee",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.186315",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e560c78d9b529473219aed9b44c01da3": {
+    "id": "e560c78d9b529473219aed9b44c01da3",
+    "category": "model_relationship",
+    "key": "Site.expenses",
+    "value": {
+      "target": "Expense",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.197584",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "542c30416b349223d829adf98a590a69": {
+    "id": "542c30416b349223d829adf98a590a69",
+    "category": "model_relationship",
+    "key": "Site.budgets",
+    "value": {
+      "target": "Budget",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.208443",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8ee0cecbf4b8b80b6175ee883961dd97": {
+    "id": "8ee0cecbf4b8b80b6175ee883961dd97",
+    "category": "model_relationship",
+    "key": "Site.assets",
+    "value": {
+      "target": "FixedAsset",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.221522",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "df325e971379ee68b8798837b04c1417": {
+    "id": "df325e971379ee68b8798837b04c1417",
+    "category": "model_relationship",
+    "key": "ServiceRequest.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.246501",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9b61964e048aaac1572fa00f91164f5f": {
+    "id": "9b61964e048aaac1572fa00f91164f5f",
+    "category": "model_relationship",
+    "key": "ServiceRequest.mechanic",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.260330",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4f5182840fd5d348463615eb5b0c0b8f": {
+    "id": "4f5182840fd5d348463615eb5b0c0b8f",
+    "category": "model_relationship",
+    "key": "ServiceRequest.cancelled_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.274362",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e660a844743d86da6df6ad67c3b8b5f2": {
+    "id": "e660a844743d86da6df6ad67c3b8b5f2",
+    "category": "model_relationship",
+    "key": "ServiceRequest.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.288613",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "17ebcfca5d2d042bf20a76fc411f5155": {
+    "id": "17ebcfca5d2d042bf20a76fc411f5155",
+    "category": "model_relationship",
+    "key": "ServiceRequest.vehicle_type",
+    "value": {
+      "target": "EquipmentType",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.302000",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "49c41651c7fec0d1d5ce31ca0b0846f9": {
+    "id": "49c41651c7fec0d1d5ce31ca0b0846f9",
+    "category": "model_relationship",
+    "key": "ServiceRequest.invoice",
+    "value": {
+      "target": "Invoice",
+      "direction": "ONETOMANY",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.312145",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d82b7a718b37a2b9addadff6b1b3b0ee": {
+    "id": "d82b7a718b37a2b9addadff6b1b3b0ee",
+    "category": "model_relationship",
+    "key": "ServiceRequest.payments",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.322776",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "89f8d5093c51431f6cee37c42ca9aebe": {
+    "id": "89f8d5093c51431f6cee37c42ca9aebe",
+    "category": "model_relationship",
+    "key": "ServiceRequest.parts",
+    "value": {
+      "target": "ServicePart",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.334873",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a3d2e45a1eaa5072b02e241501fab38b": {
+    "id": "a3d2e45a1eaa5072b02e241501fab38b",
+    "category": "model_relationship",
+    "key": "ServiceRequest.tasks",
+    "value": {
+      "target": "ServiceTask",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.346093",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "06fe534e054dcaf70597aaf4f96cb5b9": {
+    "id": "06fe534e054dcaf70597aaf4f96cb5b9",
+    "category": "model_relationship",
+    "key": "ServiceRequest.gl_batches",
+    "value": {
+      "target": "GLBatch",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.356902",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fc31f5f1e23845547bcb108be5587854": {
+    "id": "fc31f5f1e23845547bcb108be5587854",
+    "category": "model_relationship",
+    "key": "ServiceRequest.refund_of",
+    "value": {
+      "target": "ServiceRequest",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.367510",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f3bd6d70518d55f0ae5355d545b1c7fd": {
+    "id": "f3bd6d70518d55f0ae5355d545b1c7fd",
+    "category": "model_relationship",
+    "key": "SaaSSubscription.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.387167",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "46fe2f82a967ea2c9ada19c717f3da7e": {
+    "id": "46fe2f82a967ea2c9ada19c717f3da7e",
+    "category": "model_relationship",
+    "key": "SaaSSubscription.plan",
+    "value": {
+      "target": "SaaSPlan",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.398338",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "91f622e4103fa4307238603c15659a4e": {
+    "id": "91f622e4103fa4307238603c15659a4e",
+    "category": "model_relationship",
+    "key": "SaaSSubscription.cancelled_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.408718",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c92ade8dda4219b2dd1ea944942c308b": {
+    "id": "c92ade8dda4219b2dd1ea944942c308b",
+    "category": "model_relationship",
+    "key": "SaaSSubscription.invoices",
+    "value": {
+      "target": "SaaSInvoice",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.419281",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e321ebaf851b176d100357aead3e9aca": {
+    "id": "e321ebaf851b176d100357aead3e9aca",
+    "category": "model_relationship",
+    "key": "Supplier.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.437941",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e0b7c8724c9e660760764539a1be7041": {
+    "id": "e0b7c8724c9e660760764539a1be7041",
+    "category": "model_relationship",
+    "key": "Supplier.payments",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.448977",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6f0b4b0776c81f22fcbcca0008dd95bf": {
+    "id": "6f0b4b0776c81f22fcbcca0008dd95bf",
+    "category": "model_relationship",
+    "key": "Supplier.invoices",
+    "value": {
+      "target": "Invoice",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.460115",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6acff240cced62c1543762e712b3aa0d": {
+    "id": "6acff240cced62c1543762e712b3aa0d",
+    "category": "model_relationship",
+    "key": "Supplier.preorders",
+    "value": {
+      "target": "PreOrder",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.473735",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4630fe5b02c9a076de505684387bb8ef": {
+    "id": "4630fe5b02c9a076de505684387bb8ef",
+    "category": "model_relationship",
+    "key": "Supplier.warehouses",
+    "value": {
+      "target": "Warehouse",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.484706",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0edbcbe1459e596a2e715b9e58289e3f": {
+    "id": "0edbcbe1459e596a2e715b9e58289e3f",
+    "category": "model_relationship",
+    "key": "Supplier.loan_settlements",
+    "value": {
+      "target": "SupplierLoanSettlement",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.496153",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ec0db2cfec9224cea7711f0e115ab1be": {
+    "id": "ec0db2cfec9224cea7711f0e115ab1be",
+    "category": "model_relationship",
+    "key": "Supplier.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.506889",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f9a6146a13ce80b5cd4545c3f7c296a2": {
+    "id": "f9a6146a13ce80b5cd4545c3f7c296a2",
+    "category": "model_relationship",
+    "key": "Supplier.tax_entries",
+    "value": {
+      "target": "TaxEntry",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.517314",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1108f607eecfe9ea59d0306564e6185c": {
+    "id": "1108f607eecfe9ea59d0306564e6185c",
+    "category": "model_relationship",
+    "key": "Supplier.settlements",
+    "value": {
+      "target": "SupplierSettlement",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.528583",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9d56941f8f8e5fdec4e3ce494b12958f": {
+    "id": "9d56941f8f8e5fdec4e3ce494b12958f",
+    "category": "model_relationship",
+    "key": "Supplier.loaned_products",
+    "value": {
+      "target": "ProductSupplierLoan",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.539865",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "20d31a55dcaf58ab0e4e8e746fa2f2f1": {
+    "id": "20d31a55dcaf58ab0e4e8e746fa2f2f1",
+    "category": "model_relationship",
+    "key": "Supplier.independent_checks",
+    "value": {
+      "target": "Check",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.551151",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b4b05d2c0ff9cc9623a115ae8acb874b": {
+    "id": "b4b05d2c0ff9cc9623a115ae8acb874b",
+    "category": "model_relationship",
+    "key": "OnlinePreOrderItem.order",
+    "value": {
+      "target": "OnlinePreOrder",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.571605",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8a88a94c1c60a630c6c887a337763604": {
+    "id": "8a88a94c1c60a630c6c887a337763604",
+    "category": "model_relationship",
+    "key": "OnlinePreOrderItem.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.583847",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2d768d7893ce9b0ad0a73839ca7add15": {
+    "id": "2d768d7893ce9b0ad0a73839ca7add15",
+    "category": "model_relationship",
+    "key": "PartnerSettlementLine.settlement",
+    "value": {
+      "target": "PartnerSettlement",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.603537",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4860117f72da77db2c76818b7e486758": {
+    "id": "4860117f72da77db2c76818b7e486758",
+    "category": "model_relationship",
+    "key": "PartnerSettlementLine.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.614229",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3f1b5776b3756191d732561f5e86021d": {
+    "id": "3f1b5776b3756191d732561f5e86021d",
+    "category": "model_relationship",
+    "key": "PartnerSettlementLine.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.624922",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f31cb682949b050b8b218d52bc800163": {
+    "id": "f31cb682949b050b8b218d52bc800163",
+    "category": "model_relationship",
+    "key": "Expense.employee",
+    "value": {
+      "target": "Employee",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.646073",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0cf24d6bb25a80d929538ca24f75f023": {
+    "id": "0cf24d6bb25a80d929538ca24f75f023",
+    "category": "model_relationship",
+    "key": "Expense.branch",
+    "value": {
+      "target": "Branch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.657765",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c9160d0bb69a0022694f0350b479f462": {
+    "id": "c9160d0bb69a0022694f0350b479f462",
+    "category": "model_relationship",
+    "key": "Expense.site",
+    "value": {
+      "target": "Site",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.669418",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "088b89812663aff401cb2353d65bcc1a": {
+    "id": "088b89812663aff401cb2353d65bcc1a",
+    "category": "model_relationship",
+    "key": "Expense.type",
+    "value": {
+      "target": "ExpenseType",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.680556",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "cd45297ddfb959150cc757d4c3c0448f": {
+    "id": "cd45297ddfb959150cc757d4c3c0448f",
+    "category": "model_relationship",
+    "key": "Expense.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.695367",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d89cb7186efb180f184797a057b1f5a2": {
+    "id": "d89cb7186efb180f184797a057b1f5a2",
+    "category": "model_relationship",
+    "key": "Expense.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.708750",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ca5e5fa920086996b469d0a93e52771c": {
+    "id": "ca5e5fa920086996b469d0a93e52771c",
+    "category": "model_relationship",
+    "key": "Expense.shipment",
+    "value": {
+      "target": "Shipment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.718957",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1a0a9bd0e89f9cdc86b5faf4dd94d710": {
+    "id": "1a0a9bd0e89f9cdc86b5faf4dd94d710",
+    "category": "model_relationship",
+    "key": "Expense.utility_account",
+    "value": {
+      "target": "UtilityAccount",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.734269",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a8e3a0fea3658bef98e72ff01333c903": {
+    "id": "a8e3a0fea3658bef98e72ff01333c903",
+    "category": "model_relationship",
+    "key": "Expense.stock_adjustment",
+    "value": {
+      "target": "StockAdjustment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.745823",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7cafe92b0206e76564a73271b2864dc9": {
+    "id": "7cafe92b0206e76564a73271b2864dc9",
+    "category": "model_relationship",
+    "key": "Expense.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.756711",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "34b8df2e6e41857db21026dc4b08cee3": {
+    "id": "34b8df2e6e41857db21026dc4b08cee3",
+    "category": "model_relationship",
+    "key": "Expense.payments",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.767498",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d55dc586120bb8f0743d339128a8e9fb": {
+    "id": "d55dc586120bb8f0743d339128a8e9fb",
+    "category": "model_relationship",
+    "key": "Expense.gl_batches",
+    "value": {
+      "target": "GLBatch",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.778496",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1841daa037a671fb9fbe8fd146668548": {
+    "id": "1841daa037a671fb9fbe8fd146668548",
+    "category": "model_relationship",
+    "key": "Expense.asset_maintenance",
+    "value": {
+      "target": "AssetMaintenance",
+      "direction": "ONETOMANY",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.789445",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "444ecc14aef641e028ae638bc09f9cf3": {
+    "id": "444ecc14aef641e028ae638bc09f9cf3",
+    "category": "model_relationship",
+    "key": "CostCenterAllocation.cost_center",
+    "value": {
+      "target": "CostCenter",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.808804",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "cc48e5a02561c39f417bd1f4fd066bdb": {
+    "id": "cc48e5a02561c39f417bd1f4fd066bdb",
+    "category": "model_relationship",
+    "key": "ProductCategory.parent",
+    "value": {
+      "target": "ProductCategory",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.827827",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5fe381759d448bc9dd0792d254a7dfa2": {
+    "id": "5fe381759d448bc9dd0792d254a7dfa2",
+    "category": "model_relationship",
+    "key": "ProductCategory.products",
+    "value": {
+      "target": "Product",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.838415",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "35dcba0a5a199e0184ca17fc984d7bc3": {
+    "id": "35dcba0a5a199e0184ca17fc984d7bc3",
+    "category": "model_relationship",
+    "key": "ProductCategory.subcategories",
+    "value": {
+      "target": "ProductCategory",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.848865",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4004d4b4add1c481fec413341cd7480e": {
+    "id": "4004d4b4add1c481fec413341cd7480e",
+    "category": "model_relationship",
+    "key": "WarehousePartnerShare.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.900956",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a405e4c765f7a49fe57d6a0ee902db97": {
+    "id": "a405e4c765f7a49fe57d6a0ee902db97",
+    "category": "model_relationship",
+    "key": "WarehousePartnerShare.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.912247",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d614e352b0673f10c565fdc0ca34f2f8": {
+    "id": "d614e352b0673f10c565fdc0ca34f2f8",
+    "category": "model_relationship",
+    "key": "WarehousePartnerShare.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.922328",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "70dff8f3d31d433e0b339245139f13d8": {
+    "id": "70dff8f3d31d433e0b339245139f13d8",
+    "category": "model_relationship",
+    "key": "AssetMaintenance.asset",
+    "value": {
+      "target": "FixedAsset",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.941628",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0d4fa938e4c6d3786c9157f85cf7a036": {
+    "id": "0d4fa938e4c6d3786c9157f85cf7a036",
+    "category": "model_relationship",
+    "key": "AssetMaintenance.expense",
+    "value": {
+      "target": "Expense",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.953822",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a71e9c4ed6b6b6e10ff918d62a79598e": {
+    "id": "a71e9c4ed6b6b6e10ff918d62a79598e",
+    "category": "model_relationship",
+    "key": "TaxEntry.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.973749",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "392c821d6d3609d32a988a655ef7f7e9": {
+    "id": "392c821d6d3609d32a988a655ef7f7e9",
+    "category": "model_relationship",
+    "key": "TaxEntry.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.985242",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0f958f3a89addf9898a65f6b708b1c9f": {
+    "id": "0f958f3a89addf9898a65f6b708b1c9f",
+    "category": "model_relationship",
+    "key": "TaxEntry.creator",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:20.997009",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1245eb2ace2874d1373d5f898892653a": {
+    "id": "1245eb2ace2874d1373d5f898892653a",
+    "category": "model_relationship",
+    "key": "Payment.creator",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.016401",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a6acf3451be7397476f7c0c4891110c3": {
+    "id": "a6acf3451be7397476f7c0c4891110c3",
+    "category": "model_relationship",
+    "key": "Payment.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.027417",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9d475d6f7254702a7e27146a8cb2bb3b": {
+    "id": "9d475d6f7254702a7e27146a8cb2bb3b",
+    "category": "model_relationship",
+    "key": "Payment.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.038537",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b351d10279dd2c2b8648b4a49652e1d4": {
+    "id": "b351d10279dd2c2b8648b4a49652e1d4",
+    "category": "model_relationship",
+    "key": "Payment.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.049847",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "aee10a743ba09382987806f12dbee48e": {
+    "id": "aee10a743ba09382987806f12dbee48e",
+    "category": "model_relationship",
+    "key": "Payment.shipment",
+    "value": {
+      "target": "Shipment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.061036",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "702627b697fbba3f88d2e797431e7d3e": {
+    "id": "702627b697fbba3f88d2e797431e7d3e",
+    "category": "model_relationship",
+    "key": "Payment.expense",
+    "value": {
+      "target": "Expense",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.072116",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6e8db4de97e23ded27826f9a109eb3ed": {
+    "id": "6e8db4de97e23ded27826f9a109eb3ed",
+    "category": "model_relationship",
+    "key": "Payment.loan_settlement",
+    "value": {
+      "target": "SupplierLoanSettlement",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.084085",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4bcab72c9315c0932b13b1c31307bf1a": {
+    "id": "4bcab72c9315c0932b13b1c31307bf1a",
+    "category": "model_relationship",
+    "key": "Payment.sale",
+    "value": {
+      "target": "Sale",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.095443",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c0466f4daf59a518ebb9b19404df9134": {
+    "id": "c0466f4daf59a518ebb9b19404df9134",
+    "category": "model_relationship",
+    "key": "Payment.invoice",
+    "value": {
+      "target": "Invoice",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.107711",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ff1f6a1252a8a0051c3b53c14d9ac3d6": {
+    "id": "ff1f6a1252a8a0051c3b53c14d9ac3d6",
+    "category": "model_relationship",
+    "key": "Payment.preorder",
+    "value": {
+      "target": "PreOrder",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.119826",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "69cda2d6bc77191cdfc8f398fbc20938": {
+    "id": "69cda2d6bc77191cdfc8f398fbc20938",
+    "category": "model_relationship",
+    "key": "Payment.service",
+    "value": {
+      "target": "ServiceRequest",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.131173",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f56e2f039a1c3aa1eb56bedb22941598": {
+    "id": "f56e2f039a1c3aa1eb56bedb22941598",
+    "category": "model_relationship",
+    "key": "Payment.refund_of",
+    "value": {
+      "target": "Payment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.141949",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d66230b13ba1e2c3e54f510ba9138817": {
+    "id": "d66230b13ba1e2c3e54f510ba9138817",
+    "category": "model_relationship",
+    "key": "Payment.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.153457",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1253e55398de07a598867d69dcdcc782": {
+    "id": "1253e55398de07a598867d69dcdcc782",
+    "category": "model_relationship",
+    "key": "Payment.splits",
+    "value": {
+      "target": "PaymentSplit",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.164935",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a95e28bc7bfa944d5bab3ce4a34bac4e": {
+    "id": "a95e28bc7bfa944d5bab3ce4a34bac4e",
+    "category": "model_relationship",
+    "key": "Payment.gl_batches",
+    "value": {
+      "target": "GLBatch",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.175808",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b2cbdf74a699e07a56f700d7b3fd4fe1": {
+    "id": "b2cbdf74a699e07a56f700d7b3fd4fe1",
+    "category": "model_relationship",
+    "key": "Payment.related_check",
+    "value": {
+      "target": "Check",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.187116",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "323e692c732bf2680d3d16de5be67ac4": {
+    "id": "323e692c732bf2680d3d16de5be67ac4",
+    "category": "model_relationship",
+    "key": "Payment.bank_transactions",
+    "value": {
+      "target": "BankTransaction",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.199034",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8c994c06e3fa74194d96c6b98c7a4a0f": {
+    "id": "8c994c06e3fa74194d96c6b98c7a4a0f",
+    "category": "model_relationship",
+    "key": "ProductRatingHelpful.rating",
+    "value": {
+      "target": "ProductRating",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.218512",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4a5565f88e17a81f43ca6323b2b51517": {
+    "id": "4a5565f88e17a81f43ca6323b2b51517",
+    "category": "model_relationship",
+    "key": "ProductRatingHelpful.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.231869",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1e6302b845160e39dfc50cc13c305421": {
+    "id": "1e6302b845160e39dfc50cc13c305421",
+    "category": "model_relationship",
+    "key": "Permission.extra_users",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.251637",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "83548481cd6497c2275371ad0a2fdd12": {
+    "id": "83548481cd6497c2275371ad0a2fdd12",
+    "category": "model_relationship",
+    "key": "Permission.role_permissions",
+    "value": {
+      "target": "Role",
+      "direction": "MANYTOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.263203",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6bd1ed77377cd47f7ea62a0df1dd54f1": {
+    "id": "6bd1ed77377cd47f7ea62a0df1dd54f1",
+    "category": "model_relationship",
+    "key": "UserBranch.user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.282676",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a2444bf0ad2d9af28462b3dabe48bdb3": {
+    "id": "a2444bf0ad2d9af28462b3dabe48bdb3",
+    "category": "model_relationship",
+    "key": "UserBranch.branch",
+    "value": {
+      "target": "Branch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.295826",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ae84f7461f9aa7ee1f1e098f10633699": {
+    "id": "ae84f7461f9aa7ee1f1e098f10633699",
+    "category": "model_relationship",
+    "key": "SaaSInvoice.subscription",
+    "value": {
+      "target": "SaaSSubscription",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.323089",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8c37eb77e64ddf616c6ec22008539c9d": {
+    "id": "8c37eb77e64ddf616c6ec22008539c9d",
+    "category": "model_relationship",
+    "key": "SaleLine.sale",
+    "value": {
+      "target": "Sale",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.348049",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0bbb87807da8814d7882b0c7aebf1701": {
+    "id": "0bbb87807da8814d7882b0c7aebf1701",
+    "category": "model_relationship",
+    "key": "SaleLine.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.361484",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "85078d7075367b72f840d3920465cfac": {
+    "id": "85078d7075367b72f840d3920465cfac",
+    "category": "model_relationship",
+    "key": "SaleLine.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.372325",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "871d34bfe1a7f7333f4be2cc18d27bc9": {
+    "id": "871d34bfe1a7f7333f4be2cc18d27bc9",
+    "category": "model_relationship",
+    "key": "Project.client",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.399756",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "bca764998710f262fabc0167be546912": {
+    "id": "bca764998710f262fabc0167be546912",
+    "category": "model_relationship",
+    "key": "Project.cost_center",
+    "value": {
+      "target": "CostCenter",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.410246",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "679b84d1197cc80ba17ebaca82a8d17e": {
+    "id": "679b84d1197cc80ba17ebaca82a8d17e",
+    "category": "model_relationship",
+    "key": "Project.manager",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.421523",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "bd781a2d318e0720bf928badf3173bea": {
+    "id": "bd781a2d318e0720bf928badf3173bea",
+    "category": "model_relationship",
+    "key": "Project.branch",
+    "value": {
+      "target": "Branch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.432885",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4038d290d5dcef75b4f2d084d335ec2d": {
+    "id": "4038d290d5dcef75b4f2d084d335ec2d",
+    "category": "model_relationship",
+    "key": "Project.phases",
+    "value": {
+      "target": "ProjectPhase",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.443717",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "694e9d93336e50b6272bafd98a4ca05a": {
+    "id": "694e9d93336e50b6272bafd98a4ca05a",
+    "category": "model_relationship",
+    "key": "Project.costs",
+    "value": {
+      "target": "ProjectCost",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.454938",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ab50b2964e1e0456d88c82cd95f91e11": {
+    "id": "ab50b2964e1e0456d88c82cd95f91e11",
+    "category": "model_relationship",
+    "key": "Project.revenues",
+    "value": {
+      "target": "ProjectRevenue",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.465923",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "acac629bafd26e792bfd1838794c628e": {
+    "id": "acac629bafd26e792bfd1838794c628e",
+    "category": "model_relationship",
+    "key": "ServicePart.request",
+    "value": {
+      "target": "ServiceRequest",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.485131",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0c05b5b09ef4eaac6c039c9bbaee4cc5": {
+    "id": "0c05b5b09ef4eaac6c039c9bbaee4cc5",
+    "category": "model_relationship",
+    "key": "ServicePart.part",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.496275",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d581612f55800619862a774ad4bdc8ea": {
+    "id": "d581612f55800619862a774ad4bdc8ea",
+    "category": "model_relationship",
+    "key": "ServicePart.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.507540",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4a37f039d2ab5ccb9c1b7d21773ac039": {
+    "id": "4a37f039d2ab5ccb9c1b7d21773ac039",
+    "category": "model_relationship",
+    "key": "ServicePart.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.518760",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4104757fc86bb3153581a3413fccfbec": {
+    "id": "4104757fc86bb3153581a3413fccfbec",
+    "category": "model_relationship",
+    "key": "SupplierSettlement.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.537916",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2b1ec4b47ae7be810b12fd2d82e1d1ba": {
+    "id": "2b1ec4b47ae7be810b12fd2d82e1d1ba",
+    "category": "model_relationship",
+    "key": "SupplierSettlement.lines",
+    "value": {
+      "target": "SupplierSettlementLine",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.549472",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d83f63dacea25c055f570458ddc0fd06": {
+    "id": "d83f63dacea25c055f570458ddc0fd06",
+    "category": "model_relationship",
+    "key": "ProductPartnerShare.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.568817",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "477bac286d0cfc673718ba48bc170396": {
+    "id": "477bac286d0cfc673718ba48bc170396",
+    "category": "model_relationship",
+    "key": "ProductPartnerShare.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.580558",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e6e75c113f73d9ad3036a24c6d41e087": {
+    "id": "e6e75c113f73d9ad3036a24c6d41e087",
+    "category": "model_relationship",
+    "key": "ProductPartnerShare.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.591473",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9fb9847098e13e1b79a1ab83983371fc": {
+    "id": "9fb9847098e13e1b79a1ab83983371fc",
+    "category": "model_relationship",
+    "key": "OnlinePayment.order",
+    "value": {
+      "target": "OnlinePreOrder",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.611631",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d2ee4dd4f112905a44cbefaaf0e299da": {
+    "id": "d2ee4dd4f112905a44cbefaaf0e299da",
+    "category": "model_relationship",
+    "key": "BankAccount.branch",
+    "value": {
+      "target": "Branch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.631456",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c5787e626315005e616810efa2b74ffd": {
+    "id": "c5787e626315005e616810efa2b74ffd",
+    "category": "model_relationship",
+    "key": "BankAccount.gl_account",
+    "value": {
+      "target": "Account",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.642561",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ce7a5a8e87caab5a817437a83fc3b4a2": {
+    "id": "ce7a5a8e87caab5a817437a83fc3b4a2",
+    "category": "model_relationship",
+    "key": "BankAccount.statements",
+    "value": {
+      "target": "BankStatement",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.655999",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "26cd90d3bdb43ad727354842651649bb": {
+    "id": "26cd90d3bdb43ad727354842651649bb",
+    "category": "model_relationship",
+    "key": "BankAccount.transactions",
+    "value": {
+      "target": "BankTransaction",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.667535",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c06b9b45d331037fb2b8eda857b0d2d5": {
+    "id": "c06b9b45d331037fb2b8eda857b0d2d5",
+    "category": "model_relationship",
+    "key": "BankAccount.reconciliations",
+    "value": {
+      "target": "BankReconciliation",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.679449",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "49e5fb48686e89436723c89a8f5ce941": {
+    "id": "49e5fb48686e89436723c89a8f5ce941",
+    "category": "model_relationship",
+    "key": "Employee.expenses",
+    "value": {
+      "target": "Expense",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.699447",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "df469cf0f4dd25c9ece2cec767a5bcb2": {
+    "id": "df469cf0f4dd25c9ece2cec767a5bcb2",
+    "category": "model_relationship",
+    "key": "Employee.branch",
+    "value": {
+      "target": "Branch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.713098",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c938e60127aa70d417424494ce957962": {
+    "id": "c938e60127aa70d417424494ce957962",
+    "category": "model_relationship",
+    "key": "Employee.site",
+    "value": {
+      "target": "Site",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.726175",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5e4fee8fbafff8910b397c01b7968871": {
+    "id": "5e4fee8fbafff8910b397c01b7968871",
+    "category": "model_relationship",
+    "key": "Employee.deductions",
+    "value": {
+      "target": "EmployeeDeduction",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.737647",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1b0bed28064558c614737c6fa2958333": {
+    "id": "1b0bed28064558c614737c6fa2958333",
+    "category": "model_relationship",
+    "key": "Employee.advances",
+    "value": {
+      "target": "EmployeeAdvance",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.749138",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "53b5e5d6a84cc1f6a74532862d0f77e3": {
+    "id": "53b5e5d6a84cc1f6a74532862d0f77e3",
+    "category": "model_relationship",
+    "key": "Employee.advance_installments",
+    "value": {
+      "target": "EmployeeAdvanceInstallment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.760043",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "af164abe32e54448c7708b768c88bd37": {
+    "id": "af164abe32e54448c7708b768c88bd37",
+    "category": "model_relationship",
+    "key": "PaymentSplit.payment",
+    "value": {
+      "target": "Payment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.789158",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b251a31d8e07abbaa1f40374fb981fe9": {
+    "id": "b251a31d8e07abbaa1f40374fb981fe9",
+    "category": "model_relationship",
+    "key": "CustomerLoyalty.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.809635",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "07720eb99a000e9c0e1188443e334080": {
+    "id": "07720eb99a000e9c0e1188443e334080",
+    "category": "model_relationship",
+    "key": "Role.permissions",
+    "value": {
+      "target": "Permission",
+      "direction": "MANYTOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.883816",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5955bfdd3b16547b17cc1dda1dc9492f": {
+    "id": "5955bfdd3b16547b17cc1dda1dc9492f",
+    "category": "model_relationship",
+    "key": "Role.users",
+    "value": {
+      "target": "User",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.895022",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "76ab1adc31dc41eb408da4447b209691": {
+    "id": "76ab1adc31dc41eb408da4447b209691",
+    "category": "model_relationship",
+    "key": "Warehouse.parent",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.914788",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5b4cb0e4468f8a0559f54cd704a52450": {
+    "id": "5b4cb0e4468f8a0559f54cd704a52450",
+    "category": "model_relationship",
+    "key": "Warehouse.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.925845",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2877ae87286e9af7f5df632abc9637a8": {
+    "id": "2877ae87286e9af7f5df632abc9637a8",
+    "category": "model_relationship",
+    "key": "Warehouse.branch",
+    "value": {
+      "target": "Branch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.937012",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "99bb984965d1c4c557a713ada5f06b53": {
+    "id": "99bb984965d1c4c557a713ada5f06b53",
+    "category": "model_relationship",
+    "key": "Warehouse.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.948672",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "83ae34ee2de0211f3074a186b2664eea": {
+    "id": "83ae34ee2de0211f3074a186b2664eea",
+    "category": "model_relationship",
+    "key": "Warehouse.stock_levels",
+    "value": {
+      "target": "StockLevel",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.959629",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c0a2b41c64c9d4f8cba2c8b889237564": {
+    "id": "c0a2b41c64c9d4f8cba2c8b889237564",
+    "category": "model_relationship",
+    "key": "Warehouse.transfers_source",
+    "value": {
+      "target": "Transfer",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.971003",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a9f606b3c7f7a7800fff1092a096e0a5": {
+    "id": "a9f606b3c7f7a7800fff1092a096e0a5",
+    "category": "model_relationship",
+    "key": "Warehouse.transfers_destination",
+    "value": {
+      "target": "Transfer",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.983044",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6b98a5730f2c73e3c6b1af7107092797": {
+    "id": "6b98a5730f2c73e3c6b1af7107092797",
+    "category": "model_relationship",
+    "key": "Warehouse.sale_lines",
+    "value": {
+      "target": "SaleLine",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.994426",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "24aa37e7c46c0c053082af25c9842e81": {
+    "id": "24aa37e7c46c0c053082af25c9842e81",
+    "category": "model_relationship",
+    "key": "Warehouse.service_parts",
+    "value": {
+      "target": "ServicePart",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.005082",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "dadf35c9df50d0af3f308df7509b6725": {
+    "id": "dadf35c9df50d0af3f308df7509b6725",
+    "category": "model_relationship",
+    "key": "Warehouse.exchange_transactions",
+    "value": {
+      "target": "ExchangeTransaction",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.016087",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "aa39d94058c23744a4d9355600a4fff9": {
+    "id": "aa39d94058c23744a4d9355600a4fff9",
+    "category": "model_relationship",
+    "key": "Warehouse.shipment_items",
+    "value": {
+      "target": "ShipmentItem",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.027019",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "12fe2b115953562980bcef70f2ddbc16": {
+    "id": "12fe2b115953562980bcef70f2ddbc16",
+    "category": "model_relationship",
+    "key": "Warehouse.shipments_received",
+    "value": {
+      "target": "Shipment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.038641",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d035aee1f96dd430d7732884b0a9a42e": {
+    "id": "d035aee1f96dd430d7732884b0a9a42e",
+    "category": "model_relationship",
+    "key": "Warehouse.preorders",
+    "value": {
+      "target": "PreOrder",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.049919",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9e41b5dd9e79b61983363c0bbb7a86c0": {
+    "id": "9e41b5dd9e79b61983363c0bbb7a86c0",
+    "category": "model_relationship",
+    "key": "Warehouse.partner_shares",
+    "value": {
+      "target": "WarehousePartnerShare",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.060697",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a0a6db3867baf19b60fc52f96b8af680": {
+    "id": "a0a6db3867baf19b60fc52f96b8af680",
+    "category": "model_relationship",
+    "key": "Warehouse.expenses",
+    "value": {
+      "target": "Expense",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.072253",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "20f6a7d34a3762eb52644923748d169a": {
+    "id": "20f6a7d34a3762eb52644923748d169a",
+    "category": "model_relationship",
+    "key": "Warehouse.stock_adjustments",
+    "value": {
+      "target": "StockAdjustment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.083798",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "561a077c1d23fd9552fd3e73f0930fe0": {
+    "id": "561a077c1d23fd9552fd3e73f0930fe0",
+    "category": "model_relationship",
+    "key": "Warehouse.children",
+    "value": {
+      "target": "Warehouse",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.095348",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "42d6498e22232495b9e3261f6bc58864": {
+    "id": "42d6498e22232495b9e3261f6bc58864",
+    "category": "model_relationship",
+    "key": "Warehouse.import_runs",
+    "value": {
+      "target": "ImportRun",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.105713",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f26397f45995ce7195f9c3b6030b1149": {
+    "id": "f26397f45995ce7195f9c3b6030b1149",
+    "category": "model_relationship",
+    "key": "Budget.account",
+    "value": {
+      "target": "Account",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.830217",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d60a7567b5bdcc5b630a531f06520e0f": {
+    "id": "d60a7567b5bdcc5b630a531f06520e0f",
+    "category": "model_relationship",
+    "key": "Budget.branch",
+    "value": {
+      "target": "Branch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.841176",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ca850943281ee1b666df8223b8f3bda1": {
+    "id": "ca850943281ee1b666df8223b8f3bda1",
+    "category": "model_relationship",
+    "key": "Budget.site",
+    "value": {
+      "target": "Site",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.853049",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b3df9201470e941cf49a34d720cacae1": {
+    "id": "b3df9201470e941cf49a34d720cacae1",
+    "category": "model_relationship",
+    "key": "Budget.commitments",
+    "value": {
+      "target": "BudgetCommitment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:21.864280",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "92d38d386ba630f71e32f3f86c0c0d6d": {
+    "id": "92d38d386ba630f71e32f3f86c0c0d6d",
+    "category": "model_relationship",
+    "key": "SaleReturn.sale",
+    "value": {
+      "target": "Sale",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.125001",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "71b22d06826a0b800c01220b6de50255": {
+    "id": "71b22d06826a0b800c01220b6de50255",
+    "category": "model_relationship",
+    "key": "SaleReturn.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.136424",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c04bef39f451f760b5dc4fffa9d51e22": {
+    "id": "c04bef39f451f760b5dc4fffa9d51e22",
+    "category": "model_relationship",
+    "key": "SaleReturn.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.147667",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b9fdf67d4ce5cf41183363e833b9b61a": {
+    "id": "b9fdf67d4ce5cf41183363e833b9b61a",
+    "category": "model_relationship",
+    "key": "SaleReturn.credit_note",
+    "value": {
+      "target": "Invoice",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.158808",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fa9fba7d1393aa22af45ea5b5e7b32d0": {
+    "id": "fa9fba7d1393aa22af45ea5b5e7b32d0",
+    "category": "model_relationship",
+    "key": "SaleReturn.lines",
+    "value": {
+      "target": "SaleReturnLine",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.170143",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6093c5c4bc0f58bb33b856b1e0fbfbf0": {
+    "id": "6093c5c4bc0f58bb33b856b1e0fbfbf0",
+    "category": "model_relationship",
+    "key": "Note.author",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.189569",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2cacc519b265736ae7a2172f716cd04f": {
+    "id": "2cacc519b265736ae7a2172f716cd04f",
+    "category": "model_relationship",
+    "key": "ProjectPhase.project",
+    "value": {
+      "target": "Project",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.209570",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3c20fe8b90ed75027023bd46598d4b8a": {
+    "id": "3c20fe8b90ed75027023bd46598d4b8a",
+    "category": "model_relationship",
+    "key": "ProjectPhase.costs",
+    "value": {
+      "target": "ProjectCost",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.220837",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "dcff7c25ef0d7a70adb7d325e66b9cea": {
+    "id": "dcff7c25ef0d7a70adb7d325e66b9cea",
+    "category": "model_relationship",
+    "key": "ProjectPhase.revenues",
+    "value": {
+      "target": "ProjectRevenue",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.236243",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "05cedb19629fc8823d29ccd573a3a261": {
+    "id": "05cedb19629fc8823d29ccd573a3a261",
+    "category": "model_relationship",
+    "key": "ServiceTask.request",
+    "value": {
+      "target": "ServiceRequest",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.259673",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "bca0cdd6b65e36ea656bfb9df9592a94": {
+    "id": "bca0cdd6b65e36ea656bfb9df9592a94",
+    "category": "model_relationship",
+    "key": "ServiceTask.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.273179",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ea873bffd4a87dddf916d7dfe45e23e2": {
+    "id": "ea873bffd4a87dddf916d7dfe45e23e2",
+    "category": "model_relationship",
+    "key": "SupplierSettlementLine.settlement",
+    "value": {
+      "target": "SupplierSettlement",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.292446",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "856c51ae4a74fd3447845d80ce18e654": {
+    "id": "856c51ae4a74fd3447845d80ce18e654",
+    "category": "model_relationship",
+    "key": "SupplierSettlementLine.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.303701",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3dc8149d368f2e9e97bef67601aa3b03": {
+    "id": "3dc8149d368f2e9e97bef67601aa3b03",
+    "category": "model_relationship",
+    "key": "ProductPartner.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.322320",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "79ab16fa79599e1e5f2a5bff3ac9d092": {
+    "id": "79ab16fa79599e1e5f2a5bff3ac9d092",
+    "category": "model_relationship",
+    "key": "ProductPartner.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.333822",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c54538d755261da777f188e53d433755": {
+    "id": "c54538d755261da777f188e53d433755",
+    "category": "model_relationship",
+    "key": "UtilityAccount.expenses",
+    "value": {
+      "target": "Expense",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.354502",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "47044728fd36cfb77485ba4c2185b33d": {
+    "id": "47044728fd36cfb77485ba4c2185b33d",
+    "category": "model_relationship",
+    "key": "BankStatement.bank_account",
+    "value": {
+      "target": "BankAccount",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.379509",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f7c7287995179b16c5d8c96770c213a0": {
+    "id": "f7c7287995179b16c5d8c96770c213a0",
+    "category": "model_relationship",
+    "key": "BankStatement.importer",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.393585",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4aa7596201fab9b6b527aa46acf48434": {
+    "id": "4aa7596201fab9b6b527aa46acf48434",
+    "category": "model_relationship",
+    "key": "BankStatement.transactions",
+    "value": {
+      "target": "BankTransaction",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.408307",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "bb2951db3f56da49b665d537210877ff": {
+    "id": "bb2951db3f56da49b665d537210877ff",
+    "category": "model_relationship",
+    "key": "EmployeeDeduction.employee",
+    "value": {
+      "target": "Employee",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.435951",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "bd2c2db5df2bce3916b7908aef11c853": {
+    "id": "bd2c2db5df2bce3916b7908aef11c853",
+    "category": "model_relationship",
+    "key": "EmployeeDeduction.expense",
+    "value": {
+      "target": "Expense",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.447280",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "764b72a43e5553fae9539ae2e8e4564e": {
+    "id": "764b72a43e5553fae9539ae2e8e4564e",
+    "category": "model_relationship",
+    "key": "ShipmentItem.shipment",
+    "value": {
+      "target": "Shipment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.467098",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "adaf576c0fb6fb3a7cc7387386b9f45b": {
+    "id": "adaf576c0fb6fb3a7cc7387386b9f45b",
+    "category": "model_relationship",
+    "key": "ShipmentItem.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.477878",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "caa2fe00ad05ea030a7fe7b7aeb5e924": {
+    "id": "caa2fe00ad05ea030a7fe7b7aeb5e924",
+    "category": "model_relationship",
+    "key": "ShipmentItem.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.489278",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "350bd2e957e9dda28bdb0d2167e8e151": {
+    "id": "350bd2e957e9dda28bdb0d2167e8e151",
+    "category": "model_relationship",
+    "key": "CustomerLoyaltyPoints.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.508701",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a6d2ff65728fdfdf6031ce66faaa7e91": {
+    "id": "a6d2ff65728fdfdf6031ce66faaa7e91",
+    "category": "model_relationship",
+    "key": "StockLevel.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.547292",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f5ff07ee6123d5f4eb4d7bd6d87f4d00": {
+    "id": "f5ff07ee6123d5f4eb4d7bd6d87f4d00",
+    "category": "model_relationship",
+    "key": "StockLevel.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.558158",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ef3c2e073dbc849e3c5d067853c11953": {
+    "id": "ef3c2e073dbc849e3c5d067853c11953",
+    "category": "model_relationship",
+    "key": "BudgetCommitment.budget",
+    "value": {
+      "target": "Budget",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.578003",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7f0db5c8e14883171f4290409ebaebcd": {
+    "id": "7f0db5c8e14883171f4290409ebaebcd",
+    "category": "model_relationship",
+    "key": "SaleReturnLine.sale_return",
+    "value": {
+      "target": "SaleReturn",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.598268",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f0a9f1727559a7afa376383fb9e9b25c": {
+    "id": "f0a9f1727559a7afa376383fb9e9b25c",
+    "category": "model_relationship",
+    "key": "SaleReturnLine.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.609151",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "abd169c3847b7218a9c6af95832065e0": {
+    "id": "abd169c3847b7218a9c6af95832065e0",
+    "category": "model_relationship",
+    "key": "SaleReturnLine.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.619661",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0144af947961d704c3ab9e9323ea38dd": {
+    "id": "0144af947961d704c3ab9e9323ea38dd",
+    "category": "model_relationship",
+    "key": "Account.budgets",
+    "value": {
+      "target": "Budget",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.639664",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "cbb4c30d3a8424695ab07fdaf55c50a9": {
+    "id": "cbb4c30d3a8424695ab07fdaf55c50a9",
+    "category": "model_relationship",
+    "key": "Account.asset_categories",
+    "value": {
+      "target": "FixedAssetCategory",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.653514",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7d6c92e775c1ed9d255126707e52f83f": {
+    "id": "7d6c92e775c1ed9d255126707e52f83f",
+    "category": "model_relationship",
+    "key": "Account.depreciation_categories",
+    "value": {
+      "target": "FixedAssetCategory",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.665140",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3979202da36aad2e5c4f71c00ca8f1d0": {
+    "id": "3979202da36aad2e5c4f71c00ca8f1d0",
+    "category": "model_relationship",
+    "key": "Account.bank_accounts",
+    "value": {
+      "target": "BankAccount",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.676530",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0109247a3569b728618c468e3c28fa38": {
+    "id": "0109247a3569b728618c468e3c28fa38",
+    "category": "model_relationship",
+    "key": "ProjectCost.project",
+    "value": {
+      "target": "Project",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.696801",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1328310a8a669b9e8361866508c7deb0": {
+    "id": "1328310a8a669b9e8361866508c7deb0",
+    "category": "model_relationship",
+    "key": "ProjectCost.phase",
+    "value": {
+      "target": "ProjectPhase",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.707848",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "09f46b571d242d6ebd434ebe3b3d0e17": {
+    "id": "09f46b571d242d6ebd434ebe3b3d0e17",
+    "category": "model_relationship",
+    "key": "ProjectCost.gl_batch",
+    "value": {
+      "target": "GLBatch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.720559",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c8819cdc9d6badd853e0510a585f3eff": {
+    "id": "c8819cdc9d6badd853e0510a585f3eff",
+    "category": "model_relationship",
+    "key": "OnlineCart.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.747414",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a9d48d8f0083d8b1446f28a7cf7d8b36": {
+    "id": "a9d48d8f0083d8b1446f28a7cf7d8b36",
+    "category": "model_relationship",
+    "key": "OnlineCart.items",
+    "value": {
+      "target": "OnlineCartItem",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.764312",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8fe42ddb365c6c7c8ce7229d84453022": {
+    "id": "8fe42ddb365c6c7c8ce7229d84453022",
+    "category": "model_relationship",
+    "key": "SupplierLoanSettlement.loan",
+    "value": {
+      "target": "ProductSupplierLoan",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.792123",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fb431568e9194b5e35bb08d41eb572bd": {
+    "id": "fb431568e9194b5e35bb08d41eb572bd",
+    "category": "model_relationship",
+    "key": "SupplierLoanSettlement.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.803759",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "964b11de82d2de35cd4b5760c0e63f56": {
+    "id": "964b11de82d2de35cd4b5760c0e63f56",
+    "category": "model_relationship",
+    "key": "SupplierLoanSettlement.payment",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.815542",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "dcb46379b6a807af0db07aedfd9bc44c": {
+    "id": "dcb46379b6a807af0db07aedfd9bc44c",
+    "category": "model_relationship",
+    "key": "PreOrder.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.835417",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "71b30cc6361370c19893a430a31f593d": {
+    "id": "71b30cc6361370c19893a430a31f593d",
+    "category": "model_relationship",
+    "key": "PreOrder.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.847121",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "64f92bce0506c7d7972cda4935d42ec4": {
+    "id": "64f92bce0506c7d7972cda4935d42ec4",
+    "category": "model_relationship",
+    "key": "PreOrder.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.858217",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e8024abac4f0d4c22af535db33dec517": {
+    "id": "e8024abac4f0d4c22af535db33dec517",
+    "category": "model_relationship",
+    "key": "PreOrder.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.869557",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a967ae9ee0f6cde3ed7e73439a158c66": {
+    "id": "a967ae9ee0f6cde3ed7e73439a158c66",
+    "category": "model_relationship",
+    "key": "PreOrder.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.881449",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "917e5724dcda2146189fc065171f5470": {
+    "id": "917e5724dcda2146189fc065171f5470",
+    "category": "model_relationship",
+    "key": "PreOrder.cancelled_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.892849",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e8c832514abbb0fb2e141bce1edd70c9": {
+    "id": "e8c832514abbb0fb2e141bce1edd70c9",
+    "category": "model_relationship",
+    "key": "PreOrder.refund_of",
+    "value": {
+      "target": "PreOrder",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.904193",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b24bd38a4be524b6a3e4c520ff6c9c18": {
+    "id": "b24bd38a4be524b6a3e4c520ff6c9c18",
+    "category": "model_relationship",
+    "key": "PreOrder.payments",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.916725",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2413891777b50b2292c6b31863289b88": {
+    "id": "2413891777b50b2292c6b31863289b88",
+    "category": "model_relationship",
+    "key": "PreOrder.sale",
+    "value": {
+      "target": "Sale",
+      "direction": "ONETOMANY",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.927886",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d1ec18cba647b29750a014c7a2bae718": {
+    "id": "d1ec18cba647b29750a014c7a2bae718",
+    "category": "model_relationship",
+    "key": "PreOrder.invoice",
+    "value": {
+      "target": "Invoice",
+      "direction": "ONETOMANY",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.939250",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "309837e473882518e27f02533ab6b621": {
+    "id": "309837e473882518e27f02533ab6b621",
+    "category": "model_relationship",
+    "key": "StockAdjustment.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.958866",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e94a6cf2c3dc335f1c258bfda18aabe2": {
+    "id": "e94a6cf2c3dc335f1c258bfda18aabe2",
+    "category": "model_relationship",
+    "key": "StockAdjustment.items",
+    "value": {
+      "target": "StockAdjustmentItem",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.969645",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "808739ac6ddf821702553686c46f2db7": {
+    "id": "808739ac6ddf821702553686c46f2db7",
+    "category": "model_relationship",
+    "key": "StockAdjustment.expense",
+    "value": {
+      "target": "Expense",
+      "direction": "ONETOMANY",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.980498",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "45b745b1b4c319f7f02123ee71b7ff4b": {
+    "id": "45b745b1b4c319f7f02123ee71b7ff4b",
+    "category": "model_relationship",
+    "key": "EmployeeAdvance.employee",
+    "value": {
+      "target": "Employee",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:22.999897",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e644df1381a070e2b7622a44d508611e": {
+    "id": "e644df1381a070e2b7622a44d508611e",
+    "category": "model_relationship",
+    "key": "EmployeeAdvance.expense",
+    "value": {
+      "target": "Expense",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.010918",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7431d47de0f7895e9f4148a829283bbe": {
+    "id": "7431d47de0f7895e9f4148a829283bbe",
+    "category": "model_relationship",
+    "key": "BankTransaction.bank_account",
+    "value": {
+      "target": "BankAccount",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.031203",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "12b36f90bb8c38b2f8c96c3b2595c46c": {
+    "id": "12b36f90bb8c38b2f8c96c3b2595c46c",
+    "category": "model_relationship",
+    "key": "BankTransaction.statement",
+    "value": {
+      "target": "BankStatement",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.042099",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e3d651accc31548a759c872874b3071c": {
+    "id": "e3d651accc31548a759c872874b3071c",
+    "category": "model_relationship",
+    "key": "BankTransaction.payment",
+    "value": {
+      "target": "Payment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.053571",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5ea6ebf2990fa2c2bbc8c57e0737b5fd": {
+    "id": "5ea6ebf2990fa2c2bbc8c57e0737b5fd",
+    "category": "model_relationship",
+    "key": "BankTransaction.gl_batch",
+    "value": {
+      "target": "GLBatch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.065111",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f0eef92ff4f05fb3dc561c135d5d5548": {
+    "id": "f0eef92ff4f05fb3dc561c135d5d5548",
+    "category": "model_relationship",
+    "key": "Shipment.items",
+    "value": {
+      "target": "ShipmentItem",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.084798",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "81a7b711e6138063491f05ffc9170fc4": {
+    "id": "81a7b711e6138063491f05ffc9170fc4",
+    "category": "model_relationship",
+    "key": "Shipment.partners",
+    "value": {
+      "target": "ShipmentPartner",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.095638",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1fd6727d060e7147624c57eeaec53b1b": {
+    "id": "1fd6727d060e7147624c57eeaec53b1b",
+    "category": "model_relationship",
+    "key": "Shipment.payments",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.106868",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5f6195e3b622c48f1825810197f58534": {
+    "id": "5f6195e3b622c48f1825810197f58534",
+    "category": "model_relationship",
+    "key": "Shipment.sale",
+    "value": {
+      "target": "Sale",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.118254",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fba619e4561a9ace9ec42298cc3d6ef6": {
+    "id": "fba619e4561a9ace9ec42298cc3d6ef6",
+    "category": "model_relationship",
+    "key": "Shipment.destination_warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.129623",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e1120aa5c6530039d6f6344eeba3e7bd": {
+    "id": "e1120aa5c6530039d6f6344eeba3e7bd",
+    "category": "model_relationship",
+    "key": "Shipment.expenses",
+    "value": {
+      "target": "Expense",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.140690",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5ff3afa7cd078829195a80a53a9d05e0": {
+    "id": "5ff3afa7cd078829195a80a53a9d05e0",
+    "category": "model_relationship",
+    "key": "Shipment.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.152192",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0ee1cc10d695b9a893bb115a8c5e3074": {
+    "id": "0ee1cc10d695b9a893bb115a8c5e3074",
+    "category": "model_relationship",
+    "key": "Shipment.gl_batches",
+    "value": {
+      "target": "GLBatch",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.163478",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "11d05aea159eeb8bfa57a25eec5d86e3": {
+    "id": "11d05aea159eeb8bfa57a25eec5d86e3",
+    "category": "model_relationship",
+    "key": "Check.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.183699",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7ea5e4f2c58d3df7bdc3d76580562622": {
+    "id": "7ea5e4f2c58d3df7bdc3d76580562622",
+    "category": "model_relationship",
+    "key": "Check.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.194576",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "dd52d182025765c03acfd388ad295ae9": {
+    "id": "dd52d182025765c03acfd388ad295ae9",
+    "category": "model_relationship",
+    "key": "Check.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.205272",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "813b7b3038caa3f75c8e9787dc7815aa": {
+    "id": "813b7b3038caa3f75c8e9787dc7815aa",
+    "category": "model_relationship",
+    "key": "Check.payment",
+    "value": {
+      "target": "Payment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.216877",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a179838bd442da4fefae8d53ded0ae0d": {
+    "id": "a179838bd442da4fefae8d53ded0ae0d",
+    "category": "model_relationship",
+    "key": "Check.created_by",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.227036",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b2ea980fb66abf9fd013537f29341658": {
+    "id": "b2ea980fb66abf9fd013537f29341658",
+    "category": "model_relationship",
+    "key": "Check.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.238387",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c6a0744341533641cb871919d3e7c60e": {
+    "id": "c6a0744341533641cb871919d3e7c60e",
+    "category": "model_relationship",
+    "key": "InvoiceLine.invoice",
+    "value": {
+      "target": "Invoice",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.124863",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fd2119b2c9b4e143c6715adb4dc40832": {
+    "id": "fd2119b2c9b4e143c6715adb4dc40832",
+    "category": "model_relationship",
+    "key": "InvoiceLine.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.139041",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "17ed0cf8cee0a6c18da370149e6ed9ab": {
+    "id": "17ed0cf8cee0a6c18da370149e6ed9ab",
+    "category": "model_relationship",
+    "key": "ImportRun.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.260460",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "260e27f56cfca9ca569997583498d1e0": {
+    "id": "260e27f56cfca9ca569997583498d1e0",
+    "category": "model_relationship",
+    "key": "ImportRun.user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.271879",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6f52d56d8a338106bc7184f0aaa356da": {
+    "id": "6f52d56d8a338106bc7184f0aaa356da",
+    "category": "model_relationship",
+    "key": "FixedAssetCategory.account",
+    "value": {
+      "target": "Account",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.291760",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ddd9a54d2ee26d83abc0916c6ffc6fb5": {
+    "id": "ddd9a54d2ee26d83abc0916c6ffc6fb5",
+    "category": "model_relationship",
+    "key": "FixedAssetCategory.depreciation_account",
+    "value": {
+      "target": "Account",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.303313",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9381d5a9d556402d8e500817a3b19215": {
+    "id": "9381d5a9d556402d8e500817a3b19215",
+    "category": "model_relationship",
+    "key": "FixedAssetCategory.assets",
+    "value": {
+      "target": "FixedAsset",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.315465",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ddaa157177ce5c0770d2931ad6efcfc8": {
+    "id": "ddaa157177ce5c0770d2931ad6efcfc8",
+    "category": "model_relationship",
+    "key": "Archive.user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.034871",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d2c2530961253319c5ff673bf1c292ec": {
+    "id": "d2c2530961253319c5ff673bf1c292ec",
+    "category": "model_relationship",
+    "key": "Archive.archiver",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.051255",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "10c985f11a6a9247f8515b3ed877f076": {
+    "id": "10c985f11a6a9247f8515b3ed877f076",
+    "category": "model_relationship",
+    "key": "Invoice.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.335266",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "aa7ad43a562d04e01e68550f3e25dcf7": {
+    "id": "aa7ad43a562d04e01e68550f3e25dcf7",
+    "category": "model_relationship",
+    "key": "Invoice.supplier",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.346250",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ebaf3cbbfa91f9fa27ce1474feb92d9a": {
+    "id": "ebaf3cbbfa91f9fa27ce1474feb92d9a",
+    "category": "model_relationship",
+    "key": "Invoice.partner",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.357175",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a53e476b5c3d502f43ac394e2d7a94e1": {
+    "id": "a53e476b5c3d502f43ac394e2d7a94e1",
+    "category": "model_relationship",
+    "key": "Invoice.sale",
+    "value": {
+      "target": "Sale",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.368425",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "507aa319486519d8a526173ac383b279": {
+    "id": "507aa319486519d8a526173ac383b279",
+    "category": "model_relationship",
+    "key": "Invoice.service",
+    "value": {
+      "target": "ServiceRequest",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.379791",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "83af91a819aea657657319861a0c105d": {
+    "id": "83af91a819aea657657319861a0c105d",
+    "category": "model_relationship",
+    "key": "Invoice.preorder",
+    "value": {
+      "target": "PreOrder",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.390612",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d8894726a3a3511149fdfce6c3b8800a": {
+    "id": "d8894726a3a3511149fdfce6c3b8800a",
+    "category": "model_relationship",
+    "key": "Invoice.cancelled_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.401442",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9b8fd5aac9b7244a03676f42d6ffb32b": {
+    "id": "9b8fd5aac9b7244a03676f42d6ffb32b",
+    "category": "model_relationship",
+    "key": "Invoice.refund_of",
+    "value": {
+      "target": "Invoice",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.412860",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2227896d5a01fd9c4b3846983b0b1f63": {
+    "id": "2227896d5a01fd9c4b3846983b0b1f63",
+    "category": "model_relationship",
+    "key": "Invoice.credit_for",
+    "value": {
+      "target": "Invoice",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.426855",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "040f8d43d45c42e262780f1635ed9bf2": {
+    "id": "040f8d43d45c42e262780f1635ed9bf2",
+    "category": "model_relationship",
+    "key": "Invoice.lines",
+    "value": {
+      "target": "InvoiceLine",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.440714",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8e97f2058024b12a8671646345c4fb03": {
+    "id": "8e97f2058024b12a8671646345c4fb03",
+    "category": "model_relationship",
+    "key": "Invoice.payments",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.455189",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f4e8bb4da072efd3563ea2cc73077702": {
+    "id": "f4e8bb4da072efd3563ea2cc73077702",
+    "category": "model_relationship",
+    "key": "Invoice.gl_batches",
+    "value": {
+      "target": "GLBatch",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.469331",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "11a20bf645cb2e5ce451a25beed10bb3": {
+    "id": "11a20bf645cb2e5ce451a25beed10bb3",
+    "category": "model_relationship",
+    "key": "Invoice.refunds",
+    "value": {
+      "target": "Invoice",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.479311",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "36a368505af039f24517596b0da04526": {
+    "id": "36a368505af039f24517596b0da04526",
+    "category": "model_relationship",
+    "key": "Invoice.credit_notes",
+    "value": {
+      "target": "Invoice",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.490081",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c5c4db506ca9e04674187766470e72c9": {
+    "id": "c5c4db506ca9e04674187766470e72c9",
+    "category": "model_relationship",
+    "key": "GLBatch.entries",
+    "value": {
+      "target": "GLEntry",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.510761",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e2384372d1d855c6de6be34fb1da6015": {
+    "id": "e2384372d1d855c6de6be34fb1da6015",
+    "category": "model_relationship",
+    "key": "GLBatch.asset_depreciations",
+    "value": {
+      "target": "AssetDepreciation",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.522688",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1659778c0ac4b32be22ec858b000c8a0": {
+    "id": "1659778c0ac4b32be22ec858b000c8a0",
+    "category": "model_relationship",
+    "key": "GLBatch.bank_transactions",
+    "value": {
+      "target": "BankTransaction",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.536992",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f2b0cd7284f7e2cc0f1bbf61d4e7da08": {
+    "id": "f2b0cd7284f7e2cc0f1bbf61d4e7da08",
+    "category": "model_relationship",
+    "key": "GLBatch.project_costs",
+    "value": {
+      "target": "ProjectCost",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.551469",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3d6d0d3fa9717c1529095ed414c20240": {
+    "id": "3d6d0d3fa9717c1529095ed414c20240",
+    "category": "model_relationship",
+    "key": "GLBatch.project_revenues",
+    "value": {
+      "target": "ProjectRevenue",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.564881",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "61311b0b73d512c7b226728ee43f6e27": {
+    "id": "61311b0b73d512c7b226728ee43f6e27",
+    "category": "model_relationship",
+    "key": "ProjectRevenue.project",
+    "value": {
+      "target": "Project",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.585806",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "cdefa952dd823387b09a21ebaf655126": {
+    "id": "cdefa952dd823387b09a21ebaf655126",
+    "category": "model_relationship",
+    "key": "ProjectRevenue.phase",
+    "value": {
+      "target": "ProjectPhase",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.599644",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d288103ba900c03d3df60f19946d6b4e": {
+    "id": "d288103ba900c03d3df60f19946d6b4e",
+    "category": "model_relationship",
+    "key": "ProjectRevenue.gl_batch",
+    "value": {
+      "target": "GLBatch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.614290",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1ae676a5fe13910acb2108a62e295119": {
+    "id": "1ae676a5fe13910acb2108a62e295119",
+    "category": "model_relationship",
+    "key": "Product.category",
+    "value": {
+      "target": "ProductCategory",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.640270",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "131600136e551d517daf546e64395dc9": {
+    "id": "131600136e551d517daf546e64395dc9",
+    "category": "model_relationship",
+    "key": "Product.vehicle_type",
+    "value": {
+      "target": "EquipmentType",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.656374",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a42e0c6fb55fdf23fa7b6ffa6f155ac7": {
+    "id": "a42e0c6fb55fdf23fa7b6ffa6f155ac7",
+    "category": "model_relationship",
+    "key": "Product.supplier_general",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.672235",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fb6f868d6e625b957b1cc1b86297a12c": {
+    "id": "fb6f868d6e625b957b1cc1b86297a12c",
+    "category": "model_relationship",
+    "key": "Product.supplier_international",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.699567",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c80cedec28b3080861258f4f78b798f7": {
+    "id": "c80cedec28b3080861258f4f78b798f7",
+    "category": "model_relationship",
+    "key": "Product.supplier_local",
+    "value": {
+      "target": "Supplier",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.719445",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "bbb4cbe4c424810ad7ca4a25e451b5da": {
+    "id": "bbb4cbe4c424810ad7ca4a25e451b5da",
+    "category": "model_relationship",
+    "key": "Product.partners",
+    "value": {
+      "target": "ProductPartner",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.740727",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9b375814ef77988f5e665f45b3adaf6a": {
+    "id": "9b375814ef77988f5e665f45b3adaf6a",
+    "category": "model_relationship",
+    "key": "Product.partner_shares",
+    "value": {
+      "target": "ProductPartnerShare",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.762520",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4468a9ce500ae97c3ab63c125e50107e": {
+    "id": "4468a9ce500ae97c3ab63c125e50107e",
+    "category": "model_relationship",
+    "key": "Product.supplier_loans",
+    "value": {
+      "target": "ProductSupplierLoan",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.779069",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "887d667f44d097545a23855a32c6c9ba": {
+    "id": "887d667f44d097545a23855a32c6c9ba",
+    "category": "model_relationship",
+    "key": "Product.transfers",
+    "value": {
+      "target": "Transfer",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.795267",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e5f199b51b06383669f1e92215e54475": {
+    "id": "e5f199b51b06383669f1e92215e54475",
+    "category": "model_relationship",
+    "key": "Product.preorders",
+    "value": {
+      "target": "PreOrder",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.812634",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f9c208a0635902eb13f12ab6dcfacee4": {
+    "id": "f9c208a0635902eb13f12ab6dcfacee4",
+    "category": "model_relationship",
+    "key": "Product.shipment_items",
+    "value": {
+      "target": "ShipmentItem",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.830740",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2c7cef0e1a4813c01bb2bafa80f65998": {
+    "id": "2c7cef0e1a4813c01bb2bafa80f65998",
+    "category": "model_relationship",
+    "key": "Product.exchange_transactions",
+    "value": {
+      "target": "ExchangeTransaction",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.846143",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f18959d93e50bd2fb1728aaf25a1bb12": {
+    "id": "f18959d93e50bd2fb1728aaf25a1bb12",
+    "category": "model_relationship",
+    "key": "Product.sale_lines",
+    "value": {
+      "target": "SaleLine",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.862268",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "511af0db8b5e483fe8a68defd7f982a7": {
+    "id": "511af0db8b5e483fe8a68defd7f982a7",
+    "category": "model_relationship",
+    "key": "Product.service_parts",
+    "value": {
+      "target": "ServicePart",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.878568",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7047f8aede3df51c7e6fb6fad73e6c1b": {
+    "id": "7047f8aede3df51c7e6fb6fad73e6c1b",
+    "category": "model_relationship",
+    "key": "Product.online_cart_items",
+    "value": {
+      "target": "OnlineCartItem",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.893130",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c38cbf3fa52ebd6a0a260c95db256055": {
+    "id": "c38cbf3fa52ebd6a0a260c95db256055",
+    "category": "model_relationship",
+    "key": "Product.online_preorder_items",
+    "value": {
+      "target": "OnlinePreOrderItem",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.908917",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ba499a4cee10b9cd3cd5afa46950cafd": {
+    "id": "ba499a4cee10b9cd3cd5afa46950cafd",
+    "category": "model_relationship",
+    "key": "Product.stock_levels",
+    "value": {
+      "target": "StockLevel",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.932186",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "03c65522e2ee9063caeb3c9defadd2a7": {
+    "id": "03c65522e2ee9063caeb3c9defadd2a7",
+    "category": "model_relationship",
+    "key": "Product.stock_adjustment_items",
+    "value": {
+      "target": "StockAdjustmentItem",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.948955",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "97a6f2b73d57f232d8e9f7a2a6501864": {
+    "id": "97a6f2b73d57f232d8e9f7a2a6501864",
+    "category": "model_relationship",
+    "key": "Product.ratings",
+    "value": {
+      "target": "ProductRating",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.963925",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6e7ebd22e325c784fdf61894934fd8a8": {
+    "id": "6e7ebd22e325c784fdf61894934fd8a8",
+    "category": "model_relationship",
+    "key": "OnlineCartItem.cart",
+    "value": {
+      "target": "OnlineCart",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:23.993117",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5c340fd2f94d0eca71f7c3c21ec18aea": {
+    "id": "5c340fd2f94d0eca71f7c3c21ec18aea",
+    "category": "model_relationship",
+    "key": "OnlineCartItem.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.009701",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "24f5d3313a0f670edd85c585f1008cc4": {
+    "id": "24f5d3313a0f670edd85c585f1008cc4",
+    "category": "model_relationship",
+    "key": "Partner.customer",
+    "value": {
+      "target": "Customer",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.256628",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "887c4e15580b995b211d5a97910f6b27": {
+    "id": "887c4e15580b995b211d5a97910f6b27",
+    "category": "model_relationship",
+    "key": "Partner.warehouses",
+    "value": {
+      "target": "Warehouse",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.284938",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "55cf672112b5aa6780e0c70eac90212e": {
+    "id": "55cf672112b5aa6780e0c70eac90212e",
+    "category": "model_relationship",
+    "key": "Partner.payments",
+    "value": {
+      "target": "Payment",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.307312",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9efcc6411042b443593155f364b62428": {
+    "id": "9efcc6411042b443593155f364b62428",
+    "category": "model_relationship",
+    "key": "Partner.preorders",
+    "value": {
+      "target": "PreOrder",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.324431",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "70bb9f90972372b83892d36417db8210": {
+    "id": "70bb9f90972372b83892d36417db8210",
+    "category": "model_relationship",
+    "key": "Partner.invoices",
+    "value": {
+      "target": "Invoice",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.340614",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ba182af79c0a9676edce2b290c742c08": {
+    "id": "ba182af79c0a9676edce2b290c742c08",
+    "category": "model_relationship",
+    "key": "Partner.shipment_partners",
+    "value": {
+      "target": "ShipmentPartner",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.357400",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9dbf2b8c740c46a0a2ab67b80ffac508": {
+    "id": "9dbf2b8c740c46a0a2ab67b80ffac508",
+    "category": "model_relationship",
+    "key": "Partner.archived_by_user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.376642",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5d6c0f511caf386af709be3a651cf030": {
+    "id": "5d6c0f511caf386af709be3a651cf030",
+    "category": "model_relationship",
+    "key": "Partner.warehouse_shares",
+    "value": {
+      "target": "WarehousePartnerShare",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.395041",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2d6262bc9c39e397a72733f9a6b2c1ba": {
+    "id": "2d6262bc9c39e397a72733f9a6b2c1ba",
+    "category": "model_relationship",
+    "key": "Partner.shares",
+    "value": {
+      "target": "WarehousePartnerShare",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.416655",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2e8e12f33b83b4c2ddbe68d13ac40cd7": {
+    "id": "2e8e12f33b83b4c2ddbe68d13ac40cd7",
+    "category": "model_relationship",
+    "key": "Partner.product_shares",
+    "value": {
+      "target": "ProductPartnerShare",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.434990",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4d2d179be7f49076f0c5d015318b195b": {
+    "id": "4d2d179be7f49076f0c5d015318b195b",
+    "category": "model_relationship",
+    "key": "Partner.product_links",
+    "value": {
+      "target": "ProductPartner",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.453466",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a2b204c7dac3f081a9277cee0106952f": {
+    "id": "a2b204c7dac3f081a9277cee0106952f",
+    "category": "model_relationship",
+    "key": "Partner.service_parts",
+    "value": {
+      "target": "ServicePart",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.472186",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a59c1ea1cc005d1208a548b9c4ebff7f": {
+    "id": "a59c1ea1cc005d1208a548b9c4ebff7f",
+    "category": "model_relationship",
+    "key": "Partner.service_tasks",
+    "value": {
+      "target": "ServiceTask",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.491595",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b8a5512c056c2a63c0c5b6d5844506af": {
+    "id": "b8a5512c056c2a63c0c5b6d5844506af",
+    "category": "model_relationship",
+    "key": "Partner.expenses",
+    "value": {
+      "target": "Expense",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.508073",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "320a88e9f87dae1f89ef4552864c5036": {
+    "id": "320a88e9f87dae1f89ef4552864c5036",
+    "category": "model_relationship",
+    "key": "Partner.settlements",
+    "value": {
+      "target": "PartnerSettlement",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.530698",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "eaf06d729356a6b413d94ba8ab2776ec": {
+    "id": "eaf06d729356a6b413d94ba8ab2776ec",
+    "category": "model_relationship",
+    "key": "Partner.independent_checks",
+    "value": {
+      "target": "Check",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.552225",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a2897167b15c10af617f3e54156eef78": {
+    "id": "a2897167b15c10af617f3e54156eef78",
+    "category": "model_relationship",
+    "key": "Partner.supplied_assets",
+    "value": {
+      "target": "FixedAsset",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.570443",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "bd2701236a570835e575a55ddf2b8e93": {
+    "id": "bd2701236a570835e575a55ddf2b8e93",
+    "category": "model_relationship",
+    "key": "StockAdjustmentItem.adjustment",
+    "value": {
+      "target": "StockAdjustment",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.601300",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a95cb267989a2770f1ae4ec355e1ecfb": {
+    "id": "a95cb267989a2770f1ae4ec355e1ecfb",
+    "category": "model_relationship",
+    "key": "StockAdjustmentItem.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.625603",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "eaaaa9bc6543a1fc631875b633fc5ceb": {
+    "id": "eaaaa9bc6543a1fc631875b633fc5ceb",
+    "category": "model_relationship",
+    "key": "StockAdjustmentItem.warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.646853",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2255d96e892cb2a929a8691af433cb01": {
+    "id": "2255d96e892cb2a929a8691af433cb01",
+    "category": "model_relationship",
+    "key": "BankReconciliation.bank_account",
+    "value": {
+      "target": "BankAccount",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.677316",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6cf6b3f7f7955bafef496f3232c73d62": {
+    "id": "6cf6b3f7f7955bafef496f3232c73d62",
+    "category": "model_relationship",
+    "key": "BankReconciliation.reconciler",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.696071",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9716223ea6335c42c86553c09662bb54": {
+    "id": "9716223ea6335c42c86553c09662bb54",
+    "category": "model_relationship",
+    "key": "BankReconciliation.approver",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.712110",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "cbe5295cb3d22ea0ee6eb3a1397906f6": {
+    "id": "cbe5295cb3d22ea0ee6eb3a1397906f6",
+    "category": "model_relationship",
+    "key": "EmployeeAdvanceInstallment.employee",
+    "value": {
+      "target": "Employee",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.745006",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e765d3b7942f20366523e1de626ade1e": {
+    "id": "e765d3b7942f20366523e1de626ade1e",
+    "category": "model_relationship",
+    "key": "EmployeeAdvanceInstallment.advance_expense",
+    "value": {
+      "target": "Expense",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.763643",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "72160262047e875954849de1e7150c22": {
+    "id": "72160262047e875954849de1e7150c22",
+    "category": "model_relationship",
+    "key": "EmployeeAdvanceInstallment.salary_expense",
+    "value": {
+      "target": "Expense",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.782398",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "88235b675440430ee1bd6bc434c88905": {
+    "id": "88235b675440430ee1bd6bc434c88905",
+    "category": "model_relationship",
+    "key": "Transfer.product",
+    "value": {
+      "target": "Product",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.815671",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8553f45d74edcd66c56ffe16a1f350e7": {
+    "id": "8553f45d74edcd66c56ffe16a1f350e7",
+    "category": "model_relationship",
+    "key": "Transfer.source_warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.834519",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ff3832e350ae673cd5b9145969a15d44": {
+    "id": "ff3832e350ae673cd5b9145969a15d44",
+    "category": "model_relationship",
+    "key": "Transfer.destination_warehouse",
+    "value": {
+      "target": "Warehouse",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.855148",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b722046acbd9be8751cb24aac39ed075": {
+    "id": "b722046acbd9be8751cb24aac39ed075",
+    "category": "model_relationship",
+    "key": "Transfer.user",
+    "value": {
+      "target": "User",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.872830",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2d48d9ad1fa65fcf6a2737373f3214c4": {
+    "id": "2d48d9ad1fa65fcf6a2737373f3214c4",
+    "category": "model_relationship",
+    "key": "FixedAsset.category",
+    "value": {
+      "target": "FixedAssetCategory",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.909227",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "97e897fa8fbcb5c2b883fb785d452caf": {
+    "id": "97e897fa8fbcb5c2b883fb785d452caf",
+    "category": "model_relationship",
+    "key": "FixedAsset.branch",
+    "value": {
+      "target": "Branch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.934092",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9b3f0f47df20db0171c0fb4f13b4e2c7": {
+    "id": "9b3f0f47df20db0171c0fb4f13b4e2c7",
+    "category": "model_relationship",
+    "key": "FixedAsset.site",
+    "value": {
+      "target": "Site",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.954750",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9258ad933d123be4666ff80ec5a196dd": {
+    "id": "9258ad933d123be4666ff80ec5a196dd",
+    "category": "model_relationship",
+    "key": "FixedAsset.supplier",
+    "value": {
+      "target": "Partner",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.971624",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "efc20439e6873d8b850a42ebb2b84a17": {
+    "id": "efc20439e6873d8b850a42ebb2b84a17",
+    "category": "model_relationship",
+    "key": "FixedAsset.depreciations",
+    "value": {
+      "target": "AssetDepreciation",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:24.991038",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0d2e872ec9e653da498db19ee1dac94c": {
+    "id": "0d2e872ec9e653da498db19ee1dac94c",
+    "category": "model_relationship",
+    "key": "FixedAsset.maintenance_records",
+    "value": {
+      "target": "AssetMaintenance",
+      "direction": "ONETOMANY",
+      "uselist": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.008805",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7bf303274c3e5612b4635bbb93d8b078": {
+    "id": "7bf303274c3e5612b4635bbb93d8b078",
+    "category": "model_relationship",
+    "key": "GLEntry.batch",
+    "value": {
+      "target": "GLBatch",
+      "direction": "MANYTOONE",
+      "uselist": false
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:25.236853",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "12eb6af415747f49034f829ec1530990": {
+    "id": "12eb6af415747f49034f829ec1530990",
+    "category": "accounting_standard",
+    "key": "IAS 1",
+    "value": {
+      "title": "عرض القوائم المالية",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.546896",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "700b5cb0091b6e589d1ba6c43a2b968e": {
+    "id": "700b5cb0091b6e589d1ba6c43a2b968e",
+    "category": "accounting_standard",
+    "key": "IAS 2",
+    "value": {
+      "title": "المخزون",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.562219",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d9b2f386c8c9b6bbe9ffeab8465e416e": {
+    "id": "d9b2f386c8c9b6bbe9ffeab8465e416e",
+    "category": "accounting_standard",
+    "key": "IAS 7",
+    "value": {
+      "title": "قائمة التدفقات النقدية",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.576696",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "661d681683d11d5f71b07eec8c2f162c": {
+    "id": "661d681683d11d5f71b07eec8c2f162c",
+    "category": "accounting_standard",
+    "key": "IAS 8",
+    "value": {
+      "title": "السياسات المحاسبية",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.591818",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "68f81d0b9667366c4f64ca1643c65f70": {
+    "id": "68f81d0b9667366c4f64ca1643c65f70",
+    "category": "accounting_standard",
+    "key": "IAS 10",
+    "value": {
+      "title": "الأحداث بعد الميزانية",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.606066",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "976438ce4a1686dcf94b932ad5f225dd": {
+    "id": "976438ce4a1686dcf94b932ad5f225dd",
+    "category": "accounting_standard",
+    "key": "IAS 12",
+    "value": {
+      "title": "ضرائب الدخل",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.619317",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f4741485d1fa1962b26c34c938638ccf": {
+    "id": "f4741485d1fa1962b26c34c938638ccf",
+    "category": "accounting_standard",
+    "key": "IAS 16",
+    "value": {
+      "title": "الممتلكات والآلات",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.630373",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9c89f0e4e339c92f34f029ee09760239": {
+    "id": "9c89f0e4e339c92f34f029ee09760239",
+    "category": "accounting_standard",
+    "key": "IAS 18",
+    "value": {
+      "title": "الإيرادات",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.643528",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c404ac80c780eb53df3f6e001ed11c90": {
+    "id": "c404ac80c780eb53df3f6e001ed11c90",
+    "category": "accounting_standard",
+    "key": "IAS 21",
+    "value": {
+      "title": "أثر التغيرات في أسعار الصرف",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.654701",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "43fa06edc1d1b26a924890274f3b6ffb": {
+    "id": "43fa06edc1d1b26a924890274f3b6ffb",
+    "category": "accounting_standard",
+    "key": "IAS 23",
+    "value": {
+      "title": "تكاليف الاقتراض",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.667789",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "cc81ebe163c6513d6555456af8676295": {
+    "id": "cc81ebe163c6513d6555456af8676295",
+    "category": "accounting_standard",
+    "key": "IAS 24",
+    "value": {
+      "title": "الإفصاح عن الأطراف ذات العلاقة",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.681949",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0061bfda9b0a24a0dc8dac3ad67b40f7": {
+    "id": "0061bfda9b0a24a0dc8dac3ad67b40f7",
+    "category": "accounting_standard",
+    "key": "IAS 27",
+    "value": {
+      "title": "القوائم المالية المستقلة",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.695472",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "658d7e1b2a866865457c65ac39c008c1": {
+    "id": "658d7e1b2a866865457c65ac39c008c1",
+    "category": "accounting_standard",
+    "key": "IAS 28",
+    "value": {
+      "title": "الاستثمارات في الشركات الشقيقة",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.706307",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3a8cb03802572d6a8af0c18059de1816": {
+    "id": "3a8cb03802572d6a8af0c18059de1816",
+    "category": "accounting_standard",
+    "key": "IAS 36",
+    "value": {
+      "title": "انخفاض قيمة الأصول",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.717022",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a891bd42fa2838fe3de02042ee3fdc14": {
+    "id": "a891bd42fa2838fe3de02042ee3fdc14",
+    "category": "accounting_standard",
+    "key": "IAS 37",
+    "value": {
+      "title": "المخصصات والالتزامات",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.727593",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "014e3222e9991fe2521f2259c42ae58e": {
+    "id": "014e3222e9991fe2521f2259c42ae58e",
+    "category": "accounting_standard",
+    "key": "IAS 38",
+    "value": {
+      "title": "الأصول غير الملموسة",
+      "framework": "IAS"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:15.739001",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "75b79e3b9cffee3903709a256ff0752c": {
+    "id": "75b79e3b9cffee3903709a256ff0752c",
+    "category": "tax_palestine",
+    "key": "VAT",
+    "value": {
+      "details": "16% - على المبيعات والمشتريات",
+      "country": "فلسطين"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.743628",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "70dfa3dec4ed8200e818e6dd952853a1": {
+    "id": "70dfa3dec4ed8200e818e6dd952853a1",
+    "category": "tax_palestine",
+    "key": "ضريبة الدخل - أفراد",
+    "value": {
+      "details": "شرائح تصاعدية من 5% إلى 15%",
+      "country": "فلسطين"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.759077",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6d2733a1b04824b8719e796a2fdb88cf": {
+    "id": "6d2733a1b04824b8719e796a2fdb88cf",
+    "category": "tax_palestine",
+    "key": "ضريبة الدخل - شركات",
+    "value": {
+      "details": "15% على الأرباح",
+      "country": "فلسطين"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.774283",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3625b1544cc17900db30e358da23e8a7": {
+    "id": "3625b1544cc17900db30e358da23e8a7",
+    "category": "tax_palestine",
+    "key": "الجمارك",
+    "value": {
+      "details": "حسب نوع السلعة",
+      "country": "فلسطين"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.789040",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b461c1299eb688e11c642ee3653b76e6": {
+    "id": "b461c1299eb688e11c642ee3653b76e6",
+    "category": "tax_palestine",
+    "key": "رسوم الترخيص",
+    "value": {
+      "details": "رسوم سنوية للأعمال",
+      "country": "فلسطين"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.803283",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "aaee9b31a3e611d3df2af35ea8379fc9": {
+    "id": "aaee9b31a3e611d3df2af35ea8379fc9",
+    "category": "tax_israel",
+    "key": "VAT",
+    "value": {
+      "details": "17% - على المبيعات والمشتريات",
+      "country": "إسرائيل"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.817571",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7e1e00d53d3d5a21f21d63524255c0bb": {
+    "id": "7e1e00d53d3d5a21f21d63524255c0bb",
+    "category": "tax_israel",
+    "key": "ضريبة الدخل - أفراد",
+    "value": {
+      "details": "شرائح من 10% إلى 50%",
+      "country": "إسرائيل"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.831785",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "056e1036550f355e9217cf681dc638f8": {
+    "id": "056e1036550f355e9217cf681dc638f8",
+    "category": "tax_israel",
+    "key": "ضريبة الدخل - شركات",
+    "value": {
+      "details": "23% على الأرباح",
+      "country": "إسرائيل"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.845774",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0027a789d8f77bd88b8c801bb4d80eea": {
+    "id": "0027a789d8f77bd88b8c801bb4d80eea",
+    "category": "tax_israel",
+    "key": "التأمين الوطني",
+    "value": {
+      "details": "نسبة من الراتب",
+      "country": "إسرائيل"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.859838",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "90a14a97bee42ece2035d66b12c277ae": {
+    "id": "90a14a97bee42ece2035d66b12c277ae",
+    "category": "tax_israel",
+    "key": "ضريبة الأرباح الرأسمالية",
+    "value": {
+      "details": "على بيع الأصول",
+      "country": "إسرائيل"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.874012",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "dc6baa3362acfdb97089be21be8be600": {
+    "id": "dc6baa3362acfdb97089be21be8be600",
+    "category": "tax_israel",
+    "key": "ضريبة الشراء",
+    "value": {
+      "details": "على المركبات والعقارات",
+      "country": "إسرائيل"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:16.887842",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "fcb3bb2c2fc28dcba3b6d052ad28d2e5": {
+    "id": "fcb3bb2c2fc28dcba3b6d052ad28d2e5",
+    "category": "polite_language",
+    "key": "من فضلك",
+    "value": {
+      "usage": "استخدام عند الطلب",
+      "category": "politeness"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:13.771638",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "70fb44d2e931fe39f71bd2f42168e400": {
+    "id": "70fb44d2e931fe39f71bd2f42168e400",
+    "category": "polite_language",
+    "key": "لو سمحت",
+    "value": {
+      "usage": "طلب إذن مهذب",
+      "category": "politeness"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:13.781609",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "97af65c284c6029a7ed092de014d6e4c": {
+    "id": "97af65c284c6029a7ed092de014d6e4c",
+    "category": "polite_language",
+    "key": "عفواً",
+    "value": {
+      "usage": "اعتذار لطيف",
+      "category": "politeness"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:13.793429",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3765305c5953bf8bf6035f3f3a81a4a4": {
+    "id": "3765305c5953bf8bf6035f3f3a81a4a4",
+    "category": "polite_language",
+    "key": "تفضل",
+    "value": {
+      "usage": "دعوة للمتابعة",
+      "category": "politeness"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:13.804360",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ee8cd75d31bd91f99f511f454907aad0": {
+    "id": "ee8cd75d31bd91f99f511f454907aad0",
+    "category": "polite_language",
+    "key": "حاضر",
+    "value": {
+      "usage": "موافقة فورية",
+      "category": "politeness"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:13.814361",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a3576ac3b99b972cb2efbd549871b06e": {
+    "id": "a3576ac3b99b972cb2efbd549871b06e",
+    "category": "polite_language",
+    "key": "بكل سرور",
+    "value": {
+      "usage": "استعداد للمساعدة",
+      "category": "politeness"
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:13.826311",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b3ee2fd3c6d1e2582eed2420e7c81b72": {
+    "id": "b3ee2fd3c6d1e2582eed2420e7c81b72",
+    "category": "azad_features",
+    "key": "نظام محاسبي متكامل",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.845106",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "4fccc4e1534a6c80f157cd3ba0196a4d": {
+    "id": "4fccc4e1534a6c80f157cd3ba0196a4d",
+    "category": "azad_features",
+    "key": "إدارة المخزون الذكية",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.856123",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "eb9106d3145c3b4109a099abf2a8dd45": {
+    "id": "eb9106d3145c3b4109a099abf2a8dd45",
+    "category": "azad_features",
+    "key": "تتبع العملاء والموردين",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.868271",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c9ecbfe0de882276459b33bd55dc6f68": {
+    "id": "c9ecbfe0de882276459b33bd55dc6f68",
+    "category": "azad_features",
+    "key": "إدارة المبيعات والفواتير",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.882166",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1107eeab1c8bb46920a3fd35c0097f9b": {
+    "id": "1107eeab1c8bb46920a3fd35c0097f9b",
+    "category": "azad_features",
+    "key": "تقارير مالية شاملة",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.897772",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c9a41996bfa48a9d76a62ba422121970": {
+    "id": "c9a41996bfa48a9d76a62ba422121970",
+    "category": "azad_features",
+    "key": "دعم VAT (فلسطين وإسرائيل)",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.912393",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9314da0b7449707a71da374aa17443a9": {
+    "id": "9314da0b7449707a71da374aa17443a9",
+    "category": "azad_features",
+    "key": "واجهة عربية سهلة الاستخدام",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.925586",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0147342ec3a32a440297d8368f5d199c": {
+    "id": "0147342ec3a32a440297d8368f5d199c",
+    "category": "azad_features",
+    "key": "مساعد ذكي (أنا!) متطور",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.937541",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1e67053dde1b3aec161a480f4409bdab": {
+    "id": "1e67053dde1b3aec161a480f4409bdab",
+    "category": "azad_features",
+    "key": "نظام صيانة وخدمات",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.948254",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "160c21ddbe768ed76e182edfdd553b09": {
+    "id": "160c21ddbe768ed76e182edfdd553b09",
+    "category": "azad_features",
+    "key": "إدارة السيارات والشحنات",
+    "value": {
+      "category": "company_strength",
+      "importance": "high"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:13.961662",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "dd83a85c4ea85106082b91b470571b9e": {
+    "id": "dd83a85c4ea85106082b91b470571b9e",
+    "category": "communication_tone",
+    "key": "ودود",
+    "value": {
+      "guideline": "استخدام كلمات دافئة ومرحبة",
+      "importance": "critical"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:14.412593",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5f97ac71970a3eeb668c18478022e1aa": {
+    "id": "5f97ac71970a3eeb668c18478022e1aa",
+    "category": "communication_tone",
+    "key": "محترم",
+    "value": {
+      "guideline": "تجنب الكلمات الجارحة أو الاستهزاء",
+      "importance": "critical"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:14.423480",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2510a521a22832dc9530281c6bd1013e": {
+    "id": "2510a521a22832dc9530281c6bd1013e",
+    "category": "communication_tone",
+    "key": "متفائل",
+    "value": {
+      "guideline": "التعبير عن الأمل والإيجابية",
+      "importance": "critical"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:14.434172",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2625ac92975329d876343a0a5c9474ed": {
+    "id": "2625ac92975329d876343a0a5c9474ed",
+    "category": "communication_tone",
+    "key": "مساند",
+    "value": {
+      "guideline": "التعبير عن الدعم والمساعدة",
+      "importance": "critical"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:14.445331",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "b1887efbbdfc22924519d71a9c91a411": {
+    "id": "b1887efbbdfc22924519d71a9c91a411",
+    "category": "communication_tone",
+    "key": "واثق",
+    "value": {
+      "guideline": "الإجابة بثقة دون تعالي",
+      "importance": "critical"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:14.457038",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "033a96d9b82b2ffdbc8fce0bb5e6cb78": {
+    "id": "033a96d9b82b2ffdbc8fce0bb5e6cb78",
+    "category": "ethical_principle",
+    "key": "الصدق: لا أعطي معلومات خاطئة أبداً",
+    "value": {
+      "category": "core_values",
+      "importance": "critical"
+    },
+    "importance": 10,
+    "created_at": "2025-11-02T04:17:14.603747",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "3d3d13675a9f6b7a5186ba28d06d0191": {
+    "id": "3d3d13675a9f6b7a5186ba28d06d0191",
+    "category": "ethical_principle",
+    "key": "الشفافية: أعترف إذا لم أعرف الإجابة",
+    "value": {
+      "category": "core_values",
+      "importance": "critical"
+    },
+    "importance": 10,
+    "created_at": "2025-11-02T04:17:14.614407",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "7daa4fb35f9069c7e0a4b54995a97237": {
+    "id": "7daa4fb35f9069c7e0a4b54995a97237",
+    "category": "ethical_principle",
+    "key": "المساواة: أعامل الجميع باحترام متساوٍ",
+    "value": {
+      "category": "core_values",
+      "importance": "critical"
+    },
+    "importance": 10,
+    "created_at": "2025-11-02T04:17:14.626422",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0703cff814b6c96f646bf4e9a0b64d78": {
+    "id": "0703cff814b6c96f646bf4e9a0b64d78",
+    "category": "ethical_principle",
+    "key": "النزاهة: لا أتحيز لأي طرف",
+    "value": {
+      "category": "core_values",
+      "importance": "critical"
+    },
+    "importance": 10,
+    "created_at": "2025-11-02T04:17:14.637345",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "2125517f9605e33467131bacbe98f5ba": {
+    "id": "2125517f9605e33467131bacbe98f5ba",
+    "category": "ethical_principle",
+    "key": "المسؤولية: أتحمل مسؤولية إجاباتي",
+    "value": {
+      "category": "core_values",
+      "importance": "critical"
+    },
+    "importance": 10,
+    "created_at": "2025-11-02T04:17:14.649796",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "21b8ec2379ee34c608bc93e7d3f1cce0": {
+    "id": "21b8ec2379ee34c608bc93e7d3f1cce0",
+    "category": "equipment_component",
+    "key": "المحرك Engine",
+    "value": {
+      "description": "مصدر القوة الرئيسي",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.267822",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "d7d520b74fe1ce3705dc502686e2d9f0": {
+    "id": "d7d520b74fe1ce3705dc502686e2d9f0",
+    "category": "equipment_component",
+    "key": "ناقل الحركة Transmission",
+    "value": {
+      "description": "نقل القوة من المحرك للعجلات",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.279430",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "0090985b98a7a7cb91c746af629c366a": {
+    "id": "0090985b98a7a7cb91c746af629c366a",
+    "category": "equipment_component",
+    "key": "الهيدروليك Hydraulics",
+    "value": {
+      "description": "نظام الضغط الهيدروليكي للحركة",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.290754",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9af5cf9525fe2a532c18f9db4ce60483": {
+    "id": "9af5cf9525fe2a532c18f9db4ce60483",
+    "category": "equipment_component",
+    "key": "نظام التبريد Cooling System",
+    "value": {
+      "description": "تبريد المحرك",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.301992",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "5ef66040174c3f6cef8e9ef1ee6d6b3c": {
+    "id": "5ef66040174c3f6cef8e9ef1ee6d6b3c",
+    "category": "equipment_component",
+    "key": "نظام الوقود Fuel System",
+    "value": {
+      "description": "إمداد المحرك بالوقود",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.313307",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c778f4bcefa5cbbf07056d0b6d2be627": {
+    "id": "c778f4bcefa5cbbf07056d0b6d2be627",
+    "category": "equipment_component",
+    "key": "نظام الكهرباء Electrical System",
+    "value": {
+      "description": "التحكم والإضاءة",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.324553",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "48ce45309efee806b8fbab3959da978c": {
+    "id": "48ce45309efee806b8fbab3959da978c",
+    "category": "equipment_component",
+    "key": "نظام الفرامل Braking System",
+    "value": {
+      "description": "إيقاف الحركة",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.335875",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "88a31be7b6eb6b925bf79bc1f1bdaa93": {
+    "id": "88a31be7b6eb6b925bf79bc1f1bdaa93",
+    "category": "equipment_component",
+    "key": "نظام التعليق Suspension",
+    "value": {
+      "description": "امتصاص الصدمات",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.347442",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "1a6f1a5af45cb0fdaf6670d00e3f2050": {
+    "id": "1a6f1a5af45cb0fdaf6670d00e3f2050",
+    "category": "equipment_component",
+    "key": "الإطارات/الجنازير Tires/Tracks",
+    "value": {
+      "description": "الحركة والثبات",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.358583",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "76a10710263fb6d4fbff020847dbc3d2": {
+    "id": "76a10710263fb6d4fbff020847dbc3d2",
+    "category": "equipment_component",
+    "key": "كابينة المشغل Operator Cabin",
+    "value": {
+      "description": "التحكم والقيادة",
+      "critical": true
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.369402",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "ffb101a79d93e000a47ff88ef1de4f89": {
+    "id": "ffb101a79d93e000a47ff88ef1de4f89",
+    "category": "pm_interval",
+    "key": "يومياً (كل 8-10 ساعات)",
+    "value": {
+      "tasks": "فحص بصري، مستويات، تسريبات"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.682896",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "dc09816e015799c47f721f3919d93a8e": {
+    "id": "dc09816e015799c47f721f3919d93a8e",
+    "category": "pm_interval",
+    "key": "50 ساعة",
+    "value": {
+      "tasks": "تشحيم، فحص أحزمة"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.696327",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f0999d29fd7d4aede08be35f4f76b250": {
+    "id": "f0999d29fd7d4aede08be35f4f76b250",
+    "category": "pm_interval",
+    "key": "100 ساعة",
+    "value": {
+      "tasks": "فحص فلاتر، سوائل"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.709679",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8c54409b07778888f483a453b79feef4": {
+    "id": "8c54409b07778888f483a453b79feef4",
+    "category": "pm_interval",
+    "key": "250 ساعة",
+    "value": {
+      "tasks": "تغيير زيت المحرك، فلاتر"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.720871",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "68856731c2dc7d5b5cee7fdc91fb458a": {
+    "id": "68856731c2dc7d5b5cee7fdc91fb458a",
+    "category": "pm_interval",
+    "key": "500 ساعة",
+    "value": {
+      "tasks": "فحص شامل، تغيير سوائل"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.731619",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "acb63b83bb3f50c690a5eef0f1817f30": {
+    "id": "acb63b83bb3f50c690a5eef0f1817f30",
+    "category": "pm_interval",
+    "key": "1000 ساعة",
+    "value": {
+      "tasks": "صيانة كبرى، فحص متقدم"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.744278",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "6cdc4a72b16603f64db186151427a54e": {
+    "id": "6cdc4a72b16603f64db186151427a54e",
+    "category": "pm_interval",
+    "key": "2000 ساعة",
+    "value": {
+      "tasks": "صيانة رئيسية، إصلاحات"
+    },
+    "importance": 9,
+    "created_at": "2025-11-02T04:17:18.755164",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "9e275b29545eca0e81f8f75f03a3140f": {
+    "id": "9e275b29545eca0e81f8f75f03a3140f",
+    "category": "documentation",
+    "key": "سجل الصيانة",
+    "value": {
+      "purpose": "تسجيل كل عملية صيانة",
+      "required": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.198958",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "55621d2f2843c052f6c2d758b9e00192": {
+    "id": "55621d2f2843c052f6c2d758b9e00192",
+    "category": "documentation",
+    "key": "سجل ساعات التشغيل",
+    "value": {
+      "purpose": "متابعة ساعات عمل المعدة",
+      "required": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.214137",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "79db4ac707ba57a01d8ceba6a7dee90a": {
+    "id": "79db4ac707ba57a01d8ceba6a7dee90a",
+    "category": "documentation",
+    "key": "سجل الأعطال",
+    "value": {
+      "purpose": "توثيق الأعطال والإصلاحات",
+      "required": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.230120",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "726462132fa723c401a25a2ed2f9fbd3": {
+    "id": "726462132fa723c401a25a2ed2f9fbd3",
+    "category": "documentation",
+    "key": "سجل قطع الغيار",
+    "value": {
+      "purpose": "متابعة القطع المستبدلة",
+      "required": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.240906",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f883a0df36652414cae255ea26ee5929": {
+    "id": "f883a0df36652414cae255ea26ee5929",
+    "category": "documentation",
+    "key": "سجل الفحوصات",
+    "value": {
+      "purpose": "نتائج الفحوصات الدورية",
+      "required": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.252061",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "e3cc59d8de0993b1ef68e561bf07cad5": {
+    "id": "e3cc59d8de0993b1ef68e561bf07cad5",
+    "category": "documentation",
+    "key": "كتيبات المشغل",
+    "value": {
+      "purpose": "دليل التشغيل والصيانة",
+      "required": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.263373",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "db52d177548ec6df0ac95764393ddb0e": {
+    "id": "db52d177548ec6df0ac95764393ddb0e",
+    "category": "documentation",
+    "key": "مخططات القطع",
+    "value": {
+      "purpose": "رسومات توضيحية",
+      "required": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.274165",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a50885b8407062c4ce31849294a91cf2": {
+    "id": "a50885b8407062c4ce31849294a91cf2",
+    "category": "documentation",
+    "key": "بطاقة المعدة",
+    "value": {
+      "purpose": "بيانات المعدة والمواصفات",
+      "required": true
+    },
+    "importance": 8,
+    "created_at": "2025-11-02T04:17:19.285511",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "94e7faead0117f47a88afc2872466c10": {
+    "id": "94e7faead0117f47a88afc2872466c10",
+    "category": "standard",
+    "key": "ISO 9001",
+    "value": {
+      "purpose": "إدارة الجودة"
+    },
+    "importance": 7,
+    "created_at": "2025-11-02T04:17:19.544907",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "478dac4d36daf4d877e779d1bf4524a6": {
+    "id": "478dac4d36daf4d877e779d1bf4524a6",
+    "category": "standard",
+    "key": "ISO 14001",
+    "value": {
+      "purpose": "الإدارة البيئية"
+    },
+    "importance": 7,
+    "created_at": "2025-11-02T04:17:19.559253",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "c87d732c25b011d2af6cfbb7c8c017a8": {
+    "id": "c87d732c25b011d2af6cfbb7c8c017a8",
+    "category": "standard",
+    "key": "ISO 45001",
+    "value": {
+      "purpose": "الصحة والسلامة المهنية"
+    },
+    "importance": 7,
+    "created_at": "2025-11-02T04:17:19.572865",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "f7eef9666baa056ad0baab106166ad8b": {
+    "id": "f7eef9666baa056ad0baab106166ad8b",
+    "category": "standard",
+    "key": "ISO 55000",
+    "value": {
+      "purpose": "إدارة الأصول"
+    },
+    "importance": 7,
+    "created_at": "2025-11-02T04:17:19.585147",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "a946b74464cf05567bb28c0491f3d383": {
+    "id": "a946b74464cf05567bb28c0491f3d383",
+    "category": "standard",
+    "key": "OSHA",
+    "value": {
+      "purpose": "معايير السلامة المهنية"
+    },
+    "importance": 7,
+    "created_at": "2025-11-02T04:17:19.596758",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "8cce5cf28e472d64b1de9ef8d3a9500e": {
+    "id": "8cce5cf28e472d64b1de9ef8d3a9500e",
+    "category": "standard",
+    "key": "EPA",
+    "value": {
+      "purpose": "حماية البيئة"
+    },
+    "importance": 7,
+    "created_at": "2025-11-02T04:17:19.607565",
+    "access_count": 0,
+    "last_accessed": null
+  },
+  "301496b7b2c562e456b81db9f4bde0d8": {
+    "id": "301496b7b2c562e456b81db9f4bde0d8",
+    "category": "identity",
+    "key": "name",
+    "value": "أزاد - المساعد الذكي الاحترافي",
+    "importance": 10,
+    "created_at": "2025-11-02T10:31:50.878964",
+    "access_count": 0,
+    "last_accessed": null
+  }
+}

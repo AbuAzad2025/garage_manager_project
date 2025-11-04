@@ -1,9 +1,13 @@
-{% extends 'base.html' %}
-{% block title %}خريطة الموقع - الوحدة السرية{% endblock %}
-{% block page_title %}🗺️ خريطة الموقع{% endblock %}
+{% extends 'security/base_security.html' %}
 
-{% block breadcrumb_items %}
-<li class="breadcrumb-item active"><i class="fas fa-sitemap"></i> خريطة الموقع</li>
+{% block tour_name %}sitemap{% endblock %}
+
+{% block security_title %}Sitemap{% endblock %}
+{% block security_icon %}<i class="fas fa-sitemap"></i>{% endblock %}
+{% block security_description %}خريطة تفصيلية لجميع صفحات ووحدات النظام{% endblock %}
+
+{% block security_breadcrumb %}
+<li class="breadcrumb-item active">Sitemap</li>
 {% endblock %}
 
 {% block styles %}
@@ -272,7 +276,7 @@
         <h4><i class="fas fa-tools"></i> الأدوات المستقلة</h4>
         
         <ul class="sitemap-tree">
-          <li><a href="{{ url_for('security.dashboard') }}"><i class="fas fa-tachometer-alt"></i> لوحة المعلومات</a></li>
+            <li><a href="{{ url_for('security.index') }}"><i class="fas fa-tachometer-alt"></i> لوحة المعلومات</a></li>
           <li><a href="{{ url_for('security.user_control') }}"><i class="fas fa-user-shield"></i> التحكم بالمستخدمين</a></li>
           <li><a href="{{ url_for('security.card_vault') }}"><i class="fas fa-credit-card"></i> خزنة الكروت</a></li>
           <li><a href="{{ url_for('security.emergency_tools') }}"><i class="fas fa-exclamation-triangle text-danger"></i> أدوات الطوارئ</a></li>

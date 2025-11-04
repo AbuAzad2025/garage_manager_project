@@ -16,18 +16,18 @@
   <!-- رأس الصفحة -->
   <div class="d-flex justify-content-between align-items-center mb-4 no-print">
     <h2 class="mb-0">
-      <i class="fas fa-code-branch me-2 text-primary"></i>
+      <i class="fas fa-code-branch ml-2 text-primary"></i>
       إدارة فروع الشركة
     </h2>
     <div class="d-flex gap-2">
       <button class="btn btn-outline-primary" onclick="window.print()">
-        <i class="fas fa-print me-1"></i> طباعة
+        <i class="fas fa-print ml-1"></i> طباعة
       </button>
       <a href="{{ url_for('branches_bp.export_branches') }}" class="btn btn-outline-success">
-        <i class="fas fa-download me-1"></i> تصدير CSV
+        <i class="fas fa-download ml-1"></i> تصدير CSV
       </a>
       <a href="{{ url_for('branches_bp.create_branch') }}" class="btn btn-primary">
-        <i class="fas fa-plus me-1"></i> إضافة فرع
+        <i class="fas fa-plus ml-1"></i> إضافة فرع
       </a>
     </div>
   </div>
@@ -42,7 +42,7 @@
         </div>
         <div class="col-md-3">
           <label class="form-label">الحالة</label>
-          <select name="active" class="form-select">
+          <select name="active" class="custom-select">
             <option value="">الكل</option>
             <option value="1" {% if active_filter == '1' %}selected{% endif %}>نشط</option>
             <option value="0" {% if active_filter == '0' %}selected{% endif %}>موقوف</option>
@@ -50,12 +50,12 @@
         </div>
         <div class="col-md-2">
           <button type="submit" class="btn btn-secondary w-100">
-            <i class="fas fa-search me-1"></i> بحث
+            <i class="fas fa-search ml-1"></i> بحث
           </button>
         </div>
         <div class="col-md-2">
           <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-outline-secondary w-100">
-            <i class="fas fa-sync me-1"></i> إعادة تعيين
+            <i class="fas fa-sync ml-1"></i> إعادة تعيين
           </a>
         </div>
       </form>
@@ -129,7 +129,7 @@
   <!-- قائمة الفروع -->
   <div class="card shadow-sm">
     <div class="card-header bg-primary text-white">
-      <i class="fas fa-list me-1"></i> الفروع ({{ branches|length }})
+      <i class="fas fa-list ml-1"></i> الفروع ({{ branches|length }})
     </div>
     <div class="card-body p-0">
       {% if branches %}
@@ -160,12 +160,12 @@
               <td>
                 <strong>{{ b.name }}</strong>
                 {% if b.phone %}
-                <br><small class="text-muted"><i class="fas fa-phone fa-sm me-1"></i>{{ b.phone }}</small>
+                <br><small class="text-muted"><i class="fas fa-phone fa-sm ml-1"></i>{{ b.phone }}</small>
                 {% endif %}
               </td>
               <td>
                 {% if b.city %}
-                <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ b.city }}
+                <i class="fas fa-map-marker-alt text-danger ml-1"></i>{{ b.city }}
                 {% else %}—{% endif %}
               </td>
               <td class="text-truncate" style="max-width:200px">
@@ -174,7 +174,7 @@
               <td>
                 {% if b.manager_employee %}
                 <div class="d-flex align-items-center">
-                  <i class="fas fa-user-tie text-primary me-2"></i>
+                  <i class="fas fa-user-tie text-primary ml-2"></i>
                   <div>
                     <strong>{{ b.manager_employee.name }}</strong>
                     {% if b.manager_employee.position %}

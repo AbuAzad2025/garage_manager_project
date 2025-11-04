@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }} - المهام{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-tasks"></i> مهام المشروع: {{ project.name }}</h1>
+            </div>
+            <div class="col-sm-6">
+                <button class="btn btn-primary float-left" data-toggle="modal" data-target="#addTaskModal">
+                    <i class="fas fa-plus"></i> إضافة مهمة
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3">
+            <div class="col-md-2">
+                <div class="info-box bg-info">
+                    <span class="info-box-icon"><i class="fas fa-list"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">إجمالي المهام</span>
+                        <span class="info-box-number">{{ stats.total }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-success">
+                    <span class="info-box-icon"><i class="fas fa-check"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">مكتملة</span>
+                        <span class="info-box-number">{{ stats.completed }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-warning">
+                    <span class="info-box-icon"><i class="fas fa-clock"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">متأخرة</span>
+                        <span class="info-box-number">{{ stats.overdue }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-danger">
+                    <span class="info-box-icon"><i class="fas fa-ban"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">محظورة</span>
+                        <span class="info-box-number">{{ stats.blocked }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-primary">
+                    <span class="info-box-icon"><i class="fas fa-spinner"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">قيد العمل</span>
+                        <span class="info-box-number">{{ stats.in_progress }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="info-box bg-teal">
+                    <span class="info-box-icon"><i class="fas fa-percentage"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">نسبة الإنجاز</span>
+                        <span class="info-box-number">{{ "%.0f"|format(stats.completion_rate) }}%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-tasks"></i> قائمة المهام</h3>
+                <div class="card-tools">
+                    <button class="btn btn-sm btn-success" onclick="window.print()">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                    <button class="btn btn-sm btn-info" onclick="exportTasks()">
+                        <i class="fas fa-file-excel"></i> تصدير Excel
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover" id="tasksTable">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>#</th>
+                            <th>اسم المهمة</th>
+                            <th>المسؤول</th>
+                            <th>الأولوية</th>
+                            <th>الحالة</th>
+                            <th>تاريخ البدء</th>
+                            <th>تاريخ الاستحقاق</th>
+                            <th>الساعات المقدرة</th>
+                            <th>الساعات الفعلية</th>
+                            <th>نسبة الإنجاز</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks %}
+                        <tr class="{% if task.is_overdue %}table-warning{% endif %}">
+                            <td>{{ task.task_number }}</td>
+                            <td>
+                                {{ task.name }}
+                                {% if task.is_blocked_by_dependencies %}
+                                <span class="badge badge-danger">محظورة بسبب متطلبات</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ task.assignee.username if task.assignee else '-' }}</td>
+                            <td>
+                                {% if task.priority == 'CRITICAL' %}
+                                    <span class="badge badge-danger">حرجة</span>
+                                {% elif task.priority == 'HIGH' %}
+                                    <span class="badge badge-warning">عالية</span>
+                                {% elif task.priority == 'MEDIUM' %}
+                                    <span class="badge badge-info">متوسطة</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">منخفضة</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if task.status == 'COMPLETED' %}
+                                    <span class="badge badge-success">مكتملة</span>
+                                {% elif task.status == 'IN_PROGRESS' %}
+                                    <span class="badge badge-primary">قيد العمل</span>
+                                {% elif task.status == 'BLOCKED' %}
+                                    <span class="badge badge-danger">محظورة</span>
+                                {% elif task.status == 'REVIEW' %}
+                                    <span class="badge badge-info">قيد المراجعة</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">قائمة</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ task.start_date.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                {{ task.due_date.strftime('%Y-%m-%d') }}
+                                {% if task.is_overdue %}
+                                <i class="fas fa-exclamation-triangle text-warning"></i>
+                                {% endif %}
+                            </td>
+                            <td>{{ task.estimated_hours }}</td>
+                            <td>{{ task.actual_hours }}</td>
+                            <td>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: {{ task.completion_percentage }}%">
+                                        {{ "%.0f"|format(task.completion_percentage) }}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-info" onclick="viewTask({{ task.id }})">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('project_advanced.add_task', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title"><i class="fas fa-plus"></i> إضافة مهمة جديدة</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> اسم المهمة:</label>
+                                <input type="text" name="name" class="form-control" required 
+                                       placeholder="أدخل اسم المهمة">
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>وصف المهمة:</label>
+                                <textarea name="description" class="form-control" rows="2"
+                                          placeholder="وصف تفصيلي للمهمة"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>المرحلة:</label>
+                                <select name="phase_id" class="form-control">
+                                    <option value="">-- اختر --</option>
+                                    {% for phase in phases %}
+                                    <option value="{{ phase.id }}">{{ phase.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>المسؤول:</label>
+                                <select name="assigned_to" class="form-control">
+                                    <option value="">-- اختر --</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}">{{ user.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> الأولوية:</label>
+                                <select name="priority" class="form-control" required>
+                                    <option value="LOW">منخفضة</option>
+                                    <option value="MEDIUM" selected>متوسطة</option>
+                                    <option value="HIGH">عالية</option>
+                                    <option value="CRITICAL">حرجة</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> تاريخ البدء:</label>
+                                <input type="date" name="start_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> تاريخ الاستحقاق:</label>
+                                <input type="date" name="due_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>الساعات المقدرة:</label>
+                                <input type="number" name="estimated_hours" class="form-control" 
+                                       step="0.5" min="0" value="0" placeholder="عدد ساعات العمل المتوقعة">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>تعتمد على مهام (Dependencies):</label>
+                                <select name="depends_on" class="form-control" multiple size="3">
+                                    {% for task in all_tasks %}
+                                    <option value="{{ task.id }}">{{ task.task_number }} - {{ task.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">اضغط Ctrl لتحديد عدة مهام</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> حفظ
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportTasks() {
+    window.location.href = '{{ url_for("project_advanced.tasks", project_id=project.id) }}?export=excel';
+}
+</script>
+{% endblock %}
+

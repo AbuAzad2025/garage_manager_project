@@ -27,7 +27,7 @@
           <input type="date" name="end" value="{{ end or '' }}" class="form-control">
         </div>
         <div class="col-md-3 align-self-end">
-          <button class="btn btn-primary">
+          <button type="submit" class="btn btn-primary">
             <i class="fas fa-sync-alt"></i> {{ FIELD_LABELS.get("refresh", "تحديث") }}
           </button>
         </div>
@@ -108,14 +108,24 @@
             {% for r in data %}
               <tr>
                 <td>{{ r.number }}</td>
-                <td>{{ r.status }}</td>
-                <td>{{ r.priority }}</td>
-                <td>{{ r.received_at }}</td>
-                <td>{{ r.customer_id }}</td>
-                <td>{{ r.mechanic_id }}</td>
-                <td class="text-end {{ 'positive' if r.total < 0 else 'negative' if r.total > 0 else 'zero' }}">
-                  {{ "{:,.2f}".format(r.total) }}
+                <td>
+                  {% if r.status == 'COMPLETED' %}<span class="badge bg-success">مكتملة</span>
+                  {% elif r.status == 'IN_PROGRESS' %}<span class="badge bg-primary">قيد التنفيذ</span>
+                  {% elif r.status == 'PENDING' %}<span class="badge bg-warning">معلقة</span>
+                  {% elif r.status == 'CANCELLED' %}<span class="badge bg-danger">ملغاة</span>
+                  {% else %}{{ r.status }}{% endif %}
                 </td>
+                <td>
+                  {% if r.priority == 'URGENT' %}<span class="badge bg-danger">عاجل</span>
+                  {% elif r.priority == 'HIGH' %}<span class="badge bg-warning">عالية</span>
+                  {% elif r.priority == 'MEDIUM' %}<span class="badge bg-info">متوسطة</span>
+                  {% elif r.priority == 'LOW' %}<span class="badge bg-secondary">منخفضة</span>
+                  {% else %}{{ r.priority }}{% endif %}
+                </td>
+                <td>{{ r.received_at[:10] if r.received_at else '-' }}</td>
+                <td>{{ r.customer_name }}</td>
+                <td>{{ r.mechanic_name or '-' }}</td>
+                <td class="text-end">{{ "{:,.2f}".format(r.total or 0) }}</td>
               </tr>
             {% endfor %}
           </tbody>

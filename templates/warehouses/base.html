@@ -110,19 +110,19 @@
     <a class="btn btn-sm btn-primary shadow-sm fw-bold" 
        href="{{ url_for('warehouse_bp.list') }}"
        title="عرض قائمة جميع المستودعات">
-      <i class="fas fa-warehouse me-1"></i> قائمة المستودعات
+      <i class="fas fa-warehouse ml-1"></i> قائمة المستودعات
     </a>
 
     <a class="btn btn-sm btn-info text-white shadow-sm fw-bold" 
        href="{{ url_for('warehouse_bp.products', id=(wid or DEFAULT_WID)) }}"
        title="عرض جميع منتجات المستودع">
-      <i class="fas fa-box-open me-1"></i> منتجاتي
+      <i class="fas fa-box-open ml-1"></i> منتجاتي
     </a>
 
     <a class="btn btn-sm btn-dark shadow-sm fw-bold" 
        href="{{ url_for('warehouse_bp.inventory_summary') }}"
        title="كشف شامل لجميع المخزون عبر المستودعات">
-      <i class="fas fa-table me-1"></i> كشف المخزون
+      <i class="fas fa-table ml-1"></i> كشف المخزون
     </a>
 
     <span class="text-muted mx-2">|</span>
@@ -130,25 +130,25 @@
     <a class="btn btn-sm btn-success shadow-sm fw-bold" 
        href="{{ url_for('warehouse_bp.add_product', id=(wid or DEFAULT_WID)) }}"
        title="إضافة منتج جديد للمستودع">
-      <i class="fas fa-plus-circle me-1"></i> إضافة منتج
+      <i class="fas fa-plus-circle ml-1"></i> إضافة منتج
     </a>
 
     <a class="btn btn-sm btn-outline-success shadow-sm" 
        href="{{ url_for('warehouse_bp.create') }}"
        title="إضافة مستودع جديد">
-      <i class="fas fa-plus me-1"></i> مستودع جديد
+      <i class="fas fa-plus ml-1"></i> مستودع جديد
     </a>
 
     <a class="btn btn-sm btn-warning text-dark shadow-sm" 
        href="{{ url_for('warehouse_bp.preorders_list') }}"
        title="عرض جميع حجوزات العملاء">
-      <i class="fas fa-clipboard-list me-1"></i> الحجوزات
+      <i class="fas fa-clipboard-list ml-1"></i> الحجوزات
     </a>
 
     <a class="btn btn-sm btn-outline-warning shadow-sm" 
        href="{{ url_for('warehouse_bp.preorder_create') }}"
        title="إنشاء حجز جديد لعميل">
-      <i class="fas fa-file-signature me-1"></i> إنشاء حجز
+      <i class="fas fa-file-signature ml-1"></i> إنشاء حجز
     </a>
   </div>
 {% endblock %}

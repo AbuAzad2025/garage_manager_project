@@ -15,15 +15,15 @@
 
   <div class="d-flex justify-content-between align-items-center mb-3 no-print">
     <h3 class="mb-0">
-      <i class="fas fa-chart-line me-2 text-primary"></i>
+      <i class="fas fa-chart-line ml-2 text-primary"></i>
       تقرير الفرع: {{ branch.name }}
     </h3>
     <div class="d-flex gap-2">
       <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-secondary">
-        <i class="fas fa-arrow-right me-1"></i> رجوع
+        <i class="fas fa-arrow-right ml-1"></i> رجوع
       </a>
       <button class="btn btn-primary" onclick="window.print()">
-        <i class="fas fa-print me-1"></i> طباعة
+        <i class="fas fa-print ml-1"></i> طباعة
       </button>
     </div>
   </div>
@@ -71,7 +71,7 @@
   <!-- إجمالي النفقات -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-danger text-white">
-      <i class="fas fa-money-bill-wave me-1"></i> إجمالي النفقات
+      <i class="fas fa-money-bill-wave ml-1"></i> إجمالي النفقات
     </div>
     <div class="card-body text-center">
       <h2 class="text-danger">{{ "%.2f"|format(stats.expenses_total) }} ₪</h2>
@@ -81,7 +81,7 @@
   <!-- أعلى 5 نفقات -->
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-warning text-white">
-      <i class="fas fa-trophy me-1"></i> أعلى 5 نفقات
+      <i class="fas fa-trophy ml-1"></i> أعلى 5 نفقات
     </div>
     <div class="card-body p-0">
       {% if top_expenses %}
@@ -114,7 +114,7 @@
   <!-- النفقات حسب النوع -->
   <div class="card shadow-sm">
     <div class="card-header bg-info text-white">
-      <i class="fas fa-chart-pie me-1"></i> النفقات حسب النوع
+      <i class="fas fa-chart-pie ml-1"></i> النفقات حسب النوع
     </div>
     <div class="card-body p-0">
       {% if expense_by_type %}

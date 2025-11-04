@@ -329,7 +329,7 @@
     <div class="col-md-6">
       <div class="card shadow-sm">
         <div class="card-header bg-info text-white">
-          <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>معلومات الشريك</h5>
+          <h5 class="mb-0"><i class="fas fa-info-circle ml-2"></i>معلومات الشريك</h5>
         </div>
         <div class="card-body">
           <table class="table table-sm">
@@ -365,7 +365,7 @@
     <div class="col-md-6">
       <div class="card shadow-sm">
         <div class="card-header bg-secondary text-white">
-          <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>ملخص الحساب</h5>
+          <h5 class="mb-0"><i class="fas fa-chart-line ml-2"></i>ملخص الحساب</h5>
         </div>
         <div class="card-body">
           <table class="table table-sm">
@@ -389,7 +389,7 @@
             </tr>
           </table>
           <div class="alert {% if balance > 0 %}alert-danger{% elif balance < 0 %}alert-success{% else %}alert-info{% endif %} mt-3 mb-0">
-            <i class="fas fa-info-circle me-2"></i>
+            <i class="fas fa-info-circle ml-2"></i>
             {% if balance > 0 %}
               <strong>مطلوب سداد {{ balance|format_currency }} للشريك</strong>
             {% elif balance < 0 %}
@@ -411,7 +411,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4">
       <div class="modal-header bg-light">
-        <h5 class="modal-title"><i class="fas fa-scale-balanced me-2"></i> تسوية رصيد</h5>
+        <h5 class="modal-title"><i class="fas fa-scale-balanced ml-2"></i> تسوية رصيد</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"></button>
       </div>
       <div class="modal-body">
@@ -436,7 +436,7 @@
         </div>
         <div class="mb-3">
           <label class="form-label">طريقة الدفع</label>
-          <select id="stlMethod" class="form-select">
+          <select id="stlMethod" class="custom-select">
             <option value="cash">نقداً</option>
             <option value="bank">تحويل بنكي</option>
             <option value="cheque">شيك</option>
@@ -448,8 +448,8 @@
         <input type="hidden" id="stlEntityId">
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print me-1"></i> طباعة</button>
-        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check me-1"></i> إنشاء سند</button>
+        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print ml-1"></i> طباعة</button>
+        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check ml-1"></i> إنشاء سند</button>
       </div>
     </div>
   </div>

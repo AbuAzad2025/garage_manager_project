@@ -11,7 +11,7 @@ from sqlalchemy import or_, and_
 
 from extensions import db
 from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm
-from models import Employee, ExpenseType, Expense, Shipment, UtilityAccount, StockAdjustment, Partner, Warehouse
+from models import Employee, ExpenseType, Expense, Shipment, UtilityAccount, StockAdjustment, Partner, Warehouse, Supplier
 import utils
 from utils import D, q0, archive_record, restore_record
 
@@ -757,6 +757,7 @@ def add():
     form.utility_account_id.choices = [(0, '-- اختر حساب --')] + [(u.id, f"{u.provider} - {u.account_no or u.alias or u.utility_type}") for u in UtilityAccount.query.filter_by(is_active=True).order_by(UtilityAccount.provider).limit(100).all()]
     form.warehouse_id.choices = [(0, '-- اختر مستودع --')] + [(w.id, w.name) for w in Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).limit(100).all()]
     form.partner_id.choices = [(0, '-- اختر شريك --')] + [(p.id, p.name) for p in Partner.query.filter_by(is_archived=False).order_by(Partner.name).limit(100).all()]
+    form.supplier_id.choices = [(0, '-- اختر مورد --')] + [(s.id, s.name) for s in Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).limit(100).all()]
     form.shipment_id.choices = [(0, '-- اختر شحنة --')] + [(s.id, f"شحنة #{s.id}") for s in Shipment.query.order_by(Shipment.id.desc()).limit(50).all()]
     form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')] + [(sa.id, f"تسوية #{sa.id}") for sa in StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()]
     
@@ -772,6 +773,22 @@ def add():
                 dt = _to_datetime(form.date.data)
                 if dt:
                     exp.date = dt
+            
+            if not exp.branch_id or exp.branch_id == 0:
+                flash("⚠️ يرجى اختيار الفرع من القائمة", "warning")
+                types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
+                return render_template("expenses/expense_form.html", form=form, is_edit=False, types_meta=types_meta, _types=types_list)
+            
+            if not exp.amount or exp.amount <= 0:
+                flash("⚠️ يرجى إدخال مبلغ المصروف", "warning")
+                types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
+                return render_template("expenses/expense_form.html", form=form, is_edit=False, types_meta=types_meta, _types=types_list)
+            
+            if not exp.disbursed_by or exp.disbursed_by.strip() == '':
+                flash("⚠️ يرجى إدخال اسم الشخص الذي سلم المال", "warning")
+                types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
+                return render_template("expenses/expense_form.html", form=form, is_edit=False, types_meta=types_meta, _types=types_list)
+            
             if not getattr(form.employee_id, "data", None) or form.employee_id.data == 0:
                 exp.employee_id = None
             if not getattr(form, "utility_account_id", None) or form.utility_account_id.data == 0:
@@ -826,8 +843,11 @@ def add():
             current_app.logger.warning(f"⚠️ فشل حساب الراتب الصافي التلقائي: {e}")
         
         db.session.add(exp)
+        db.session.flush()
+        
         try:
             db.session.commit()
+            flash("✅ تمت إضافة المصروف بنجاح", "success")
             
             try:
                 from models import EmployeeAdvanceInstallment
@@ -920,11 +940,29 @@ def add():
                 current_app.logger.error(traceback.format_exc())
                 db.session.commit()
             
-            flash("✅ تمت إضافة المصروف", "success")
             return redirect(url_for("expenses_bp.list_expenses"))
-        except SQLAlchemyError as err:
+        except Exception as err:
             db.session.rollback()
-            flash(f"❌ خطأ في إضافة المصروف: {err}", "danger")
+            error_msg = str(err).lower()
+            
+            if "foreign key mismatch" in error_msg:
+                flash("⚠️ يوجد خطأ في إعدادات قاعدة البيانات - يرجى التواصل مع الدعم الفني", "warning")
+                current_app.logger.error(f"Foreign key mismatch في المصروفات: {err}")
+            elif "foreign key" in error_msg:
+                flash("❌ خطأ في ربط البيانات - يرجى التأكد من اختيار جميع الحقول المطلوبة", "danger")
+            elif "not null" in error_msg or "cannot be null" in error_msg:
+                flash("❌ يرجى تعبئة جميع الحقول الإلزامية (الفرع، المبلغ، التاريخ)", "danger")
+            elif "unique" in error_msg:
+                flash("❌ هذا المصروف مسجل مسبقاً", "danger")
+            elif "null identity key" in error_msg:
+                flash("❌ خطأ في حفظ البيانات - يرجى المحاولة مرة أخرى", "danger")
+                current_app.logger.error(f"NULL identity key في المصروف: {err}")
+            else:
+                flash("❌ حدث خطأ غير متوقع - يرجى المحاولة مرة أخرى أو التواصل مع الدعم", "danger")
+            
+            current_app.logger.error(f"خطأ في إضافة مصروف: {err}")
+            import traceback
+            current_app.logger.error(traceback.format_exc())
     
     types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
     return render_template("expenses/expense_form.html", 
@@ -975,6 +1013,12 @@ def edit(exp_id):
     if exp.partner_id and exp.partner and exp.partner not in partners:
         form.partner_id.choices.append((exp.partner.id, f"✓ {exp.partner.name}"))
     form.partner_id.choices += [(p.id, p.name) for p in partners]
+    
+    suppliers = Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).limit(100).all()
+    form.supplier_id.choices = [(0, '-- اختر مورد --')]
+    if exp.supplier_id and exp.supplier and exp.supplier not in suppliers:
+        form.supplier_id.choices.append((exp.supplier.id, f"✓ {exp.supplier.name}"))
+    form.supplier_id.choices += [(s.id, s.name) for s in suppliers]
     
     adjustments = StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()
     form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')]
@@ -1218,3 +1262,239 @@ def restore_expense(expense_id):
         db.session.rollback()
         flash(f'خطأ في استعادة النفقة: {str(e)}', 'error')
         return redirect(url_for('expenses_bp.list_expenses'))
+
+
+@expenses_bp.route("/payroll/monthly", methods=["GET"], endpoint="payroll_monthly")
+@login_required
+def payroll_monthly():
+    from models import ExpenseType, EmployeeDeduction, EmployeeAdvanceInstallment
+    from calendar import monthrange
+    from decimal import Decimal
+    
+    today = datetime.now()
+    month = int(request.args.get('month', today.month))
+    year = int(request.args.get('year', today.year))
+    
+    employees = Employee.query.order_by(Employee.name).all()
+    
+    payroll_data = []
+    
+    for emp in employees:
+        base_salary = Decimal(str(emp.salary or 0))
+        deductions = Decimal(str(emp.total_deductions or 0))
+        social_ins = Decimal(str(emp.social_insurance_employee_amount or 0))
+        income_tax = Decimal(str(emp.income_tax_amount or 0))
+        
+        period_start = _date(year, month, 1)
+        last_day = monthrange(year, month)[1]
+        period_end = _date(year, month, last_day)
+        
+        installments = EmployeeAdvanceInstallment.query.filter(
+            EmployeeAdvanceInstallment.employee_id == emp.id,
+            EmployeeAdvanceInstallment.paid == False,
+            EmployeeAdvanceInstallment.due_date >= period_start,
+            EmployeeAdvanceInstallment.due_date <= period_end
+        ).all()
+        
+        advances_total = sum(Decimal(str(inst.amount or 0)) for inst in installments)
+        
+        net_salary = base_salary - deductions - social_ins - income_tax - advances_total
+        
+        salary_type = ExpenseType.query.filter_by(code='SALARY').first()
+        already_paid = False
+        if salary_type:
+            from sqlalchemy import extract as sql_extract
+            existing = Expense.query.filter(
+                Expense.employee_id == emp.id,
+                Expense.type_id == salary_type.id,
+                sql_extract('month', Expense.date) == month,
+                sql_extract('year', Expense.date) == year
+            ).first()
+            if existing:
+                already_paid = True
+        
+        payroll_data.append({
+            'employee': emp,
+            'base_salary': float(base_salary),
+            'deductions': float(deductions),
+            'social_insurance': float(social_ins),
+            'income_tax': float(income_tax),
+            'advances': float(advances_total),
+            'net_salary': float(net_salary),
+            'already_paid': already_paid
+        })
+    
+    total_base = sum(d['base_salary'] for d in payroll_data)
+    total_deductions = sum(d['deductions'] for d in payroll_data)
+    total_advances = sum(d['advances'] for d in payroll_data)
+    total_net = sum(d['net_salary'] for d in payroll_data)
+    
+    summary = {
+        'total_base': total_base,
+        'total_deductions': total_deductions,
+        'total_advances': total_advances,
+        'total_net': total_net,
+        'employee_count': len(payroll_data)
+    }
+    
+    return render_template(
+        "expenses/payroll_monthly.html",
+        payroll_data=payroll_data,
+        summary=summary,
+        month=month,
+        year=year
+    )
+
+
+@expenses_bp.route("/payroll/generate-all", methods=["POST"], endpoint="generate_all_salaries")
+@login_required
+def generate_all_salaries():
+    from models import ExpenseType, EmployeeAdvanceInstallment
+    from calendar import monthrange
+    from decimal import Decimal
+    
+    today = datetime.now()
+    month = int(request.form.get('month', today.month))
+    year = int(request.form.get('year', today.year))
+    payment_date = request.form.get('payment_date', today.date().isoformat())
+    
+    employees = Employee.query.all()
+    
+    salary_type = ExpenseType.query.filter_by(code='SALARY').first()
+    if not salary_type:
+        flash('نوع النفقة SALARY غير موجود', 'danger')
+        return redirect(url_for('expenses_bp.payroll_monthly'))
+    
+    success_count = 0
+    error_count = 0
+    
+    for emp in employees:
+        try:
+            from sqlalchemy import extract as sql_extract
+            existing = Expense.query.filter(
+                Expense.employee_id == emp.id,
+                Expense.type_id == salary_type.id,
+                sql_extract('month', Expense.date) == month,
+                sql_extract('year', Expense.date) == year
+            ).first()
+            
+            if existing:
+                continue
+            
+            base_salary = Decimal(str(emp.salary or 0))
+            deductions = Decimal(str(emp.total_deductions or 0))
+            social_ins = Decimal(str(emp.social_insurance_employee_amount or 0))
+            income_tax = Decimal(str(emp.income_tax_amount or 0))
+            
+            period_start = _date(year, month, 1)
+            last_day = monthrange(year, month)[1]
+            period_end = _date(year, month, last_day)
+            
+            installments = EmployeeAdvanceInstallment.query.filter(
+                EmployeeAdvanceInstallment.employee_id == emp.id,
+                EmployeeAdvanceInstallment.paid == False,
+                EmployeeAdvanceInstallment.due_date >= period_start,
+                EmployeeAdvanceInstallment.due_date <= period_end
+            ).all()
+            
+            advances_total = sum(Decimal(str(inst.amount or 0)) for inst in installments)
+            net_salary = base_salary - deductions - social_ins - income_tax - advances_total
+            
+            if net_salary <= 0:
+                error_count += 1
+                continue
+            
+            if not emp.branch_id:
+                error_count += 1
+                print(f"❌ موظف {emp.name} ليس لديه branch_id")
+                continue
+            
+            new_expense = Expense(
+                type_id=salary_type.id,
+                employee_id=emp.id,
+                amount=float(net_salary),
+                date=datetime.strptime(payment_date, '%Y-%m-%d').date() if payment_date else datetime.now().date(),
+                description=f'راتب {month}/{year} - {emp.name}',
+                payment_method='bank',
+                branch_id=emp.branch_id,
+                site_id=emp.site_id
+            )
+            
+            db.session.add(new_expense)
+            
+            for inst in installments:
+                inst.paid = True
+                inst.paid_at = datetime.now()
+            
+            success_count += 1
+            
+        except Exception as e:
+            error_count += 1
+            db.session.rollback()
+            import traceback
+            print(f"❌ خطأ في توليد راتب {emp.name}: {str(e)}")
+            traceback.print_exc()
+            continue
+    
+    try:
+        if success_count > 0:
+            db.session.commit()
+            flash(f'تم توليد {success_count} راتب بنجاح', 'success')
+        
+        if error_count > 0:
+            flash(f'فشل توليد {error_count} راتب', 'warning')
+    except Exception as commit_error:
+        db.session.rollback()
+        flash(f'خطأ في حفظ البيانات: {str(commit_error)}', 'danger')
+    
+    return redirect(url_for('expenses_bp.payroll_monthly', month=month, year=year))
+
+
+@expenses_bp.route("/payroll/summary", methods=["GET"], endpoint="payroll_summary")
+@login_required
+def payroll_summary():
+    from models import ExpenseType
+    from decimal import Decimal
+    from sqlalchemy import extract as sql_extract
+    
+    year = int(request.args.get('year', datetime.now().year))
+    
+    salary_type = ExpenseType.query.filter_by(code='SALARY').first()
+    
+    monthly_data = []
+    
+    for month in range(1, 13):
+        if salary_type:
+            salaries = Expense.query.filter(
+                Expense.type_id == salary_type.id,
+                sql_extract('month', Expense.date) == month,
+                sql_extract('year', Expense.date) == year
+            ).all()
+            
+            total_paid = sum(Decimal(str(s.amount or 0)) for s in salaries)
+            emp_count = len(set(s.employee_id for s in salaries))
+        else:
+            total_paid = Decimal('0')
+            emp_count = 0
+        
+        monthly_data.append({
+            'month': month,
+            'total_paid': float(total_paid),
+            'employee_count': emp_count
+        })
+    
+    year_total = sum(m['total_paid'] for m in monthly_data)
+    avg_monthly = year_total / 12 if year_total > 0 else 0
+    
+    summary = {
+        'year_total': year_total,
+        'avg_monthly': avg_monthly,
+        'months_paid': sum(1 for m in monthly_data if m['total_paid'] > 0)
+    }
+    
+    return render_template(
+        "expenses/payroll_summary.html",
+        monthly_data=monthly_data,
+        summary=summary,
+        year=year
+    )

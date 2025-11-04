@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% block title %}{{ form.name.data and 'تعديل' or 'إضافة' }} مورد{% endblock %}
 
 {% block content %}
@@ -7,18 +7,18 @@
     <div class="col-md-7">
       <div class="card shadow-sm rounded-4">
         <div class="card-header bg-info text-white">
-          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <h4 class="mb-0">
-              <i class="fas fa-truck-loading me-2"></i>{{ form.name.data and 'تعديل' or 'إضافة' }} مورد
+          <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <h4 class="mb-0 mr-2">
+              <i class="fas fa-truck-loading ml-2"></i>{{ form.name.data and 'تعديل' or 'إضافة' }} مورد
             </h4>
 
             {% if supplier %}
-            <div class="d-flex flex-wrap gap-2">
+            <div class="d-flex flex-wrap">
               <a href="{{ url_for('vendors_bp.suppliers_statement', supplier_id=supplier.id) }}"
-                 class="btn btn-sm btn-outline-light d-flex align-items-center"
+                 class="btn btn-sm btn-outline-light d-flex align-items-center mr-2"
                  title="كشف حساب">
                 <i class="fas fa-file-invoice"></i>
-                <span class="d-none d-md-inline ms-1">كشف حساب</span>
+                <span class="d-none d-md-inline mr-1">كشف حساب</span>
               </a>
 
               {% if supplier.balance and supplier.balance > 0 %}
@@ -30,18 +30,18 @@
                                  reference='دفع لمورد: ' ~ supplier.name,
                                  notes='دفع مستحقات المورد: ' ~ supplier.name,
                                  supplier_id=supplier.id) }}"
-                 class="btn btn-sm btn-light text-info d-flex align-items-center"
+                 class="btn btn-sm btn-outline-info d-flex align-items-center mr-2"
                  title="دفع ({{ '%.2f'|format(supplier.balance) }} ₪)">
                 <i class="fas fa-coins"></i>
-                <span class="d-none d-md-inline ms-1">دفع</span>
+                <span class="d-none d-md-inline mr-1">دفع</span>
               </a>
               {% endif %}
 
               <a href="{{ url_for('payments.index') }}?entity_type=SUPPLIER&entity_id={{ supplier.id }}"
-                 class="btn btn-sm btn-warning d-flex align-items-center"
+                 class="btn btn-sm btn-warning d-flex align-items-center mr-2"
                  title="دفعات">
                 <i class="fas fa-file-invoice-dollar"></i>
-                <span class="d-none d-md-inline ms-1">دفعات</span>
+                <span class="d-none d-md-inline mr-1">دفعات</span>
               </a>
 
               <button type="button"
@@ -54,7 +54,7 @@
                       data-balance="{{ '%.2f'|format(supplier.net_balance) }}"
                       data-currency="{{ supplier.currency or 'ILS' }}">
                 <i class="fas fa-scale-balanced"></i>
-                <span class="d-none d-md-inline ms-1">تسوية</span>
+                <span class="d-none d-md-inline mr-1">تسوية</span>
               </button>
             </div>
             {% endif %}
@@ -65,21 +65,21 @@
           <form method="post" autocomplete="off">
             {{ form.hidden_tag() }}
 
-            <div class="row g-3">
-              <div class="col-md-6">
+            <div class="row">
+              <div class="col-md-6 mb-3">
                 {{ form.name.label(class="form-label") }}
                 {{ form.name(class="form-control") }}
                 {% for err in form.name.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
               </div>
-              <div class="col-md-6 d-flex align-items-center">
-                <div class="form-check mt-4">
-                  {{ form.is_local(class="form-check-input") }}
-                  <label class="form-check-label">{{ form.is_local.label.text }}</label>
+              <div class="col-md-6 mb-3 d-flex align-items-center">
+                <div class="custom-control custom-checkbox mt-4">
+                  {{ form.is_local(class="custom-control-input", id="is_local") }}
+                  <label class="custom-control-label" for="is_local">{{ form.is_local.label.text }}</label>
                 </div>
               </div>
             </div>
 
-            <div class="row g-3 mt-3">
+            <div class="row mt-3">
               <div class="col-md-6">
                 {{ form.identity_number.label(class="form-label") }}
                 {{ form.identity_number(class="form-control") }}
@@ -141,7 +141,7 @@
 
             <div class="d-flex flex-wrap gap-2 mt-4">
               <button type="submit" class="btn btn-{{ form.name.data and 'warning' or 'success' }}">
-                <i class="fas fa-save me-1"></i> حفظ
+                <i class="fas fa-save ml-1"></i> حفظ
               </button>
               <a href="{{ url_for('vendors_bp.suppliers_list') }}" class="btn btn-outline-secondary">عودة</a>
             </div>
@@ -160,7 +160,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content rounded-4">
       <div class="modal-header bg-light">
-        <h5 class="modal-title"><i class="fas fa-scale-balanced me-2"></i> تسوية رصيد</h5>
+        <h5 class="modal-title"><i class="fas fa-scale-balanced ml-2"></i> تسوية رصيد</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق"></button>
       </div>
       <div class="modal-body">
@@ -185,7 +185,7 @@
         </div>
         <div class="mb-3">
           <label class="form-label">طريقة الدفع</label>
-          <select id="stlMethod" class="form-select">
+          <select id="stlMethod" class="custom-select">
             <option value="cash">نقداً</option>
             <option value="bank">تحويل بنكي</option>
             <option value="cheque">شيك</option>
@@ -197,8 +197,8 @@
         <input type="hidden" id="stlEntityId">
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print me-1"></i> طباعة</button>
-        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check me-1"></i> إنشاء سند</button>
+        <button type="button" class="btn btn-outline-secondary" id="stlPrint"><i class="fas fa-print ml-1"></i> طباعة</button>
+        <button type="button" class="btn btn-success" id="stlConfirm"><i class="fas fa-check ml-1"></i> إنشاء سند</button>
       </div>
     </div>
   </div>

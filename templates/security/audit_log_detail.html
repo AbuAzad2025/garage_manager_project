@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}تفاصيل سجل التدقيق{% endblock %}
+
+{% block head %}
+<style>
+  .detail-card {
+    border: 1px solid #e3e6f0;
+    border-radius: 10px;
+    transition: all 0.3s;
+  }
+  
+  .detail-label {
+    font-weight: 600;
+    color: #5a5c69;
+    font-size: 0.9rem;
+  }
+  
+  .detail-value {
+    color: #2e3138;
+    font-size: 1rem;
+  }
+  
+  .model-tag {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    display: inline-block;
+  }
+  
+  .action-badge {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    display: inline-block;
+  }
+  
+  .action-insert { background: #d4edda; color: #155724; }
+  .action-update { background: #fff3cd; color: #856404; }
+  .action-delete { background: #f8d7da; color: #721c24; }
+  .action-default { background: #e2e3e5; color: #383d41; }
+  
+  .changes-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .changes-table thead th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    padding: 12px;
+  }
+  
+  .changes-table tbody td {
+    padding: 12px;
+    border-bottom: 1px solid #e3e6f0;
+  }
+  
+  .changes-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .old-value {
+    background: #f8d7da;
+    padding: 8px;
+    border-radius: 4px;
+    color: #721c24;
+  }
+  
+  .new-value {
+    background: #d4edda;
+    padding: 8px;
+    border-radius: 4px;
+    color: #155724;
+  }
+  
+  .back-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 6px;
+    transition: all 0.3s;
+  }
+  
+  .back-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    color: white;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">
+      <i class="fas fa-info-circle text-info"></i> تفاصيل سجل التدقيق
+    </h1>
+    <a href="{{ url_for('security.audit_log_viewer') }}" class="btn back-btn">
+      <i class="fas fa-arrow-right"></i> رجوع للسجلات
+    </a>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-6 mb-4">
+      <div class="card detail-card shadow">
+        <div class="card-header bg-gradient-primary text-white">
+          <h6 class="m-0 font-weight-bold"><i class="fas fa-file-alt"></i> معلومات السجل</h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-3">
+            <div class="detail-label">الوقت</div>
+            <div class="detail-value">
+              {{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '-' }}
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="detail-label">المستخدم</div>
+            <div class="detail-value">
+              <i class="fas fa-user-circle text-primary"></i> {{ user_name }}
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="detail-label">الجدول</div>
+            <div class="detail-value">
+              <span class="model-tag">{{ log.model_name }}</span>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="detail-label">رقم السجل</div>
+            <div class="detail-value">
+              <code style="background: #f8f9fc; padding: 4px 8px; border-radius: 4px;">
+                {{ log.record_id if log.record_id else '-' }}
+              </code>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            <div class="detail-label">الإجراء</div>
+            <div class="detail-value">
+              <span class="action-badge action-{{ log.action.lower() if log.action else 'default' }}">
+                <i class="fas fa-{{ 'plus' if log.action == 'INSERT' else 'edit' if log.action == 'UPDATE' else 'trash' if log.action == 'DELETE' else 'question' }}"></i>
+                {{ log.action }}
+              </span>
+            </div>
+          </div>
+          
+          <div class="mb-0">
+            <div class="detail-label">عنوان IP</div>
+            <div class="detail-value">
+              <code style="background: #f8f9fc; padding: 4px 8px; border-radius: 4px;">
+                {{ log.ip_address or '-' }}
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6 mb-4">
+      <div class="card detail-card shadow">
+        <div class="card-header bg-gradient-warning text-white">
+          <h6 class="m-0 font-weight-bold"><i class="fas fa-exchange-alt"></i> ملخص التغييرات</h6>
+        </div>
+        <div class="card-body">
+          {% if changes %}
+            <div class="alert alert-info mb-3">
+              <i class="fas fa-info-circle"></i> تم تسجيل <strong>{{ changes|length }}</strong> تغيير
+            </div>
+            
+            <div class="list-group">
+              {% for change in changes[:5] %}
+              <div class="list-group-item border-0 mb-2" style="background: #f8f9fc; border-radius: 6px;">
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1"><i class="fas fa-tag text-primary"></i> {{ change.field }}</h6>
+                </div>
+                <div class="row mt-2">
+                  <div class="col-6">
+                    <small class="text-muted">قديم:</small>
+                    <div class="old-value"><del>{{ change.old }}</del></div>
+                  </div>
+                  <div class="col-6">
+                    <small class="text-muted">جديد:</small>
+                    <div class="new-value">{{ change.new }}</div>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+              
+              {% if changes|length > 5 %}
+              <div class="text-center text-muted">
+                <small>وهناك {{ changes|length - 5 }} تغيير إضافي أدناه...</small>
+              </div>
+              {% endif %}
+            </div>
+          {% else %}
+            <div class="alert alert-secondary text-center">
+              <i class="fas fa-inbox"></i><br>
+              لا توجد تغييرات مسجلة
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if changes %}
+  <div class="row">
+    <div class="col-12">
+      <div class="card detail-card shadow">
+        <div class="card-header bg-gradient-success text-white">
+          <h6 class="m-0 font-weight-bold">
+            <i class="fas fa-list-ul"></i> جدول التغييرات الكامل ({{ changes|length }} تغيير)
+          </h6>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table changes-table mb-0">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">الحقل</th>
+                  <th style="width: 37.5%;">القيمة القديمة</th>
+                  <th style="width: 37.5%;">القيمة الجديدة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for change in changes %}
+                <tr>
+                  <td>
+                    <strong><i class="fas fa-angle-left text-primary"></i> {{ change.field }}</strong>
+                  </td>
+                  <td>
+                    <div class="old-value">
+                      <del>{{ change.old }}</del>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="new-value">
+                      {{ change.new }}
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row mt-4">
+    <div class="col-12 text-center">
+      <a href="{{ url_for('security.audit_log_viewer') }}" class="btn back-btn btn-lg">
+        <i class="fas fa-arrow-right"></i> رجوع لقائمة السجلات
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

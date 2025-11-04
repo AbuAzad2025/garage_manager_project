@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% block title %}الفواتير المتكررة{% endblock %}
+{% block page_title %}الفواتير المتكررة - Recurring Invoices{% endblock %}
+
+{% block head_extra %}
+<style>
+.recurring-card {
+  border-radius: 12px;
+  border: none;
+  transition: all 0.3s ease;
+}
+.recurring-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+.template-row:hover {
+  background: #f8f9fa;
+  cursor: pointer;
+}
+.frequency-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.freq-monthly {background: #d1ecf1; color: #0c5460;}
+.freq-weekly {background: #d4edda; color: #155724;}
+.freq-yearly {background: #fff3cd; color: #856404;}
+.active-badge {background: #d4edda; color: #155724;}
+.inactive-badge {background: #f8d7da; color: #721c24;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="row mb-3">
+    <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+          <li class="breadcrumb-item active">الفواتير المتكررة</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="alert alert-primary border-0 shadow-sm mb-4">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-repeat fa-2x ml-3"></i>
+      <div>
+        <strong>الفواتير المتكررة:</strong> قوالب لإنشاء فواتير تلقائية للعملاء بشكل دوري
+        <br><small>مثال: عقود صيانة شهرية، إيجارات، خدمات دورية</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card recurring-card shadow-sm" style="border-left: 4px solid #28a745;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-check-circle"></i> القوالب النشطة</h6>
+          <h2 class="mb-0 text-success">{{ stats.total_active }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card recurring-card shadow-sm" style="border-left: 4px solid #dc3545;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-times-circle"></i> القوالب المعطلة</h6>
+          <h2 class="mb-0 text-danger">{{ stats.total_inactive }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card recurring-card shadow-sm" style="border-left: 4px solid #17a2b8;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-layer-group"></i> إجمالي القوالب</h6>
+          <h2 class="mb-0 text-info">{{ stats.total_templates }}</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card recurring-card shadow">
+    <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-list"></i> قائمة القوالب</h5>
+      <a href="{{ url_for('recurring.add_template') }}" class="btn btn-light"><i class="fas fa-plus"></i> قالب جديد</a>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th>اسم القالب</th>
+              <th>العميل</th>
+              <th>المبلغ</th>
+              <th>التكرار</th>
+              <th>التاريخ القادم</th>
+              <th>الحالة</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if templates.items %}
+              {% for tmpl in templates.items %}
+              <tr class="template-row" onclick="window.location.href='{{ url_for('recurring.view_schedules', template_id=tmpl.id) }}'">
+                <td><strong><i class="fas fa-file-invoice"></i> {{ tmpl.template_name }}</strong></td>
+                <td><i class="fas fa-user-circle text-primary"></i> {{ tmpl.customer.name if tmpl.customer else '-' }}</td>
+                <td><strong class="text-success">{{ tmpl.amount|number_format }} {{ tmpl.currency }}</strong></td>
+                <td>
+                  {% if tmpl.frequency == 'MONTHLY' %}
+                  <span class="frequency-badge freq-monthly"><i class="fas fa-calendar-alt"></i> شهري</span>
+                  {% elif tmpl.frequency == 'WEEKLY' %}
+                  <span class="frequency-badge freq-weekly"><i class="fas fa-calendar-week"></i> أسبوعي</span>
+                  {% elif tmpl.frequency == 'YEARLY' %}
+                  <span class="frequency-badge freq-yearly"><i class="fas fa-calendar"></i> سنوي</span>
+                  {% else %}
+                  <span class="frequency-badge"><i class="fas fa-clock"></i> {{ tmpl.frequency }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ tmpl.next_invoice_date.strftime('%Y-%m-%d') if tmpl.next_invoice_date else '-' }}</td>
+                <td>
+                  {% if tmpl.is_active %}
+                  <span class="active-badge"><i class="fas fa-check"></i> نشط</span>
+                  {% else %}
+                  <span class="inactive-badge"><i class="fas fa-ban"></i> معطل</span>
+                  {% endif %}
+                </td>
+                <td onclick="event.stopPropagation();">
+                  <button class="btn btn-sm btn-primary" onclick="generateNow({{ tmpl.id }})" title="توليد فاتورة الآن">
+                    <i class="fas fa-play"></i>
+                  </button>
+                  <a href="{{ url_for('recurring.edit_template', template_id=tmpl.id) }}" class="btn btn-sm btn-warning" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <button class="btn btn-sm btn-danger" onclick="deleteTemplate({{ tmpl.id }})" title="حذف">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-5">
+                  <i class="fas fa-inbox fa-3x mb-3"></i>
+                  <p>لا توجد قوالب</p>
+                  <a href="{{ url_for('recurring.add_template') }}" class="btn btn-primary mt-2">
+                    <i class="fas fa-plus"></i> إنشاء أول قالب
+                  </a>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% if templates.pages > 1 %}
+    <div class="card-footer bg-light">
+      <nav>
+        <ul class="pagination justify-content-center mb-0">
+          {% if templates.has_prev %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('recurring.index', page=templates.prev_num) }}">السابق</a>
+          </li>
+          {% endif %}
+          {% for p in templates.iter_pages() %}
+            {% if p %}
+              <li class="page-item {% if p == templates.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('recurring.index', page=p) }}">{{ p }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+          {% if templates.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="{{ url_for('recurring.index', page=templates.next_num) }}">التالي</a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function generateNow(templateId) {
+  if (!confirm('هل تريد توليد الفاتورة الآن؟')) return;
+  
+  $.ajax({
+    url: `/recurring/generate-now/${templateId}`,
+    method: 'POST',
+    headers: {'X-CSRFToken': '{{ csrf_token() }}'},
+    success: function(data) {
+      if (data.success) {
+        alert(`✅ تم توليد الفاتورة: ${data.invoice_number}`);
+        location.reload();
+      } else {
+        alert('❌ خطأ: ' + data.error);
+      }
+    },
+    error: function() {
+      alert('❌ فشل الاتصال بالخادم');
+    }
+  });
+}
+
+function deleteTemplate(templateId) {
+  if (!confirm('هل أنت متأكد من حذف القالب؟')) return;
+  
+  window.location.href = `/recurring/delete/${templateId}`;
+}
+</script>
+{% endblock %}
+

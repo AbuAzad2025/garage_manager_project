@@ -1,0 +1,165 @@
+{% extends 'reports/_base.html' %}
+
+{% block page_title %}تقرير التدفقات النقدية{% endblock %}
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">التدفقات النقدية</li>
+{% endblock %}
+
+{% block report_content %}
+<div class="container-fluid" dir="rtl">
+
+<div class="mb-3">
+  <h4 class="fw-bold m-0"><i class="fas fa-money-bill-wave"></i> تقرير التدفقات النقدية (Cash Flow)</h4>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-info text-white">
+    <i class="fas fa-calendar-alt"></i> الفترة
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-3">
+<div class="col-md-4">
+  <label class="form-label"><i class="fas fa-calendar"></i> من تاريخ</label>
+  <input type="date" name="start_date" value="{{ request.args.get('start_date', start_date) }}" class="form-control">
+</div>
+<div class="col-md-4">
+  <label class="form-label"><i class="fas fa-calendar"></i> إلى تاريخ</label>
+  <input type="date" name="end_date" value="{{ request.args.get('end_date', end_date) }}" class="form-control">
+</div>
+<div class="col-md-4 align-self-end">
+  <button type="submit" class="btn btn-primary">
+    <i class="fas fa-sync-alt"></i> تحديث
+  </button>
+  <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+    <i class="fas fa-print"></i> طباعة
+  </button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card summary-card border-success h-100">
+      <div class="card-body text-center">
+        <div class="text-success mb-2"><i class="fas fa-arrow-down fa-2x"></i></div>
+        <h4 class="mb-0 text-success">{{ "{:,.2f}".format(data.total_inflow) }} ₪</h4>
+        <small class="text-muted">إجمالي التدفقات الواردة</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card summary-card border-danger h-100">
+      <div class="card-body text-center">
+        <div class="text-danger mb-2"><i class="fas fa-arrow-up fa-2x"></i></div>
+        <h4 class="mb-0 text-danger">{{ "{:,.2f}".format(data.total_outflow) }} ₪</h4>
+        <small class="text-muted">إجمالي التدفقات الصادرة</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card summary-card border-{% if data.net_cash_flow >= 0 %}primary{% else %}warning{% endif %} h-100">
+      <div class="card-body text-center">
+        <div class="text-{% if data.net_cash_flow >= 0 %}primary{% else %}warning{% endif %} mb-2">
+          <i class="fas fa-{% if data.net_cash_flow >= 0 %}check-circle{% else %}exclamation-triangle{% endif %} fa-2x"></i>
+        </div>
+        <h4 class="mb-0 text-{% if data.net_cash_flow >= 0 %}primary{% else %}warning{% endif %}">
+          {{ "{:,.2f}".format(data.net_cash_flow) }} ₪
+        </h4>
+        <small class="text-muted">صافي التدفق النقدي</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0"><i class="fas fa-arrow-down"></i> التدفقات الواردة</h5>
+  </div>
+  <div class="card-body">
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-hand-holding-usd"></i> مدفوعات من العملاء</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.customer_payments) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-shopping-cart"></i> مبيعات نقدية</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.cash_sales) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-plus-circle"></i> إيرادات أخرى</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.other_inflow) }} ₪</td>
+        </tr>
+        <tr class="table-success">
+          <td class="fw-bold">إجمالي الواردة</td>
+          <td class="text-end fw-bold">{{ "{:,.2f}".format(data.total_inflow) }} ₪</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-danger text-white">
+    <h5 class="mb-0"><i class="fas fa-arrow-up"></i> التدفقات الصادرة</h5>
+  </div>
+  <div class="card-body">
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-wallet"></i> مصروفات</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.expenses_paid) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-users"></i> رواتب</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.salaries_paid) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-truck"></i> مدفوعات للموردين</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.supplier_payments) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold"><i class="fas fa-minus-circle"></i> صادرة أخرى</td>
+          <td class="text-end">{{ "{:,.2f}".format(data.other_outflow) }} ₪</td>
+        </tr>
+        <tr class="table-danger">
+          <td class="fw-bold">إجمالي الصادرة</td>
+          <td class="text-end fw-bold">{{ "{:,.2f}".format(data.total_outflow) }} ₪</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0"><i class="fas fa-calculator"></i> النتيجة النهائية</h5>
+  </div>
+  <div class="card-body">
+    <table class="table table-bordered">
+      <tbody>
+        <tr>
+          <td class="fw-bold">إجمالي الواردة</td>
+          <td class="text-end text-success fw-bold">{{ "{:,.2f}".format(data.total_inflow) }} ₪</td>
+        </tr>
+        <tr>
+          <td class="fw-bold">إجمالي الصادرة</td>
+          <td class="text-end text-danger fw-bold">{{ "{:,.2f}".format(data.total_outflow) }} ₪</td>
+        </tr>
+        <tr class="table-{% if data.net_cash_flow >= 0 %}primary{% else %}warning{% endif %}">
+          <td class="fw-bold fs-5">صافي التدفق النقدي</td>
+          <td class="text-end fw-bold fs-5">{{ "{:,.2f}".format(data.net_cash_flow) }} ₪</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+{% endblock %}
+
+
+

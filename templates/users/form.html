@@ -37,10 +37,15 @@
               <div class="col-md-6">
                 <div class="form-group mb-3">
                   {{ form.password.label(class="form-label") }}
-                  {{ form.password(class="form-control",
-                                   placeholder=(user_id and 'اتركه فارغاً إن لم ترغب بالتغيير' or 'أدخل كلمة المرور'),
-                                   id="password",
-                                   autocomplete=("current-password" if user_id else "new-password")) }}
+                  <div class="input-group">
+                    {{ form.password(class="form-control",
+                                     placeholder=(user_id and 'اتركه فارغاً إن لم ترغب بالتغيير' or 'أدخل كلمة المرور'),
+                                     id="password",
+                                     autocomplete=("current-password" if user_id else "new-password")) }}
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword" aria-label="إظهار/إخفاء">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                  </div>
                   {% for e in form.password.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
               </div>
@@ -48,7 +53,12 @@
               <div class="col-md-6">
                 <div class="form-group mb-3">
                   {{ form.confirm.label(class="form-label") }}
-                  {{ form.confirm(class="form-control", placeholder="أعد إدخال كلمة المرور", autocomplete="new-password") }}
+                  <div class="input-group">
+                    {{ form.confirm(class="form-control", placeholder="أعد إدخال كلمة المرور", autocomplete="new-password", id="confirmPassword") }}
+                    <button class="btn btn-outline-secondary" type="button" id="toggleConfirm" aria-label="إظهار/إخفاء">
+                      <i class="fas fa-eye"></i>
+                    </button>
+                  </div>
                   {% for e in form.confirm.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
                 </div>
               </div>
@@ -156,15 +166,31 @@
 {{ super() }}
 <script>
   (function(){
-    var pwd = document.getElementById('password');
-    if(!pwd) return;
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn btn-sm btn-outline-secondary mt-2';
-    btn.id = 'toggle-pwd';
-    btn.textContent = 'إظهار/إخفاء';
-    pwd.insertAdjacentElement('afterend', btn);
-    btn.addEventListener('click', function(){ pwd.type = (pwd.type === 'password') ? 'text' : 'password'; });
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    
+    if (togglePassword && passwordInput) {
+      togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+      });
+    }
+    
+    const toggleConfirm = document.getElementById('toggleConfirm');
+    const confirmInput = document.getElementById('confirmPassword');
+    
+    if (toggleConfirm && confirmInput) {
+      toggleConfirm.addEventListener('click', function() {
+        const type = confirmInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        confirmInput.setAttribute('type', type);
+        const icon = this.querySelector('i');
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+      });
+    }
   })();
 
   (function(){

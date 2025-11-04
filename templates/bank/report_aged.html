@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}تقرير الأرصدة حسب العمر{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-clock text-warning"></i> تقرير الأرصدة حسب العمر</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('bank.accounts') }}">البنوك</a></li>
+                    <li class="breadcrumb-item active">تقرير العمر</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-header bg-warning">
+      <h3 class="card-title">تحليل الأرصدة حسب العمر (Aged Balances)</h3>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-bordered">
+        <thead>
+          <tr class="bg-light">
+            <th>الحساب البنكي</th>
+            <th class="text-center">0-30 يوم</th>
+            <th class="text-center">31-60 يوم</th>
+            <th class="text-center">61-90 يوم</th>
+            <th class="text-center">+90 يوم</th>
+            <th class="text-center">الإجمالي</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if aged_data %}
+            {% for item in aged_data %}
+            <tr>
+              <td>{{ item.account_name }}</td>
+              <td class="text-end">{{ "{:,.2f}".format(item.days_0_30) }} ₪</td>
+              <td class="text-end">{{ "{:,.2f}".format(item.days_31_60) }} ₪</td>
+              <td class="text-end">{{ "{:,.2f}".format(item.days_61_90) }} ₪</td>
+              <td class="text-end text-danger">{{ "{:,.2f}".format(item.days_90_plus) }} ₪</td>
+              <td class="text-end"><strong>{{ "{:,.2f}".format(item.total) }} ₪</strong></td>
+            </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center">لا توجد بيانات</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
+{% endblock %}
+

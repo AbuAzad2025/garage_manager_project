@@ -1,0 +1,425 @@
+{
+  "metadata": {
+    "title": "قواعد العمل والسياسات - Business Rules & Policies",
+    "version": "1.0",
+    "critical": "يجب الالتزام بها دائماً"
+  },
+
+  "financial_policies": {
+    "customer_credit_policy": {
+      "rule": "سياسة الائتمان للعملاء",
+      "limits": {
+        "new_customer": {
+          "credit_limit": 0,
+          "payment_terms": "نقداً فوراً",
+          "after_3_transactions": "يمكن منح ائتمان"
+        },
+        "regular_customer": {
+          "credit_limit": 10000,
+          "payment_terms": "30 يوم",
+          "review": "كل 6 أشهر"
+        },
+        "vip_customer": {
+          "credit_limit": 50000,
+          "payment_terms": "60 يوم",
+          "special_discount": "5-10%"
+        }
+      },
+      "enforcement": {
+        "check_before_sale": "التحقق من الرصيد قبل البيع",
+        "if_exceeded": [
+          "تحذير للموظف",
+          "طلب موافقة المدير",
+          "أو طلب دفعة جزئية"
+        ]
+      }
+    },
+
+    "discount_policy": {
+      "rule": "صلاحيات الخصم",
+      "levels": {
+        "staff": {
+          "max_discount": "5%",
+          "needs_approval": false
+        },
+        "manager": {
+          "max_discount": "15%",
+          "needs_approval": false
+        },
+        "admin": {
+          "max_discount": "25%",
+          "needs_approval": false
+        },
+        "owner": {
+          "max_discount": "unlimited",
+          "needs_approval": false
+        }
+      },
+      "special_cases": {
+        "bulk_order": "أكثر من 100 قطعة → خصم إضافي 5%",
+        "cash_payment": "الدفع الفوري → خصم 3%",
+        "old_stock": "بضاعة قديمة → حتى 30%"
+      }
+    },
+
+    "payment_terms": {
+      "rule": "شروط الدفع",
+      "options": {
+        "cash": {
+          "type": "نقداً فوراً",
+          "discount": "3%",
+          "preferred": true
+        },
+        "installment": {
+          "type": "تقسيط",
+          "min_down_payment": "30%",
+          "max_months": 6,
+          "interest": "0% للعملاء الجيدين"
+        },
+        "check": {
+          "type": "شيك مؤجل",
+          "max_days": 60,
+          "requires": "ضمان أو كفالة"
+        }
+      }
+    },
+
+    "pricing_rules": {
+      "cost_plus_markup": {
+        "formula": "Price = Cost × (1 + Markup%)",
+        "markup_by_category": {
+          "fast_moving": "15-20%",
+          "slow_moving": "25-35%",
+          "special_order": "30-40%",
+          "service_labor": "40-50%"
+        }
+      },
+      "minimum_price": {
+        "rule": "لا يمكن البيع بأقل من التكلفة",
+        "exception": "موافقة المالك فقط",
+        "cases": [
+          "تصفية مخزون قديم",
+          "عينات أو هدايا",
+          "عملاء استراتيجيين"
+        ]
+      }
+    }
+  },
+
+  "inventory_policies": {
+    "stock_levels": {
+      "minimum_stock": {
+        "rule": "كل منتج له حد أدنى",
+        "calculation": "متوسط المبيعات الشهرية × 0.5",
+        "alert_when": "stock < minimum",
+        "auto_order_when": "stock < reorder_level"
+      },
+      "maximum_stock": {
+        "rule": "عدم تجاوز السعة التخزينية",
+        "warehouse_capacity": "يُحدد لكل مستودع",
+        "warning_at": "90% capacity"
+      }
+    },
+
+    "receiving_policy": {
+      "inspection_required": true,
+      "steps": [
+        "فحص الكمية vs أمر الشراء",
+        "فحص الجودة",
+        "التحقق من انتهاء الصلاحية (إن وجد)",
+        "تسجيل في النظام",
+        "وضع في المكان المخصص"
+      ],
+      "rejection_criteria": [
+        "كمية ناقصة بأكثر من 5%",
+        "جودة سيئة",
+        "تالف أو مكسور",
+        "صلاحية قريبة (<3 أشهر)"
+      ]
+    },
+
+    "cycle_counting": {
+      "rule": "جرد دوري",
+      "frequency": {
+        "A_items": "شهرياً (fast movers)",
+        "B_items": "ربع سنوي",
+        "C_items": "سنوياً"
+      },
+      "tolerance": "±2%",
+      "action_if_exceeded": "تحقيق كامل + تسوية"
+    }
+  },
+
+  "service_policies": {
+    "warranty_policy": {
+      "parts": {
+        "new_parts": "30 يوم",
+        "rebuilt_parts": "15 يوم",
+        "used_parts": "7 أيام"
+      },
+      "labor": {
+        "standard_repair": "15 يوم",
+        "major_overhaul": "30 يوم"
+      },
+      "exclusions": [
+        "سوء الاستخدام",
+        "حادث",
+        "صيانة غير صحيحة",
+        "تعديلات غير مصرحة"
+      ]
+    },
+
+    "priority_levels": {
+      "emergency": {
+        "definition": "معدة متوقفة + خسارة كبيرة",
+        "response_time": "2 ساعات",
+        "completion_target": "24 ساعة",
+        "extra_charge": "+50%"
+      },
+      "urgent": {
+        "definition": "معدة متوقفة",
+        "response_time": "4 ساعات",
+        "completion_target": "48 ساعة",
+        "extra_charge": "+25%"
+      },
+      "normal": {
+        "definition": "صيانة دورية",
+        "response_time": "24 ساعة",
+        "completion_target": "5 أيام",
+        "extra_charge": "0%"
+      }
+    },
+
+    "estimate_policy": {
+      "required_for": "أي عمل > 500 شيكل",
+      "valid_for": "7 أيام",
+      "deposit_required": "20% للموافقة",
+      "change_tolerance": "±10%",
+      "if_exceeded": "الاتصال بالعميل للموافقة"
+    }
+  },
+
+  "hr_policies": {
+    "salary_payment": {
+      "pay_date": "آخر يوم عمل من الشهر",
+      "method": "تحويل بنكي",
+      "deductions": [
+        "تأمينات اجتماعية (إن وجدت)",
+        "قروض/سلف",
+        "غيابات",
+        "خصومات أخرى"
+      ]
+    },
+
+    "advance_policy": {
+      "max_amount": "50% من الراتب الشهري",
+      "max_outstanding": "راتب شهر واحد",
+      "repayment": "خصم من الراتب على دفعات",
+      "approval": "مدير + مالك"
+    },
+
+    "commission_policy": {
+      "sales_staff": {
+        "rate": "2% من المبيعات الصافية",
+        "minimum_monthly": "1000 شيكل",
+        "payment": "مع الراتب الشهري"
+      },
+      "mechanics": {
+        "rate": "10% من تكلفة العمالة",
+        "quality_bonus": "+5% للعمل الممتاز",
+        "payment": "أسبوعياً"
+      }
+    }
+  },
+
+  "security_policies": {
+    "password_policy": {
+      "min_length": 8,
+      "must_contain": [
+        "حرف كبير",
+        "حرف صغير",
+        "رقم"
+      ],
+      "expiry": "90 يوم",
+      "history": "لا يمكن إعادة استخدام آخر 5 كلمات مرور",
+      "lockout": "بعد 5 محاولات فاشلة"
+    },
+
+    "data_access_policy": {
+      "need_to_know": "الوصول حسب الحاجة فقط",
+      "customer_data": {
+        "view": "staff+",
+        "edit": "manager+",
+        "delete": "owner only"
+      },
+      "financial_data": {
+        "view": "accountant+",
+        "edit": "senior accountant+",
+        "delete": "owner only"
+      }
+    },
+
+    "backup_policy": {
+      "frequency": {
+        "daily": "نسخة احتياطية تلقائية",
+        "weekly": "نسخة كاملة",
+        "monthly": "نسخة + أرشفة"
+      },
+      "retention": {
+        "daily": "7 أيام",
+        "weekly": "4 أسابيع",
+        "monthly": "12 شهر"
+      },
+      "storage": [
+        "محلي (NAS)",
+        "سحابي (Cloud)",
+        "نسخة خارجية (Offsite)"
+      ]
+    }
+  },
+
+  "customer_service_policies": {
+    "return_policy": {
+      "time_limit": "7 أيام من الشراء",
+      "condition": "حالة جيدة + عبوة أصلية",
+      "refund_options": [
+        "استرجاع نقدي (ناقص 5% رسوم)",
+        "رصيد في المحل",
+        "استبدال"
+      ],
+      "non_returnable": [
+        "قطع مستخدمة",
+        "قطع مخصصة (special order)",
+        "سوائل (زيوت، سوائل تبريد)"
+      ]
+    },
+
+    "complaint_handling": {
+      "response_time": "24 ساعة",
+      "investigation": "خلال 48 ساعة",
+      "resolution_target": "5 أيام عمل",
+      "escalation": [
+        "Level 1: موظف الاستقبال",
+        "Level 2: مدير الخدمة",
+        "Level 3: المالك"
+      ]
+    },
+
+    "customer_loyalty": {
+      "points_system": {
+        "earn": "1 نقطة لكل 10 شيكل",
+        "redeem": "100 نقطة = 10 شيكل خصم",
+        "expiry": "سنة واحدة"
+      },
+      "vip_benefits": [
+        "خصم 5% دائم",
+        "أولوية في الصيانة",
+        "فحص مجاني سنوي"
+      ]
+    }
+  },
+
+  "compliance_policies": {
+    "tax_compliance": {
+      "vat_rate": "16% (فلسطين) / 17% (إسرائيل)",
+      "filing_frequency": "شهرياً",
+      "deadline": "15 من الشهر التالي",
+      "records_retention": "7 سنوات"
+    },
+
+    "labor_law_compliance": {
+      "working_hours": "45 ساعة/أسبوع",
+      "overtime": "بعد 45 ساعة",
+      "overtime_rate": "125% من الأجر العادي",
+      "annual_leave": "14 يوم/سنة",
+      "sick_leave": "14 يوم مدفوع/سنة"
+    },
+
+    "health_safety": {
+      "ppe_required": [
+        "نظارات حماية",
+        "قفازات",
+        "أحذية سلامة",
+        "خوذة (عند الحاجة)"
+      ],
+      "training": "تدريب سلامة سنوي",
+      "inspections": "فحص شهري للمعدات"
+    }
+  },
+
+  "validation_rules": {
+    "data_entry": {
+      "customer": {
+        "name": "required, min 2 chars",
+        "phone": "optional, valid phone format",
+        "email": "optional, valid email format",
+        "opening_balance": "numeric, can be negative"
+      },
+      "sale": {
+        "customer_id": "required, must exist",
+        "sale_date": "required, valid date",
+        "currency": "required, from list",
+        "lines": "at least 1 line required",
+        "quantity": "positive integer",
+        "price": "positive decimal"
+      },
+      "payment": {
+        "entity_type": "required, from enum",
+        "direction": "required, IN or OUT",
+        "amount": "required, positive",
+        "expense_must_be_out": "if entity_type = EXPENSE then direction = OUT"
+      }
+    },
+
+    "business_logic": {
+      "sale_confirmation": [
+        "كل البنود يجب أن يكون لها منتج",
+        "الكمية متوفرة في المخزون",
+        "السعر أكبر من الصفر",
+        "العميل موجود ونشط"
+      ],
+      "payment_validation": [
+        "الكيان موجود",
+        "المبلغ موجب",
+        "العملة مدعومة",
+        "سعر الصرف موجود (إذا عملة أجنبية)"
+      ],
+      "stock_transfer": [
+        "المستودع المصدر != المستودع الوجهة",
+        "الكمية متوفرة في المصدر",
+        "المنتج موجود ونشط",
+        "الكمية موجبة"
+      ]
+    }
+  },
+
+  "exception_handling": {
+    "negative_stock": {
+      "default_behavior": "منع البيع",
+      "override_permission": "manage_inventory",
+      "log": "تسجيل في audit log",
+      "alert": "إشعار للمدير"
+    },
+
+    "overdue_receivables": {
+      "30_days": "تذكير آلي للعميل",
+      "60_days": "اتصال شخصي + تحذير",
+      "90_days": "إيقاف البيع بالآجل",
+      "180_days": "إحالة للتحصيل القانوني"
+    },
+
+    "system_errors": {
+      "database_error": {
+        "log": "تسجيل في error log",
+        "notify": "المسؤول التقني",
+        "action": "rollback transaction"
+      },
+      "calculation_error": {
+        "log": "تسجيل التفاصيل",
+        "display": "رسالة واضحة للمستخدم",
+        "action": "عدم حفظ البيانات"
+      }
+    }
+  }
+}
+

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}تحليل الانحرافات{% endblock %}
+{% block page_title %}📈 تحليل انحرافات الميزانية - {{ fiscal_year }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <table class="table table-hover table-bordered">
+        <thead class="table-light">
+          <tr>
+            <th>الحساب</th>
+            <th>الفرع</th>
+            <th>المخصص</th>
+            <th>المصروف الفعلي</th>
+            <th>الانحراف (₪)</th>
+            <th>الانحراف (%)</th>
+            <th>الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data %}
+          <tr class="{% if row.status == 'over' %}table-danger{% else %}table-success{% endif %}">
+            <td>{{ row.account.name }}</td>
+            <td>{{ row.branch.name if row.branch else 'عام' }}</td>
+            <td>{{ "{:,.2f}".format(row.allocated) }}</td>
+            <td>{{ "{:,.2f}".format(row.actual) }}</td>
+            <td>{{ "{:,.2f}".format(row.variance) }}</td>
+            <td>{{ "{:.1f}".format(row.variance_pct) }}%</td>
+            <td>
+              {% if row.status == 'over' %}
+              <span class="badge bg-danger">تجاوز</span>
+              {% else %}
+              <span class="badge bg-success">توفير</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

@@ -47,7 +47,7 @@
   <div class="branch-info-card no-print">
     <div class="row align-items-center">
       <div class="col-md-8">
-        <h1 class="mb-2"><i class="fas fa-code-branch me-2"></i>{{ branch.name }}</h1>
+        <h1 class="mb-2"><i class="fas fa-code-branch ml-2"></i>{{ branch.name }}</h1>
         <div class="d-flex flex-wrap gap-3 mt-3">
           <div>
             <small class="text-white-50">الرمز:</small>
@@ -56,13 +56,13 @@
           {% if branch.city %}
           <div>
             <small class="text-white-50">المدينة:</small>
-            <strong class="d-block"><i class="fas fa-map-marker-alt me-1"></i>{{ branch.city }}</strong>
+            <strong class="d-block"><i class="fas fa-map-marker-alt ml-1"></i>{{ branch.city }}</strong>
           </div>
           {% endif %}
           {% if branch.manager_employee %}
           <div>
             <small class="text-white-50">المدير:</small>
-            <strong class="d-block"><i class="fas fa-user-tie me-1"></i>{{ branch.manager_employee.name }}</strong>
+            <strong class="d-block"><i class="fas fa-user-tie ml-1"></i>{{ branch.manager_employee.name }}</strong>
           </div>
           {% endif %}
           <div>
@@ -72,11 +72,11 @@
         </div>
       </div>
       <div class="col-md-4 text-end">
-        <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-light me-2">
-          <i class="fas fa-arrow-right me-1"></i>رجوع
+        <a href="{{ url_for('branches_bp.list_branches') }}" class="btn btn-light ml-2">
+          <i class="fas fa-arrow-right ml-1"></i>رجوع
         </a>
         <a href="{{ url_for('branches_bp.edit_branch', branch_id=branch.id) }}" class="btn btn-warning">
-          <i class="fas fa-edit me-1"></i>تعديل
+          <i class="fas fa-edit ml-1"></i>تعديل
         </a>
       </div>
     </div>
@@ -145,7 +145,7 @@
   <!-- إجراءات سريعة -->
   <div class="card shadow-sm mb-4 no-print">
     <div class="card-header bg-white">
-      <h5 class="mb-0"><i class="fas fa-bolt me-2 text-warning"></i>إجراءات سريعة</h5>
+      <h5 class="mb-0"><i class="fas fa-bolt ml-2 text-warning"></i>إجراءات سريعة</h5>
     </div>
     <div class="card-body">
       <div class="row g-3">
@@ -182,7 +182,7 @@
     <div class="col-md-6">
       <div class="card shadow-sm">
         <div class="card-header bg-primary text-white">
-          <h5 class="mb-0"><i class="fas fa-users me-2"></i>الموظفين ({{ employees|length }})</h5>
+          <h5 class="mb-0"><i class="fas fa-users ml-2"></i>الموظفين ({{ employees|length }})</h5>
         </div>
         <div class="card-body p-0">
           {% if employees %}
@@ -222,7 +222,7 @@
     <div class="col-md-6">
       <div class="card shadow-sm">
         <div class="card-header bg-success text-white">
-          <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>آخر المصاريف</h5>
+          <h5 class="mb-0"><i class="fas fa-receipt ml-2"></i>آخر المصاريف</h5>
         </div>
         <div class="card-body p-0">
           {% if recent_expenses %}
@@ -242,7 +242,7 @@
             {% endfor %}
             {% if recent_expenses|length > 10 %}
             <div class="list-group-item text-center">
-              <a href="{{ url_for('expenses_bp.expenses_list') }}?branch_id={{ branch.id }}" class="text-decoration-none">
+              <a href="{{ url_for('expenses_bp.list_expenses') }}?branch_id={{ branch.id }}" class="text-decoration-none">
                 عرض الكل <i class="fas fa-arrow-left ms-1"></i>
               </a>
             </div>
@@ -263,7 +263,7 @@
   {% if branch.geo_lat and branch.geo_lng %}
   <div class="card shadow-sm mt-4">
     <div class="card-header bg-info text-white">
-      <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2"></i>موقع الفرع على الخريطة</h5>
+      <h5 class="mb-0"><i class="fas fa-map-marked-alt ml-2"></i>موقع الفرع على الخريطة</h5>
     </div>
     <div class="card-body p-0">
       <div id="branch-map" style="height: 400px;"></div>
@@ -271,11 +271,11 @@
     <div class="card-footer">
       <div class="d-flex justify-content-between align-items-center">
         <span>
-          <i class="fas fa-crosshairs me-2"></i>
+          <i class="fas fa-crosshairs ml-2"></i>
           <strong>الإحداثيات:</strong> {{ branch.geo_lat }}, {{ branch.geo_lng }}
         </span>
         <a href="https://www.google.com/maps?q={{ branch.geo_lat }},{{ branch.geo_lng }}" target="_blank" class="btn btn-sm btn-primary">
-          <i class="fas fa-external-link-alt me-1"></i>عرض على Google Maps
+          <i class="fas fa-external-link-alt ml-1"></i>عرض على Google Maps
         </a>
       </div>
     </div>

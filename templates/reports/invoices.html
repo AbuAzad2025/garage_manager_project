@@ -1,0 +1,240 @@
+{% extends 'reports/_base.html' %}
+
+{% block page_title %}تقرير الفواتير الشامل{% endblock %}
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">تقرير الفواتير</li>
+{% endblock %}
+
+{% block report_content %}
+<div class="container-fluid" dir="rtl">
+
+<div class="mb-3">
+  <h4 class="fw-bold m-0"><i class="fas fa-file-invoice-dollar"></i> تقرير الفواتير الشامل</h4>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-2">
+    <div class="card summary-card border-primary h-100">
+      <div class="card-body text-center">
+        <div class="text-primary mb-2"><i class="fas fa-file-invoice fa-2x"></i></div>
+        <h3 class="mb-0 text-primary">{{ summary.total_invoices }}</h3>
+        <small class="text-muted">عدد الفواتير</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-success h-100">
+      <div class="card-body text-center">
+        <div class="text-success mb-2"><i class="fas fa-dollar-sign fa-2x"></i></div>
+        <h5 class="mb-0 text-success">{{ "{:,.2f}".format(summary.total_amount) }} ₪</h5>
+        <small class="text-muted">إجمالي الفواتير</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-info h-100">
+      <div class="card-body text-center">
+        <div class="text-info mb-2"><i class="fas fa-hand-holding-usd fa-2x"></i></div>
+        <h5 class="mb-0 text-info">{{ "{:,.2f}".format(summary.total_paid) }} ₪</h5>
+        <small class="text-muted">المدفوع</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-warning h-100">
+      <div class="card-body text-center">
+        <div class="text-warning mb-2"><i class="fas fa-hourglass-half fa-2x"></i></div>
+        <h5 class="mb-0 text-warning">{{ "{:,.2f}".format(summary.balance_due) }} ₪</h5>
+        <small class="text-muted">المتبقي</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-2">
+    <div class="card summary-card border-danger h-100">
+      <div class="card-body text-center">
+        <div class="text-danger mb-2"><i class="fas fa-exclamation-circle fa-2x"></i></div>
+        <h3 class="mb-0 text-danger">{{ summary.overdue_count }}</h3>
+        <small class="text-muted">متأخرة السداد</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-2">
+    <div class="card summary-card border-secondary h-100">
+      <div class="card-body text-center">
+        <div class="text-secondary mb-2"><i class="fas fa-receipt fa-2x"></i></div>
+        <h3 class="mb-0">{{ summary.credit_notes }}</h3>
+        <small class="text-muted">إشعارات دائنة</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-info text-white">
+    <i class="fas fa-filter"></i> فلاتر التقرير
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-3">
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-calendar"></i> من تاريخ</label>
+  <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}" class="form-control">
+</div>
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-calendar"></i> إلى تاريخ</label>
+  <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}" class="form-control">
+</div>
+<div class="col-md-2">
+  <label class="form-label"><i class="fas fa-user"></i> العميل</label>
+  <select name="customer_id" class="form-select">
+    <option value="">الكل</option>
+    {% for c in all_customers %}
+    <option value="{{ c.id }}" {% if request.args.get('customer_id') == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="col-md-2">
+  <label class="form-label"><i class="fas fa-tag"></i> النوع</label>
+  <select name="kind" class="form-select">
+    <option value="">الكل</option>
+    <option value="INVOICE" {% if request.args.get('kind') == 'INVOICE' %}selected{% endif %}>فاتورة</option>
+    <option value="CREDIT_NOTE" {% if request.args.get('kind') == 'CREDIT_NOTE' %}selected{% endif %}>إشعار دائن</option>
+  </select>
+</div>
+<div class="col-md-2">
+  <label class="form-label"><i class="fas fa-check-circle"></i> الحالة</label>
+  <select name="status" class="form-select">
+    <option value="">الكل</option>
+    <option value="PAID" {% if request.args.get('status') == 'PAID' %}selected{% endif %}>مدفوع</option>
+    <option value="PARTIAL" {% if request.args.get('status') == 'PARTIAL' %}selected{% endif %}>جزئي</option>
+    <option value="UNPAID" {% if request.args.get('status') == 'UNPAID' %}selected{% endif %}>غير مدفوع</option>
+    <option value="OVERDUE" {% if request.args.get('status') == 'OVERDUE' %}selected{% endif %}>متأخر</option>
+  </select>
+</div>
+<div class="col-md-12">
+  <button type="submit" class="btn btn-primary">
+    <i class="fas fa-sync-alt"></i> تحديث
+  </button>
+  <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+    <i class="fas fa-print"></i> طباعة
+  </button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0"><i class="fas fa-list"></i> قائمة الفواتير التفصيلية</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped table-hover" id="invoicesTable">
+        <thead class="table-dark">
+<tr>
+  <th class="text-center">#</th>
+  <th>رقم الفاتورة</th>
+  <th>التاريخ</th>
+  <th>العميل/المورد</th>
+  <th>النوع</th>
+  <th class="text-end">الإجمالي</th>
+  <th class="text-end">المدفوع</th>
+  <th class="text-end">المتبقي</th>
+  <th class="text-center">الحالة</th>
+  <th>تاريخ الاستحقاق</th>
+  <th class="text-center no-print">إجراءات</th>
+</tr>
+</thead>
+<tbody>
+{% for inv in invoices %}
+{% set is_overdue = inv.due_date and inv.due_date.date() < now().date() and inv.status != 'PAID' %}
+<tr class="{% if is_overdue %}table-danger{% endif %}">
+  <td class="text-center">{{ loop.index }}</td>
+  <td>
+    <strong>{{ inv.invoice_number }}</strong>
+    {% if inv.kind == 'CREDIT_NOTE' %}
+    <span class="badge bg-info">إشعار دائن</span>
+    {% endif %}
+  </td>
+  <td>{{ inv.invoice_date.strftime('%Y-%m-%d') if inv.invoice_date else '-' }}</td>
+  <td>
+    {% if inv.customer %}
+    <i class="fas fa-user text-primary"></i> {{ inv.customer.name }}
+    {% elif inv.supplier %}
+    <i class="fas fa-truck text-success"></i> {{ inv.supplier.name }}
+    {% elif inv.partner %}
+    <i class="fas fa-handshake text-warning"></i> {{ inv.partner.name }}
+    {% else %}
+    <span class="text-muted">-</span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    {% if inv.kind == 'CREDIT_NOTE' %}
+    <span class="badge bg-info">إشعار دائن</span>
+    {% else %}
+    <span class="badge bg-primary">فاتورة</span>
+    {% endif %}
+  </td>
+  <td class="text-end">{{ "{:,.2f}".format(inv.computed_total) }} ₪</td>
+  <td class="text-end">{{ "{:,.2f}".format(inv.total_paid) }} ₪</td>
+  <td class="text-end">
+    {% set remaining = inv.computed_total|float - inv.total_paid|float %}
+    <span class="{% if remaining > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
+      {{ "{:,.2f}".format(remaining) }} ₪
+    </span>
+  </td>
+  <td class="text-center">
+    {% if inv.status == 'PAID' %}
+    <span class="badge bg-success">مدفوع</span>
+    {% elif inv.status == 'PARTIAL' %}
+    <span class="badge bg-warning">جزئي</span>
+    {% elif inv.status == 'OVERDUE' %}
+    <span class="badge bg-danger">متأخر</span>
+    {% else %}
+    <span class="badge bg-secondary">غير مدفوع</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if inv.due_date %}
+    {{ inv.due_date.strftime('%Y-%m-%d') }}
+    {% if is_overdue %}
+    <span class="badge bg-danger">متأخر</span>
+    {% endif %}
+    {% else %}
+    <span class="text-muted">-</span>
+    {% endif %}
+  </td>
+  <td class="text-center no-print">
+    <a href="#" class="btn btn-info btn-sm" title="التفاصيل">
+      <i class="fas fa-eye"></i>
+    </a>
+  </td>
+</tr>
+{% endfor %}
+{% if not invoices %}
+<tr>
+  <td colspan="11" class="text-center text-muted">لا توجد بيانات</td>
+</tr>
+{% endif %}
+</tbody>
+<tfoot>
+<tr class="table-success fw-bold">
+  <td colspan="5" class="text-center">الإجماليات</td>
+  <td class="text-end">{{ "{:,.2f}".format(summary.total_amount) }} ₪</td>
+  <td class="text-end">{{ "{:,.2f}".format(summary.total_paid) }} ₪</td>
+  <td class="text-end">{{ "{:,.2f}".format(summary.balance_due) }} ₪</td>
+  <td colspan="3"></td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+</div>
+
+</div>
+{% endblock %}
+

@@ -1,10 +1,10 @@
-{% extends "base.html" %}
-
-{% block title %}إعداد Grafana + Prometheus{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}grafana{% endblock %}
+{% block security_title %}Grafana Setup{% endblock %}
+{% block security_icon %}<i class="fas fa-chart-area"></i>{% endblock %}
+{% block security_description %}إعداد Grafana + Prometheus للمراقبة الاحترافية{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Grafana Setup</li>{% endblock %}
+{% block security_content %}
 
   <div class="row mb-4">
     <div class="col-12">
@@ -64,7 +64,7 @@
             <div class="accordion-item">
               <h2 class="accordion-header">
                 <button class="accordion-button" type="button" data-toggle="collapse" data-target="#step1">
-                  <i class="fas fa-docker text-primary me-2"></i>
+                  <i class="fas fa-docker text-primary ml-2"></i>
                   <strong>الخطوة 1: تثبيت Docker (30 دقيقة)</strong>
                 </button>
               </h2>
@@ -100,7 +100,7 @@
             <div class="accordion-item">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#step2">
-                  <i class="fas fa-file-code text-warning me-2"></i>
+                  <i class="fas fa-file-code text-warning ml-2"></i>
                   <strong>الخطوة 2: إنشاء ملف Prometheus (10 دقائق)</strong>
                 </button>
               </h2>
@@ -139,7 +139,7 @@ scrape_configs:
             <div class="accordion-item">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#step3">
-                  <i class="fas fa-database text-success me-2"></i>
+                  <i class="fas fa-database text-success ml-2"></i>
                   <strong>الخطوة 3: تشغيل Prometheus (15 دقيقة)</strong>
                 </button>
               </h2>
@@ -176,7 +176,7 @@ scrape_configs:
             <div class="accordion-item">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#step4">
-                  <i class="fas fa-chart-line text-info me-2"></i>
+                  <i class="fas fa-chart-line text-info ml-2"></i>
                   <strong>الخطوة 4: تشغيل Grafana (20 دقيقة)</strong>
                 </button>
               </h2>
@@ -212,7 +212,7 @@ scrape_configs:
             <div class="accordion-item">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#step5">
-                  <i class="fas fa-link text-danger me-2"></i>
+                  <i class="fas fa-link text-danger ml-2"></i>
                   <strong>الخطوة 5: ربط Prometheus بـ Grafana (15 دقيقة)</strong>
                 </button>
               </h2>
@@ -240,7 +240,7 @@ scrape_configs:
             <div class="accordion-item">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#step6">
-                  <i class="fas fa-desktop text-primary me-2"></i>
+                  <i class="fas fa-desktop text-primary ml-2"></i>
                   <strong>الخطوة 6: إنشاء Dashboard (30 دقيقة)</strong>
                 </button>
               </h2>
@@ -310,7 +310,7 @@ scrape_configs:
             <div class="accordion-item">
               <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-toggle="collapse" data-target="#step7">
-                  <i class="fas fa-bell text-warning me-2"></i>
+                  <i class="fas fa-bell text-warning ml-2"></i>
                   <strong>الخطوة 7: إعداد التنبيهات (45 دقيقة)</strong>
                 </button>
               </h2>

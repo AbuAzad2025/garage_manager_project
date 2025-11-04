@@ -1,0 +1,409 @@
+{% extends 'security/base_security.html' %}
+{% block tour_name %}dark_mode{% endblock %}
+{% block security_title %}Dark Mode Settings{% endblock %}
+{% block security_icon %}<i class="fas fa-moon"></i>{% endblock %}
+{% block security_description %}تحكم كامل في ألوان ومظهر الوضع المظلم{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Dark Mode</li>{% endblock %}
+{% block security_content %}
+  
+  <div class="alert alert-dark border-0 shadow-sm">
+    <i class="fas fa-moon"></i>
+    <strong>الوضع الليلي:</strong> تحكم كامل في ألوان ومظهر الوضع المظلم للنظام
+    <button class="btn btn-sm btn-outline-light float-end" onclick="togglePreview()">
+      <i class="fas fa-eye"></i> معاينة
+    </button>
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    
+    <div class="row g-4">
+      
+      <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-gradient-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-palette"></i> ألوان الوضع المظلم</h5>
+          </div>
+          <div class="card-body">
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">لون الخلفية الرئيسية</label>
+              <div class="input-group">
+                <input type="color" name="dark_bg_primary" class="form-control form-control-color" value="#1a1d20" id="darkBgPrimary">
+                <input type="text" class="form-control" value="#1a1d20" id="darkBgPrimaryHex" readonly>
+              </div>
+              <small class="text-muted">الخلفية الأساسية في الوضع المظلم</small>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">لون الخلفية الثانوية</label>
+              <div class="input-group">
+                <input type="color" name="dark_bg_secondary" class="form-control form-control-color" value="#212529" id="darkBgSecondary">
+                <input type="text" class="form-control" value="#212529" id="darkBgSecondaryHex" readonly>
+              </div>
+              <small class="text-muted">خلفية الكروت والعناصر</small>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">لون النص الرئيسي</label>
+              <div class="input-group">
+                <input type="color" name="dark_text_primary" class="form-control form-control-color" value="#f8f9fa" id="darkTextPrimary">
+                <input type="text" class="form-control" value="#f8f9fa" id="darkTextPrimaryHex" readonly>
+              </div>
+              <small class="text-muted">لون النص الأساسي</small>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">لون النص الثانوي</label>
+              <div class="input-group">
+                <input type="color" name="dark_text_secondary" class="form-control form-control-color" value="#adb5bd" id="darkTextSecondary">
+                <input type="text" class="form-control" value="#adb5bd" id="darkTextSecondaryHex" readonly>
+              </div>
+              <small class="text-muted">لون النص الثانوي والتلميحات</small>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">لون الحدود</label>
+              <div class="input-group">
+                <input type="color" name="dark_border_color" class="form-control form-control-color" value="#343a40" id="darkBorderColor">
+                <input type="text" class="form-control" value="#343a40" id="darkBorderColorHex" readonly>
+              </div>
+              <small class="text-muted">حدود الكروت والجداول</small>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">لون التمييز (Highlight)</label>
+              <div class="input-group">
+                <input type="color" name="dark_highlight_color" class="form-control form-control-color" value="#0d6efd" id="darkHighlight">
+                <input type="text" class="form-control" value="#0d6efd" id="darkHighlightHex" readonly>
+              </div>
+              <small class="text-muted">لون العناصر المميزة والأزرار</small>
+            </div>
+            
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-gradient-info text-white">
+            <h5 class="mb-0"><i class="fas fa-cog"></i> إعدادات السلوك</h5>
+          </div>
+          <div class="card-body">
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">الوضع الافتراضي</label>
+              <select name="default_mode" class="custom-select">
+                <option value="light">فاتح (Light)</option>
+                <option value="dark">مظلم (Dark)</option>
+                <option value="auto" selected>تلقائي (حسب النظام)</option>
+              </select>
+              <small class="text-muted">الوضع عند فتح النظام لأول مرة</small>
+            </div>
+            
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="remember_preference" id="rememberPref" checked>
+                <label class="form-check-label" for="rememberPref">
+                  تذكر اختيار المستخدم
+                </label>
+              </div>
+              <small class="text-muted d-block">حفظ اختيار المستخدم في المتصفح</small>
+            </div>
+            
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="auto_switch" id="autoSwitch">
+                <label class="form-check-label" for="autoSwitch">
+                  تبديل تلقائي حسب الوقت
+                </label>
+              </div>
+              <small class="text-muted d-block">تبديل للوضع المظلم ليلاً والفاتح نهاراً</small>
+            </div>
+            
+            <div class="mb-3" id="time-settings" style="display: none;">
+              <label class="form-label">وقت البدء (الوضع المظلم)</label>
+              <input type="time" name="dark_start_time" class="form-control" value="20:00">
+              
+              <label class="form-label mt-2">وقت الانتهاء (العودة للفاتح)</label>
+              <input type="time" name="dark_end_time" class="form-control" value="07:00">
+            </div>
+            
+            <div class="mb-3">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="smooth_transition" id="smoothTransition" checked>
+                <label class="form-check-label" for="smoothTransition">
+                  انتقال سلس عند التبديل
+                </label>
+              </div>
+              <small class="text-muted d-block">تأثير بصري عند التبديل بين الوضعين</small>
+            </div>
+            
+            <div class="mb-3">
+              <label class="form-label fw-bold">شدة التباين</label>
+              <input type="range" name="contrast_level" class="form-range" min="0" max="100" value="50" id="contrastLevel">
+              <div class="d-flex justify-content-between">
+                <small>منخفض</small>
+                <small id="contrastValue">50%</small>
+                <small>عالي</small>
+              </div>
+            </div>
+            
+            <hr>
+            
+            <h6 class="mb-3"><i class="fas fa-magic"></i> مسبقات سريعة:</h6>
+            
+            <div class="row g-2">
+              <div class="col-6">
+                <button type="button" class="btn btn-outline-secondary w-100 btn-sm" onclick="applyPreset('default')">
+                  <i class="fas fa-moon"></i> الافتراضي
+                </button>
+              </div>
+              <div class="col-6">
+                <button type="button" class="btn btn-outline-dark w-100 btn-sm" onclick="applyPreset('oled')">
+                  <i class="fas fa-circle"></i> OLED
+                </button>
+              </div>
+              <div class="col-6">
+                <button type="button" class="btn btn-outline-primary w-100 btn-sm" onclick="applyPreset('blue')">
+                  <i class="fas fa-water"></i> أزرق
+                </button>
+              </div>
+              <div class="col-6">
+                <button type="button" class="btn btn-outline-success w-100 btn-sm" onclick="applyPreset('green')">
+                  <i class="fas fa-leaf"></i> أخضر
+                </button>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-12">
+        <div class="card border-0 shadow-sm" id="preview-card">
+          <div class="card-header bg-gradient-secondary text-white">
+            <h5 class="mb-0"><i class="fas fa-desktop"></i> معاينة الوضع المظلم</h5>
+          </div>
+          <div class="card-body" id="preview-body" style="background: #1a1d20; color: #f8f9fa; padding: 30px;">
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div style="background: #212529; padding: 20px; border-radius: 10px; border: 1px solid #343a40;">
+                  <h5>عنوان</h5>
+                  <p class="text-muted">هذا نص تجريبي في الوضع المظلم</p>
+                  <button class="btn btn-primary btn-sm">زر</button>
+                  <button class="btn btn-outline-light btn-sm">زر</button>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div style="background: #212529; padding: 20px; border-radius: 10px; border: 1px solid #343a40;">
+                  <table class="table table-dark table-sm">
+                    <thead>
+                      <tr><th>اسم</th><th>قيمة</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr><td>CPU</td><td>45%</td></tr>
+                      <tr><td>Memory</td><td>62%</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div style="background: #212529; padding: 20px; border-radius: 10px; border: 1px solid #343a40;">
+                  <div class="mb-2">
+                    <span class="badge bg-primary">Info</span>
+                    <span class="badge bg-success">Success</span>
+                    <span class="badge bg-danger">Error</span>
+                  </div>
+                  <div class="alert alert-info mb-0">
+                    <small>رسالة تنبيه تجريبية</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-lg-12">
+        <div class="card border-0 shadow-sm">
+          <div class="card-body text-center">
+            <button type="submit" class="btn btn-lg btn-dark px-5">
+              <i class="fas fa-save"></i> حفظ إعدادات الوضع الليلي
+            </button>
+            <button type="button" class="btn btn-lg btn-outline-warning px-5 ms-2" onclick="resetToDefaults()">
+              <i class="fas fa-undo"></i> إعادة للافتراضي
+            </button>
+            <a href="{{ url_for('security.index') }}" class="btn btn-lg btn-outline-secondary px-5 ms-2">
+              <i class="fas fa-times"></i> إلغاء
+            </a>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </form>
+
+</div>
+
+<script>
+document.getElementById('autoSwitch').addEventListener('change', function() {
+  document.getElementById('time-settings').style.display = this.checked ? 'block' : 'none';
+});
+
+document.getElementById('contrastLevel').addEventListener('input', function() {
+  document.getElementById('contrastValue').textContent = this.value + '%';
+});
+
+const colorInputs = [
+  {input: 'darkBgPrimary', hex: 'darkBgPrimaryHex'},
+  {input: 'darkBgSecondary', hex: 'darkBgSecondaryHex'},
+  {input: 'darkTextPrimary', hex: 'darkTextPrimaryHex'},
+  {input: 'darkTextSecondary', hex: 'darkTextSecondaryHex'},
+  {input: 'darkBorderColor', hex: 'darkBorderColorHex'},
+  {input: 'darkHighlight', hex: 'darkHighlightHex'}
+];
+
+colorInputs.forEach(pair => {
+  document.getElementById(pair.input).addEventListener('input', function() {
+    document.getElementById(pair.hex).value = this.value;
+    updatePreview();
+  });
+});
+
+function updatePreview() {
+  const bgPrimary = document.getElementById('darkBgPrimary').value;
+  const bgSecondary = document.getElementById('darkBgSecondary').value;
+  const textPrimary = document.getElementById('darkTextPrimary').value;
+  const textSecondary = document.getElementById('darkTextSecondary').value;
+  const borderColor = document.getElementById('darkBorderColor').value;
+  const highlight = document.getElementById('darkHighlight').value;
+  
+  const previewBody = document.getElementById('preview-body');
+  previewBody.style.background = bgPrimary;
+  previewBody.style.color = textPrimary;
+  
+  previewBody.querySelectorAll('div[style*="background"]').forEach(el => {
+    if (el.style.background.includes('#212529')) {
+      el.style.background = bgSecondary;
+      el.style.borderColor = borderColor;
+    }
+  });
+  
+  previewBody.querySelectorAll('.text-muted').forEach(el => {
+    el.style.color = textSecondary;
+  });
+  
+  previewBody.querySelectorAll('.btn-primary').forEach(el => {
+    el.style.backgroundColor = highlight;
+    el.style.borderColor = highlight;
+  });
+}
+
+function applyPreset(preset) {
+  const presets = {
+    default: {
+      bgPrimary: '#1a1d20',
+      bgSecondary: '#212529',
+      textPrimary: '#f8f9fa',
+      textSecondary: '#adb5bd',
+      borderColor: '#343a40',
+      highlight: '#0d6efd'
+    },
+    oled: {
+      bgPrimary: '#000000',
+      bgSecondary: '#0a0a0a',
+      textPrimary: '#ffffff',
+      textSecondary: '#888888',
+      borderColor: '#1a1a1a',
+      highlight: '#00ff00'
+    },
+    blue: {
+      bgPrimary: '#0f1419',
+      bgSecondary: '#192734',
+      textPrimary: '#e1e4e8',
+      textSecondary: '#8b949e',
+      borderColor: '#30363d',
+      highlight: '#2f81f7'
+    },
+    green: {
+      bgPrimary: '#0d1117',
+      bgSecondary: '#161b22',
+      textPrimary: '#c9d1d9',
+      textSecondary: '#8b949e',
+      borderColor: '#21262d',
+      highlight: '#238636'
+    }
+  };
+  
+  const colors = presets[preset];
+  if (colors) {
+    document.getElementById('darkBgPrimary').value = colors.bgPrimary;
+    document.getElementById('darkBgPrimaryHex').value = colors.bgPrimary;
+    
+    document.getElementById('darkBgSecondary').value = colors.bgSecondary;
+    document.getElementById('darkBgSecondaryHex').value = colors.bgSecondary;
+    
+    document.getElementById('darkTextPrimary').value = colors.textPrimary;
+    document.getElementById('darkTextPrimaryHex').value = colors.textPrimary;
+    
+    document.getElementById('darkTextSecondary').value = colors.textSecondary;
+    document.getElementById('darkTextSecondaryHex').value = colors.textSecondary;
+    
+    document.getElementById('darkBorderColor').value = colors.borderColor;
+    document.getElementById('darkBorderColorHex').value = colors.borderColor;
+    
+    document.getElementById('darkHighlight').value = colors.highlight;
+    document.getElementById('darkHighlightHex').value = colors.highlight;
+    
+    updatePreview();
+  }
+}
+
+function togglePreview() {
+  const body = document.body;
+  body.classList.toggle('dark-mode');
+  
+  if (body.classList.contains('dark-mode')) {
+    alert('تم تفعيل الوضع المظلم مؤقتاً للمعاينة');
+  } else {
+    alert('تم إلغاء المعاينة');
+  }
+}
+
+function resetToDefaults() {
+  if (confirm('إعادة تعيين جميع الألوان للافتراضي؟')) {
+    applyPreset('default');
+  }
+}
+
+updatePreview();
+</script>
+
+<style>
+.dark-mode {
+  background: #1a1d20 !important;
+  color: #f8f9fa !important;
+}
+
+.dark-mode .card {
+  background: #212529 !important;
+  border-color: #343a40 !important;
+}
+
+.dark-mode .card-body {
+  background: #212529 !important;
+  color: #f8f9fa !important;
+}
+
+.dark-mode .table {
+  color: #f8f9fa !important;
+}
+
+.dark-mode .navbar {
+  background: #212529 !important;
+}
+</style>
+
+{% endblock %}
+

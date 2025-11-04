@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}رفع كشف حساب بنكي{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-file-upload text-info"></i> رفع كشف حساب بنكي</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('bank.accounts') }}">البنوك</a></li>
+                    <li class="breadcrumb-item active">رفع كشف</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-header bg-info">
+      <h3 class="card-title">رفع كشف حساب بنكي (CSV/Excel)</h3>
+    </div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="form-group">
+          <label>الحساب البنكي:</label>
+          <select name="bank_account_id" class="form-control" required>
+            <option value="">-- اختر حساب بنكي --</option>
+            {% for account in bank_accounts %}
+            <option value="{{ account.id }}">{{ account.name }} ({{ account.account_number }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>ملف الكشف (CSV/Excel):</label>
+          <input type="file" name="statement_file" class="form-control-file" accept=".csv,.xlsx,.xls" required>
+          <small class="form-text text-muted">الصيغ المدعومة: CSV, Excel (.xlsx, .xls)</small>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-upload"></i> رفع ومعالجة
+        </button>
+        <a href="{{ url_for('bank.accounts') }}" class="btn btn-secondary">إلغاء</a>
+      </form>
+    </div>
+  </div>
+</div>
+</section>
+{% endblock %}
+

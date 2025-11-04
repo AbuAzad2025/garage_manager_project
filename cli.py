@@ -15,6 +15,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
 from utils import clear_role_permission_cache, clear_users_cache_by_role, get_entity_balance_in_ils, validate_currency_consistency
+from permissions_config.permissions import PermissionsRegistry
 from models import (
     Account, AuditLog, Customer, Employee, ExchangeTransaction, Expense, ExpenseType, GLBatch, GLEntry, GL_ACCOUNTS,
     Invoice, Note, OnlineCart, OnlineCartItem, OnlinePayment, OnlinePreOrder, OnlinePreOrderItem,
@@ -25,32 +26,11 @@ from models import (
     build_partner_settlement_draft, build_supplier_settlement_draft, User,
 )
 
-RESERVED_CODES = frozenset({
-    "backup_database","restore_database","manage_permissions","manage_roles","manage_users",
-    "manage_customers","manage_sales","manage_service","manage_reports","view_reports",
-    "manage_vendors","manage_shipments","manage_warehouses","view_warehouses","manage_exchange",
-    "manage_payments","manage_expenses","view_inventory","manage_inventory","warehouse_transfer",
-    "view_parts","view_preorders","add_preorder","edit_preorder","delete_preorder",
-    "add_customer","add_supplier","add_partner","place_online_order",
-    "view_shop","browse_products","manage_shop","access_api","manage_api",
-    "view_notes","manage_notes","view_barcode","manage_barcode","manage_currencies",
-})
+RESERVED_CODES = PermissionsRegistry.get_protected_permissions()
 
-PERM_ALIASES = {
-    "backup_database":"نسخ احتياطي","restore_database":"استعادة نسخة","manage_permissions":"إدارة الصلاحيات",
-    "manage_roles":"إدارة الأدوار","manage_users":"إدارة المستخدمين","manage_customers":"إدارة العملاء",
-    "manage_sales":"إدارة المبيعات","manage_service":"إدارة الصيانة","manage_reports":"إدارة التقارير",
-    "view_reports":"عرض التقارير","manage_vendors":"إدارة الموردين","manage_shipments":"إدارة الشحن",
-    "manage_warehouses":"إدارة المستودعات","view_warehouses":"عرض المستودعات","manage_exchange":"إدارة التحويلات",
-    "manage_payments":"إدارة المدفوعات","manage_expenses":"إدارة المصاريف","view_inventory":"عرض الجرد",
-    "manage_inventory":"إدارة الجرد","warehouse_transfer":"تحويل مخزني","view_parts":"عرض القطع",
-    "view_preorders":"عرض الطلبات المسبقة","add_preorder":"إضافة طلب مسبق","edit_preorder":"تعديل طلب مسبق",
-    "delete_preorder":"حذف طلب مسبق","add_customer":"إضافة عميل","add_supplier":"إضافة مورد","add_partner":"إضافة شريك",
-    "place_online_order":"طلب أونلاين","view_shop":"عرض المتجر","browse_products":"تصفح المنتجات","manage_shop":"إدارة المتجر",
-    "access_api":"الوصول إلى API","manage_api":"إدارة API","view_notes":"عرض الملاحظات","manage_notes":"إدارة الملاحظات",
-    "view_barcode":"عرض الباركود","manage_barcode":"إدارة الباركود","manage_currencies":"إدارة العملات",
-    "view_own_orders":"عرض طلباتي","view_own_account":"عرض حسابي",
-}
+def _get_perm_name_ar(code: str) -> str:
+    perm_info = PermissionsRegistry.get_permission_info(code)
+    return perm_info.get('name_ar', code) if perm_info else code
 
 def _parse_dt(val: str | None, end: bool = False):
     """تحويل التاريخ من نص إلى datetime"""
@@ -65,56 +45,9 @@ def _parse_dt(val: str | None, end: bool = False):
         return None
 
 ROLE_PERMISSIONS = {
-    # Super Admin: كل شيء (يتم bypass عبر is_super())
-    
-    # Admin (مدير): كل شيء عدا (المتجر، استعادة النسخ، سجل الحذف القوي، الدفتر)
-    "admin": {
-        "backup_database",  # نسخ احتياطي (ممنوع استعادة)
-        "manage_permissions", "manage_roles", "manage_users",
-        "manage_customers", "add_customer",
-        "manage_service",
-        "manage_sales",
-        "manage_warehouses", "view_warehouses", "manage_inventory", "view_inventory", "warehouse_transfer",
-        "manage_vendors", "add_supplier", "add_partner", "manage_shipments",
-        "manage_payments", "manage_expenses",
-        "view_reports", "manage_reports",  # كل التقارير
-        "view_parts",
-        "access_api", "manage_api",
-        "view_notes", "manage_notes",
-        "view_barcode", "manage_barcode",
-        "manage_currencies",
-        # ممنوع: restore_database, hard_delete, ledger, shop management
-    },
-    
-    # Staff (طاقم): المبيعات، الصيانة، المحاسبة، المستودعات، التقارير
-    "staff": {
-        "manage_customers", "add_customer",  # العملاء
-        "manage_service",  # الصيانة
-        "manage_sales",  # المبيعات
-        "manage_payments", "manage_expenses",  # المحاسبة
-        "view_warehouses", "view_inventory", "view_parts",  # المستودعات (عرض فقط)
-        "view_reports",  # التقارير (المبيعات، الصيانة، المحاسبة)
-        "view_notes",
-    },
-    
-    # Mechanic (ميكانيكي): فقط الصيانة والأشياء المرتبطة بها
-    "mechanic": {
-        "manage_service",  # الصيانة
-        "view_warehouses", "view_inventory", "view_parts",  # عرض المستودعات والقطع
-        "view_reports",  # التقارير (فقط الصيانة)
-    },
-    
-    # Registered Customer (عميل مسجل): كشوف حساباته، الحجز والتصفح (لا كتابة)
-    "registered_customer": {
-        "view_shop", "browse_products",  # تصفح المتجر
-        "place_online_order",  # الحجز فقط
-        "view_preorders",  # عرض طلباته
-        "view_own_orders",  # عرض طلباته
-        "view_own_account",  # كشف حسابه
-        # ممنوع: أي كتابة على النظام
-    },
-    
-    # Guest/Unregistered Customer: لا يدخل النظام - فقط المتجر للتصفح (يتم في Shop مباشرة)
+    role_name: PermissionsRegistry.get_role_permissions(role_name)
+    for role_name in PermissionsRegistry.ROLES.keys()
+    if role_name not in ['owner', 'developer', 'super_admin', 'super']
 }
 
 SUPER_USERNAME = os.getenv("SUPER_ADMIN_USERNAME","azad").strip()
@@ -163,10 +96,23 @@ def _ensure_permission(code: str) -> Permission:
     p = Permission.query.filter(func.lower(Permission.code) == code_n).first()
     if p:
         p.name = p.name or code_n
-        p.name_ar = p.name_ar or PERM_ALIASES.get(code_n)
+        perm_info = PermissionsRegistry.get_permission_info(code_n)
+        if perm_info:
+            p.name_ar = p.name_ar or perm_info.get('name_ar')
+            p.module = p.module or perm_info.get('module')
+            p.description = p.description or perm_info.get('description')
+            p.is_protected = perm_info.get('is_protected', False)
         return p
     try:
-        p = Permission(code=code_n, name=code_n, name_ar=PERM_ALIASES.get(code_n))
+        perm_info = PermissionsRegistry.get_permission_info(code_n)
+        p = Permission(
+            code=code_n,
+            name=code_n,
+            name_ar=perm_info.get('name_ar') if perm_info else None,
+            module=perm_info.get('module') if perm_info else None,
+            description=perm_info.get('description') if perm_info else None,
+            is_protected=perm_info.get('is_protected', False) if perm_info else False
+        )
         db.session.add(p)
         db.session.flush()
         return p
@@ -320,42 +266,61 @@ def seed_roles(force: bool, dry_run: bool, reset_roles: bool, allow_default_pass
             for code in sorted(RESERVED_CODES):
                 _ensure_permission(code)
 
+            owner_role = _get_or_create_role("owner")
+            developer_role = _get_or_create_role("developer")
             super_admin = _get_or_create_role("super_admin")
+            super_role = _get_or_create_role("super")
             admin = _get_or_create_role("admin")
+            manager = _get_or_create_role("manager")
             staff = _get_or_create_role("staff")
-            registered_customer = _get_or_create_role("registered_customer")
             mechanic = _get_or_create_role("mechanic")
-
-            for r in (super_admin, admin, staff, registered_customer, mechanic):
-                if getattr(r, "permissions", None) is None:
-                    r.permissions = []
-                else:
-                    r.permissions[:] = [p for p in r.permissions if isinstance(p, Permission)]
+            registered_customer = _get_or_create_role("registered_customer")
+            guest_role = _get_or_create_role("guest")
 
             all_perms = [p for p in Permission.query.all() if isinstance(p, Permission)]
-            curr_sa = {(p.code or "").lower() for p in super_admin.permissions}
-            for p in all_perms:
-                if (p.code or "").lower() not in curr_sa:
-                    super_admin.permissions.append(p)
-            db.session.flush()
-            if super_admin.id is not None:
-                affected_roles.add(super_admin.id)
+            
+            for super_role_obj in [owner_role, developer_role, super_admin, super_role]:
+                if getattr(super_role_obj, "permissions", None) is None:
+                    super_role_obj.permissions = []
+                else:
+                    super_role_obj.permissions[:] = [p for p in super_role_obj.permissions if isinstance(p, Permission)]
+                curr = {(p.code or "").lower() for p in super_role_obj.permissions}
+                for p in all_perms:
+                    if (p.code or "").lower() not in curr:
+                        super_role_obj.permissions.append(p)
+                db.session.flush()
+                if super_role_obj.id is not None:
+                    affected_roles.add(super_role_obj.id)
 
-            _assign_role_perms(admin, ROLE_PERMISSIONS["admin"], reset=reset_roles)
-            if admin.id is not None:
-                affected_roles.add(admin.id)
-
-            _assign_role_perms(staff, ROLE_PERMISSIONS["staff"], reset=reset_roles)
-            if staff.id is not None:
-                affected_roles.add(staff.id)
-
-            _assign_role_perms(registered_customer, ROLE_PERMISSIONS["registered_customer"], reset=reset_roles)
-            if registered_customer.id is not None:
-                affected_roles.add(registered_customer.id)
-
-            _assign_role_perms(mechanic, ROLE_PERMISSIONS["mechanic"], reset=reset_roles)
-            if mechanic.id is not None:
-                affected_roles.add(mechanic.id)
+            if 'admin' in ROLE_PERMISSIONS:
+                _assign_role_perms(admin, ROLE_PERMISSIONS['admin'], reset=reset_roles)
+                if admin.id is not None:
+                    affected_roles.add(admin.id)
+            
+            if 'manager' in ROLE_PERMISSIONS:
+                _assign_role_perms(manager, ROLE_PERMISSIONS['manager'], reset=reset_roles)
+                if manager.id is not None:
+                    affected_roles.add(manager.id)
+            
+            if 'staff' in ROLE_PERMISSIONS:
+                _assign_role_perms(staff, ROLE_PERMISSIONS['staff'], reset=reset_roles)
+                if staff.id is not None:
+                    affected_roles.add(staff.id)
+            
+            if 'mechanic' in ROLE_PERMISSIONS:
+                _assign_role_perms(mechanic, ROLE_PERMISSIONS['mechanic'], reset=reset_roles)
+                if mechanic.id is not None:
+                    affected_roles.add(mechanic.id)
+            
+            if 'registered_customer' in ROLE_PERMISSIONS:
+                _assign_role_perms(registered_customer, ROLE_PERMISSIONS['registered_customer'], reset=reset_roles)
+                if registered_customer.id is not None:
+                    affected_roles.add(registered_customer.id)
+            
+            if 'guest' in ROLE_PERMISSIONS:
+                _assign_role_perms(guest_role, ROLE_PERMISSIONS['guest'], reset=reset_roles)
+                if guest_role.id is not None:
+                    affected_roles.add(guest_role.id)
 
             _get_or_create_user(SUPER_USERNAME, SUPER_EMAIL, SUPER_PASSWORD, super_admin)
             _get_or_create_user(ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD, admin)
@@ -755,45 +720,42 @@ def seed_all(force: bool, reset_roles: bool, deactivate_missing_expense_types: b
             for code in sorted(RESERVED_CODES):
                 _ensure_permission(code)
 
+            owner_role = _get_or_create_role("owner")
+            developer_role = _get_or_create_role("developer")
             super_admin = _get_or_create_role("super_admin")
+            super_role = _get_or_create_role("super")
             admin = _get_or_create_role("admin")
+            manager = _get_or_create_role("manager")
             staff = _get_or_create_role("staff")
-            registered_customer = _get_or_create_role("registered_customer")
             mechanic = _get_or_create_role("mechanic")
-
-            if getattr(super_admin, "permissions", None) is None:
-                super_admin.permissions = []
-            else:
-                super_admin.permissions[:] = [p for p in super_admin.permissions if isinstance(p, Permission)]
-            if getattr(admin, "permissions", None) is None:
-                admin.permissions = []
-            else:
-                admin.permissions[:] = [p for p in admin.permissions if isinstance(p, Permission)]
-            if getattr(staff, "permissions", None) is None:
-                staff.permissions = []
-            else:
-                staff.permissions[:] = [p for p in staff.permissions if isinstance(p, Permission)]
-            if getattr(registered_customer, "permissions", None) is None:
-                registered_customer.permissions = []
-            else:
-                registered_customer.permissions[:] = [p for p in registered_customer.permissions if isinstance(p, Permission)]
-            if getattr(mechanic, "permissions", None) is None:
-                mechanic.permissions = []
-            else:
-                mechanic.permissions[:] = [p for p in mechanic.permissions if isinstance(p, Permission)]
+            registered_customer = _get_or_create_role("registered_customer")
+            guest_role = _get_or_create_role("guest")
 
             all_perms = [p for p in Permission.query.all() if isinstance(p, Permission)]
-            curr_sa = {(p.code or "").lower() for p in super_admin.permissions}
-            for p in all_perms:
-                code = (p.code or "").lower()
-                if code and code not in curr_sa:
-                    super_admin.permissions.append(p)
-            db.session.flush()
+            
+            for super_role_obj in [owner_role, developer_role, super_admin, super_role]:
+                if getattr(super_role_obj, "permissions", None) is None:
+                    super_role_obj.permissions = []
+                else:
+                    super_role_obj.permissions[:] = [p for p in super_role_obj.permissions if isinstance(p, Permission)]
+                curr = {(p.code or "").lower() for p in super_role_obj.permissions}
+                for p in all_perms:
+                    if (p.code or "").lower() not in curr:
+                        super_role_obj.permissions.append(p)
+                db.session.flush()
 
-            _assign_role_perms(admin, ROLE_PERMISSIONS["admin"], reset=reset_roles)
-            _assign_role_perms(staff, ROLE_PERMISSIONS["staff"], reset=reset_roles)
-            _assign_role_perms(registered_customer, ROLE_PERMISSIONS["registered_customer"], reset=reset_roles)
-            _assign_role_perms(mechanic, ROLE_PERMISSIONS["mechanic"], reset=reset_roles)
+            if 'admin' in ROLE_PERMISSIONS:
+                _assign_role_perms(admin, ROLE_PERMISSIONS['admin'], reset=reset_roles)
+            if 'manager' in ROLE_PERMISSIONS:
+                _assign_role_perms(manager, ROLE_PERMISSIONS['manager'], reset=reset_roles)
+            if 'staff' in ROLE_PERMISSIONS:
+                _assign_role_perms(staff, ROLE_PERMISSIONS['staff'], reset=reset_roles)
+            if 'mechanic' in ROLE_PERMISSIONS:
+                _assign_role_perms(mechanic, ROLE_PERMISSIONS['mechanic'], reset=reset_roles)
+            if 'registered_customer' in ROLE_PERMISSIONS:
+                _assign_role_perms(registered_customer, ROLE_PERMISSIONS['registered_customer'], reset=reset_roles)
+            if 'guest' in ROLE_PERMISSIONS:
+                _assign_role_perms(guest_role, ROLE_PERMISSIONS['guest'], reset=reset_roles)
 
             _get_or_create_user(SUPER_USERNAME, SUPER_EMAIL, SUPER_PASSWORD, super_admin)
             _get_or_create_user(ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD, admin)

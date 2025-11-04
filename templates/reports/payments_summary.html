@@ -1,0 +1,312 @@
+{% extends 'reports/_base.html' %}
+
+{% block page_title %}تقرير المدفوعات الشامل{% endblock %}
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">تقرير المدفوعات</li>
+{% endblock %}
+
+{% block report_content %}
+<div class="container-fluid" dir="rtl">
+
+<div class="mb-3">
+  <h4 class="fw-bold m-0"><i class="fas fa-hand-holding-usd"></i> تقرير المدفوعات الشامل</h4>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-2">
+    <div class="card summary-card border-success h-100">
+      <div class="card-body text-center">
+        <div class="text-success mb-2"><i class="fas fa-hand-holding-usd fa-2x"></i></div>
+        <h3 class="mb-0 text-success">{{ summary.total_payments }}</h3>
+        <small class="text-muted">إجمالي المدفوعات</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-primary h-100">
+      <div class="card-body text-center">
+        <div class="text-primary mb-2"><i class="fas fa-arrow-down fa-2x"></i></div>
+        <h5 class="mb-0 text-primary">{{ "{:,.2f}".format(summary.total_in) }} ₪</h5>
+        <small class="text-muted">الوارد (IN)</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-danger h-100">
+      <div class="card-body text-center">
+        <div class="text-danger mb-2"><i class="fas fa-arrow-up fa-2x"></i></div>
+        <h5 class="mb-0 text-danger">{{ "{:,.2f}".format(summary.total_out) }} ₪</h5>
+        <small class="text-muted">الصادر (OUT)</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-info h-100">
+      <div class="card-body text-center">
+        <div class="text-info mb-2"><i class="fas fa-balance-scale fa-2x"></i></div>
+        <h5 class="mb-0 text-info">{{ "{:,.2f}".format(summary.net_flow) }} ₪</h5>
+        <small class="text-muted">الصافي</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-warning h-100">
+      <div class="card-body text-center">
+        <div class="text-warning mb-2"><i class="fas fa-credit-card fa-2x"></i></div>
+        <h5 class="mb-0">{{ "{:,.2f}".format(summary.avg_payment) }} ₪</h5>
+        <small class="text-muted">متوسط الدفعة</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-secondary h-100">
+      <div class="card-body text-center">
+        <div class="text-secondary mb-2"><i class="fas fa-check-circle fa-2x"></i></div>
+        <h5 class="mb-0">{{ summary.completed_count }}</h5>
+        <small class="text-muted">مكتملة</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-info text-white">
+    <i class="fas fa-filter"></i> فلاتر التقرير
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-3">
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-calendar"></i> من تاريخ</label>
+  <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}" class="form-control">
+</div>
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-calendar"></i> إلى تاريخ</label>
+  <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}" class="form-control">
+</div>
+<div class="col-md-2">
+  <label class="form-label"><i class="fas fa-exchange-alt"></i> الاتجاه</label>
+  <select name="direction" class="form-select">
+    <option value="">الكل</option>
+    <option value="IN" {% if request.args.get('direction') == 'IN' %}selected{% endif %}>وارد (IN)</option>
+    <option value="OUT" {% if request.args.get('direction') == 'OUT' %}selected{% endif %}>صادر (OUT)</option>
+  </select>
+</div>
+<div class="col-md-2">
+  <label class="form-label"><i class="fas fa-wallet"></i> طريقة الدفع</label>
+  <select name="method" class="form-select">
+    <option value="">الكل</option>
+    <option value="CASH" {% if request.args.get('method') == 'CASH' %}selected{% endif %}>نقدي</option>
+    <option value="BANK_TRANSFER" {% if request.args.get('method') == 'BANK_TRANSFER' %}selected{% endif %}>تحويل بنكي</option>
+    <option value="CHECK" {% if request.args.get('method') == 'CHECK' %}selected{% endif %}>شيك</option>
+    <option value="CREDIT_CARD" {% if request.args.get('method') == 'CREDIT_CARD' %}selected{% endif %}>بطاقة ائتمان</option>
+  </select>
+</div>
+<div class="col-md-2">
+  <label class="form-label"><i class="fas fa-info-circle"></i> الحالة</label>
+  <select name="status" class="form-select">
+    <option value="">الكل</option>
+    <option value="COMPLETED" {% if request.args.get('status') == 'COMPLETED' %}selected{% endif %}>مكتمل</option>
+    <option value="PENDING" {% if request.args.get('status') == 'PENDING' %}selected{% endif %}>معلق</option>
+    <option value="CANCELLED" {% if request.args.get('status') == 'CANCELLED' %}selected{% endif %}>ملغي</option>
+  </select>
+</div>
+<div class="col-md-12">
+  <button type="submit" class="btn btn-primary">
+    <i class="fas fa-sync-alt"></i> تحديث
+  </button>
+  <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+    <i class="fas fa-print"></i> طباعة
+  </button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0"><i class="fas fa-list"></i> قائمة المدفوعات التفصيلية</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped table-hover" id="paymentsTable">
+        <thead class="table-dark">
+<tr>
+  <th class="text-center">#</th>
+  <th>رقم الدفعة</th>
+  <th>التاريخ</th>
+  <th>الجهة</th>
+  <th class="text-center">الاتجاه</th>
+  <th class="text-end">المبلغ</th>
+  <th>طريقة الدفع</th>
+  <th class="text-center">الحالة</th>
+  <th>الملاحظات</th>
+  <th class="text-center no-print">إجراءات</th>
+</tr>
+</thead>
+<tbody>
+{% for payment in payments %}
+<tr>
+  <td class="text-center">{{ loop.index }}</td>
+  <td>
+    <strong>{{ payment.payment_number or payment.id }}</strong>
+  </td>
+  <td>
+    {{ payment.payment_date.strftime('%Y-%m-%d %H:%M') if payment.payment_date else '-' }}
+  </td>
+  <td>
+    {% if payment.customer %}
+    <strong>{{ payment.customer.name }}</strong>
+    <br><small class="text-muted">عميل</small>
+    {% elif payment.supplier %}
+    <strong>{{ payment.supplier.name }}</strong>
+    <br><small class="text-muted">مورد</small>
+    {% elif payment.partner %}
+    <strong>{{ payment.partner.name }}</strong>
+    <br><small class="text-muted">شريك</small>
+    {% else %}
+    <span class="text-muted">-</span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    {% if payment.direction.value == 'IN' %}
+    <span class="badge bg-success"><i class="fas fa-arrow-down"></i> وارد</span>
+    {% else %}
+    <span class="badge bg-danger"><i class="fas fa-arrow-up"></i> صادر</span>
+    {% endif %}
+  </td>
+  <td class="text-end">
+    <strong>{{ "{:,.2f}".format(payment.total_amount) }} ₪</strong>
+  </td>
+  <td>
+    {% if payment.method.value == 'CASH' %}
+    <span class="badge bg-success">نقدي</span>
+    {% elif payment.method.value == 'BANK_TRANSFER' %}
+    <span class="badge bg-primary">تحويل بنكي</span>
+    {% elif payment.method.value == 'CHECK' %}
+    <span class="badge bg-info">شيك</span>
+    {% elif payment.method.value == 'CREDIT_CARD' %}
+    <span class="badge bg-warning">بطاقة ائتمان</span>
+    {% else %}
+    {{ payment.method.value }}
+    {% endif %}
+  </td>
+  <td class="text-center">
+    {% if payment.status.value == 'COMPLETED' %}
+    <span class="badge bg-success">مكتمل</span>
+    {% elif payment.status.value == 'PENDING' %}
+    <span class="badge bg-warning">معلق</span>
+    {% elif payment.status.value == 'CANCELLED' %}
+    <span class="badge bg-danger">ملغي</span>
+    {% else %}
+    {{ payment.status.value }}
+    {% endif %}
+  </td>
+  <td>
+    <small>{{ payment.notes[:50] if payment.notes else '-' }}</small>
+  </td>
+  <td class="text-center no-print">
+    <a href="#" class="btn btn-info btn-sm" title="عرض">
+      <i class="fas fa-eye"></i>
+    </a>
+  </td>
+</tr>
+{% endfor %}
+{% if not payments %}
+<tr>
+  <td colspan="10" class="text-center text-muted">لا توجد بيانات</td>
+</tr>
+{% endif %}
+</tbody>
+<tfoot>
+<tr class="table-success fw-bold">
+  <td colspan="5" class="text-center">الإجماليات</td>
+  <td class="text-end">{{ "{:,.2f}".format(summary.total_amount) }} ₪</td>
+  <td colspan="4"></td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+</div>
+
+<div class="row g-3 mt-4">
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-chart-pie"></i> التوزيع حسب الاتجاه</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="directionChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-chart-bar"></i> التوزيع حسب طريقة الدفع</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="methodChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const directionCtx = document.getElementById('directionChart');
+  if (directionCtx && typeof Chart !== 'undefined') {
+    new Chart(directionCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['وارد (IN)', 'صادر (OUT)'],
+        datasets: [{
+          data: [{{ summary.total_in }}, {{ summary.total_out }}],
+          backgroundColor: ['#28a745', '#dc3545']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom'
+          }
+        }
+      }
+    });
+  }
+
+  const methodCtx = document.getElementById('methodChart');
+  if (methodCtx && typeof Chart !== 'undefined') {
+    new Chart(methodCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for m in method_stats %}'{{ m.label }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          label: 'المبلغ',
+          data: [{% for m in method_stats %}{{ m.total }}{% if not loop.last %},{% endif %}{% endfor %}],
+          backgroundColor: '#007bff'
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}
+

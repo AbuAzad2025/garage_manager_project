@@ -1,16 +1,15 @@
-{% extends 'base.html' %}
-{% block title %}تحليلات متقدمة{% endblock %}
-{% block page_title %}📊 تحليلات متقدمة - AI Analytics{% endblock %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}analytics{% endblock %}
+{% block security_title %}Advanced Analytics{% endblock %}
+{% block security_icon %}<i class="fas fa-chart-line"></i>{% endblock %}
+{% block security_description %}تحليلات متقدمة بالذكاء الاصطناعي{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Analytics</li>{% endblock %}
 
 {% block head_extra %}
-{{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% block security_content %}
 
   <div class="row g-4 mb-4">
     <div class="col-md-6">

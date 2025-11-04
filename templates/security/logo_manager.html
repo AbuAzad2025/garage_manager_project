@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}مدير الشعارات{% endblock %}
-{% block page_title %}🖼️ مدير الشعارات - Logo Manager{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}logo_manager{% endblock %}
+{% block security_title %}Logo Manager{% endblock %}
+{% block security_icon %}<i class="fas fa-image"></i>{% endblock %}
+{% block security_description %}إدارة وتحميل شعارات النظام{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Logo Manager</li>{% endblock %}
+{% block security_content %}
 
   <div class="row g-4">
     {% for type, filename in logos.items() %}

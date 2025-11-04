@@ -52,12 +52,10 @@
     <div class="mb-3">
       {{ form.password.label(class="form-label") }}
       <div class="input-group">
-        {{ form.password(class="form-control", placeholder="كلمة المرور", autocomplete="new-password", id="reg-password") }}
-        <div class="input-group-append">
-          <button class="btn btn-outline-secondary" type="button" id="toggle-reg-pass" aria-label="إظهار/إخفاء كلمة المرور">
-            <i class="fas fa-eye"></i>
-          </button>
-        </div>
+        {{ form.password(class="form-control", placeholder="كلمة المرور (8 أحرف على الأقل)", autocomplete="new-password", id="reg-password") }}
+        <button class="btn btn-outline-secondary" type="button" id="toggle-reg-pass" aria-label="إظهار/إخفاء كلمة المرور">
+          <i class="fas fa-eye"></i>
+        </button>
       </div>
       {% for error in form.password.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
     </div>

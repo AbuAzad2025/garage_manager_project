@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 import utils
-from models import Supplier, PaymentDirection, PaymentMethod, PaymentStatus, SupplierSettlement, SupplierSettlementStatus, build_supplier_settlement_draft, AuditLog, SaleStatus
+from models import Supplier, PaymentDirection, PaymentMethod, PaymentStatus, SupplierSettlement, SupplierSettlementStatus, build_supplier_settlement_draft, AuditLog, SaleStatus, ServiceStatus
 import json
 
 supplier_settlements_bp = Blueprint("supplier_settlements_bp", __name__, url_prefix="/suppliers")
@@ -268,12 +268,15 @@ def void(settlement_id):
 
 @supplier_settlements_bp.route("/settlements/<int:settlement_id>", methods=["GET"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def show(settlement_id):
-    ss = db.session.get(SupplierSettlement, settlement_id)
-    if not ss:
+    settlement = db.session.get(SupplierSettlement, settlement_id)
+    if not settlement:
         abort(404)
-    return render_template("vendors/suppliers/settlement_preview.html", ss=ss)
+    
+    supplier = settlement.supplier
+    balance_data = None
+    
+    return render_template("vendors/suppliers/settlement_preview.html", ss=settlement, supplier=supplier, balance_data=balance_data, date_from=settlement.from_date, date_to=settlement.to_date)
 
 
 @supplier_settlements_bp.route("/exchange-transaction/<int:tx_id>/update-price", methods=["POST"])
@@ -555,12 +558,14 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
 def _calculate_supplier_incoming(supplier_id: int, date_from: datetime, date_to: datetime):
     """حساب الوارد من المورد"""
     from models import Expense, ExchangeTransaction
-    from sqlalchemy import func
+    from sqlalchemy import func, or_, and_
     
     # المشتريات (النفقات من نوع مشتريات)
     purchases = db.session.query(func.sum(Expense.amount)).filter(
-        Expense.payee_type == "SUPPLIER",
-        Expense.payee_entity_id == supplier_id,
+        or_(
+            Expense.supplier_id == supplier_id,
+            and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == supplier_id)
+        ),
         Expense.date >= date_from,
         Expense.date <= date_to
     ).scalar() or 0
@@ -717,8 +722,10 @@ def _get_supplier_operations_details(supplier_id: int, date_from: datetime, date
     
     # النفقات الأخيرة
     recent_expenses = db.session.query(Expense).filter(
-        Expense.payee_type == "SUPPLIER",
-        Expense.payee_entity_id == supplier_id,
+        or_(
+            Expense.supplier_id == supplier_id,
+            and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == supplier_id)
+        ),
         Expense.date >= date_from,
         Expense.date <= date_to
     ).order_by(desc(Expense.date)).limit(10).all()
@@ -1746,3 +1753,161 @@ def _get_supplier_consignment_value(supplier_id: int):
     ).scalar() or 0
     
     return float(rows)
+
+
+@supplier_settlements_bp.route("/<int:supplier_id>/settlement/approve", methods=["POST"], endpoint="approve_settlement")
+@login_required
+def approve_settlement(supplier_id):
+    from flask import flash, redirect
+    from flask_login import current_user
+    from models import SupplierSettlement
+    
+    supplier = db.session.get(Supplier, supplier_id)
+    if not supplier:
+        abort(404)
+    
+    date_from = request.form.get("date_from")
+    date_to = request.form.get("date_to")
+    
+    if not date_from or not date_to:
+        flash("يجب تحديد الفترة الزمنية", "error")
+        return redirect(url_for("supplier_settlements_bp.supplier_settlement", supplier_id=supplier_id))
+    
+    try:
+        date_from_dt = datetime.fromisoformat(date_from.replace("Z", "+00:00")) if isinstance(date_from, str) else date_from
+        date_to_dt = datetime.fromisoformat(date_to.replace("Z", "+00:00")) if isinstance(date_to, str) else date_to
+    except:
+        flash("تنسيق التاريخ غير صحيح", "error")
+        return redirect(url_for("supplier_settlements_bp.supplier_settlement", supplier_id=supplier_id))
+    
+    balance_data = _calculate_smart_supplier_balance(supplier_id, date_from_dt, date_to_dt)
+    
+    if not balance_data.get("success"):
+        flash(balance_data.get("error", "خطأ في حساب التسوية"), "error")
+        return redirect(url_for("supplier_settlements_bp.supplier_settlement", supplier_id=supplier_id))
+    
+    prev_settlement = db.session.query(SupplierSettlement).filter(
+        SupplierSettlement.supplier_id == supplier_id,
+        SupplierSettlement.is_approved == True
+    ).order_by(SupplierSettlement.to_date.desc()).first()
+    
+    settlement = SupplierSettlement(
+        supplier_id=supplier_id,
+        from_date=date_from_dt,
+        to_date=date_to_dt,
+        currency="ILS",
+        status=SupplierSettlementStatus.CONFIRMED.value,
+        previous_settlement_id=prev_settlement.id if prev_settlement else None,
+        opening_balance=Decimal(str(balance_data.get("opening_balance", {}).get("amount", 0))),
+        rights_exchange=Decimal(str(balance_data.get("rights", {}).get("exchange_items", {}).get("total_value_ils", 0))),
+        rights_total=Decimal(str(balance_data.get("rights", {}).get("total", 0))),
+        obligations_sales=Decimal(str(balance_data.get("obligations", {}).get("sales_to_supplier", {}).get("total_ils", 0))),
+        obligations_services=Decimal(str(balance_data.get("obligations", {}).get("services_to_supplier", {}).get("total_ils", 0))),
+        obligations_preorders=Decimal(str(balance_data.get("obligations", {}).get("preorders_to_supplier", {}).get("total_ils", 0) if isinstance(balance_data.get("obligations", {}).get("preorders_to_supplier"), dict) else 0)),
+        obligations_expenses=0,
+        obligations_total=Decimal(str(balance_data.get("obligations", {}).get("total", 0))),
+        payments_out=Decimal(str(balance_data.get("payments", {}).get("total_paid", 0))),
+        payments_in=Decimal(str(balance_data.get("payments", {}).get("total_received", 0))),
+        payments_returns=Decimal(str(balance_data.get("payments", {}).get("total_returns", 0))),
+        payments_net=Decimal(str(balance_data.get("payments", {}).get("total_settled", 0))),
+        closing_balance=Decimal(str(balance_data.get("balance", {}).get("net", 0))),
+        is_approved=True,
+        approved_by=current_user.id,
+        approved_at=datetime.utcnow()
+    )
+    
+    settlement.ensure_code()
+    
+    db.session.add(settlement)
+    db.session.flush()
+    
+    try:
+        from models import _gl_upsert_batch_and_entries, GL_ACCOUNTS
+        
+        ap_account = GL_ACCOUNTS.get("AP", "2000_AP")
+        cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
+        
+        closing_balance_amount = float(settlement.closing_balance or 0)
+        
+        if abs(closing_balance_amount) > 0.01:
+            if closing_balance_amount > 0:
+                entries = [
+                    (ap_account, closing_balance_amount, 0),
+                    (cash_account, 0, closing_balance_amount),
+                ]
+                memo = f"تسوية مورد #{settlement.code} - له علينا {closing_balance_amount:.2f} ₪"
+            else:
+                entries = [
+                    (cash_account, abs(closing_balance_amount), 0),
+                    (ap_account, 0, abs(closing_balance_amount)),
+                ]
+                memo = f"تسوية مورد #{settlement.code} - عليه لنا {abs(closing_balance_amount):.2f} ₪"
+            
+            _gl_upsert_batch_and_entries(
+                db.session,
+                source_type="SUPPLIER_SETTLEMENT",
+                source_id=settlement.id,
+                purpose="SETTLEMENT",
+                currency="ILS",
+                memo=memo,
+                entries=entries,
+                ref=settlement.code,
+                entity_type="SUPPLIER",
+                entity_id=supplier_id
+            )
+    except Exception as e:
+        import sys
+        print(f"⚠️ خطأ في إنشاء قيد GL للتسوية #{settlement.code}: {e}", file=sys.stderr)
+    
+    db.session.commit()
+    
+    flash(f"تم اعتماد التسوية {settlement.code} بنجاح", "success")
+    return redirect(url_for("supplier_settlements_bp.show_settlement", settlement_id=settlement.id))
+
+
+@supplier_settlements_bp.route("/settlements/approved", methods=["GET"], endpoint="approved_settlements_list")
+@login_required
+def approved_settlements_list():
+    from sqlalchemy import desc
+    
+    settlements = db.session.query(SupplierSettlement).filter(
+        SupplierSettlement.is_approved == True
+    ).order_by(desc(SupplierSettlement.approved_at)).all()
+    
+    return render_template(
+        "vendors/suppliers/settlements_list.html",
+        settlements=settlements
+    )
+
+
+@supplier_settlements_bp.route("/settlements/<int:settlement_id>/show", methods=["GET"], endpoint="show_settlement")
+@login_required
+def show_settlement(settlement_id):
+    settlement = db.session.get(SupplierSettlement, settlement_id)
+    if not settlement:
+        abort(404)
+    
+    if not settlement.is_approved:
+        from flask import flash, redirect
+        flash("هذه التسوية غير معتمدة", "warning")
+        return redirect(url_for("supplier_settlements_bp.supplier_settlement", supplier_id=settlement.supplier_id))
+    
+    balance_data = _calculate_smart_supplier_balance(
+        settlement.supplier_id,
+        settlement.from_date,
+        settlement.to_date
+    )
+    
+    from models import GLBatch
+    gl_batch = db.session.query(GLBatch).filter(
+        GLBatch.source_type == "SUPPLIER_SETTLEMENT",
+        GLBatch.source_id == settlement_id
+    ).first()
+    
+    return render_template(
+        "vendors/suppliers/settlement_show.html",
+        settlement=settlement,
+        supplier=settlement.supplier,
+        balance_data=balance_data,
+        gl_batch=gl_batch
+    )

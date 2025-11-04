@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-tasks text-primary"></i> 
+                    {{ project.name }} <small class="text-muted">({{ project.code }})</small>
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('advanced.accounting_control') }}"><i class="fas fa-sliders-h"></i> المحاسبة المتقدمة</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('projects.index') }}">المشاريع</a></li>
+                    <li class="breadcrumb-item active">{{ project.name }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  
+  <div class="row mb-3 no-print">
+    <div class="col-12">
+      <div class="btn-group">
+        <a href="{{ url_for('projects.index') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left"></i> العودة للمشاريع
+        </a>
+        <button class="btn btn-secondary" onclick="window.print()">
+          <i class="fas fa-print"></i> طباعة
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">الميزانية</h6>
+          <h4>{{ "{:,.0f}".format(project.budget_amount or 0) }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">التكلفة</h6>
+          <h4 class="text-danger">{{ "{:,.0f}".format(stats.total_cost) }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">الإيرادات</h6>
+          <h4 class="text-success">{{ "{:,.0f}".format(stats.total_revenue) }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">الربح</h6>
+          <h4 class="{% if stats.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ "{:,.0f}".format(stats.profit) }}
+          </h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">هامش الربح</h6>
+          <h4>{{ "{:.1f}".format(stats.profit_margin) }}%</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <h6 class="text-muted">الإنجاز</h6>
+          <h4>{{ "{:.0f}".format(project.completion_percentage) }}%</h4>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link active" data-bs-toggle="tab" href="#overview">نظرة عامة</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="tab" href="#phases">المراحل</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="tab" href="#costs">التكاليف</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="tab" href="#revenues">الإيرادات</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="tab" href="#pl">قائمة الدخل</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="tab" href="#budget">الميزانية</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" data-bs-toggle="tab" href="#pmp">إدارة متقدمة (PMP)</a>
+    </li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="overview">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <table class="table table-sm">
+            <tr><th width="200">رمز المشروع:</th><td>{{ project.code }}</td></tr>
+            <tr><th>اسم المشروع:</th><td>{{ project.name }}</td></tr>
+            <tr><th>العميل:</th><td>{{ project.client.name if project.client else '-' }}</td></tr>
+            <tr><th>المدير:</th><td>{{ project.manager.full_name or project.manager.username }}</td></tr>
+            <tr><th>الفرع:</th><td>{{ project.branch.name if project.branch else '-' }}</td></tr>
+            <tr><th>مركز التكلفة:</th><td>{{ project.cost_center.name if project.cost_center else '-' }}</td></tr>
+            <tr><th>تاريخ البدء:</th><td>{{ project.start_date.strftime('%Y-%m-%d') }}</td></tr>
+            <tr><th>تاريخ الانتهاء المخطط:</th><td>{{ project.planned_end_date.strftime('%Y-%m-%d') if project.planned_end_date else '-' }}</td></tr>
+            <tr><th>تاريخ الانتهاء الفعلي:</th><td>{{ project.end_date.strftime('%Y-%m-%d') if project.end_date else '-' }}</td></tr>
+            <tr><th>الحالة:</th><td>{{ translations.project_status.get(project.status, project.status) }}</td></tr>
+            <tr><th>نسبة الإنجاز:</th><td>{{ "{:.0f}".format(project.completion_percentage) }}%</td></tr>
+            <tr><th>الوصف:</th><td>{{ project.description or '-' }}</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="phases">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <table class="table table-hover">
+            <thead>
+              <tr><th>#</th><th>اسم المرحلة</th><th>الميزانية</th><th>الفعلي</th><th>%</th><th>الحالة</th></tr>
+            </thead>
+            <tbody>
+              {% for phase in phases %}
+              <tr>
+                <td>{{ phase.order }}</td>
+                <td>{{ phase.name }}</td>
+                <td>{{ "{:,.2f}".format(phase.planned_budget or 0) }}</td>
+                <td>{{ "{:,.2f}".format(phase.actual_cost or 0) }}</td>
+                <td>{{ "{:.0f}".format(phase.completion_percentage) }}%</td>
+                <td>{{ translations.phase_status.get(phase.status, phase.status) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="costs">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <table class="table table-hover table-sm">
+            <thead>
+              <tr><th>التاريخ</th><th>النوع</th><th>المرحلة</th><th>المبلغ</th><th>الوصف</th></tr>
+            </thead>
+            <tbody>
+              {% for cost in costs %}
+              <tr>
+                <td>{{ cost.cost_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ translations.project_cost_type.get(cost.cost_type, cost.cost_type) }}</td>
+                <td>{{ cost.phase.name if cost.phase else '-' }}</td>
+                <td>{{ "{:,.2f}".format(cost.amount) }} ₪</td>
+                <td>{{ cost.description or '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="revenues">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <table class="table table-hover table-sm">
+            <thead>
+              <tr><th>التاريخ</th><th>النوع</th><th>المرحلة</th><th>المبلغ</th><th>الوصف</th></tr>
+            </thead>
+            <tbody>
+              {% for rev in revenues %}
+              <tr>
+                <td>{{ rev.revenue_date.strftime('%Y-%m-%d') }}</td>
+                <td>{{ translations.project_revenue_type.get(rev.revenue_type, rev.revenue_type) }}</td>
+                <td>{{ rev.phase.name if rev.phase else '-' }}</td>
+                <td>{{ "{:,.2f}".format(rev.amount) }} ₪</td>
+                <td>{{ rev.description or '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="pl">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <a href="{{ url_for('projects.report_pnl') }}?project={{ project.id }}" class="btn btn-primary">
+            <i class="fas fa-file-invoice"></i> عرض قائمة الدخل التفصيلية
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="budget">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <a href="{{ url_for('projects.report_budget_tracking') }}?project={{ project.id }}" class="btn btn-warning">
+            <i class="fas fa-chart-bar"></i> عرض متابعة الميزانية
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="pmp">
+      <div class="row">
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-primary">
+              <h5 class="mb-0"><i class="fas fa-tasks"></i> المهام</h5>
+            </div>
+            <div class="card-body">
+              <p>إدارة مهام المشروع مع Dependencies والجدولة</p>
+              <a href="{{ url_for('project_advanced.tasks', project_id=project.id) }}" class="btn btn-primary btn-block">
+                <i class="fas fa-arrow-left"></i> عرض المهام
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-success">
+              <h5 class="mb-0"><i class="fas fa-users-cog"></i> الموارد</h5>
+            </div>
+            <div class="card-body">
+              <p>تخصيص وإدارة موارد المشروع (موظفين، مواد، معدات)</p>
+              <a href="{{ url_for('project_advanced.resources', project_id=project.id) }}" class="btn btn-success btn-block">
+                <i class="fas fa-arrow-left"></i> عرض الموارد
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-info">
+              <h5 class="mb-0"><i class="fas fa-flag-checkered"></i> المحطات</h5>
+            </div>
+            <div class="card-body">
+              <p>محطات المشروع مع الفوترة التلقائية</p>
+              <a href="{{ url_for('project_advanced.milestones', project_id=project.id) }}" class="btn btn-info btn-block">
+                <i class="fas fa-arrow-left"></i> عرض المحطات
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-danger">
+              <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> المخاطر</h5>
+            </div>
+            <div class="card-body">
+              <p>إدارة مخاطر المشروع مع Risk Matrix</p>
+              <a href="{{ url_for('project_advanced.risks', project_id=project.id) }}" class="btn btn-danger btn-block">
+                <i class="fas fa-arrow-left"></i> عرض المخاطر
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-warning">
+              <h5 class="mb-0"><i class="fas fa-exchange-alt"></i> أوامر التغيير</h5>
+            </div>
+            <div class="card-body">
+              <p>إدارة طلبات التغيير والموافقات</p>
+              <a href="{{ url_for('project_advanced.change_orders', project_id=project.id) }}" class="btn btn-warning btn-block">
+                <i class="fas fa-arrow-left"></i> عرض الأوامر
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-secondary">
+              <h5 class="mb-0"><i class="fas fa-chart-line"></i> EVM</h5>
+            </div>
+            <div class="card-body">
+              <p>تحليل القيمة المكتسبة (Earned Value Management)</p>
+              <a href="{{ url_for('project_advanced.earned_value_analysis', project_id=project.id) }}" class="btn btn-secondary btn-block">
+                <i class="fas fa-arrow-left"></i> تحليل EVM
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card border-0 shadow-sm bg-gradient-primary">
+        <div class="card-body text-center">
+          <h4><i class="fas fa-tachometer-alt"></i> لوحة التحكم المتقدمة</h4>
+          <p>عرض شامل لجميع مؤشرات المشروع</p>
+          <a href="{{ url_for('project_advanced.dashboard', project_id=project.id) }}" class="btn btn-light btn-lg">
+            <i class="fas fa-chart-area"></i> افتح لوحة التحكم المتقدمة
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print.js') }}"></script>
+{% endblock %}
+

@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}{% if timesheet %}تعديل سجل حضور{% else %}تسجيل حضور جديد{% endif %}{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-clock text-success"></i> {% if timesheet %}تعديل سجل حضور{% else %}تسجيل حضور جديد{% endif %}</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-success text-white">
+        <h3 class="card-title"><i class="fas fa-edit"></i> بيانات الحضور</h3>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>الموظف <span class="text-danger">*</span></label>
+                        <select name="employee_id" class="form-control" required {% if timesheet %}disabled{% endif %}>
+                            <option value="">اختر الموظف</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if timesheet and timesheet.employee_id == emp.id %}selected{% endif %}>
+                                {{ emp.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>المهمة</label>
+                        <select name="task_id" class="form-control">
+                            <option value="">اختر المهمة</option>
+                            {% for task in tasks %}
+                            <option value="{{ task.id }}" {% if timesheet and timesheet.task_id == task.id %}selected{% endif %}>
+                                {{ task.task_number }} - {{ task.title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>تاريخ العمل <span class="text-danger">*</span></label>
+                        <input type="date" name="work_date" class="form-control" 
+                               value="{{ timesheet.work_date.strftime('%Y-%m-%d') if timesheet else '' }}" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>وقت البدء <span class="text-danger">*</span></label>
+                        <input type="time" name="start_time" class="form-control" 
+                               value="{{ timesheet.start_time.strftime('%H:%M') if timesheet and timesheet.start_time else '' }}" required>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>وقت الانتهاء <span class="text-danger">*</span></label>
+                        <input type="time" name="end_time" class="form-control" 
+                               value="{{ timesheet.end_time.strftime('%H:%M') if timesheet and timesheet.end_time else '' }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>الاستراحة (دقيقة)</label>
+                        <input type="number" name="break_duration_minutes" class="form-control" min="0" 
+                               value="{{ timesheet.break_duration_minutes if timesheet else 0 }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>معدل الساعة (₪)</label>
+                        <input type="number" name="hourly_rate" class="form-control" step="0.01" min="0" 
+                               value="{{ timesheet.hourly_rate if timesheet else 0 }}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>مركز التكلفة</label>
+                        <select name="cost_center_id" class="form-control">
+                            <option value="">اختر مركز التكلفة</option>
+                            {% for cc in cost_centers %}
+                            <option value="{{ cc.id }}" {% if timesheet and timesheet.cost_center_id == cc.id %}selected{% endif %}>
+                                {{ cc.code }} - {{ cc.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>وصف العمل</label>
+                <textarea name="work_description" class="form-control" rows="3">{{ timesheet.work_description if timesheet else '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> حفظ
+                </button>
+                <a href="{{ url_for('engineering.timesheets') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+</div>
+</section>
+{% endblock %}
+

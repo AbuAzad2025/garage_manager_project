@@ -1,17 +1,22 @@
-{% extends 'base.html' %}
-{% block title %}IPs المحظورة{% endblock %}
-{% block page_title %}🔒 IPs المحظورة{% endblock %}
+{% extends 'security/base_security.html' %}
 
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% block tour_name %}blocked_ips{% endblock %}
+
+{% block security_title %}Blocked IPs{% endblock %}
+{% block security_icon %}<i class="fas fa-ban"></i>{% endblock %}
+{% block security_description %}إدارة IPs المحظورة وجدار الحماية{% endblock %}
+
+{% block security_breadcrumb %}
+<li class="breadcrumb-item active">Blocked IPs</li>
+{% endblock %}
+
+{% block security_content %}
   
   <a href="{{ url_for('security.block_ip') }}" class="btn btn-danger mb-3">
     <i class="fas fa-ban"></i> حظر IP جديد
   </a>
 
-  <div class="card">
+  <div class="card shadow-lg border-0">
     <div class="card-body">
       {% if blocked %}
       <div class="table-responsive">

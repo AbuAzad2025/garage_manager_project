@@ -19,7 +19,7 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
-                    <i class="fas fa-{% if exchange_rate %}edit{% else %}plus{% endif %} me-2"></i>
+                    <i class="fas fa-{% if exchange_rate %}edit{% else %}plus{% endif %} ml-2"></i>
                     {% if exchange_rate %}تعديل سعر الصرف{% else %}إضافة سعر صرف جديد{% endif %}
                 </h3>
             </div>
@@ -115,7 +115,7 @@
                     <div class="form-group">
                         {{ form.submit(class="btn btn-success") }}
                         <a href="{{ url_for('currencies.exchange_rates') }}" class="btn btn-secondary">
-                            <i class="fas fa-times me-1"></i>
+                            <i class="fas fa-times ml-1"></i>
                             إلغاء
                         </a>
                     </div>
@@ -128,13 +128,13 @@
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
-                    <i class="fas fa-info-circle me-2"></i>
+                    <i class="fas fa-info-circle ml-2"></i>
                     معلومات مهمة
                 </h3>
             </div>
             <div class="card-body">
                 <div class="alert alert-info">
-                    <h6><i class="fas fa-lightbulb me-1"></i> نصائح:</h6>
+                    <h6><i class="fas fa-lightbulb ml-1"></i> نصائح:</h6>
                     <ul class="mb-0">
                         <li>سعر الصرف يجب أن يكون أكبر من صفر</li>
                         <li>العملة الأساسية والمقابلة يجب أن تكونا مختلفتين</li>
@@ -145,7 +145,7 @@
                 
                 {% if not exchange_rate %}
                 <div class="alert alert-warning">
-                    <h6><i class="fas fa-exclamation-triangle me-1"></i> تحذير:</h6>
+                    <h6><i class="fas fa-exclamation-triangle ml-1"></i> تحذير:</h6>
                     <p class="mb-0">تأكد من صحة سعر الصرف قبل الحفظ، لأن الخطأ قد يؤثر على الحسابات المالية.</p>
                 </div>
                 {% endif %}

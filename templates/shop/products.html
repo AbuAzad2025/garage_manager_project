@@ -21,11 +21,11 @@
     {% if can_manage %}
       <div class="btn-group" role="group">
         <a href="{{ url_for('shop.admin_products') }}" class="btn btn-danger">
-          <i class="fas fa-cogs me-1"></i> إدارة المنتجات
+          <i class="fas fa-cogs ml-1"></i> إدارة المنتجات
         </a>
         {% if current_app.view_functions and 'admin_reports.cards' in current_app.view_functions and (has_any is not defined or has_any('view_reports','manage_reports')) %}
           <a href="{{ url_for('admin_reports.cards') }}" class="btn btn-warning">
-            <i class="fas fa-chart-line me-1"></i> تقارير البطاقات
+            <i class="fas fa-chart-line ml-1"></i> تقارير البطاقات
           </a>
         {% endif %}
       </div>
@@ -84,9 +84,9 @@
               <div class="fw-semibold">{{ display_name }}</div>
               <div class="text-muted small">
                 {% if p.commercial_name and p.name and p.commercial_name != p.name %}
-                  <span class="me-2">({{ p.name }})</span>
+                  <span class="ml-2">({{ p.name }})</span>
                 {% endif %}
-                {% if p.sku %}<span class="me-2">SKU: {{ p.sku }}</span>{% endif %}
+                {% if p.sku %}<span class="ml-2">SKU: {{ p.sku }}</span>{% endif %}
                 {% if p.part_number %}<span>Part: {{ p.part_number }}</span>{% endif %}
               </div>
             </td>

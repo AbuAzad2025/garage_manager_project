@@ -1,23 +1,12 @@
-{% extends "base.html" %}
-
-{% block title %}ربط متقدم للشيكات - لوحة الأمان{% endblock %}
-
-{% block content %}
-<div class="content-wrapper">
-    <section class="content-header">
+{% extends 'security/base_security.html' %}
+{% block tour_name %}check_linking{% endblock %}
+{% block security_title %}Check Linking{% endblock %}
+{% block security_icon %}<i class="fas fa-link"></i>{% endblock %}
+{% block security_description %}ربط متقدم للشيكات مع المدفوعات{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Check Linking</li>{% endblock %}
+{% block security_content %}
+    <section class="content">
         <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1><i class="fas fa-link text-primary"></i> ربط متقدم للشيكات</h1>
-                </div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-                        <li class="breadcrumb-item">اللوحة السرية</li>
-                        <li class="breadcrumb-item active">ربط الشيكات</li>
-                    </ol>
-                </div>
-            </div>
         </div>
     </section>
 

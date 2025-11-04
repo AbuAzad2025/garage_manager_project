@@ -1,0 +1,182 @@
+{% extends 'reports/_base.html' %}
+
+{% block page_title %}تقرير الطلبيات المسبقة{% endblock %}
+{% block reports_breadcrumb_extra %}
+<li class="breadcrumb-item active">الطلبيات المسبقة</li>
+{% endblock %}
+
+{% block report_content %}
+<div class="container-fluid" dir="rtl">
+
+<div class="mb-3">
+  <h4 class="fw-bold m-0"><i class="fas fa-clipboard-list"></i> تقرير الطلبيات المسبقة</h4>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card summary-card border-primary h-100">
+      <div class="card-body text-center">
+        <div class="text-primary mb-2"><i class="fas fa-clipboard-list fa-2x"></i></div>
+        <h3 class="mb-0 text-primary">{{ summary.total_preorders }}</h3>
+        <small class="text-muted">عدد الطلبيات</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card summary-card border-success h-100">
+      <div class="card-body text-center">
+        <div class="text-success mb-2"><i class="fas fa-dollar-sign fa-2x"></i></div>
+        <h5 class="mb-0 text-success">{{ "{:,.2f}".format(summary.total_amount) }} ₪</h5>
+        <small class="text-muted">إجمالي القيمة</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card summary-card border-info h-100">
+      <div class="card-body text-center">
+        <div class="text-info mb-2"><i class="fas fa-hand-holding-usd fa-2x"></i></div>
+        <h5 class="mb-0 text-info">{{ "{:,.2f}".format(summary.total_paid) }} ₪</h5>
+        <small class="text-muted">المدفوع</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card summary-card border-warning h-100">
+      <div class="card-body text-center">
+        <div class="text-warning mb-2"><i class="fas fa-hourglass-half fa-2x"></i></div>
+        <h5 class="mb-0 text-warning">{{ "{:,.2f}".format(summary.balance_due) }} ₪</h5>
+        <small class="text-muted">المتبقي</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-info text-white">
+    <i class="fas fa-filter"></i> فلاتر التقرير
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-3">
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-calendar"></i> من تاريخ</label>
+  <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}" class="form-control">
+</div>
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-calendar"></i> إلى تاريخ</label>
+  <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}" class="form-control">
+</div>
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-user"></i> العميل</label>
+  <select name="customer_id" class="form-select">
+    <option value="">الكل</option>
+    {% for c in all_customers %}
+    <option value="{{ c.id }}" {% if request.args.get('customer_id') == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-tag"></i> الحالة</label>
+  <select name="status" class="form-select">
+    <option value="">الكل</option>
+    <option value="DRAFT" {% if request.args.get('status') == 'DRAFT' %}selected{% endif %}>مسودة</option>
+    <option value="CONFIRMED" {% if request.args.get('status') == 'CONFIRMED' %}selected{% endif %}>مؤكد</option>
+    <option value="CANCELLED" {% if request.args.get('status') == 'CANCELLED' %}selected{% endif %}>ملغي</option>
+  </select>
+</div>
+<div class="col-md-12">
+  <button type="submit" class="btn btn-primary">
+    <i class="fas fa-sync-alt"></i> تحديث
+  </button>
+  <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+    <i class="fas fa-print"></i> طباعة
+  </button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0"><i class="fas fa-list"></i> قائمة الطلبيات التفصيلية</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped table-hover" id="preordersTable">
+        <thead class="table-dark">
+<tr>
+  <th class="text-center">#</th>
+  <th>رقم الطلبية</th>
+  <th>التاريخ</th>
+  <th>العميل</th>
+  <th class="text-center">عدد الأصناف</th>
+  <th class="text-end">الإجمالي</th>
+  <th class="text-end">المدفوع</th>
+  <th class="text-end">المتبقي</th>
+  <th class="text-center">الحالة</th>
+  <th class="text-center no-print">إجراءات</th>
+</tr>
+</thead>
+<tbody>
+{% for pre in preorders %}
+<tr>
+  <td class="text-center">{{ loop.index }}</td>
+  <td><strong>{{ pre.code or pre.id }}</strong></td>
+  <td>{{ pre.created_at.strftime('%Y-%m-%d') if pre.created_at else '-' }}</td>
+  <td>
+    {% if pre.customer %}
+    {{ pre.customer.name }}
+    {% else %}
+    <span class="text-muted">-</span>
+    {% endif %}
+  </td>
+  <td class="text-center">1</td>
+  <td class="text-end">{{ "{:,.2f}".format(pre.total_amount) }} ₪</td>
+  <td class="text-end">{{ "{:,.2f}".format(pre.total_paid) }} ₪</td>
+  <td class="text-end">
+    {% set remaining = pre.total_amount|float - pre.total_paid|float %}
+    <span class="{% if remaining > 0 %}text-warning fw-bold{% else %}text-success{% endif %}">
+      {{ "{:,.2f}".format(remaining) }} ₪
+    </span>
+  </td>
+  <td class="text-center">
+    {% if pre.status.value == 'CONFIRMED' %}
+    <span class="badge bg-success">مؤكد</span>
+    {% elif pre.status.value == 'DRAFT' %}
+    <span class="badge bg-secondary">مسودة</span>
+    {% else %}
+    <span class="badge bg-danger">ملغي</span>
+    {% endif %}
+  </td>
+  <td class="text-center no-print">
+    <a href="#" class="btn btn-info btn-sm" title="التفاصيل">
+      <i class="fas fa-eye"></i>
+    </a>
+  </td>
+</tr>
+{% endfor %}
+{% if not preorders %}
+<tr>
+  <td colspan="10" class="text-center text-muted">لا توجد بيانات</td>
+</tr>
+{% endif %}
+</tbody>
+<tfoot>
+<tr class="table-success fw-bold">
+  <td colspan="5" class="text-center">الإجماليات</td>
+  <td class="text-end">{{ "{:,.2f}".format(summary.total_amount) }} ₪</td>
+  <td class="text-end">{{ "{:,.2f}".format(summary.total_paid) }} ₪</td>
+  <td class="text-end">{{ "{:,.2f}".format(summary.balance_due) }} ₪</td>
+  <td colspan="2"></td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+</div>
+
+</div>
+{% endblock %}
+

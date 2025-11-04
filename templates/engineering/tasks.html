@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}المهام الهندسية{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-tasks text-warning"></i> المهام الهندسية</h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="row mb-3">
+    <div class="col-12">
+        <a href="{{ url_for('engineering.add_task') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> إضافة مهمة
+        </a>
+        <a href="{{ url_for('engineering.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> لوحة التحكم
+        </a>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-2">
+        <div class="info-box bg-info">
+            <span class="info-box-icon"><i class="fas fa-list"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">إجمالي</span>
+                <span class="info-box-number">{{ stats.total }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="info-box bg-secondary">
+            <span class="info-box-icon"><i class="fas fa-pause"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">معلقة</span>
+                <span class="info-box-number">{{ stats.pending }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="info-box bg-primary">
+            <span class="info-box-icon"><i class="fas fa-spinner"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">قيد العمل</span>
+                <span class="info-box-number">{{ stats.in_progress }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="info-box bg-success">
+            <span class="info-box-icon"><i class="fas fa-check"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">مكتملة</span>
+                <span class="info-box-number">{{ stats.completed }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="info-box bg-warning">
+            <span class="info-box-icon"><i class="fas fa-clock"></i></span>
+            <div class="info-box-content">
+                <span class="info-box-text">متأخرة</span>
+                <span class="info-box-number">{{ stats.overdue }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-warning text-white">
+        <h3 class="card-title"><i class="fas fa-filter"></i> تصفية</h3>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="form-inline">
+            <div class="form-group mx-2">
+                <label class="mr-2">الحالة:</label>
+                <select name="status" class="form-control">
+                    <option value="">الكل</option>
+                    <option value="PENDING" {% if selected_status == 'PENDING' %}selected{% endif %}>معلق</option>
+                    <option value="ASSIGNED" {% if selected_status == 'ASSIGNED' %}selected{% endif %}>مسندة</option>
+                    <option value="IN_PROGRESS" {% if selected_status == 'IN_PROGRESS' %}selected{% endif %}>قيد العمل</option>
+                    <option value="ON_HOLD" {% if selected_status == 'ON_HOLD' %}selected{% endif %}>معلقة</option>
+                    <option value="REVIEW" {% if selected_status == 'REVIEW' %}selected{% endif %}>مراجعة</option>
+                    <option value="COMPLETED" {% if selected_status == 'COMPLETED' %}selected{% endif %}>مكتملة</option>
+                    <option value="CANCELLED" {% if selected_status == 'CANCELLED' %}selected{% endif %}>ملغاة</option>
+                </select>
+            </div>
+            <div class="form-group mx-2">
+                <label class="mr-2">الفريق:</label>
+                <select name="team" class="form-control">
+                    <option value="">الكل</option>
+                    {% for team in teams %}
+                    <option value="{{ team.id }}" {% if selected_team == team.id %}selected{% endif %}>
+                        {{ team.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary mx-2">
+                <i class="fas fa-filter"></i> تصفية
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-3">
+    <div class="card-header bg-info text-white">
+        <h3 class="card-title"><i class="fas fa-list"></i> قائمة المهام</h3>
+        <div class="card-tools">
+            <button class="btn btn-tool btn-light" onclick="window.print()">
+                <i class="fas fa-print"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>رقم المهمة</th>
+                    <th>العنوان</th>
+                    <th>النوع</th>
+                    <th>الأولوية</th>
+                    <th>الحالة</th>
+                    <th>الفريق</th>
+                    <th>المسؤول</th>
+                    <th>موعد البدء</th>
+                    <th>موعد الانتهاء</th>
+                    <th>الساعات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for task in tasks %}
+                <tr>
+                    <td>{{ task.task_number }}</td>
+                    <td>{{ task.title }}</td>
+                    <td>{{ task.task_type }}</td>
+                    <td>
+                        <span class="badge badge-{% if task.priority == 'CRITICAL' %}danger{% elif task.priority == 'URGENT' %}warning{% elif task.priority == 'HIGH' %}info{% else %}secondary{% endif %}">
+                            {{ task.priority }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge badge-{% if task.status == 'COMPLETED' %}success{% elif task.status == 'IN_PROGRESS' %}primary{% elif task.status == 'CANCELLED' %}danger{% else %}secondary{% endif %}">
+                            {{ task.status }}
+                        </span>
+                    </td>
+                    <td>{{ task.assigned_team.name if task.assigned_team else '-' }}</td>
+                    <td>{{ task.assigned_to.name if task.assigned_to else '-' }}</td>
+                    <td>{{ task.scheduled_start.strftime('%Y-%m-%d') if task.scheduled_start else '-' }}</td>
+                    <td>{{ task.scheduled_end.strftime('%Y-%m-%d') if task.scheduled_end else '-' }}</td>
+                    <td>{{ task.estimated_hours }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+</section>
+{% endblock %}
+

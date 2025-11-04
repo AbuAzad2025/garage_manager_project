@@ -43,25 +43,25 @@
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link text-white" href="/security/ledger-control">
-                                <i class="fas fa-tachometer-alt me-2"></i>
+                                <i class="fas fa-tachometer-alt ml-2"></i>
                                 لوحة التحكم
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-white" href="/reports/financial">
-                                <i class="fas fa-chart-line me-2"></i>
+                                <i class="fas fa-chart-line ml-2"></i>
                                 التقارير المالية
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-white" href="/validation/accounting">
-                                <i class="fas fa-check-circle me-2"></i>
+                                <i class="fas fa-check-circle ml-2"></i>
                                 التحقق المحاسبي
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-white active" href="/docs/accounting">
-                                <i class="fas fa-book me-2"></i>
+                                <i class="fas fa-book ml-2"></i>
                                 التوثيق المحاسبي
                             </a>
                         </li>
@@ -73,7 +73,7 @@
             <div class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">
-                        <i class="fas fa-book text-info me-2"></i>
+                        <i class="fas fa-book text-info ml-2"></i>
                         التوثيق المحاسبي
                     </h1>
                 </div>
@@ -344,7 +344,7 @@
                             <div class="card h-100">
                                 <div class="card-header">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                        <i class="fas fa-check-circle text-success ml-2"></i>
                                         ${policy.title}
                                     </h6>
                                 </div>
@@ -390,7 +390,7 @@
                             <div class="card h-100">
                                 <div class="card-header">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-tools text-danger me-2"></i>
+                                        <i class="fas fa-tools text-danger ml-2"></i>
                                         ${procedure.title}
                                     </h6>
                                 </div>
@@ -403,13 +403,13 @@
                                     ` : ''}
                                     ${procedure.auto_fix ? `
                                         <div class="alert alert-success mt-2">
-                                            <i class="fas fa-magic me-2"></i>
+                                            <i class="fas fa-magic ml-2"></i>
                                             <strong>الإصلاح التلقائي:</strong> ${procedure.auto_fix}
                                         </div>
                                     ` : ''}
                                     ${procedure.manual_fix ? `
                                         <div class="alert alert-warning mt-2">
-                                            <i class="fas fa-hand-paper me-2"></i>
+                                            <i class="fas fa-hand-paper ml-2"></i>
                                             <strong>الإصلاح اليدوي:</strong> ${procedure.manual_fix}
                                         </div>
                                     ` : ''}
@@ -496,7 +496,7 @@
                             <div class="card h-100">
                                 <div class="card-header bg-${level === 'green' ? 'success' : level === 'yellow' ? 'warning' : 'danger'} text-white">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-circle me-2"></i>
+                                        <i class="fas fa-circle ml-2"></i>
                                         ${indicator.description}
                                     </h6>
                                 </div>
@@ -520,7 +520,7 @@
                             <div class="card h-100">
                                 <div class="card-header">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-calendar-alt me-2"></i>
+                                        <i class="fas fa-calendar-alt ml-2"></i>
                                         ${period === 'daily' ? 'يومياً' : period === 'weekly' ? 'أسبوعياً' : 'شهرياً'}
                                     </h6>
                                 </div>
@@ -539,7 +539,7 @@
                         <div class="card">
                             <div class="card-header">
                                 <h6 class="mb-0">
-                                    <i class="fas fa-question-circle me-2"></i>
+                                    <i class="fas fa-question-circle ml-2"></i>
                                     استكشاف الأخطاء وإصلاحها
                                 </h6>
                             </div>
@@ -575,7 +575,7 @@
             
             docBody.innerHTML = `
                 <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <i class="fas fa-exclamation-triangle ml-2"></i>
                     ${message}
                 </div>
             `;

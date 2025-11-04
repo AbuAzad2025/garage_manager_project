@@ -84,7 +84,7 @@
       <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
         <i class="fas fa-print"></i> طباعة
       </button>
-      <button type="button" class="btn btn-outline-primary btn-sm" id="btn-export">
+      <button type="button" class="btn btn-outline-primary btn-sm" id="btn-export" onclick="exportTableToCSV('top_products_report.csv')">
         <i class="fas fa-file-csv"></i> تصدير CSV
       </button>
     </div>
@@ -107,7 +107,7 @@
       </div>
       <div class="col-12 col-md-2">
         <label class="form-label">{{ FIELD_LABELS.get("warehouse", "المستودع") }}</label>
-        <select class="form-select" name="warehouse_id" {% if not can_group_by_warehouse %}disabled title="لا يتوفر ربط بالمستودع في هذا المخطط"{% endif %}>
+        <select class="custom-select" name="warehouse_id" {% if not can_group_by_warehouse %}disabled title="لا يتوفر ربط بالمستودع في هذا المخطط"{% endif %}>
           <option value="">الكل</option>
           {% for w in warehouses %}
           <option value="{{ w.id }}" {% if selected_warehouse_id and w.id == selected_warehouse_id %}selected{% endif %}>{{ w.name }}</option>

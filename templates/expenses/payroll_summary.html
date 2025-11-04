@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% block title %}تقرير الرواتب السنوي{% endblock %}
+{% block page_title %}تقرير الرواتب السنوي - Payroll Report{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.report-card {
+  border-radius: 12px;
+  border: none;
+  transition: all 0.3s ease;
+}
+.report-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+.month-row:hover {
+  background: #f8f9fa;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="row mb-3">
+    <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.list_expenses') }}"><i class="fas fa-wallet"></i> النفقات</a></li>
+          <li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.payroll_monthly') }}"><i class="fas fa-users"></i> كشف الرواتب</a></li>
+          <li class="breadcrumb-item active">التقرير السنوي</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="alert alert-info border-0 shadow-sm mb-4">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-chart-line fa-2x ml-3"></i>
+      <div>
+        <strong>تقرير الرواتب السنوي:</strong> ملخص شامل لجميع رواتب الموظفين خلال السنة
+        <br><small>تحليل شهري مع رسوم بيانية توضيحية</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card report-card shadow-sm">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-calendar-check"></i> السنة</h6>
+          <select id="yearSelect" class="form-control" onchange="changeYear()">
+            {% for y in range(2020, 2031) %}
+            <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card report-card shadow-sm" style="border-left: 4px solid #28a745;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-coins"></i> إجمالي الرواتب السنوية</h6>
+          <h2 class="mb-0 text-success">{{ summary.year_total|number_format }} ₪</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card report-card shadow-sm" style="border-left: 4px solid #17a2b8;">
+        <div class="card-body">
+          <h6 class="text-muted mb-2"><i class="fas fa-calculator"></i> المتوسط الشهري</h6>
+          <h2 class="mb-0 text-info">{{ summary.avg_monthly|number_format }} ₪</h2>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-8">
+      <div class="card report-card shadow">
+        <div class="card-header bg-gradient-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-bar"></i> الرسم البياني الشهري</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="payrollChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card report-card shadow">
+        <div class="card-header bg-white">
+          <h5 class="mb-0"><i class="fas fa-list"></i> البيانات الشهرية</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th>الشهر</th>
+                  <th>الموظفين</th>
+                  <th>المبلغ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for data in monthly_data %}
+                <tr class="month-row">
+                  <td><strong>{{ data.month }}</strong></td>
+                  <td><i class="fas fa-users text-primary"></i> {{ data.employee_count }}</td>
+                  <td><strong class="text-success">{{ data.total_paid|number_format }} ₪</strong></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <div class="card report-card shadow">
+        <div class="card-header bg-white">
+          <h5 class="mb-0"><i class="fas fa-table"></i> جدول تفصيلي شهري</h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th>الشهر</th>
+                  <th>عدد الموظفين</th>
+                  <th>إجمالي الرواتب</th>
+                  <th>الإجراءات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for data in monthly_data %}
+                <tr>
+                  <td><strong><i class="fas fa-calendar"></i> {{ data.month }}/{{ year }}</strong></td>
+                  <td><span class="badge badge-primary">{{ data.employee_count }} موظف</span></td>
+                  <td><strong class="text-success">{{ data.total_paid|number_format }} ₪</strong></td>
+                  <td>
+                    <a href="{{ url_for('expenses_bp.payroll_monthly', month=data.month, year=year) }}" class="btn btn-sm btn-outline-primary">
+                      <i class="fas fa-eye"></i> عرض الكشف
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot class="bg-light">
+                <tr>
+                  <th>الإجمالي</th>
+                  <th>{{ summary.months_paid }} شهر</th>
+                  <th><strong class="text-success">{{ summary.year_total|number_format }} ₪</strong></th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function changeYear() {
+  const year = document.getElementById('yearSelect').value;
+  window.location.href = `{{ url_for('expenses_bp.payroll_summary') }}?year=${year}`;
+}
+
+const ctx = document.getElementById('payrollChart');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+    ],
+    datasets: [{
+      label: 'الرواتب (₪)',
+      data: [{% for data in monthly_data %}{{ data.total_paid }}{% if not loop.last %},{% endif %}{% endfor %}],
+      backgroundColor: 'rgba(54, 162, 235, 0.6)',
+      borderColor: 'rgba(54, 162, 235, 1)',
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: function(value) {
+            return value.toLocaleString() + ' ₪';
+          }
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top'
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return context.parsed.y.toLocaleString() + ' ₪';
+          }
+        }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}
+

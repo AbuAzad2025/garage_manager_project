@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% block title %}كشف الرواتب الشهري{% endblock %}
+{% block page_title %}كشف الرواتب الشهري - Payroll{% endblock %}
+
+{% block head_extra %}
+<style>
+.payroll-card {
+  border-radius: 12px;
+  border: none;
+  transition: all 0.3s ease;
+}
+.payroll-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+}
+.stat-box {
+  border-left: 4px solid;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+.paid-badge {
+  background: #d4edda;
+  color: #155724;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.unpaid-badge {
+  background: #fff3cd;
+  color: #856404;
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <div class="row mb-3">
+    <div class="col">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item"><a href="{{ url_for('expenses_bp.list_expenses') }}"><i class="fas fa-wallet"></i> النفقات</a></li>
+          <li class="breadcrumb-item active">كشف الرواتب</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="alert alert-primary border-0 shadow-sm mb-4">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-users fa-2x ml-3"></i>
+      <div>
+        <strong>كشف الرواتب الشهري:</strong> عرض جميع رواتب الموظفين في شهر واحد
+        <br><small>يمكنك توليد جميع الرواتب دفعة واحدة</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card payroll-card shadow-sm stat-box" style="border-left-color: #17a2b8;">
+        <h6 class="text-muted mb-2"><i class="fas fa-users"></i> عدد الموظفين</h6>
+        <h2 class="mb-0 text-info">{{ summary.employee_count }}</h2>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card payroll-card shadow-sm stat-box" style="border-left-color: #28a745;">
+        <h6 class="text-muted mb-2"><i class="fas fa-coins"></i> الرواتب الأساسية</h6>
+        <h2 class="mb-0 text-success">{{ summary.total_base|number_format }} ₪</h2>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card payroll-card shadow-sm stat-box" style="border-left-color: #ffc107;">
+        <h6 class="text-muted mb-2"><i class="fas fa-minus-circle"></i> الخصومات والسلف</h6>
+        <h2 class="mb-0 text-warning">{{ (summary.total_deductions + summary.total_advances)|number_format }} ₪</h2>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card payroll-card shadow-sm stat-box" style="border-left-color: #dc3545;">
+        <h6 class="text-muted mb-2"><i class="fas fa-hand-holding-usd"></i> الصافي المستحق</h6>
+        <h2 class="mb-0 text-danger">{{ summary.total_net|number_format }} ₪</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="card payroll-card shadow">
+    <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> كشف الرواتب - 
+        <select id="monthSelect" class="form-control d-inline-block w-auto ml-2" onchange="changeMonth()" style="color: #333;">
+          {% for m in range(1, 13) %}
+          <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}</option>
+          {% endfor %}
+        </select>
+        /
+        <select id="yearSelect" class="form-control d-inline-block w-auto" onchange="changeMonth()" style="color: #333;">
+          {% for y in range(2020, 2031) %}
+          <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </h5>
+      <div>
+        <button class="btn btn-light" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+        <button class="btn btn-success" onclick="generateAll()"><i class="fas fa-play"></i> توليد الكل</button>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th>#</th>
+              <th>اسم الموظف</th>
+              <th>الراتب الأساسي</th>
+              <th>الخصومات</th>
+              <th>التأمينات</th>
+              <th>الضرائب</th>
+              <th>السلف</th>
+              <th>الصافي</th>
+              <th>الحالة</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for data in payroll_data %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td><strong><i class="fas fa-user-circle text-primary"></i> {{ data.employee.name }}</strong></td>
+              <td>{{ data.base_salary|number_format }} ₪</td>
+              <td class="text-danger">-{{ data.deductions|number_format }} ₪</td>
+              <td class="text-warning">-{{ data.social_insurance|number_format }} ₪</td>
+              <td class="text-warning">-{{ data.income_tax|number_format }} ₪</td>
+              <td class="text-info">-{{ data.advances|number_format }} ₪</td>
+              <td><strong class="text-success">{{ data.net_salary|number_format }} ₪</strong></td>
+              <td>
+                {% if data.already_paid %}
+                <span class="paid-badge"><i class="fas fa-check-circle"></i> مدفوع</span>
+                {% else %}
+                <span class="unpaid-badge"><i class="fas fa-clock"></i> معلق</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{{ url_for('expenses_bp.employee_statement', emp_id=data.employee.id) }}" class="btn btn-sm btn-outline-info" title="كشف الحساب">
+                  <i class="fas fa-file-alt"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="bg-light">
+            <tr>
+              <th colspan="2">الإجمالي</th>
+              <th>{{ summary.total_base|number_format }} ₪</th>
+              <th class="text-danger">-{{ summary.total_deductions|number_format }} ₪</th>
+              <th>-</th>
+              <th>-</th>
+              <th class="text-info">-{{ summary.total_advances|number_format }} ₪</th>
+              <th><strong class="text-success">{{ summary.total_net|number_format }} ₪</strong></th>
+              <th colspan="2"></th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal fade" id="generateModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fas fa-play"></i> توليد جميع الرواتب</h5>
+        <button type="button" class="close text-white" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+      <form method="post" action="{{ url_for('expenses_bp.generate_all_salaries') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-body">
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> سيتم توليد جميع الرواتب للشهر المحدد (سيتم تخطي المدفوعة مسبقاً)
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-calendar"></i> الشهر <span class="text-danger">*</span></label>
+            <input type="number" name="month" class="form-control" value="{{ month }}" min="1" max="12" required>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-calendar"></i> السنة <span class="text-danger">*</span></label>
+            <input type="number" name="year" class="form-control" value="{{ year }}" min="2020" max="2030" required>
+          </div>
+          <div class="form-group">
+            <label><i class="fas fa-calendar-check"></i> تاريخ الدفع <span class="text-danger">*</span></label>
+            <input type="date" name="payment_date" class="form-control" value="{{ now().strftime('%Y-%m-%d') }}" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-success"><i class="fas fa-play"></i> تأكيد التوليد</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function changeMonth() {
+  const month = document.getElementById('monthSelect').value;
+  const year = document.getElementById('yearSelect').value;
+  window.location.href = `{{ url_for('expenses_bp.payroll_monthly') }}?month=${month}&year=${year}`;
+}
+
+function generateAll() {
+  $('#generateModal').modal('show');
+}
+
+function exportExcel() {
+  alert('جاري تصدير Excel...');
+}
+</script>
+{% endblock %}
+

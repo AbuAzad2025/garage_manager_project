@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% block title %}{{ project.name }} - المحطات{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-flag-checkered"></i> محطات المشروع: {{ project.name }}</h1>
+            </div>
+            <div class="col-sm-6">
+                <button class="btn btn-primary float-left" data-toggle="modal" data-target="#addMilestoneModal">
+                    <i class="fas fa-plus"></i> إضافة محطة
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="info-box bg-info">
+                    <span class="info-box-icon"><i class="fas fa-flag"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">إجمالي المحطات</span>
+                        <span class="info-box-number">{{ stats.total }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-success">
+                    <span class="info-box-icon"><i class="fas fa-check-circle"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">مكتملة</span>
+                        <span class="info-box-number">{{ stats.completed }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-primary">
+                    <span class="info-box-icon"><i class="fas fa-file-invoice-dollar"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">تم فوترتها</span>
+                        <span class="info-box-number">{{ stats.billed }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-warning">
+                    <span class="info-box-icon"><i class="fas fa-clock"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">متأخرة</span>
+                        <span class="info-box-number">{{ stats.overdue }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>إجمالي الفوترة المتوقعة:</h6>
+                        <h3 class="text-primary">{{ "%.2f"|format(stats.total_billing) }} ₪</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>قيمة الفواتير الصادرة:</h6>
+                        <h3 class="text-success">{{ "%.2f"|format(stats.invoiced) }} ₪</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-flag-checkered"></i> قائمة المحطات</h3>
+                <div class="card-tools">
+                    <button class="btn btn-sm btn-success" onclick="window.print()">
+                        <i class="fas fa-print"></i> طباعة
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>رقم المحطة</th>
+                            <th>الاسم</th>
+                            <th>تاريخ الاستحقاق</th>
+                            <th>تاريخ الإكمال</th>
+                            <th>قيمة الفوترة</th>
+                            <th>نسبة الفوترة</th>
+                            <th>رقم الفاتورة</th>
+                            <th>الحالة</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for milestone in milestones %}
+                        <tr class="{% if milestone.is_overdue %}table-warning{% endif %}">
+                            <td><strong>{{ milestone.milestone_number }}</strong></td>
+                            <td>{{ milestone.name }}</td>
+                            <td>
+                                {{ milestone.due_date.strftime('%Y-%m-%d') }}
+                                {% if milestone.is_overdue %}
+                                <i class="fas fa-exclamation-triangle text-danger"></i>
+                                {% endif %}
+                            </td>
+                            <td>{{ milestone.completed_date.strftime('%Y-%m-%d') if milestone.completed_date else '-' }}</td>
+                            <td>{{ "%.2f"|format(milestone.billing_amount or 0) }} ₪</td>
+                            <td>{{ "%.1f"|format(milestone.billing_percentage or 0) }}%</td>
+                            <td>
+                                {% if milestone.invoice %}
+                                    <a href="{{ url_for('customers_bp.account_statement', customer_id=project.client_id) }}" class="badge badge-success">
+                                        <i class="fas fa-file-invoice"></i> عرض
+                                    </a>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if milestone.status == 'PAID' %}
+                                    <span class="badge badge-success"><i class="fas fa-check-double"></i> مدفوعة</span>
+                                {% elif milestone.status == 'BILLED' %}
+                                    <span class="badge badge-primary"><i class="fas fa-file-invoice"></i> مفوترة</span>
+                                {% elif milestone.status == 'COMPLETED' %}
+                                    <span class="badge badge-info"><i class="fas fa-check"></i> مكتملة</span>
+                                {% elif milestone.status == 'IN_PROGRESS' %}
+                                    <span class="badge badge-warning"><i class="fas fa-spinner"></i> قيد العمل</span>
+                                {% else %}
+                                    <span class="badge badge-secondary"><i class="fas fa-clock"></i> معلقة</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if milestone.status == 'IN_PROGRESS' %}
+                                <form method="POST" action="{{ url_for('project_advanced.complete_milestone', project_id=project.id, milestone_id=milestone.id) }}" style="display:inline;">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('تأكيد إكمال المحطة؟')">
+                                        <i class="fas fa-check"></i> إكمال
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="addMilestoneModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('project_advanced.add_milestone', project_id=project.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header bg-primary">
+                    <h5 class="modal-title"><i class="fas fa-plus"></i> إضافة محطة جديدة</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> اسم المحطة:</label>
+                                <input type="text" name="name" class="form-control" required placeholder="مثال: تسليم المرحلة الأولى">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>المرحلة:</label>
+                                <select name="phase_id" class="form-control">
+                                    <option value="">-- اختر --</option>
+                                    {% for phase in phases %}
+                                    <option value="{{ phase.id }}">{{ phase.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>وصف المحطة:</label>
+                                <textarea name="description" class="form-control" rows="2" placeholder="وصف تفصيلي للمحطة"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><span class="text-danger">*</span> تاريخ الاستحقاق:</label>
+                                <input type="date" name="due_date" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>شروط الدفع (أيام):</label>
+                                <input type="number" name="payment_terms_days" class="form-control" value="30" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>قيمة الفوترة (₪):</label>
+                                <input type="number" name="billing_amount" class="form-control" step="0.01" min="0" value="0" placeholder="القيمة بالشيكل">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>نسبة الفوترة (%):</label>
+                                <input type="number" name="billing_percentage" class="form-control" step="0.1" min="0" max="100" value="0" placeholder="نسبة من قيمة العقد">
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>معايير الإكمال:</label>
+                                <textarea name="completion_criteria" class="form-control" rows="2" placeholder="شروط إكمال المحطة"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>المسلمات (كل سطر = مسلم):</label>
+                                <textarea name="deliverables" class="form-control" rows="3" placeholder="قائمة المسلمات المطلوبة"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="approval_required" class="form-check-input" id="approvalRequired">
+                                <label class="form-check-label" for="approvalRequired">
+                                    تتطلب موافقة قبل الإكمال
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> حفظ
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

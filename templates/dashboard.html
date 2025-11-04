@@ -11,32 +11,31 @@
     <div class="col-12 d-flex flex-wrap gap-2 justify-content-end">
       {% if shop_is_super_admin %}
       <a href="{{ url_for('shop.catalog') }}" target="_blank" class="btn btn-sm text-white fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#667eea,#764ba2)">
-        <i class="fas fa-store me-1"></i> المتجر
+        <i class="fas fa-store ml-1"></i> المتجر
       </a>
       {% endif %}
       {% if shop_is_super_admin or has_perm('backup_database') %}
       <a href="{{ url_for('main.backup_db') }}" class="btn btn-sm text-white fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#43cea2,#185a9d)">
-        <i class="fas fa-database me-1"></i> النسخ الاحتياطي
+        <i class="fas fa-database ml-1"></i> النسخ الاحتياطي
       </a>
       {% endif %}
       {% if shop_is_super_admin %}
       <a href="{{ url_for('main.restore_db') }}" class="btn btn-sm text-dark fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#f7971e,#ffd200)">
-        <i class="fas fa-upload me-1"></i> استعادة النسخ
+        <i class="fas fa-upload ml-1"></i> استعادة النسخ
       </a>
       <button type="button" class="btn btn-sm text-white fw-bold shadow-sm px-3" style="background:linear-gradient(45deg,#11998e,#38ef7d)" onclick="toggleAutomatedBackup()">
-        <i class="fas fa-clock me-1"></i> <span id="backup-toggle-text">نسخ تلقائي</span>
+        <i class="fas fa-clock ml-1"></i> <span id="backup-toggle-text">نسخ تلقائي</span>
       </button>
       {% endif %}
     </div>
   </div>
 
-  <!-- رسوم بيانية تفاعلية -->
   <div class="row g-3 mb-4">
     <div class="col-lg-8">
-      <div class="card border-0 shadow-lg">
-        <div class="card-header border-0 fw-bold" style="background:#e3f2fd; color:#1565c0;">
+      <div class="dashboard-chart-card">
+        <div class="card-header" style="background:#e3f2fd; color:#1565c0;">
           <h5 class="card-title mb-0" style="color:#1565c0;">
-            <i class="fas fa-chart-line me-2"></i>
+            <i class="fas fa-chart-line"></i>
             إحصائيات المبيعات الشهرية
           </h5>
         </div>
@@ -46,10 +45,10 @@
       </div>
     </div>
     <div class="col-lg-4">
-      <div class="card border-0 shadow-lg">
-        <div class="card-header border-0 fw-bold" style="background:#e8f5e9; color:#2e7d32;">
+      <div class="dashboard-chart-card">
+        <div class="card-header" style="background:#e8f5e9; color:#2e7d32;">
           <h5 class="card-title mb-0" style="color:#2e7d32;">
-            <i class="fas fa-chart-pie me-2"></i>
+            <i class="fas fa-chart-pie"></i>
             توزيع العملاء
           </h5>
         </div>
@@ -60,13 +59,12 @@
     </div>
   </div>
 
-  <!-- تنبيهات الشيكات -->
   <div class="row g-3 mb-4" id="check-alerts-section" style="display: none;">
     <div class="col-12">
       <div class="card border-0 shadow-lg border-danger">
         <div class="card-header fw-bold" style="background:#ffebee; color:#c62828;">
           <h5 class="card-title mb-0" style="color:#c62828;">
-            <i class="fas fa-exclamation-triangle me-2"></i>
+            <i class="fas fa-exclamation-triangle ml-2"></i>
             تنبيهات الشيكات العاجلة
           </h5>
         </div>
@@ -82,55 +80,53 @@
     </div>
   </div>
 
-  <!-- بطاقات أساسية -->
   <div class="row g-3 mb-4">
     <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg text-white h-100" style="background:linear-gradient(135deg,#00c6ff,#0072ff)">
+      <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#00c6ff,#0072ff)">
         <div class="card-body d-flex align-items-center justify-content-between">
           <div>
-            <h2 class="fw-bold mb-1">{{ recent_services|length }}</h2>
+            <h2>{{ recent_services|length }}</h2>
             <div class="small">طلبات الصيانة المعلقة</div>
           </div>
-          <i class="fas fa-tools fa-2x opacity-75"></i>
+          <i class="fas fa-tools fa-3x opacity-75"></i>
         </div>
-        <a href="{{ url_for('service.list_requests') }}" class="card-footer text-center fw-semibold text-decoration-none text-white bg-transparent border-0">عرض التفاصيل <i class="fas fa-arrow-circle-left"></i></a>
+        <a href="{{ url_for('service.list_requests') }}" class="card-footer text-center text-decoration-none text-white">عرض التفاصيل <i class="fas fa-arrow-circle-left"></i></a>
       </div>
     </div>
     <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg h-100" style="background:linear-gradient(135deg,#fceabb,#f8b500)">
+      <div class="dashboard-stats-card h-100" style="background:linear-gradient(135deg,#fceabb,#f8b500)">
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
           <i class="fas fa-boxes fa-3x mb-3" style="color:#333;"></i>
-          <h2 class="fw-bold mb-2" style="color:#000;font-size:2.5rem;">{{ low_stock|length }}</h2>
-          <div style="color:#222;font-weight:600;">قطع المخزون المنخفض</div>
+          <h2 style="color:#000;">{{ low_stock|length }}</h2>
+          <div class="small" style="color:#222;">قطع المخزون المنخفض</div>
         </div>
-        <a href="{{ url_for('warehouse_bp.list') }}" class="card-footer text-center fw-semibold text-decoration-none bg-transparent border-0" style="color:#000;">إدارة المستودعات <i class="fas fa-arrow-circle-left"></i></a>
+        <a href="{{ url_for('warehouse_bp.list') }}" class="card-footer text-center text-decoration-none" style="color:#000;">إدارة المستودعات <i class="fas fa-arrow-circle-left"></i></a>
       </div>
     </div>
     <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg text-white h-100" style="background:linear-gradient(135deg,#f00000,#dc281e)">
+      <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#f00000,#dc281e)">
         <div class="card-body d-flex align-items-center justify-content-between">
           <div>
-            <h2 class="fw-bold mb-1">{{ pending_exchanges|default(0) }}</h2>
+            <h2>{{ pending_exchanges|default(0) }}</h2>
             <div class="small">طلبات التبادل المعلقة</div>
           </div>
-          <i class="fas fa-exchange-alt fa-2x opacity-75"></i>
+          <i class="fas fa-exchange-alt fa-3x opacity-75"></i>
         </div>
-        <a href="{{ url_for('shipments_bp.list_shipments') }}" class="card-footer text-center fw-semibold text-decoration-none text-white bg-transparent border-0">عرض التفاصيل <i class="fas fa-arrow-circle-left"></i></a>
+        <a href="{{ url_for('shipments_bp.list_shipments') }}" class="card-footer text-center text-decoration-none text-white">عرض التفاصيل <i class="fas fa-arrow-circle-left"></i></a>
       </div>
     </div>
     <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-lg text-white h-100" style="background:linear-gradient(135deg,#11998e,#38ef7d)">
+      <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#11998e,#38ef7d)">
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
-          <i class="fas fa-shekel-sign fa-3x mb-3" style="color:#fff;opacity:0.9;"></i>
-          <h2 class="fw-bold mb-2" style="color:#fff;font-size:2rem;">{{ today_revenue|default(0)|format_currency }}</h2>
-          <div style="color:#fff;font-weight:600;">إيرادات اليوم (مبيعات)</div>
+          <i class="fas fa-shekel-sign fa-3x mb-3"></i>
+          <h2>{{ today_revenue|default(0)|format_currency }}</h2>
+          <div class="small">إيرادات اليوم (مبيعات)</div>
         </div>
-        <a href="{{ url_for('reports_bp.dynamic_report') }}" class="card-footer text-center fw-semibold text-decoration-none text-white bg-transparent border-0">عرض التقارير <i class="fas fa-arrow-circle-left"></i></a>
+        <a href="{{ url_for('reports_bp.dynamic_report') }}" class="card-footer text-center text-decoration-none text-white">عرض التقارير <i class="fas fa-arrow-circle-left"></i></a>
       </div>
     </div>
   </div>
 
-  <!-- بطاقات التدفقات النقدية - اليوم -->
   <div class="row g-3 mb-4">
     <div class="col-lg-4 col-md-6">
       <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#4facfe,#00f2fe)">
@@ -161,7 +157,6 @@
     </div>
   </div>
 
-  <!-- بطاقات التدفقات النقدية - الأسبوع -->
   <div class="row g-3 mb-4">
     <div class="col-lg-4 col-md-6">
       <div class="card border-0 shadow h-100" style="background:linear-gradient(135deg,#36d1dc,#5b86e5)">
@@ -192,12 +187,11 @@
     </div>
   </div>
 
-  <!-- مخططات -->
   <div class="row g-3 mb-4">
     <div class="col-lg-6">
       <div class="card border-0 shadow-lg h-100">
         <div class="card-header fw-bold" style="background:#fff3e0; color:#e65100;">
-          <i class="fas fa-chart-line me-1"></i> إيرادات الأسبوع (مبيعات)
+          <i class="fas fa-chart-line ml-1"></i> إيرادات الأسبوع (مبيعات)
         </div>
         <div class="card-body" style="height:320px">
           <canvas
@@ -217,7 +211,7 @@
     <div class="col-lg-6">
       <div class="card border-0 shadow-lg h-100">
         <div class="card-header fw-bold" style="background:#e1f5fe; color:#01579b;">
-          <i class="fas fa-tools me-1"></i> طلبات الصيانة الأسبوعية
+          <i class="fas fa-tools ml-1"></i> طلبات الصيانة الأسبوعية
         </div>
         <div class="card-body" style="height:320px">
           <canvas
@@ -238,7 +232,7 @@
     <div class="col-lg-4">
       <div class="card border-0 shadow-lg h-100">
         <div class="card-header fw-bold" style="background:#e0f7fa; color:#006064;">
-          <i class="fas fa-arrow-down me-1"></i> وارد الأسبوع
+          <i class="fas fa-arrow-down ml-1"></i> وارد الأسبوع
         </div>
         <div class="card-body" style="height:260px">
           <canvas
@@ -257,7 +251,7 @@
     <div class="col-lg-4">
       <div class="card border-0 shadow-lg h-100">
         <div class="card-header fw-bold" style="background:#fce4ec; color:#880e4f;">
-          <i class="fas fa-arrow-up me-1"></i> صادر الأسبوع
+          <i class="fas fa-arrow-up ml-1"></i> صادر الأسبوع
         </div>
         <div class="card-body" style="height:260px">
           <canvas
@@ -276,7 +270,7 @@
     <div class="col-lg-4">
       <div class="card border-0 shadow-lg h-100">
         <div class="card-header fw-bold" style="background:#f1f8e9; color:#33691e;">
-          <i class="fas fa-equals me-1"></i> صافي الأسبوع
+          <i class="fas fa-equals ml-1"></i> صافي الأسبوع
         </div>
         <div class="card-body" style="height:260px">
           <canvas
@@ -292,15 +286,14 @@
     </div>
   </div>
 
-  <!-- آخر 5 طلبات صيانة -->
-  <div class="card border-0 shadow-lg">
-    <div class="card-header fw-bold" style="background:#eceff1; color:#263238;">
-      <i class="fas fa-history me-1"></i> آخر 5 طلبات صيانة
+  <div class="dashboard-table">
+    <div class="card-header" style="background:#eceff1; color:#263238;">
+      <i class="fas fa-history"></i> آخر 5 طلبات صيانة
     </div>
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle text-center">
-          <thead class="text-white" style="background:linear-gradient(45deg,#0f2027,#203a43,#2c5364)">
+          <thead>
             <tr>
               <th>رقم الطلب</th>
               <th>السيارة</th>
@@ -317,8 +310,8 @@
               <td><span class="badge bg-gradient-info text-dark">{{ s.status_label or s.status }}</span></td>
               <td>{{ s.started_at|default('')|format_date }}</td>
               <td class="d-flex gap-2 justify-content-center">
-                <a href="{{ url_for('service.view_request', rid=s.id) }}" class="btn btn-sm text-white shadow-sm" style="background:linear-gradient(45deg,#667eea,#764ba2)"><i class="fas fa-eye"></i> عرض</a>
-                <a href="{{ url_for('service.view_receipt', rid=s.id) }}" target="_blank" class="btn btn-sm text-white shadow-sm" style="background:linear-gradient(45deg,#36d1dc,#5b86e5)"><i class="fas fa-file-pdf"></i> تقرير</a>
+                <a href="{{ url_for('service.view_request', rid=s.id) }}" class="dashboard-btn text-white" style="background:linear-gradient(45deg,#667eea,#764ba2)"><i class="fas fa-eye"></i> عرض</a>
+                <a href="{{ url_for('service.view_receipt', rid=s.id) }}" target="_blank" class="dashboard-btn text-white" style="background:linear-gradient(45deg,#36d1dc,#5b86e5)"><i class="fas fa-file-pdf"></i> تقرير</a>
               </td>
             </tr>
             {% else %}
@@ -436,7 +429,7 @@ function loadCheckAlerts() {
                 const alertHtml = `
                     <div class="check-alert-item ${alertClass}" onclick="window.location.href='${alert.link}'">
                         <div class="d-flex align-items-center">
-                            <i class="${iconClass} fa-2x me-3"></i>
+                            <i class="${iconClass} fa-2x ml-3"></i>
                             <div class="flex-grow-1">
                                 <h6 class="mb-1 fw-bold">${alert.title}</h6>
                                 <p class="mb-0 small">${alert.message}</p>

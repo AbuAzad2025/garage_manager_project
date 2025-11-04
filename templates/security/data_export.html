@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}تصدير البيانات{% endblock %}
-{% block page_title %}📤 تصدير البيانات{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}data_export{% endblock %}
+{% block security_title %}Data Export{% endblock %}
+{% block security_icon %}<i class="fas fa-file-export"></i>{% endblock %}
+{% block security_description %}تصدير أي جدول إلى CSV أو Excel{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Data Export</li>{% endblock %}
+{% block security_content %}
   
   <div class="card">
     <div class="card-header bg-success text-white">

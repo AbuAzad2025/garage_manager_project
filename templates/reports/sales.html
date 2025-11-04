@@ -1,157 +1,293 @@
-{# templates/reports/sales.html #}
 {% extends 'reports/_base.html' %}
-{% block title %}{{ FIELD_LABELS.get("sales", "المبيعات") }}{% endblock %}
-{% block page_title %}{{ FIELD_LABELS.get("sales_by_day", "مبيعات حسب اليوم") }}{% endblock %}
 
+{% block page_title %}تقرير المبيعات الشامل{% endblock %}
 {% block reports_breadcrumb_extra %}
-<li class="breadcrumb-item active">{{ FIELD_LABELS.get("sales", "المبيعات") }}</li>
+<li class="breadcrumb-item active">تقرير المبيعات</li>
 {% endblock %}
 
 {% block report_content %}
 <div class="container-fluid" dir="rtl">
 
-  <!-- العنوان وزر الطباعة -->
-  <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
-    <h4 class="fw-bold m-0">
-      <i class="fas fa-chart-line"></i>
-      {{ FIELD_LABELS.get("sales_by_day", "مبيعات حسب اليوم") }}
-    </h4>
-    <button type="button" class="btn btn-outline-primary btn-sm" id="btn-print">
-      <i class="fas fa-print"></i> طباعة
-    </button>
-  </div>
-
-  <!-- بطاقة الفلاتر -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-header bg-primary text-white">
-      <i class="fas fa-calendar-alt"></i> {{ FIELD_LABELS.get("date_range", "نطاق التاريخ") }}
-    </div>
-    <div class="card-body">
-      <form class="row g-3" method="get" action="{{ url_for('reports_bp.sales') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">
-            <i class="fas fa-calendar-check"></i> {{ FIELD_LABELS.get("start_date", "تاريخ البداية") }}
-          </label>
-          <input type="date" name="start" value="{{ start or '' }}" class="form-control">
-          <small class="text-muted">اترك فارغاً لعرض جميع المبيعات من البداية</small>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">
-            <i class="fas fa-calendar-times"></i> {{ FIELD_LABELS.get("end_date", "تاريخ النهاية") }}
-          </label>
-          <input type="date" name="end" value="{{ end or '' }}" class="form-control">
-          <small class="text-muted">اترك فارغاً لعرض جميع المبيعات حتى اليوم</small>
-        </div>
-        <div class="col-md-4 align-self-end">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="fas fa-sync-alt"></i> {{ FIELD_LABELS.get("refresh", "تحديث التقرير") }}
-          </button>
-          {% if start or end %}
-          <a href="{{ url_for('reports_bp.sales') }}" class="btn btn-outline-secondary w-100 mt-2">
-            <i class="fas fa-times"></i> إلغاء الفلتر
-          </a>
-          {% endif %}
-        </div>
-      </form>
+<div class="mb-3">
+  <h4 class="fw-bold m-0"><i class="fas fa-shopping-cart"></i> تقرير المبيعات الشامل</h4>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-2">
+    <div class="card summary-card border-primary h-100">
+      <div class="card-body text-center">
+        <div class="text-primary mb-2"><i class="fas fa-shopping-cart fa-2x"></i></div>
+        <h3 class="mb-0 text-primary">{{ summary.total_sales }}</h3>
+        <small class="text-muted">عدد المبيعات</small>
+      </div>
     </div>
   </div>
-
-  <!-- ملخصات إحصائية -->
-  {% if daily_labels %}
-  {% set avg_daily = (total_revenue / daily_labels|length) if daily_labels else 0 %}
-  {% set max_daily = daily_values|max if daily_values else 0 %}
-  {% set min_daily = daily_values|min if daily_values else 0 %}
   
-  <div class="row g-3 mb-4">
-    <div class="col-md-3">
-      <div class="card shadow-sm border-success">
-        <div class="card-body text-center">
-          <div class="text-success mb-2"><i class="fas fa-dollar-sign fa-2x"></i></div>
-          <h5 class="text-success mb-0">{{ "{:,.2f}".format(total_revenue) }}</h5>
-          <small class="text-muted">إجمالي الإيرادات</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card shadow-sm border-primary">
-        <div class="card-body text-center">
-          <div class="text-primary mb-2"><i class="fas fa-calendar-day fa-2x"></i></div>
-          <h5 class="text-primary mb-0">{{ "{:,.2f}".format(avg_daily) }}</h5>
-          <small class="text-muted">متوسط المبيعات اليومية</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card shadow-sm border-info">
-        <div class="card-body text-center">
-          <div class="text-info mb-2"><i class="fas fa-arrow-up fa-2x"></i></div>
-          <h5 class="text-info mb-0">{{ "{:,.2f}".format(max_daily) }}</h5>
-          <small class="text-muted">أعلى يوم مبيعات</small>
-        </div>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card shadow-sm border-warning">
-        <div class="card-body text-center">
-          <div class="text-warning mb-2"><i class="fas fa-arrow-down fa-2x"></i></div>
-          <h5 class="text-warning mb-0">{{ "{:,.2f}".format(min_daily) }}</h5>
-          <small class="text-muted">أقل يوم مبيعات</small>
-        </div>
+  <div class="col-md-2">
+    <div class="card summary-card border-success h-100">
+      <div class="card-body text-center">
+        <div class="text-success mb-2"><i class="fas fa-dollar-sign fa-2x"></i></div>
+        <h5 class="mb-0 text-success">{{ "{:,.2f}".format(summary.total_revenue) }} ₪</h5>
+        <small class="text-muted">إجمالي الإيرادات</small>
       </div>
     </div>
   </div>
-  {% endif %}
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-info h-100">
+      <div class="card-body text-center">
+        <div class="text-info mb-2"><i class="fas fa-chart-line fa-2x"></i></div>
+        <h5 class="mb-0 text-info">{{ "{:,.2f}".format(summary.avg_sale) }} ₪</h5>
+        <small class="text-muted">متوسط الفاتورة</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-warning h-100">
+      <div class="card-body text-center">
+        <div class="text-warning mb-2"><i class="fas fa-boxes fa-2x"></i></div>
+        <h3 class="mb-0 text-warning">{{ summary.total_items }}</h3>
+        <small class="text-muted">عدد الأصناف</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-danger h-100">
+      <div class="card-body text-center">
+        <div class="text-danger mb-2"><i class="fas fa-cubes fa-2x"></i></div>
+        <h3 class="mb-0 text-danger">{{ summary.total_quantity }}</h3>
+        <small class="text-muted">إجمالي الكميات</small>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-2">
+    <div class="card summary-card border-secondary h-100">
+      <div class="card-body text-center">
+        <div class="text-secondary mb-2"><i class="fas fa-star fa-2x"></i></div>
+        <h5 class="mb-0">{{ "{:,.2f}".format(summary.avg_item_value) }} ₪</h5>
+        <small class="text-muted">متوسط قيمة الصنف</small>
+      </div>
+    </div>
+  </div>
+</div>
 
-  <!-- جدول المبيعات -->
-  <div class="card shadow-sm">
-    <div class="card-header">{{ FIELD_LABELS.get("sales_table", "جدول المبيعات") }}</div>
-    <div class="card-body">
-      {% if not daily_labels %}
-        <div class="alert alert-info m-0">لا توجد بيانات لعرضها.</div>
-      {% else %}
-      <div class="table-responsive">
-        <table id="report-table" class="table table-bordered table-striped align-middle">
-          <thead class="table-dark">
-            <tr>
-              <th>{{ FIELD_LABELS.get("sale_date", "اليوم") }}</th>
-              <th class="text-end">{{ FIELD_LABELS.get("total_amount", "الإيراد") }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for d in daily_labels %}
-              {% set i = loop.index0 %}
-              {% set v = (daily_values[i] if i < (daily_values|length) else 0) %}
-              <tr>
-                <td class="text-center">{{ d }}</td>
-                <td class="text-end {{ 'positive' if v < 0 else 'negative' if v > 0 else 'zero' }}">
-                  {{ "{:,.2f}".format(v) }}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-          <tfoot class="fw-bold table-light">
-            <tr>
-              <th>{{ FIELD_LABELS.get("grand_total", "الإجمالي") }}</th>
-              <th class="text-end {{ 'positive' if total_revenue < 0 else 'negative' if total_revenue > 0 else 'zero' }}">
-                {{ "{:,.2f}".format(total_revenue) }}
-              </th>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-      {% endif %}
-    </div>
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-info text-white">
+    <i class="fas fa-filter"></i> فلاتر التقرير
   </div>
+  <div class="card-body">
+    <form method="get" class="row g-3">
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-calendar"></i> من تاريخ</label>
+  <input type="date" name="start_date" value="{{ request.args.get('start_date', '') }}" class="form-control">
+</div>
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-calendar"></i> إلى تاريخ</label>
+  <input type="date" name="end_date" value="{{ request.args.get('end_date', '') }}" class="form-control">
+</div>
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-user"></i> العميل</label>
+  <select name="customer_id" class="form-select">
+    <option value="">جميع العملاء</option>
+    {% for cust in all_customers %}
+    <option value="{{ cust.id }}" {% if request.args.get('customer_id') == cust.id|string %}selected{% endif %}>{{ cust.name }}</option>
+    {% endfor %}
+  </select>
+</div>
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-tag"></i> الحالة</label>
+  <select name="status" class="form-select">
+    <option value="">جميع الحالات</option>
+    <option value="CONFIRMED" {% if request.args.get('status') == 'CONFIRMED' %}selected{% endif %}>مؤكد</option>
+    <option value="PENDING" {% if request.args.get('status') == 'PENDING' %}selected{% endif %}>معلق</option>
+    <option value="CANCELLED" {% if request.args.get('status') == 'CANCELLED' %}selected{% endif %}>ملغي</option>
+  </select>
+</div>
+<div class="col-md-12">
+  <button type="submit" class="btn btn-primary">
+    <i class="fas fa-sync-alt"></i> تحديث
+  </button>
+  <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+    <i class="fas fa-print"></i> طباعة
+  </button>
+</div>
+</form>
+</div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-success text-white">
+    <h5 class="mb-0"><i class="fas fa-list"></i> قائمة المبيعات التفصيلية</h5>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped table-hover" id="salesTable">
+        <thead class="table-dark">
+<tr>
+  <th class="text-center">#</th>
+  <th>رقم الفاتورة</th>
+  <th>التاريخ</th>
+  <th>العميل</th>
+  <th class="text-center">عدد الأصناف</th>
+  <th class="text-end">الإجمالي</th>
+  <th class="text-center">الحالة</th>
+  <th class="text-center">المستخدم</th>
+  <th class="text-center no-print">إجراءات</th>
+</tr>
+</thead>
+<tbody>
+{% for sale in sales %}
+<tr>
+  <td class="text-center">{{ loop.index }}</td>
+  <td>
+    <strong>{{ sale.sale_number }}</strong>
+  </td>
+  <td>
+    {{ sale.sale_date.strftime('%Y-%m-%d %H:%M') if sale.sale_date else '-' }}
+  </td>
+  <td>
+    {% if sale.customer %}
+    <strong>{{ sale.customer.name }}</strong>
+    {% if sale.customer.phone %}
+    <br><small class="text-muted"><i class="fas fa-phone"></i> {{ sale.customer.phone }}</small>
+    {% endif %}
+    {% else %}
+    <span class="text-muted">بدون عميل</span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    <span class="badge bg-info">{{ sale.lines|length }}</span>
+  </td>
+  <td class="text-end">
+    <strong>{{ "{:,.2f}".format(sale.total_amount) }} ₪</strong>
+  </td>
+  <td class="text-center">
+    {% if sale.status.value == 'CONFIRMED' %}
+    <span class="badge bg-success">مؤكد</span>
+    {% elif sale.status.value == 'PENDING' %}
+    <span class="badge bg-warning">معلق</span>
+    {% elif sale.status.value == 'CANCELLED' %}
+    <span class="badge bg-danger">ملغي</span>
+    {% else %}
+    <span class="badge bg-secondary">{{ sale.status.value }}</span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    {% if sale.created_by %}
+    <small>{{ sale.created_by }}</small>
+    {% else %}
+    <span class="text-muted">-</span>
+    {% endif %}
+  </td>
+  <td class="text-center no-print">
+    <a href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}" 
+       class="btn btn-info btn-sm" 
+       title="التفاصيل">
+      <i class="fas fa-eye"></i>
+    </a>
+  </td>
+</tr>
+{% endfor %}
+{% if not sales %}
+<tr>
+  <td colspan="9" class="text-center text-muted">لا توجد بيانات</td>
+</tr>
+{% endif %}
+</tbody>
+<tfoot>
+<tr class="table-success fw-bold">
+  <td colspan="4" class="text-center">الإجماليات</td>
+  <td class="text-center">{{ summary.total_items }}</td>
+  <td class="text-end">{{ "{:,.2f}".format(summary.total_revenue) }} ₪</td>
+  <td colspan="3"></td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+</div>
 
 </div>
+<div class="row g-3 mt-4">
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-chart-line"></i> المبيعات اليومية</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="dailySalesChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-trophy"></i> أفضل 5 منتجات</h5>
+      </div>
+      <div class="card-body">
+        <canvas id="topProductsChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
-  document.getElementById('btn-print')?.addEventListener('click', function () {
-    window.print();
-  });
+document.addEventListener('DOMContentLoaded', function() {
+  const dailyCtx = document.getElementById('dailySalesChart');
+  if (dailyCtx && typeof Chart !== 'undefined') {
+    new Chart(dailyCtx, {
+      type: 'line',
+      data: {
+        labels: [{% for d in daily_sales %}'{{ d.date }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          label: 'المبيعات',
+          data: [{% for d in daily_sales %}{{ d.total }}{% if not loop.last %},{% endif %}{% endfor %}],
+          borderColor: '#007bff',
+          backgroundColor: 'rgba(0, 123, 255, 0.1)',
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+
+  const topProductsCtx = document.getElementById('topProductsChart');
+  if (topProductsCtx && typeof Chart !== 'undefined') {
+    new Chart(topProductsCtx, {
+      type: 'bar',
+      data: {
+        labels: [{% for p in top_products %}'{{ p.name }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+          label: 'الكمية المباعة',
+          data: [{% for p in top_products %}{{ p.quantity }}{% if not loop.last %},{% endif %}{% endfor %}],
+          backgroundColor: '#28a745'
+        }]
+      },
+      options: {
+        responsive: true,
+        indexAxis: 'y',
+        scales: {
+          x: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  }
+});
 </script>
 {% endblock %}
+

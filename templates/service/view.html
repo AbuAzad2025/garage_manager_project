@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}تفاصيل طلب الصيانة{% endblock %}
 {% block page_header %}طلب {{ service.service_number or ('#' ~ service.id) }}{% endblock %}
 
@@ -109,22 +109,22 @@
         {% if service.status.value != 'COMPLETED' %}
         <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-outline-info fw-bold"><i class="fas fa-play"></i> بدء الصيانة</button>
+          <button type="submit" class="btn btn-outline-info fw-bold"><i class="fas fa-play"></i> بدء الصيانة</button>
         </form>
         <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='complete') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-outline-success fw-bold"><i class="fas fa-check"></i> إكمال الصيانة</button>
+          <button type="submit" class="btn btn-outline-success fw-bold"><i class="fas fa-check"></i> إكمال الصيانة</button>
         </form>
         {% else %}
         <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='reopen') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-outline-warning fw-bold"><i class="fas fa-redo"></i> إعادة للصيانه</button>
+          <button type="submit" class="btn btn-outline-warning fw-bold"><i class="fas fa-redo"></i> إعادة للصيانه</button>
         </form>
         {% endif %}
-        <button id="previewReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-info fw-bold">
+        <button type="button" id="previewReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-info fw-bold">
           <i class="fas fa-eye"></i> معاينة الإيصال
         </button>
-        <button id="printReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-secondary fw-bold">
+        <button type="button" id="printReceiptBtn" data-url="{{ url_for('service.view_receipt', rid=service.id) }}" class="btn btn-secondary fw-bold">
           <i class="fas fa-print"></i> طباعة مباشرة
         </button>
         {% if current_user.has_permission('manage_service') %}
@@ -211,7 +211,7 @@
     <div class="row g-2 align-items-end">
       <div class="col-md-3">
         <label class="form-label">المستودع</label>
-        <select class="form-select" name="warehouse_id" required>
+        <select class="custom-select" name="warehouse_id" required>
           <option value="">اختر المستودع</option>
           {% for wh in warehouses %}
             <option value="{{ wh.id }}">{{ wh.name }}</option>
@@ -220,7 +220,7 @@
       </div>
       <div class="col-md-3">
         <label class="form-label">القطعة</label>
-<select class="form-select select2" name="part_id"
+<select class="custom-select select2" name="part_id"
         data-endpoint-by-warehouse="{{ url_for('api.api_products_by_warehouse', wid=0) }}"
         data-product-info="{{ url_for('api.product_info', pid=0) }}"
         required></select>
@@ -248,7 +248,7 @@
       </div>
       <div class="col-auto">
         <label class="form-label d-block">&nbsp;</label>
-        <button class="btn btn-action-add"><i class="fas fa-plus-circle"></i> إضافة قطعة</button>
+        <button type="button" class="btn btn-action-add" id="add-part-service"><i class="fas fa-plus-circle"></i> إضافة قطعة</button>
       </div>
     </div>
   </form>

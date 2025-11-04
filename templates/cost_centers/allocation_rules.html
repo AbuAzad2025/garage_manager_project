@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}قواعد التوزيع التلقائي{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-random text-primary"></i> قواعد التوزيع التلقائي</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cost_centers.index') }}">مراكز التكلفة</a></li>
+                    <li class="breadcrumb-item active">التوزيع التلقائي</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="row mb-3">
+    <div class="col-12">
+        <a href="{{ url_for('cost_centers_advanced.add_allocation_rule') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> قاعدة توزيع جديدة
+        </a>
+        <a href="{{ url_for('cost_centers_advanced.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-chart-pie"></i> لوحة التحكم
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h3 class="card-title"><i class="fas fa-list"></i> قائمة قواعد التوزيع</h3>
+    </div>
+    <div class="card-body">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>الرمز</th>
+                    <th>الاسم</th>
+                    <th>مركز المصدر</th>
+                    <th>طريقة التوزيع</th>
+                    <th>عدد المراكز المستهدفة</th>
+                    <th>التكرار</th>
+                    <th>آخر تنفيذ</th>
+                    <th>عدد التنفيذات</th>
+                    <th>الحالة</th>
+                    <th>إجراءات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in rules_data %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ item.rule.code }}</td>
+                    <td>{{ item.rule.name }}</td>
+                    <td>{{ item.rule.source_cost_center.name if item.rule.source_cost_center else '-' }}</td>
+                    <td>
+                        {% if item.rule.allocation_method == 'PERCENTAGE' %}نسبة مئوية
+                        {% elif item.rule.allocation_method == 'EQUAL' %}متساوي
+                        {% elif item.rule.allocation_method == 'EMPLOYEE_COUNT' %}حسب عدد الموظفين
+                        {% elif item.rule.allocation_method == 'REVENUE_BASED' %}حسب الإيرادات
+                        {% else %}{{ item.rule.allocation_method }}
+                        {% endif %}
+                    </td>
+                    <td>{{ item.lines_count }}</td>
+                    <td>
+                        {% if item.rule.frequency %}
+                            {{ item.rule.frequency }}
+                        {% else %}
+                            يدوي
+                        {% endif %}
+                    </td>
+                    <td>{{ item.rule.last_executed_at.strftime('%Y-%m-%d') if item.rule.last_executed_at else '-' }}</td>
+                    <td>{{ item.executions_count }}</td>
+                    <td>
+                        {% if item.rule.is_active %}
+                            <span class="badge badge-success">نشط</span>
+                        {% else %}
+                            <span class="badge badge-secondary">معطل</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-success" data-toggle="modal" data-target="#executeModal{{ item.rule.id }}" title="تنفيذ">
+                            <i class="fas fa-play"></i>
+                        </button>
+                    </td>
+                </tr>
+                
+                <div class="modal fade" id="executeModal{{ item.rule.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <form method="POST" action="{{ url_for('cost_centers_advanced.execute_allocation_rule', rule_id=item.rule.id) }}">
+                                <div class="modal-header bg-success text-white">
+                                    <h5 class="modal-title"><i class="fas fa-play"></i> تنفيذ قاعدة: {{ item.rule.name }}</h5>
+                                    <button type="button" class="close text-white" data-dismiss="modal">
+                                        <span>&times;</span>
+                                    </button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="form-group">
+                                        <label>تاريخ التنفيذ *</label>
+                                        <input type="date" name="execution_date" class="form-control" value="{{ request.args.get('date', '') }}" required>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>المبلغ الإجمالي للتوزيع (₪) *</label>
+                                        <input type="number" name="total_amount" class="form-control" step="0.01" required>
+                                        <small class="form-text text-muted">المبلغ الذي سيتم توزيعه على المراكز المستهدفة</small>
+                                    </div>
+                                    
+                                    <div class="alert alert-info">
+                                        <strong>سيتم التوزيع على {{ item.lines_count }} مركز</strong><br>
+                                        طريقة التوزيع: {{ item.rule.allocation_method }}
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                                        <i class="fas fa-times"></i> إلغاء
+                                    </button>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-play"></i> تنفيذ الآن
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+</section>
+{% endblock %}
+
+

@@ -1,105 +1,111 @@
-{% extends 'base.html' %}
-{% block title %}مدير قاعدة البيانات الموحد{% endblock %}
-{% block page_title %}🗄️ مدير قاعدة البيانات الموحد{% endblock %}
+{% extends 'security/base_security.html' %}
 
-{% block breadcrumb_items %}
-<li class="breadcrumb-item active"><i class="fas fa-database"></i> Database Manager</li>
+{% block tour_name %}database_manager{% endblock %}
+
+{% block security_title %}Database Control Center{% endblock %}
+{% block security_icon %}<i class="fas fa-database"></i>{% endblock %}
+{% block security_description %}مركز التحكم الشامل بقاعدة البيانات - 11 أداة في مكان واحد{% endblock %}
+
+{% block security_breadcrumb %}
+<li class="breadcrumb-item active">Database Manager</li>
 {% if active_tab %}
 <li class="breadcrumb-item active">{{ active_tab|title }}</li>
 {% endif %}
 {% endblock %}
 
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
-  
-  <div class="alert alert-success border-0 shadow-sm">
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <i class="fas fa-database"></i>
-        <strong>مركز التحكم الشامل:</strong>
-        <span class="badge bg-white text-success ms-2">{{ tables|length }} جدول</span>
-        {% if indexes_stats %}
-        <span class="badge bg-white text-info ms-1">{{ indexes_stats.total_indexes }} فهرس</span>
-        {% endif %}
-      </div>
-      <small class="text-muted">11 أداة في مكان واحد</small>
-    </div>
-  </div>
+{% block security_actions %}
+<div class="d-flex gap-2">
+  <span class="badge bg-success fs-6">{{ tables|length }} جدول</span>
+  {% if indexes_stats %}
+  <span class="badge bg-info fs-6">{{ indexes_stats.total_indexes }} فهرس</span>
+  {% endif %}
+</div>
+{% endblock %}
 
-  <div class="card shadow">
-    <div class="card-header bg-gradient-primary text-white">
-      <h5 class="mb-0"><i class="fas fa-terminal"></i> Database Control Center</h5>
-    </div>
-    
+{% block security_content %}
+
+  <div class="card shadow-lg border-0">
     <div class="card-body p-0">
       
-      <ul class="nav nav-tabs nav-fill" id="dbTabs" role="tablist" style="border-bottom: 2px solid #dee2e6;">
+      <ul class="nav nav-tabs nav-fill" id="dbTabs" role="tablist">
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'browse' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='browse') }}">
-            <i class="fas fa-search"></i> تصفح
+             href="{{ url_for('security.database_manager', tab='browse') }}"
+             title="تصفح جميع الجداول والبيانات">
+            تصفح
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'edit' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='edit') }}">
-            <i class="fas fa-edit"></i> تحرير
+             href="{{ url_for('security.database_manager', tab='edit') }}"
+             title="تحرير البيانات مباشرة">
+            تحرير
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'schema' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='schema') }}">
-            <i class="fas fa-sitemap"></i> هيكل
+             href="{{ url_for('security.database_manager', tab='schema') }}"
+             title="عرض هيكل قاعدة البيانات والعلاقات">
+            هيكل
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'indexes' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='indexes') }}">
-            <i class="fas fa-bolt"></i> فهارس
+             href="{{ url_for('security.database_manager', tab='indexes') }}"
+             title="إدارة الفهارس لتسريع الأداء">
+            فهارس
+            {% if indexes_stats and indexes_stats.total_indexes %}
+            <span data-tab-count="indexes" data-count="{{ indexes_stats.total_indexes }}"></span>
+            {% endif %}
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='logs') }}">
-            <i class="fas fa-file-alt"></i> سجلات
+             href="{{ url_for('security.database_manager', tab='logs') }}"
+             title="عرض سجلات النظام والأخطاء">
+            سجلات
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'sql' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='sql') }}">
-            <i class="fas fa-code"></i> SQL
+             href="{{ url_for('security.database_manager', tab='sql') }}"
+             title="محرر SQL احترافي مع Autocomplete">
+            SQL
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'python' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='python') }}">
-            <i class="fab fa-python"></i> Python
+             href="{{ url_for('security.database_manager', tab='python') }}"
+             title="تنفيذ أكواد Python مباشرة">
+            Python
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'maintenance' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='maintenance') }}">
-            <i class="fas fa-tools"></i> صيانة
+             href="{{ url_for('security.database_manager', tab='maintenance') }}"
+             title="صيانة وتحسين قاعدة البيانات">
+            صيانة
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'restore' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='restore') }}">
-            <i class="fas fa-upload"></i> استعادة
+             href="{{ url_for('security.database_manager', tab='restore') }}"
+             title="استعادة النسخ الاحتياطية">
+            استعادة
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'tools' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='tools') }}">
-            <i class="fas fa-wrench"></i> أدوات
+             href="{{ url_for('security.database_manager', tab='tools') }}"
+             title="أدوات إضافية متقدمة">
+            أدوات
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'archive' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='archive') }}">
-            <i class="fas fa-archive"></i> الأرشيفات
+             href="{{ url_for('security.database_manager', tab='archive') }}"
+             title="الجداول المؤرشفة المحذوفة">
+            أرشيفات
           </a>
         </li>
       </ul>
@@ -387,7 +393,10 @@
           
         </div>
         
-        {% if active_tab == 'indexes' %}
+        <!-- تبويب 4: الفهارس -->
+        <div class="tab-pane fade {% if active_tab == 'indexes' %}show active{% endif %}" 
+             id="indexes" 
+             role="tabpanel">
         <div class="alert alert-info">
           <i class="fas fa-bolt"></i> <strong>إدارة الفهارس:</strong> 
           {{ indexes_stats.total_indexes }} فهرس على {{ indexes_stats.total_tables }} جدول
@@ -410,7 +419,7 @@
                       <small class="text-muted">({{ idx.columns|join(', ') }})</small>
                     </span>
                     <div>
-                      {% if idx.unique %}<span class="badge bg-success me-1">UNIQUE</span>{% endif %}
+                      {% if idx.unique %}<span class="badge bg-success ml-1">UNIQUE</span>{% endif %}
                       <button class="btn btn-sm btn-outline-primary" onclick="analyzeIndex('{{ idx.name }}')">
                         <i class="fas fa-chart-line"></i> تحليل
                       </button>
@@ -426,9 +435,12 @@
           </div>
           {% endfor %}
         </div>
-        {% endif %}
+        </div>
         
-        {% if active_tab == 'logs' %}
+        <!-- تبويب 5: السجلات -->
+        <div class="tab-pane fade {% if active_tab == 'logs' %}show active{% endif %}" 
+             id="logs" 
+             role="tabpanel">
         
         <!-- Logs Filters -->
         <div data-logs-filters></div>
@@ -516,9 +528,12 @@
           </table>
         </div>
         {% endif %}
-        {% endif %}
+        </div>
         
-        {% if active_tab == 'sql' %}
+        <!-- تبويب 6: SQL Console -->
+        <div class="tab-pane fade {% if active_tab == 'sql' %}show active{% endif %}" 
+             id="sql" 
+             role="tabpanel">
         <form method="POST" action="{{ url_for('security.database_manager', tab='sql') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
@@ -563,16 +578,18 @@
           </table>
         </div>
         {% endif %}
-        {% endif %}
         
         {% if sql_error %}
         <div class="alert alert-danger mt-3">
           <i class="fas fa-times-circle"></i> <strong>خطأ:</strong> {{ sql_error }}
         </div>
         {% endif %}
-        {% endif %}
+        </div>
         
-        {% if active_tab == 'python' %}
+        <!-- تبويب 7: Python Console -->
+        <div class="tab-pane fade {% if active_tab == 'python' %}show active{% endif %}" 
+             id="python" 
+             role="tabpanel">
         <form method="POST" action="{{ url_for('security.database_manager', tab='python') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
@@ -598,8 +615,12 @@
         </div>
         {% endif %}
         {% endif %}
+        </div>
         
-        {% if active_tab == 'maintenance' %}
+        <!-- تبويب 8: الصيانة -->
+        <div class="tab-pane fade {% if active_tab == 'maintenance' %}show active{% endif %}" 
+             id="maintenance" 
+             role="tabpanel">
         <div class="row mb-4">
           <div class="col-md-4">
             <div class="card border-warning">
@@ -675,9 +696,12 @@
             </div>
           </div>
         </div>
-        {% endif %}
+        </div>
         
-        {% if active_tab == 'restore' %}
+        <!-- تبويب 9: استعادة قاعدة البيانات -->
+        <div class="tab-pane fade {% if active_tab == 'restore' %}show active{% endif %}" 
+             id="restore" 
+             role="tabpanel">
         <div class="container-fluid p-4">
           <div class="row g-3 mb-4">
             <div class="col-lg-3 col-md-6">
@@ -743,12 +767,12 @@
           
           <div class="card shadow-lg border-0">
             <div class="card-header bg-danger text-white d-flex align-items-center">
-              <i class="fas fa-database me-2"></i>
+              <i class="fas fa-database ml-2"></i>
               <h5 class="mb-0">استعادة قاعدة البيانات</h5>
             </div>
             <div class="card-body">
               <div class="alert alert-warning d-flex align-items-center">
-                <i class="fas fa-exclamation-triangle fa-lg me-2"></i>
+                <i class="fas fa-exclamation-triangle fa-lg ml-2"></i>
                 <div><strong>تحذير:</strong> سيؤدي المتابعة إلى استبدال جميع البيانات الحالية بالملف المحدد.</div>
               </div>
               <div class="mb-3">
@@ -801,9 +825,12 @@
           });
         }
         </script>
-        {% endif %}
+        </div>
         
-        {% if active_tab == 'tools' %}
+        <!-- تبويب 10: الأدوات -->
+        <div class="tab-pane fade {% if active_tab == 'tools' %}show active{% endif %}" 
+             id="tools" 
+             role="tabpanel">
         <div class="row">
           <div class="col-md-6">
             <div class="card">
@@ -819,7 +846,7 @@
                   </div>
                   <div class="mb-3">
                     <label>نوع التشفير:</label>
-                    <select name="decrypt_type" class="form-select">
+                    <select name="decrypt_type" class="custom-select">
                       <option value="auto">تلقائي</option>
                       <option value="base64">Base64</option>
                     </select>
@@ -862,9 +889,12 @@
             </div>
           </div>
         </div>
-        {% endif %}
+        </div>
         
-        {% if active_tab == 'archive' %}
+        <!-- تبويب 11: الأرشيفات -->
+        <div class="tab-pane fade {% if active_tab == 'archive' %}show active{% endif %}" 
+             id="archive" 
+             role="tabpanel">
         <div class="container-fluid p-4">
           <div class="card border-success">
             <div class="card-header bg-success text-white">
@@ -877,7 +907,7 @@
             </div>
           </div>
         </div>
-        {% endif %}
+        </div>
         
       </div>
       

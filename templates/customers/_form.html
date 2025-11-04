@@ -27,12 +27,12 @@
   </div>
   <div class="col-md-4">
     <label class="form-label fw-bold">{{ form.category.label.text }}</label>
-    {{ form.category(class="form-select" + (' is-invalid' if form.category.errors else ''), required=form.category.flags.required) }}
+    {{ form.category(class="custom-select" + (' is-invalid' if form.category.errors else ''), required=form.category.flags.required) }}
     {% for e in form.category.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
   <div class="col-md-4">
     <label class="form-label fw-bold">{{ form.currency.label.text }} <span class="text-danger">*</span></label>
-    {{ form.currency(class="form-select" + (' is-invalid' if form.currency.errors else ''), required=form.currency.flags.required) }}
+    {{ form.currency(class="custom-select" + (' is-invalid' if form.currency.errors else ''), required=form.currency.flags.required) }}
     {% for e in form.currency.errors %}<small class="text-danger">{{ e }}</small>{% endfor %}
   </div>
   <div class="col-md-4">

@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% block title %}تقرير الانحراف عن الميزانية{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+<style>
+  .variance-positive {
+    background-color: #d4edda !important;
+    color: #155724;
+  }
+  .variance-negative {
+    background-color: #f8d7da !important;
+    color: #721c24;
+  }
+  .variance-neutral {
+    background-color: #fff3cd !important;
+    color: #856404;
+  }
+  .progress-bar-under {
+    background-color: #28a745;
+  }
+  .progress-bar-over {
+    background-color: #dc3545;
+  }
+</style>
+{% endblock %}
+{% block page_title %}📊 تقرير الانحراف عن الميزانية{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-balance-scale text-warning"></i> 
+                    تقرير الانحراف عن الميزانية
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('advanced.accounting_control') }}"><i class="fas fa-sliders-h"></i> المحاسبة المتقدمة</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('cost_centers.index') }}">مراكز التكلفة</a></li>
+                    <li class="breadcrumb-item active">تقرير الانحراف عن الميزانية</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  
+  <div class="row mb-3 no-print">
+    <div class="col-md-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <form method="GET" class="form-inline">
+            <div class="form-group mx-2">
+              <label class="mr-2">من تاريخ:</label>
+              <input type="date" name="date_from" class="form-control" value="{{ date_from if date_from else '' }}">
+            </div>
+            <div class="form-group mx-2">
+              <label class="mr-2">إلى تاريخ:</label>
+              <input type="date" name="date_to" class="form-control" value="{{ date_to if date_to else '' }}">
+            </div>
+            <button type="submit" class="btn btn-primary mx-2">
+              <i class="fas fa-filter"></i> تصفية
+            </button>
+            <a href="{{ url_for('cost_centers.report_budget_variance') }}" class="btn btn-secondary mx-2">
+              <i class="fas fa-redo"></i> إعادة تعيين
+            </a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-3 no-print">
+    <div class="col-12">
+      <div class="btn-group">
+        <a href="{{ url_for('cost_centers.index') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left"></i> العودة للمراكز
+        </a>
+        <button class="btn btn-secondary" onclick="window.print()">
+          <i class="fas fa-print"></i> طباعة
+        </button>
+        <button class="btn btn-success" onclick="exportToExcel()">
+          <i class="fas fa-file-excel"></i> تصدير Excel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mb-3">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm bg-info text-white">
+        <div class="card-body">
+          <h5 class="card-title"><i class="fas fa-wallet"></i> إجمالي الميزانيات</h5>
+          <h2 class="mb-0">{{ "{:,.2f}".format(totals.budget) }} ₪</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm bg-primary text-white">
+        <div class="card-body">
+          <h5 class="card-title"><i class="fas fa-chart-line"></i> إجمالي المصروفات الفعلية</h5>
+          <h2 class="mb-0">{{ "{:,.2f}".format(totals.actual) }} ₪</h2>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm {% if totals.variance >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+        <div class="card-body">
+          <h5 class="card-title"><i class="fas fa-balance-scale"></i> إجمالي الانحراف</h5>
+          <h2 class="mb-0">{{ "{:,.2f}".format(totals.variance) }} ₪</h2>
+          <small>
+            {% if totals.variance > 0 %}
+              <i class="fas fa-check-circle"></i> توفير في الميزانية
+            {% elif totals.variance < 0 %}
+              <i class="fas fa-exclamation-triangle"></i> تجاوز الميزانية
+            {% else %}
+              <i class="fas fa-equals"></i> متوازن
+            {% endif %}
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-gradient-primary text-white">
+      <h3 class="card-title"><i class="fas fa-table"></i> تفاصيل الانحراف لكل مركز تكلفة</h3>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-hover table-bordered" id="varianceTable">
+          <thead class="table-light">
+            <tr>
+              <th width="5%">#</th>
+              <th width="25%">مركز التكلفة</th>
+              <th width="15%">الميزانية المخططة</th>
+              <th width="15%">المصروف الفعلي</th>
+              <th width="15%">الانحراف</th>
+              <th width="10%">النسبة %</th>
+              <th width="15%">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in variance_data %}
+            <tr class="{% if item.status == 'under' %}variance-positive{% elif item.status == 'over' %}variance-negative{% else %}variance-neutral{% endif %}">
+              <td>{{ loop.index }}</td>
+              <td>
+                <strong>{{ item.center.code }}</strong> - {{ item.center.name }}
+                {% if item.center.parent %}
+                <br><small class="text-muted">← {{ item.center.parent.name }}</small>
+                {% endif %}
+              </td>
+              <td class="text-end">{{ "{:,.2f}".format(item.budget) }} ₪</td>
+              <td class="text-end">{{ "{:,.2f}".format(item.actual) }} ₪</td>
+              <td class="text-end">
+                <strong class="{% if item.variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  {{ "{:,.2f}".format(item.variance) }} ₪
+                </strong>
+              </td>
+              <td class="text-center">
+                <span class="badge badge-{% if item.variance_percent > 10 %}success{% elif item.variance_percent < -10 %}danger{% else %}warning{% endif %} badge-lg">
+                  {{ "{:.1f}".format(item.variance_percent) }}%
+                </span>
+              </td>
+              <td class="text-center">
+                {% if item.status == 'under' %}
+                  <span class="badge badge-success">
+                    <i class="fas fa-check-circle"></i> تحت الميزانية
+                  </span>
+                {% elif item.status == 'over' %}
+                  <span class="badge badge-danger">
+                    <i class="fas fa-exclamation-triangle"></i> متجاوز
+                  </span>
+                {% else %}
+                  <span class="badge badge-warning">
+                    <i class="fas fa-equals"></i> متوازن
+                  </span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="7" class="text-center text-muted">
+                <i class="fas fa-info-circle"></i> لا توجد بيانات للعرض
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          {% if variance_data %}
+          <tfoot class="table-secondary">
+            <tr>
+              <th colspan="2" class="text-end">الإجمالي:</th>
+              <th class="text-end">{{ "{:,.2f}".format(totals.budget) }} ₪</th>
+              <th class="text-end">{{ "{:,.2f}".format(totals.actual) }} ₪</th>
+              <th class="text-end">
+                <strong class="{% if totals.variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  {{ "{:,.2f}".format(totals.variance) }} ₪
+                </strong>
+              </th>
+              <th colspan="2"></th>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-3 no-print">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-info text-white">
+          <h5 class="card-title mb-0"><i class="fas fa-info-circle"></i> ملاحظات</h5>
+        </div>
+        <div class="card-body">
+          <ul class="mb-0">
+            <li><strong>تحت الميزانية (أخضر):</strong> المصروف الفعلي أقل من الميزانية المخططة - توفير</li>
+            <li><strong>متجاوز (أحمر):</strong> المصروف الفعلي أكبر من الميزانية المخططة - تجاوز</li>
+            <li><strong>متوازن (أصفر):</strong> المصروف الفعلي مساوٍ تقريباً للميزانية المخططة</li>
+            <li><strong>الانحراف:</strong> = الميزانية المخططة - المصروف الفعلي</li>
+            <li><strong>النسبة:</strong> = (الانحراف ÷ الميزانية المخططة) × 100</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print.js') }}"></script>
+<script>
+function exportToExcel() {
+    var table = document.getElementById('varianceTable');
+    var wb = XLSX.utils.table_to_book(table, {sheet: "تقرير الانحراف"});
+    XLSX.writeFile(wb, 'budget_variance_report_{{ date_from or "all" }}_{{ date_to or "all" }}.xlsx');
+}
+</script>
+{% endblock %}
+
+

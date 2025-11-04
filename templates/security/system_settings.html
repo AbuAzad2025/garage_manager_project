@@ -1,11 +1,10 @@
-﻿{% extends 'base.html' %}
-{% block title %}إعدادات النظام v5.0{% endblock %}
-{% block page_title %}⚙️ إعدادات النظام <span class="badge bg-success ms-2">v5.0</span> <span class="badge bg-info ms-1">40 وحدة</span>{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}system_settings{% endblock %}
+{% block security_title %}System Settings{% endblock %}
+{% block security_icon %}<i class="fas fa-cog"></i>{% endblock %}
+{% block security_description %}إعدادات شاملة للنظام - عامة • متقدمة • ثوابت{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">System Settings</li>{% endblock %}
+{% block security_content %}
   
   <div class="alert alert-info border-0 shadow-sm">
     <i class="fas fa-info-circle"></i>
@@ -315,7 +314,7 @@
               <div class="col-md-4">
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-globe"></i> <strong>المنطقة الزمنية</strong></label>
-                  <select name="timezone" class="form-select">
+                  <select name="timezone" class="custom-select">
                     <option value="UTC" {% if data.company.TIMEZONE == 'UTC' %}selected{% endif %}>UTC (عالمي)</option>
                     <option value="Asia/Jerusalem" {% if data.company.TIMEZONE == 'Asia/Jerusalem' %}selected{% endif %}>القدس (فلسطين)</option>
                     <option value="Asia/Damascus" {% if data.company.TIMEZONE == 'Asia/Damascus' %}selected{% endif %}>دمشق (سوريا)</option>
@@ -330,7 +329,7 @@
               <div class="col-md-4">
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-calendar"></i> <strong>صيغة التاريخ</strong></label>
-                  <select name="date_format" class="form-select">
+                  <select name="date_format" class="custom-select">
                     <option value="%Y-%m-%d" {% if data.company.DATE_FORMAT == '%Y-%m-%d' %}selected{% endif %}>YYYY-MM-DD (2025-10-16)</option>
                     <option value="%d/%m/%Y" {% if data.company.DATE_FORMAT == '%d/%m/%Y' %}selected{% endif %}>DD/MM/YYYY (16/10/2025)</option>
                     <option value="%m/%d/%Y" {% if data.company.DATE_FORMAT == '%m/%d/%Y' %}selected{% endif %}>MM/DD/YYYY (10/16/2025)</option>
@@ -341,7 +340,7 @@
               <div class="col-md-4">
                 <div class="mb-3">
                   <label class="form-label"><i class="fas fa-clock"></i> <strong>صيغة الوقت</strong></label>
-                  <select name="time_format" class="form-select">
+                  <select name="time_format" class="custom-select">
                     <option value="%H:%M:%S" {% if data.company.TIME_FORMAT == '%H:%M:%S' %}selected{% endif %}>24 ساعة (23:45:30)</option>
                     <option value="%I:%M:%S %p" {% if data.company.TIME_FORMAT == '%I:%M:%S %p' %}selected{% endif %}>12 ساعة (11:45:30 PM)</option>
                   </select>
@@ -562,7 +561,7 @@
                       <div class="col-md-4">
                         <div class="mb-3">
                           <label class="form-label"><strong>بداية السنة المالية (شهر)</strong></label>
-                          <select name="fiscal_year_start_month" class="form-select">
+                          <select name="fiscal_year_start_month" class="custom-select">
                             {% for m in range(1, 13) %}
                             <option value="{{ m }}" {% if data.business.fiscal_year_start_month == m %}selected{% endif %}>
                               {{ m }} - {% if m == 1 %}يناير{% elif m == 2 %}فبراير{% elif m == 3 %}مارس{% elif m == 4 %}أبريل{% elif m == 5 %}مايو{% elif m == 6 %}يونيو{% elif m == 7 %}يوليو{% elif m == 8 %}أغسطس{% elif m == 9 %}سبتمبر{% elif m == 10 %}أكتوبر{% elif m == 11 %}نوفمبر{% else %}ديسمبر{% endif %}

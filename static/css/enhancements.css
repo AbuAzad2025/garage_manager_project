@@ -234,50 +234,6 @@ textarea:focus-visible {
   }
 }
 
-/* ═══ 14. Toast Notifications (if needed) ═══ */
-.notification-container {
-  position: fixed;
-  top: 80px;
-  right: 20px;
-  z-index: 9999;
-}
-
-.notification-toast {
-  min-width: 250px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  padding: 15px;
-  margin-bottom: 10px;
-  animation: notificationSlideIn 0.3s ease;
-}
-
-@keyframes notificationSlideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.notification-toast.toast-success {
-  border-left: 4px solid #28a745;
-}
-
-.notification-toast.toast-error {
-  border-left: 4px solid #dc3545;
-}
-
-.notification-toast.toast-warning {
-  border-left: 4px solid #ffc107;
-}
-
-.notification-toast.toast-info {
-  border-left: 4px solid #17a2b8;
-}
 
 /* ═══ 15. Improved Form States ═══ */
 .form-control.is-valid,

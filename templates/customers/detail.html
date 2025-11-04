@@ -14,57 +14,48 @@
 
 {% block content %}
   
-  <!-- بطاقات سريعة -->
   <div class="row g-3 mb-4">
     <div class="col-md-3">
-      <div class="card border-0 shadow-sm text-white h-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-white-50 mb-1">الرصيد الحالي</h6>
-              <h3 class="mb-0 fw-bold">{{ customer.balance|format_currency }}</h3>
-            </div>
-            <i class="fas fa-wallet fa-2x opacity-50"></i>
+      <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#667eea,#764ba2)">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="text-white-50 mb-1">الرصيد الحالي</h6>
+            <h3 class="mb-0 fw-bold">{{ customer.balance|format_currency }}</h3>
           </div>
+          <i class="fas fa-wallet fa-2x opacity-50"></i>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card border-0 shadow-sm bg-info text-white h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-white-50 mb-1">عدد الفواتير</h6>
-              <h3 class="mb-0 fw-bold">{{ (customer.invoices|default([], true))|length }}</h3>
-            </div>
-            <i class="fas fa-file-invoice fa-2x opacity-50"></i>
+      <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#00c6ff,#0072ff)">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="text-white-50 mb-1">عدد الفواتير</h6>
+            <h3 class="mb-0 fw-bold">{{ (customer.invoices|default([], true))|length }}</h3>
           </div>
+          <i class="fas fa-file-invoice fa-2x opacity-50"></i>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card border-0 shadow-sm bg-success text-white h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-white-50 mb-1">عدد الدفعات</h6>
-              <h3 class="mb-0 fw-bold">{{ (customer.payments|default([], true))|length }}</h3>
-            </div>
-            <i class="fas fa-money-bill-wave fa-2x opacity-50"></i>
+      <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#11998e,#38ef7d)">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="text-white-50 mb-1">عدد الدفعات</h6>
+            <h3 class="mb-0 fw-bold">{{ (customer.payments|default([], true))|length }}</h3>
           </div>
+          <i class="fas fa-money-bill-wave fa-2x opacity-50"></i>
         </div>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card border-0 shadow-sm bg-warning text-white h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 class="text-white-50 mb-1">حد الائتمان</h6>
-              <h3 class="mb-0 fw-bold">{{ customer.credit_limit|format_currency }}</h3>
-            </div>
-            <i class="fas fa-credit-card fa-2x opacity-50"></i>
+      <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#f7971e,#ffd200)">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="mb-1" style="color:rgba(0,0,0,0.7)">حد الائتمان</h6>
+            <h3 class="mb-0 fw-bold" style="color:#000">{{ customer.credit_limit|format_currency }}</h3>
           </div>
+          <i class="fas fa-credit-card fa-2x" style="opacity:0.5;color:#000"></i>
         </div>
       </div>
     </div>
@@ -72,7 +63,7 @@
   
   <div class="card shadow-sm rounded">
     <div class="card-header bg-primary text-white">
-      <h3 class="card-title"><i class="fas fa-user me-2"></i> تفاصيل العميل: {{ customer.name }}</h3>
+      <h3 class="card-title"><i class="fas fa-user ml-2"></i> تفاصيل العميل: {{ customer.name }}</h3>
     </div>
 
     <div class="card-body">
@@ -90,13 +81,13 @@
           ('الحالة', ('<span class="badge bg-success">نشط</span>' if customer.is_active else '<span class="badge bg-secondary">غير نشط</span>'), 'fas fa-toggle-on'),
           ('ملاحظات', customer.notes or '-', 'fas fa-sticky-note')
         ] %}
-        <dt class="col-sm-4 text-end"><i class="{{ icon }} me-1"></i> {{ label }}</dt>
+        <dt class="col-sm-4 text-end"><i class="{{ icon }} ml-1"></i> {{ label }}</dt>
         <dd class="col-sm-8">{% autoescape false %}{{ value }}{% endautoescape %}</dd>
         {% endfor %}
       </dl>
 
       <hr>
-      <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i> نشاط العميل</h5>
+      <h5 class="mb-3"><i class="fas fa-chart-pie ml-2"></i> نشاط العميل</h5>
       <ul class="list-group mb-4">
         <li class="list-group-item"><b>آخر بيع:</b> {{ (customer.sales|default([], true))[-1].sale_date.strftime('%Y-%m-%d') if (customer.sales|default([], true)) else '—' }}</li>
         <li class="list-group-item"><b>آخر دفعة:</b> {{ (customer.payments|default([], true))[-1].payment_date.strftime('%Y-%m-%d') if (customer.payments|default([], true)) else '—' }}</li>
@@ -105,7 +96,7 @@
       </ul>
 
       {% if logs %}
-      <h5 class="mb-3"><i class="fas fa-history me-2"></i> سجل التعديلات</h5>
+      <h5 class="mb-3"><i class="fas fa-history ml-2"></i> سجل التعديلات</h5>
       <ul class="list-group mb-4">
         {% for log in logs %}
         <li class="list-group-item small">
@@ -118,10 +109,10 @@
 
       <div class="d-flex flex-wrap gap-2">
         <a href="{{ url_for('customers_bp.customer_whatsapp', customer_id=customer.id) }}" class="btn btn-success">
-          <i class="fab fa-whatsapp me-1"></i> واتساب
+          <i class="fab fa-whatsapp ml-1"></i> واتساب
         </a>
         <a href="{{ url_for('customers_bp.edit_customer', customer_id=customer.id) }}" class="btn btn-warning">
-          <i class="fas fa-edit me-1"></i> تعديل
+          <i class="fas fa-edit ml-1"></i> تعديل
         </a>
         {% if customer.balance and customer.balance > 0 %}
         <a href="{{ url_for('payments.create_payment', 
@@ -132,26 +123,26 @@
                            reference='دفع من عميل: ' ~ customer.name,
                            notes='دفعة من العميل: ' ~ customer.name ~ ((' - هاتف: ' ~ customer.phone) if customer.phone else ''),
                            customer_id=customer.id) }}" class="btn btn-outline-success">
-          <i class="fas fa-coins me-1"></i> دفعة جديدة ({{ '%.2f'|format(customer.balance) }} ₪)
+          <i class="fas fa-coins ml-1"></i> دفعة جديدة ({{ '%.2f'|format(customer.balance) }} ₪)
         </a>
         {% endif %}
         <button type="button" class="btn btn-warning delete-btn" 
                 data-id="{{ customer.id }}"
                 data-url="{{ url_for('customers_bp.delete_customer', id=customer.id) }}"
                 title="حذف عادي">
-          <i class="fas fa-trash me-1"></i> حذف
+          <i class="fas fa-trash ml-1"></i> حذف
         </button>
         <a href="{{ url_for('customers_bp.export_customer_vcf', customer_id=customer.id) }}" class="btn btn-outline-success">
-          <i class="fas fa-download me-1"></i> VCF
+          <i class="fas fa-download ml-1"></i> VCF
         </a>
         <a href="{{ url_for('customers_bp.account_statement', customer_id=customer.id) }}" class="btn btn-outline-primary">
-          <i class="fas fa-file-invoice me-1"></i> كشف حساب
+          <i class="fas fa-file-invoice ml-1"></i> كشف حساب
         </a>
         <a href="{{ url_for('customers_bp.customer_analytics', customer_id=customer.id) }}" class="btn btn-outline-info">
-          <i class="fas fa-chart-line me-1"></i> تحليلات
+          <i class="fas fa-chart-line ml-1"></i> تحليلات
         </a>
         <a href="{{ url_for('customers_bp.list_customers') }}" class="btn btn-outline-secondary">
-          <i class="fas fa-arrow-left me-1"></i> عودة
+          <i class="fas fa-arrow-left ml-1"></i> عودة
         </a>
       </div>
     </div>

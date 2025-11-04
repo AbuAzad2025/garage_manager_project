@@ -1,53 +1,43 @@
-{% extends 'base.html' %}
-{% block title %}وحدة التحكم - دفتر الأستاذ{% endblock %}
-
-{% block content %}
-<div class="container-fluid p-3">
-    <div class="card shadow">
-        <div class="card-header bg-gradient text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h4 class="mb-0"><i class="fas fa-university me-2"></i>وحدة التحكم الشاملة - دفتر الأستاذ</h4>
-                    <small>إدارة متقدمة للحسابات والقيود المحاسبية</small>
-                </div>
-                <div>
-                    <button class="btn btn-light btn-sm" onclick="window.location.href='/security/'">
-                        <i class="fas fa-arrow-right me-1"></i>العودة
-                    </button>
-                </div>
-            </div>
-        </div>
+{% extends 'security/base_security.html' %}
+{% block tour_name %}ledger_control{% endblock %}
+{% block security_title %}Ledger Control{% endblock %}
+{% block security_icon %}<i class="fas fa-book"></i>{% endblock %}
+{% block security_description %}إدارة متقدمة لدفتر الأستاذ والحسابات والقيود{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Ledger Control</li>{% endblock %}
+{% block security_content %}
+    <div class="card shadow-lg border-0">
+        <div class="card-body p-0">
         
         <div class="card-body p-0">
             <ul class="nav nav-pills nav-fill border-bottom" id="controlTabs" style="background: #f8f9fa;">
                         <li class="nav-item">
                             <a class="nav-link active" href="#tab-accounts">
-                                <i class="fas fa-list me-1"></i>الحسابات
+                                <i class="fas fa-list ml-1"></i>الحسابات
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#tab-entries">
-                                <i class="fas fa-file me-1"></i>القيود
+                                <i class="fas fa-file ml-1"></i>القيود
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#tab-batches">
-                                <i class="fas fa-edit me-1"></i>تحرير القيود
+                                <i class="fas fa-edit ml-1"></i>تحرير القيود
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#tab-operations">
-                                <i class="fas fa-cogs me-1"></i>مركز التحكم
+                                <i class="fas fa-cogs ml-1"></i>مركز التحكم
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#tab-editor">
-                                <i class="fas fa-edit me-1"></i>محرر القيود
+                                <i class="fas fa-edit ml-1"></i>محرر القيود
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#tab-tools">
-                                <i class="fas fa-tools me-1"></i>الأدوات
+                                <i class="fas fa-tools ml-1"></i>الأدوات
                             </a>
                         </li>
             </ul>
@@ -58,11 +48,11 @@
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="mb-0">الحسابات المحاسبية <span class="badge bg-primary" id="accountsCount">0</span></h5>
                                 <div>
-                                    <button class="btn btn-info me-2" onclick="showAccountsTree()">
+                                    <button class="btn btn-info ml-2" onclick="showAccountsTree()">
                                         <i class="fas fa-sitemap"></i> عرض الشجرة
                                     </button>
                                     <button class="btn btn-success" onclick="showAddAccountModal()">
-                                        <i class="fas fa-plus me-1"></i>إضافة حساب جديد
+                                        <i class="fas fa-plus ml-1"></i>إضافة حساب جديد
                                     </button>
                                 </div>
                             </div>
@@ -124,7 +114,7 @@
 
                         <!-- Tab 4: مركز التحكم -->
                         <div id="tab-operations" style="display: none;">
-                            <h5 class="mb-3"><i class="fas fa-cogs me-2"></i>مركز التحكم المتقدم</h5>
+                            <h5 class="mb-3"><i class="fas fa-cogs ml-2"></i>مركز التحكم المتقدم</h5>
                             
                             <!-- الأقسام الفرعية -->
                             <ul class="nav nav-tabs mb-3" role="tablist">
@@ -220,7 +210,7 @@
 
                         <!-- Tab 5: محرر القيود -->
                         <div id="tab-editor" style="display: none;">
-                            <h5 class="mb-3"><i class="fas fa-edit me-2"></i>محرر القيود المحاسبية</h5>
+                            <h5 class="mb-3"><i class="fas fa-edit ml-2"></i>محرر القيود المحاسبية</h5>
                             
                             <div class="row">
                                 <div class="col-md-4">
@@ -352,7 +342,7 @@
                             <h5 class="mb-3">أدوات دفتر الأستاذ المتقدمة</h5>
                             
                             <div class="mb-3">
-                                <button class="btn btn-primary me-2" onclick="generateFinancialStatements()">
+                                <button class="btn btn-primary ml-2" onclick="generateFinancialStatements()">
                                     <i class="fas fa-file-invoice-dollar"></i> القوائم المالية
                                 </button>
                                 <button class="btn btn-outline-info" onclick="alert('Trial Balance قيد التطوير')">
@@ -365,20 +355,20 @@
                                 <div class="col-md-6 mb-3">
                                     <div class="card">
                                         <div class="card-header bg-primary text-white">
-                                            <h6 class="mb-0"><i class="fas fa-cogs me-2"></i>أدوات أساسية</h6>
+                                            <h6 class="mb-0"><i class="fas fa-cogs ml-2"></i>أدوات أساسية</h6>
                                         </div>
                                         <div class="card-body">
                                             <button class="btn btn-primary w-100 mb-2" onclick="doBackup()">
-                                                <i class="fas fa-download me-2"></i>نسخ احتياطي
+                                                <i class="fas fa-download ml-2"></i>نسخ احتياطي
                                             </button>
                                             <button class="btn btn-success w-100 mb-2" onclick="doValidate()">
-                                                <i class="fas fa-check me-2"></i>فحص التوازن
+                                                <i class="fas fa-check ml-2"></i>فحص التوازن
                                             </button>
                                             <button class="btn btn-warning w-100 mb-2" onclick="openTrialBalance()">
-                                                <i class="fas fa-balance-scale me-2"></i>ميزان المراجعة
+                                                <i class="fas fa-balance-scale ml-2"></i>ميزان المراجعة
                                             </button>
                                             <button class="btn btn-danger w-100" onclick="doCleanup()">
-                                                <i class="fas fa-trash me-2"></i>تنظيف القيود الملغاة
+                                                <i class="fas fa-trash ml-2"></i>تنظيف القيود الملغاة
                                             </button>
                                         </div>
                                     </div>
@@ -388,23 +378,23 @@
                                 <div class="col-md-6 mb-3">
                                     <div class="card">
                                         <div class="card-header bg-success text-white">
-                                            <h6 class="mb-0"><i class="fas fa-rocket me-2"></i>وظائف متقدمة</h6>
+                                            <h6 class="mb-0"><i class="fas fa-rocket ml-2"></i>وظائف متقدمة</h6>
                                         </div>
                                         <div class="card-body">
                                             <a href="{{ url_for('security.data_quality_center') }}" class="btn btn-gradient w-100 mb-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600;">
-                                                <i class="fas fa-chart-line me-2"></i>مركز جودة البيانات
+                                                <i class="fas fa-chart-line ml-2"></i>مركز جودة البيانات
                                             </a>
                                             <button class="btn btn-info w-100 mb-2" onclick="recalculateBalances()">
-                                                <i class="fas fa-calculator me-2"></i>إعادة حساب الأرصدة
+                                                <i class="fas fa-calculator ml-2"></i>إعادة حساب الأرصدة
                                             </button>
                                             <button class="btn btn-primary w-100 mb-2" onclick="syncChecks()">
-                                                <i class="fas fa-sync me-2"></i>مزامنة الشيكات
+                                                <i class="fas fa-sync ml-2"></i>مزامنة الشيكات
                                             </button>
                                             <a href="{{ url_for('security.advanced_check_linking') }}" class="btn btn-warning w-100 mb-2">
-                                                <i class="fas fa-link me-2"></i>ربط متقدم للشيكات
+                                                <i class="fas fa-link ml-2"></i>ربط متقدم للشيكات
                                             </a>
                                             <button class="btn btn-success w-100 mb-2" onclick="loadStats()">
-                                                <i class="fas fa-chart-bar me-2"></i>إحصائيات شاملة
+                                                <i class="fas fa-chart-bar ml-2"></i>إحصائيات شاملة
                                             </button>
                                         </div>
                                     </div>
@@ -414,7 +404,7 @@
                                 <div class="col-12">
                                     <div class="card">
                                         <div class="card-header bg-info text-white">
-                                            <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>إحصائيات النظام</h6>
+                                            <h6 class="mb-0"><i class="fas fa-chart-line ml-2"></i>إحصائيات النظام</h6>
                                         </div>
                                         <div class="card-body" id="statsContainer">
                                             <p class="text-muted text-center">اضغط على "إحصائيات شاملة" لعرض البيانات</p>
@@ -433,7 +423,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="fas fa-plus me-2"></i>إضافة حساب جديد</h5>
+                <h5 class="modal-title"><i class="fas fa-plus ml-2"></i>إضافة حساب جديد</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
@@ -448,7 +438,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">النوع <span class="text-danger">*</span></label>
-                        <select class="form-select" name="type" required>
+                        <select class="custom-select" name="type" required>
                             <option value="">اختر النوع...</option>
                             <option value="ASSET">أصول (ASSET)</option>
                             <option value="LIABILITY">خصوم (LIABILITY)</option>
@@ -468,7 +458,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
                 <button type="button" class="btn btn-success" onclick="saveNewAccount()">
-                    <i class="fas fa-save me-1"></i>حفظ
+                    <i class="fas fa-save ml-1"></i>حفظ
                 </button>
             </div>
         </div>
@@ -480,7 +470,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title"><i class="fas fa-edit me-2"></i>تعديل حساب</h5>
+                <h5 class="modal-title"><i class="fas fa-edit ml-2"></i>تعديل حساب</h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
@@ -496,7 +486,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">النوع</label>
-                        <select class="form-select" name="type" id="edit_type" disabled>
+                        <select class="custom-select" name="type" id="edit_type" disabled>
                             <option value="ASSET">أصول (ASSET)</option>
                             <option value="LIABILITY">خصوم (LIABILITY)</option>
                             <option value="EQUITY">حقوق الملكية (EQUITY)</option>
@@ -515,7 +505,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
                 <button type="button" class="btn btn-primary" onclick="saveEditAccount()">
-                    <i class="fas fa-save me-1"></i>حفظ التغييرات
+                    <i class="fas fa-save ml-1"></i>حفظ التغييرات
                 </button>
             </div>
         </div>
@@ -557,7 +547,7 @@ function loadAccounts() {
                     html += '<td>' + acc.type + '</td>';
                     html += '<td>' + status + '</td>';
                     html += '<td>';
-                    html += '<button class="btn btn-sm btn-primary me-1" onclick="showEditAccountModal(' + acc.id + ', \'' + acc.code + '\', \'' + acc.name + '\', \'' + acc.type + '\', ' + isActiveVal + ')"><i class="fas fa-edit"></i> تعديل</button>';
+                    html += '<button class="btn btn-sm btn-primary ml-1" onclick="showEditAccountModal(' + acc.id + ', \'' + acc.code + '\', \'' + acc.name + '\', \'' + acc.type + '\', ' + isActiveVal + ')"><i class="fas fa-edit"></i> تعديل</button>';
                     html += '<button class="btn btn-sm btn-danger" onclick="deleteAcc(' + acc.id + ')"><i class="fas fa-trash"></i> حذف</button>';
                     html += '</td>';
                     html += '</tr>';
@@ -895,10 +885,10 @@ function loadStats() {
                 
                 // القيود غير المتوازنة
                 if (data.health.imbalanced_entries > 0) {
-                    html += '<div class="alert alert-warning mt-3"><i class="fas fa-exclamation-triangle me-2"></i>';
+                    html += '<div class="alert alert-warning mt-3"><i class="fas fa-exclamation-triangle ml-2"></i>';
                     html += '<strong>تحذير:</strong> يوجد ' + data.health.imbalanced_entries + ' قيد غير متوازن!</div>';
                 } else {
-                    html += '<div class="alert alert-success mt-3"><i class="fas fa-check-circle me-2"></i>';
+                    html += '<div class="alert alert-success mt-3"><i class="fas fa-check-circle ml-2"></i>';
                     html += '<strong>ممتاز:</strong> جميع القيود متوازنة!</div>';
                 }
                 

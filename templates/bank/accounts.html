@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}🏦 الحسابات البنكية{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+<style>
+.bank-card {
+    transition: all 0.3s ease;
+    border-right: 4px solid transparent;
+}
+
+.bank-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.bank-card.active {
+    border-right-color: #28a745;
+}
+
+.bank-card.inactive {
+    border-right-color: #dc3545;
+    opacity: 0.7;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row no-print mb-3">
+    <div class="col-12">
+        <div class="btn-group">
+            <a href="{{ url_for('bank.add_account') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> إضافة حساب بنكي
+            </a>
+            <a href="{{ url_for('bank.statements') }}" class="btn btn-info">
+                <i class="fas fa-file-invoice"></i> كشوف الحساب
+            </a>
+            <a href="{{ url_for('bank.reconciliations') }}" class="btn btn-warning">
+                <i class="fas fa-balance-scale"></i> التسويات
+            </a>
+            <button class="btn btn-secondary btn-print" onclick="printReport('.content')">
+                <i class="fas fa-print"></i> طباعة
+            </button>
+        </div>
+    </div>
+</div>
+
+{% if accounts %}
+<div class="row" id="accounts-list">
+    {% for data in accounts %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card bank-card {% if data.account.is_active %}active{% else %}inactive{% endif %} h-100">
+            <div class="card-header bg-gradient-primary">
+                <h3 class="card-title text-white">
+                    <i class="fas fa-university"></i>
+                    {{ data.account.code }} - {{ data.account.name }}
+                </h3>
+                <div class="card-tools">
+                    {% if data.account.is_active %}
+                    <span class="badge badge-success">نشط</span>
+                    {% else %}
+                    <span class="badge badge-danger">معطل</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-12">
+                        <p class="mb-2">
+                            <i class="fas fa-building text-info"></i>
+                            <strong>البنك:</strong> {{ data.account.bank_name }}
+                        </p>
+                        <p class="mb-2">
+                            <i class="fas fa-hashtag text-info"></i>
+                            <strong>رقم الحساب:</strong> {{ data.account.account_number }}
+                        </p>
+                        {% if data.account.iban %}
+                        <p class="mb-2">
+                            <i class="fas fa-barcode text-info"></i>
+                            <strong>IBAN:</strong> <small>{{ data.account.iban }}</small>
+                        </p>
+                        {% endif %}
+                        <p class="mb-2">
+                            <i class="fas fa-coins text-warning"></i>
+                            <strong>العملة:</strong> {{ data.account.currency }}
+                        </p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="stat-card bg-light">
+                            <div class="stat-value text-success">
+                                {{ "%.2f"|format(data.net_balance) }} ₪
+                            </div>
+                            <div class="stat-label">الرصيد الحالي</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-card bg-light">
+                            <div class="stat-value {% if data.unreconciled > 0 %}text-warning{% else %}text-success{% endif %}">
+                                {{ "%.2f"|format(data.unreconciled) }} ₪
+                            </div>
+                            <div class="stat-label">غير مطابق</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6">
+                        <div class="stat-card bg-light">
+                            <div class="stat-value text-primary">
+                                {{ "%.2f"|format(data.total_deposits) }} ₪
+                            </div>
+                            <div class="stat-label">إيداعات</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="stat-card bg-light">
+                            <div class="stat-value text-danger">
+                                {{ "%.2f"|format(data.total_withdrawals) }} ₪
+                            </div>
+                            <div class="stat-label">سحوبات</div>
+                        </div>
+                    </div>
+                </div>
+                {% if data.last_statement_date %}
+                <p class="mb-0 mt-2 text-muted small">
+                    <i class="fas fa-calendar-alt"></i>
+                    آخر كشف: {{ data.last_statement_date.strftime('%Y-%m-%d') }}
+                </p>
+                {% endif %}
+            </div>
+            <div class="card-footer no-print">
+                <div class="btn-group btn-block">
+                    <a href="{{ url_for('bank.view_account', id=data.account.id) }}" class="btn btn-sm btn-info">
+                        <i class="fas fa-eye"></i> عرض
+                    </a>
+                    <a href="{{ url_for('bank.edit_account', id=data.account.id) }}" class="btn btn-sm btn-warning">
+                        <i class="fas fa-edit"></i> تعديل
+                    </a>
+                    <a href="{{ url_for('bank.statements', account=data.account.id) }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-file-invoice"></i> الكشوف
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-university fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">لا توجد حسابات بنكية</h4>
+                <p class="text-muted">ابدأ بإضافة حساب بنكي جديد</p>
+                <a href="{{ url_for('bank.add_account') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> إضافة حساب بنكي
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print.js') }}"></script>
+{% endblock %}

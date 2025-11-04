@@ -9,13 +9,13 @@
       <div class="card border-danger">
         <div class="card-header bg-danger text-white">
           <h4 class="mb-0">
-            <i class="fas fa-exclamation-triangle me-2"></i>
+            <i class="fas fa-exclamation-triangle ml-2"></i>
             حذف قوي لطلب الصيانة
           </h4>
         </div>
         <div class="card-body">
           <div class="alert alert-warning">
-            <i class="fas fa-warning me-2"></i>
+            <i class="fas fa-warning ml-2"></i>
             <strong>تحذير:</strong> هذا الحذف نهائي ولا يمكن التراجع عنه. سيتم حذف جميع البيانات المرتبطة بطلب الصيانة.
           </div>
           
@@ -39,7 +39,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="mb-3">
               <label for="reason" class="form-label">
-                <i class="fas fa-comment me-1"></i>
+                <i class="fas fa-comment ml-1"></i>
                 سبب الحذف <span class="text-danger">*</span>
               </label>
               <textarea 
@@ -54,11 +54,11 @@
             
             <div class="d-flex gap-2">
               <button type="submit" class="btn btn-danger" onclick="return confirm('هل أنت متأكد من الحذف القوي؟ لا يمكن التراجع!')">
-                <i class="fas fa-trash-alt me-1"></i>
+                <i class="fas fa-trash-alt ml-1"></i>
                 حذف قوي نهائي
               </button>
               <a href="{{ url_for('service.list_requests') }}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left me-1"></i>
+                <i class="fas fa-arrow-left ml-1"></i>
                 إلغاء
               </a>
             </div>

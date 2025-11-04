@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}انحرافات الميزانية{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+{% endblock %}
+{% block page_title %}📊 انحرافات ميزانية المشاريع{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-balance-scale-right text-primary"></i> 
+                    تقرير الانحرافات
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('advanced.accounting_control') }}"><i class="fas fa-sliders-h"></i> المحاسبة المتقدمة</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('projects.index') }}">المشاريع</a></li>
+                    <li class="breadcrumb-item active">تقرير الانحرافات</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  
+  <div class="row mb-3 no-print">
+    <div class="col-12">
+      <div class="btn-group">
+        <a href="{{ url_for('projects.index') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left"></i> العودة للمشاريع
+        </a>
+        <button class="btn btn-secondary" onclick="window.print()">
+          <i class="fas fa-print"></i> طباعة
+        </button>
+      </div>
+    </div>
+  </div>
+
+  
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <table class="table table-hover table-bordered">
+        <thead class="table-light">
+          <tr>
+            <th>المشروع</th>
+            <th>الميزانية</th>
+            <th>الفعلي</th>
+            <th>الانحراف</th>
+            <th>%</th>
+            <th>الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in data %}
+          <tr class="{% if item.status == 'over' %}table-danger{% else %}table-success{% endif %}">
+            <td>{{ item.project.name }}</td>
+            <td>{{ "{:,.2f}".format(item.budget) }} ₪</td>
+            <td>{{ "{:,.2f}".format(item.actual) }} ₪</td>
+            <td class="{% if item.variance >= 0 %}text-success{% else %}text-danger{% endif %}">
+              {{ "{:,.2f}".format(item.variance) }} ₪
+            </td>
+            <td>{{ "{:.1f}".format(item.variance_pct) }}%</td>
+            <td>
+              {% if item.status == 'over' %}
+              <span class="badge bg-danger">تجاوز</span>
+              {% else %}
+              <span class="badge bg-success">ضمن الميزانية</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print.js') }}"></script>
+{% endblock %}
+

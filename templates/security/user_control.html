@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}👑 التحكم الكامل بالمستخدمين{% endblock %}
-{% block page_title %}👑 التحكم الكامل بالمستخدمين - Owner's Control Panel{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}user_control{% endblock %}
+{% block security_title %}User Control Panel{% endblock %}
+{% block security_icon %}<i class="fas fa-user-shield"></i>{% endblock %}
+{% block security_description %}التحكم الكامل بالمستخدمين - انتحال • حذف • تعديل شامل{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">User Control</li>{% endblock %}
+{% block security_content %}
   
   {% if session.get('impersonating') %}
   <div class="alert alert-warning border-0 shadow-sm animate__animated animate__pulse">
@@ -104,7 +103,7 @@
       <form method="GET" class="row g-3">
         <div class="col-md-3">
           <label class="form-label">الحالة</label>
-          <select name="filter" class="form-select" onchange="this.form.submit()">
+          <select name="filter" class="custom-select" onchange="this.form.submit()">
             <option value="all" {{ current_filter == 'all' and 'selected' or '' }}>الكل</option>
             <option value="active" {{ current_filter == 'active' and 'selected' or '' }}>نشطين فقط</option>
             <option value="inactive" {{ current_filter == 'inactive' and 'selected' or '' }}>معطلين فقط</option>
@@ -115,7 +114,7 @@
         
         <div class="col-md-3">
           <label class="form-label">الدور</label>
-          <select name="role" class="form-select" onchange="this.form.submit()">
+          <select name="role" class="custom-select" onchange="this.form.submit()">
             <option value="">جميع الأدوار</option>
             {% for role in all_roles %}
             <option value="{{ role.name }}" {{ current_role == role.name and 'selected' or '' }}>
@@ -289,9 +288,14 @@
                   </form>
                   {% endif %}
                   
+                  <!-- إدارة الصلاحيات -->
+                  <button class="btn btn-success" onclick="managePermissions({{ user.id }}, '{{ user.username }}', '{{ user.role.name if user.role else '' }}')" title="إدارة صلاحيات {{ user.username }}">
+                    <i class="fas fa-key"></i>
+                  </button>
+                  
                   <!-- إعادة تعيين كلمة المرور -->
                   <button class="btn btn-info" onclick="resetPassword({{ user.id }}, '{{ user.username }}')" title="إعادة تعيين كلمة المرور">
-                    <i class="fas fa-key"></i>
+                    <i class="fas fa-lock"></i>
                   </button>
                   
                   <!-- تفعيل/تعطيل -->
@@ -338,6 +342,34 @@
             <span class="visually-hidden">جاري التحميل...</span>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: إدارة الصلاحيات -->
+<div class="modal fade" id="permissionsModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-key"></i> إدارة صلاحيات: <span id="permsUsername"></span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info border-0">
+          <i class="fas fa-info-circle"></i>
+          <strong>الدور:</strong> <span id="permsRole"></span>
+          <br><small>💡 الزرقاء = موروثة من الدور (لا يمكن تعديلها) | الخضراء = إضافية</small>
+        </div>
+        <div id="permissionsContent"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-success" onclick="savePermissions()">
+          <i class="fas fa-save"></i> حفظ
+        </button>
       </div>
     </div>
   </div>
@@ -449,7 +481,7 @@
           
           <div class="mb-3">
             <label class="form-label">الدور</label>
-            <select name="role_id" class="form-select">
+            <select name="role_id" class="custom-select">
               <option value="">بدون دور</option>
               {% for role in all_roles %}
               <option value="{{ role.id }}">{{ role.name }}</option>
@@ -693,6 +725,159 @@ function deleteUser(userId, username) {
   document.getElementById('deleteUserForm').action = `/security/delete-user/${userId}`;
   document.getElementById('confirmDelete').checked = false;
   $('#deleteUserModal').modal('show');
+}
+
+// إدارة الصلاحيات - Owner Only
+let currentManageUserId = null;
+let currentRolePerms = [];
+
+function managePermissions(userId, username, roleName) {
+  currentManageUserId = userId;
+  document.getElementById('permsUsername').textContent = username;
+  document.getElementById('permsRole').textContent = roleName || 'لا يوجد';
+  
+  const modal = new bootstrap.Modal(document.getElementById('permissionsModal'));
+  modal.show();
+  
+  document.getElementById('permissionsContent').innerHTML = `
+    <div class="text-center py-5">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-2">جاري التحميل...</p>
+    </div>
+  `;
+  
+  fetch(`/security/api/users/${userId}/details`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        renderPermissionsManager(data.user);
+      } else {
+        document.getElementById('permissionsContent').innerHTML = 
+          '<div class="alert alert-danger">خطأ في تحميل البيانات</div>';
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById('permissionsContent').innerHTML = 
+        '<div class="alert alert-danger">خطأ في الاتصال</div>';
+    });
+}
+
+function renderPermissionsManager(user) {
+  const modules = {
+    'owner_only': {title: '👑 للمالك فقط', perms: []},
+    'ai': {title: '🤖 المساعد الذكي', perms: []},
+    'system': {title: '💾 النظام', perms: []},
+    'users': {title: '👥 المستخدمين', perms: []},
+    'customers': {title: '🏢 العملاء', perms: []},
+    'sales': {title: '🛒 المبيعات', perms: []},
+    'service': {title: '🔧 الصيانة', perms: []},
+    'warehouses': {title: '📦 المستودعات', perms: []},
+    'vendors': {title: '🚚 الموردين', perms: []},
+    'accounting': {title: '💰 المحاسبة', perms: []},
+    'shop': {title: '🛍️ المتجر', perms: []},
+    'other': {title: '🔧 أخرى', perms: []}
+  };
+  
+  const rolePerms = new Set(user.role_permissions || []);
+  const extraPerms = new Set(user.extra_permissions || []);
+  currentRolePerms = Array.from(rolePerms);
+  
+  user.all_permissions.forEach(perm => {
+    const module = perm.module || 'other';
+    if (modules[module]) {
+      modules[module].perms.push({
+        ...perm,
+        inherited: rolePerms.has(perm.code),
+        extra: extraPerms.has(perm.code)
+      });
+    }
+  });
+  
+  let html = `
+    <div class="row mb-3">
+      <div class="col-6">
+        <div class="alert alert-info mb-0">
+          <strong>صلاحيات الدور:</strong> ${rolePerms.size} صلاحية
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="alert alert-success mb-0">
+          <strong>صلاحيات إضافية:</strong> ${extraPerms.size} صلاحية
+        </div>
+      </div>
+    </div>
+  `;
+  
+  for (const [key, module] of Object.entries(modules)) {
+    if (module.perms.length === 0) continue;
+    
+    html += `
+      <div class="card mb-3">
+        <div class="card-header bg-light">
+          <strong>${module.title}</strong>
+          <span class="badge bg-secondary">${module.perms.length}</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-2">
+    `;
+    
+    module.perms.forEach(perm => {
+      const checked = perm.inherited || perm.extra;
+      const disabled = perm.inherited ? 'disabled' : '';
+      const badgeClass = perm.inherited ? 'bg-info' : (perm.extra ? 'bg-success' : 'bg-secondary');
+      
+      html += `
+        <div class="col-md-6">
+          <div class="form-check">
+            <input class="form-check-input perm-checkbox" type="checkbox" 
+                   id="perm_${perm.code}" value="${perm.code}" 
+                   ${checked ? 'checked' : ''} ${disabled}
+                   data-inherited="${perm.inherited}">
+            <label class="form-check-label" for="perm_${perm.code}">
+              <span class="badge ${badgeClass}">${perm.name_ar || perm.name}</span>
+              ${perm.inherited ? '<small class="text-muted">(من الدور)</small>' : ''}
+            </label>
+          </div>
+        </div>
+      `;
+    });
+    
+    html += `
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  document.getElementById('permissionsContent').innerHTML = html;
+}
+
+function savePermissions() {
+  const checkboxes = document.querySelectorAll('.perm-checkbox:not([disabled]):checked');
+  const permissions = Array.from(checkboxes).map(cb => cb.value);
+  
+  fetch(`/security/update-user-permissions/${currentManageUserId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': '{{ csrf_token() }}'
+    },
+    body: JSON.stringify({ permissions })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ تم حفظ الصلاحيات بنجاح!');
+      location.reload();
+    } else {
+      alert('❌ خطأ: ' + (data.message || 'فشل الحفظ'));
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert('❌ خطأ في الاتصال');
+  });
 }
 </script>
 

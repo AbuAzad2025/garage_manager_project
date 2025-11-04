@@ -1,6 +1,9 @@
-{% extends 'base.html' %}
-{% block title %}تنظيف النظام{% endblock %}
-{% block page_title %}🧹 تنظيف النظام (Format){% endblock %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}system_cleanup{% endblock %}
+{% block security_title %}System Cleanup{% endblock %}
+{% block security_icon %}<i class="fas fa-broom"></i>{% endblock %}
+{% block security_description %}تنظيف آمن للبيانات القديمة وتحسين الأداء{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">System Cleanup</li>{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -83,7 +86,7 @@
   <!-- تحذير خطير -->
   <div class="danger-zone">
     <div class="d-flex align-items-center">
-      <i class="fas fa-exclamation-triangle fa-3x me-3"></i>
+      <i class="fas fa-exclamation-triangle fa-3x ml-3"></i>
       <div>
         <h4 class="mb-1">⚠️ تحذير خطير جداً!</h4>
         <p class="mb-0">هذه العملية ستحذف البيانات بشكل نهائي ولا يمكن التراجع عنها! تأكد من عمل نسخة احتياطية أولاً.</p>
@@ -123,7 +126,7 @@
     <div class="card-header bg-gradient-danger text-white">
       <div class="d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
-          <i class="fas fa-broom me-2"></i>
+          <i class="fas fa-broom ml-2"></i>
           تنظيف جداول النظام
         </h5>
         <div>
@@ -238,7 +241,7 @@
               </div>
               {% if is_danger_zone %}
               <div class="alert alert-danger mb-3">
-                <i class="fas fa-skull-crossbones me-2"></i>
+                <i class="fas fa-skull-crossbones ml-2"></i>
                 <strong>انتبه!</strong> هذه منطقة خطرة جداً - التنظيف هنا سيؤثر على النظام بالكامل!
               </div>
               {% endif %}
@@ -250,7 +253,7 @@
                    value="{{ table.name }}" id="table_{{ loop.index }}" 
                    data-danger="{{ table.danger }}">
             <label class="form-check-label w-100" for="table_{{ loop.index }}">
-              <span class="me-2">{{ table.display }}</span>
+              <span class="ml-2">{{ table.display }}</span>
               {% if table.danger == 'high' %}
                 <span class="badge bg-danger">خطر عالي 🔴</span>
               {% elif table.danger == 'medium' %}
@@ -270,13 +273,13 @@
         <!-- صندوق التأكيد -->
         <div class="confirm-box">
           <h5 class="text-warning mb-3">
-            <i class="fas fa-shield-alt me-2"></i>
+            <i class="fas fa-shield-alt ml-2"></i>
             تأكيد العملية
           </h5>
           
           <div class="mb-3">
             <label class="form-label fw-bold">
-              <i class="fas fa-keyboard me-1"></i>
+              <i class="fas fa-keyboard ml-1"></i>
               اكتب <code class="text-danger fs-5">FORMAT_SYSTEM</code> للتأكيد *
             </label>
             <input type="text" name="confirm" id="confirm-input" class="form-control form-control-lg" 
@@ -287,13 +290,13 @@
           <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" id="double-confirm" required>
             <label class="form-check-label fw-bold" for="double-confirm">
-              <i class="fas fa-check-circle me-1"></i>
+              <i class="fas fa-check-circle ml-1"></i>
               أؤكد أنني قمت بعمل نسخة احتياطية وأتحمل المسؤولية الكاملة
             </label>
           </div>
 
           <div id="preview-box" class="alert alert-info" style="display: none;">
-            <h6><i class="fas fa-eye me-2"></i>معاينة العملية:</h6>
+            <h6><i class="fas fa-eye ml-2"></i>معاينة العملية:</h6>
             <div id="preview-content"></div>
           </div>
         </div>
@@ -303,11 +306,11 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <button type="submit" class="btn btn-danger btn-lg" id="submit-btn" disabled>
-                <i class="fas fa-trash-alt me-2"></i>
+                <i class="fas fa-trash-alt ml-2"></i>
                 تنظيف الجداول المحددة
               </button>
               <a href="{{ url_for('security.index') }}" class="btn btn-secondary btn-lg">
-                <i class="fas fa-arrow-right me-2"></i>
+                <i class="fas fa-arrow-right ml-2"></i>
                 إلغاء والعودة
               </a>
             </div>

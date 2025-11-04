@@ -214,13 +214,13 @@
         const data = isJson ? await res.json() : null;
         if (!res.ok || (isJson && data && data.ok === false)) {
           const message = (isJson && data && data.message) ? data.message : "فشل إنشاء العميل";
-          showToast(message, "danger");
+          console.error(message);
           if (isJson && data && data.errors) applyFieldErrors(form, data.errors);
           return;
         }
         const id = isJson && data ? data.id : null;
         const text = isJson && data ? (data.text || form.querySelector('[name="name"]')?.value || "عميل") : "عميل";
-        showToast("تم إنشاء العميل بنجاح", "success");
+        console.log("تم إنشاء العميل بنجاح");
         form.dispatchEvent(new CustomEvent("customer:created", { detail: { id, text }, bubbles: true }));
         const m = form.closest(".modal");
         if (m) {
@@ -234,7 +234,7 @@
         if (rt) window.location.href = rt;
       } catch (err) {
 
-        showToast("خطأ بالشبكة أو السيرفر", "danger");
+        console.error("خطأ بالشبكة أو السيرفر");
       }
     });
   });

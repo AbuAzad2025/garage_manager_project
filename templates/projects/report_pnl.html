@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}تقرير الأرباح والخسائر - المشاريع{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-chart-line text-success"></i> 
+                    تقرير الأرباح والخسائر (P&L)
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('projects.index') }}">المشاريع</a></li>
+                    <li class="breadcrumb-item active">تقرير P&L</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+  
+  <div class="row mb-3 no-print">
+    <div class="col-md-8">
+      <form method="GET" class="form-inline">
+        <div class="form-group mr-2">
+          <label>المشروع:</label>
+          <select name="project_id" class="form-control mr-2">
+            <option value="">جميع المشاريع</option>
+            {% for p in all_projects %}
+            <option value="{{ p.id }}" {% if p.id == selected_project %}selected{% endif %}>{{ p.code }} - {{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group mr-2">
+          <label>من:</label>
+          <input type="date" name="date_from" value="{{ date_from }}" class="form-control mr-2">
+        </div>
+        <div class="form-group mr-2">
+          <label>إلى:</label>
+          <input type="date" name="date_to" value="{{ date_to }}" class="form-control mr-2">
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> عرض</button>
+      </form>
+    </div>
+    <div class="col-md-4 text-left">
+      <button class="btn btn-secondary" onclick="window.print()">
+        <i class="fas fa-print"></i> طباعة
+      </button>
+    </div>
+  </div>
+
+  {% if pnl_data %}
+  <div class="card">
+    <div class="card-header bg-gradient-success">
+      <h3 class="card-title">تقرير الأرباح والخسائر - المشاريع</h3>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-bordered table-striped">
+        <thead>
+          <tr class="bg-light">
+            <th>المشروع</th>
+            <th class="text-center">الإيرادات</th>
+            <th class="text-center">التكاليف</th>
+            <th class="text-center">الربح/الخسارة</th>
+            <th class="text-center">هامش الربح %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in pnl_data %}
+          <tr>
+            <td><strong>{{ item.project_code }}</strong> - {{ item.project_name }}</td>
+            <td class="text-end text-success">{{ "{:,.2f}".format(item.total_revenue) }} ₪</td>
+            <td class="text-end text-danger">{{ "{:,.2f}".format(item.total_cost) }} ₪</td>
+            <td class="text-end {% if item.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+              <strong>{{ "{:,.2f}".format(item.profit) }} ₪</strong>
+            </td>
+            <td class="text-center">
+              <span class="badge {% if item.profit_margin >= 20 %}bg-success{% elif item.profit_margin >= 10 %}bg-warning{% else %}bg-danger{% endif %}">
+                {{ "{:.1f}".format(item.profit_margin) }}%
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-dark">
+          <tr>
+            <th>الإجمالي</th>
+            <th class="text-end">{{ "{:,.2f}".format(grand_totals.total_revenue) }} ₪</th>
+            <th class="text-end">{{ "{:,.2f}".format(grand_totals.total_cost) }} ₪</th>
+            <th class="text-end {% if grand_totals.total_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+              <strong>{{ "{:,.2f}".format(grand_totals.total_profit) }} ₪</strong>
+            </th>
+            <th class="text-center">
+              <strong>{{ "{:.1f}".format(grand_totals.profit_margin) }}%</strong>
+            </th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    لا توجد بيانات لعرضها. يرجى اختيار مشروع وفترة زمنية.
+  </div>
+  {% endif %}
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print.js') }}"></script>
+{% endblock %}
+

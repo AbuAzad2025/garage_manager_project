@@ -1,9 +1,10 @@
-{% extends 'base.html' %}
-{% block title %}حظر دولة{% endblock %}
-{% block page_title %}🌍 حظر دولة{% endblock %}
-{% block content %}
-<div class="container-fluid">
-  {% include 'security/_navigation.html' %}
+{% extends 'security/base_security.html' %}
+{% block tour_name %}block_country{% endblock %}
+{% block security_title %}Block Country{% endblock %}
+{% block security_icon %}<i class="fas fa-flag"></i>{% endblock %}
+{% block security_description %}حظر دولة كاملة من الوصول للنظام{% endblock %}
+{% block security_breadcrumb %}<li class="breadcrumb-item active">Block Country</li>{% endblock %}
+{% block security_content %}
   
   <div class="card"><div class="card-header bg-warning"><h5 class="mb-0">حظر دولة</h5></div>
     <div class="card-body">

@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% block title %}{% if rule %}تعديل{% else %}إضافة{% endif %} قاعدة توزيع{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-random text-primary"></i> 
+                    {% if rule %}تعديل{% else %}إضافة{% endif %} قاعدة توزيع
+                </h1>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+<form method="POST">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h3 class="card-title">معلومات القاعدة</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>رمز القاعدة *</label>
+                        <input type="text" name="code" class="form-control" value="{{ rule.code if rule else '' }}" {% if rule %}readonly{% endif %} required>
+                        <small class="text-muted">رمز فريد للقاعدة (مثال: ALLOC-001)</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>اسم القاعدة *</label>
+                        <input type="text" name="name" class="form-control" value="{{ rule.name if rule else '' }}" required>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>مركز المصدر</label>
+                        <select name="source_cost_center_id" class="form-control">
+                            <option value="">بدون (توزيع عام)</option>
+                            {% for cc in cost_centers %}
+                            <option value="{{ cc.id }}" {% if rule and rule.source_cost_center_id == cc.id %}selected{% endif %}>
+                                {{ cc.name }} ({{ cc.code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">المركز الذي سيتم السحب منه</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>طريقة التوزيع *</label>
+                        <select name="allocation_method" class="form-control" required>
+                            <option value="PERCENTAGE">نسبة مئوية</option>
+                            <option value="EQUAL">متساوي</option>
+                            <option value="EMPLOYEE_COUNT">حسب عدد الموظفين</option>
+                            <option value="REVENUE_BASED">حسب الإيرادات</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>التكرار</label>
+                        <select name="frequency" class="form-control">
+                            <option value="">يدوي</option>
+                            <option value="DAILY">يومي</option>
+                            <option value="WEEKLY">أسبوعي</option>
+                            <option value="MONTHLY">شهري</option>
+                            <option value="QUARTERLY">ربع سنوي</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input" id="auto_execute" name="auto_execute">
+                            <label class="custom-control-label" for="auto_execute">
+                                تنفيذ تلقائي حسب التكرار
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>الوصف</label>
+                <textarea name="description" class="form-control" rows="2">{{ rule.description if rule else '' }}</textarea>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card border-0 shadow-sm mt-3">
+        <div class="card-header bg-success text-white">
+            <h3 class="card-title">المراكز المستهدفة</h3>
+        </div>
+        <div class="card-body">
+            <div id="targetsContainer">
+                <div class="row target-row mb-2">
+                    <div class="col-md-8">
+                        <select name="target_center_id[]" class="form-control">
+                            <option value="">اختر المركز</option>
+                            {% for cc in cost_centers %}
+                            <option value="{{ cc.id }}">{{ cc.name }} ({{ cc.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" name="percentage[]" class="form-control" placeholder="النسبة %" step="0.01">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-sm btn-success add-target">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-footer">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> حفظ
+        </button>
+        <a href="{{ url_for('cost_centers_advanced.allocation_rules') }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i> إلغاء
+        </a>
+    </div>
+</form>
+
+</div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('.add-target').click(function() {
+        var newRow = $('.target-row:first').clone();
+        newRow.find('select').val('');
+        newRow.find('input').val('');
+        newRow.find('.add-target').removeClass('btn-success add-target').addClass('btn-danger remove-target').html('<i class="fas fa-minus"></i>');
+        $('#targetsContainer').append(newRow);
+    });
+    
+    $(document).on('click', '.remove-target', function() {
+        $(this).closest('.target-row').remove();
+    });
+});
+</script>
+{% endblock %}
+
+

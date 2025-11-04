@@ -1,88 +1,265 @@
-{% extends 'base.html' %}
-{% block title %}مركز المستخدمين والصلاحيات{% endblock %}
-{% block page_title %}👥 مركز المستخدمين والصلاحيات{% endblock %}
+{% extends 'security/base_security.html' %}
 
-{% block breadcrumb_items %}
-<li class="breadcrumb-item active"><i class="fas fa-users-cog"></i> Users Center</li>
+{% block tour_name %}users_center{% endblock %}
+
+{% block security_title %}Users & Permissions Center{% endblock %}
+{% block security_icon %}<i class="fas fa-users-cog"></i>{% endblock %}
+{% block security_description %}إدارة شاملة للمستخدمين والصلاحيات والأدوار{% endblock %}
+
+{% block security_breadcrumb %}
+<li class="breadcrumb-item active">Users Center</li>
 {% if active_tab %}
 <li class="breadcrumb-item active">{{ active_tab|title }}</li>
 {% endif %}
 {% endblock %}
 
-{% block content %}
-<div class="container-fluid">
-  
-  {% include 'security/_navigation.html' %}
-  
-  <div class="alert border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <i class="fas fa-users-cog"></i>
-        <strong>Users & Permissions Center:</strong>
-        <span class="badge bg-white text-primary ms-2">2 أدوات في مكان واحد</span>
-      </div>
-      <small class="opacity-75">مستخدمين + صلاحيات</small>
-    </div>
-  </div>
+{% block security_actions %}
+<span class="badge bg-success fs-6">{{ total_users|default(0) }} مستخدم</span>
+{% endblock %}
 
-  <div class="card shadow">
-    <div class="card-header text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-      <h5 class="mb-0"><i class="fas fa-users-cog"></i> Users & Permissions Center</h5>
-    </div>
-    
+{% block security_content %}
+
+  <div class="card shadow-lg border-0">
     <div class="card-body p-0">
       
-      <ul class="nav nav-tabs nav-fill" style="border-bottom: 2px solid #dee2e6;">
+      <ul class="nav nav-tabs nav-fill">
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'users' %}active{% endif %}" 
-             href="{{ url_for('security.users_center', tab='users') }}">
-            <i class="fas fa-users"></i> التحكم بالمستخدمين
+             href="{{ url_for('security.users_center', tab='users') }}"
+             title="التحكم الكامل بالمستخدمين">
+            التحكم بالمستخدمين
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'permissions' %}active{% endif %}" 
-             href="{{ url_for('security.users_center', tab='permissions') }}">
-            <i class="fas fa-key"></i> إدارة الصلاحيات
+             href="{{ url_for('security.users_center', tab='permissions') }}"
+             title="إدارة صلاحيات المستخدمين">
+            إدارة الصلاحيات
           </a>
         </li>
       </ul>
 
       <div class="tab-content p-4">
         
-        {% if active_tab == 'users' %}
+        <!-- تاب 1: التحكم بالمستخدمين -->
+        <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" 
+             id="users" 
+             role="tabpanel">
         <div class="container-fluid">
-          <h4><i class="fas fa-users text-primary"></i> التحكم بالمستخدمين</h4>
-          
-          <div class="mb-3">
-            <button class="btn btn-success me-2" onclick="importUsersFromExcel()">
-              <i class="fas fa-file-excel"></i> استيراد من Excel
-            </button>
-            <button class="btn btn-outline-success me-2" onclick="exportUsersToExcel()">
-              <i class="fas fa-download"></i> تصدير إلى Excel
-            </button>
+          <div class="row mb-4">
+            <div class="col-lg-3 col-md-6">
+              <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body">
+                  <h6 class="text-white-50 mb-1">إجمالي المستخدمين</h6>
+                  <h3 class="mb-0 fw-bold">{{ users_data.total if users_data else 0 }}</h3>
+                  <small class="opacity-75">مستخدم</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+              <div class="card border-0 shadow-sm bg-success text-white">
+                <div class="card-body">
+                  <h6 class="text-white-50 mb-1">نشط</h6>
+                  <h3 class="mb-0 fw-bold">{{ users_data.active if users_data else 0 }}</h3>
+                  <small class="opacity-75">مفعّل</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+              <div class="card border-0 shadow-sm bg-danger text-white">
+                <div class="card-body">
+                  <h6 class="text-white-50 mb-1">محظور</h6>
+                  <h3 class="mb-0 fw-bold">{{ users_data.blocked if users_data else 0 }}</h3>
+                  <small class="opacity-75">غير مفعّل</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+              <div class="card border-0 shadow-sm bg-info text-white">
+                <div class="card-body">
+                  <h6 class="text-white-50 mb-1">متصل الآن</h6>
+                  <h3 class="mb-0 fw-bold">{{ users_data.online if users_data else 0 }}</h3>
+                  <small class="opacity-75">آخر 30 دقيقة</small>
+                </div>
+              </div>
+            </div>
           </div>
           
-          <a href="{{ url_for('security.user_control') }}" class="btn btn-primary btn-lg" target="_blank">
-            <i class="fas fa-external-link-alt"></i> فتح لوحة التحكم (مع Bulk Operations)
-          </a>
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-gradient-primary text-white">
+              <h5 class="mb-0"><i class="fas fa-users-cog"></i> قائمة المستخدمين</h5>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>المستخدم</th>
+                      <th>البريد</th>
+                      <th>الدور</th>
+                      <th>الحالة</th>
+                      <th>آخر دخول</th>
+                      <th>عدد الدخول</th>
+                      <th>إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% if users_list %}
+                      {% for user in users_list %}
+                      <tr>
+                        <td>
+                          <i class="fas fa-user-circle text-primary"></i>
+                          <strong>{{ user.username }}</strong>
+                        </td>
+                        <td><small>{{ user.email }}</small></td>
+                        <td>
+                          <span class="badge bg-info">{{ user.role.name if user.role else 'بدون دور' }}</span>
+                        </td>
+                        <td>
+                          {% if user.is_active %}
+                            <span class="badge bg-success">نشط</span>
+                          {% else %}
+                            <span class="badge bg-danger">محظور</span>
+                          {% endif %}
+                        </td>
+                        <td>
+                          {% if user.last_login %}
+                            <small>{{ user.last_login.strftime('%Y-%m-%d %H:%M') }}</small>
+                          {% else %}
+                            <small class="text-muted">لم يدخل</small>
+                          {% endif %}
+                        </td>
+                        <td><span class="badge bg-secondary">{{ user.login_count }}</span></td>
+                        <td>
+                          <a href="{{ url_for('users_bp.edit_user', user_id=user.id) }}" 
+                             class="btn btn-sm btn-outline-primary" 
+                             title="تعديل">
+                            <i class="fas fa-edit"></i>
+                          </a>
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    {% else %}
+                      <tr>
+                        <td colspan="7" class="text-center text-muted">لا توجد بيانات</td>
+                      </tr>
+                    {% endif %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('users_bp.list_users') }}" class="btn btn-primary">
+              <i class="fas fa-users"></i> إدارة كاملة للمستخدمين
+            </a>
+            <a href="{{ url_for('users_bp.create_user') }}" class="btn btn-success">
+              <i class="fas fa-plus"></i> إضافة مستخدم جديد
+            </a>
+            <a href="{{ url_for('security.user_control') }}" class="btn btn-outline-secondary">
+              <i class="fas fa-external-link-alt"></i> لوحة التحكم المتقدمة
+            </a>
+          </div>
         </div>
-        {% endif %}
+        </div>
         
-        {% if active_tab == 'permissions' %}
+        <!-- تاب 2: إدارة الصلاحيات -->
+        <div class="tab-pane fade {% if active_tab == 'permissions' %}show active{% endif %}" 
+             id="permissions" 
+             role="tabpanel">
         <div class="container-fluid">
-          <h4><i class="fas fa-key text-success"></i> إدارة الصلاحيات</h4>
-          
-          <div class="mb-3">
-            <button class="btn btn-info me-2" onclick="showPermissionMatrix()">
-              <i class="fas fa-table"></i> عرض مصفوفة الصلاحيات
-            </button>
+          <div class="row mb-4">
+            <div class="col-lg-4 col-md-6">
+              <div class="card border-0 shadow-sm bg-success text-white">
+                <div class="card-body">
+                  <h6 class="text-white-50 mb-1">الأدوار</h6>
+                  <h3 class="mb-0 fw-bold">{{ roles_data.total if roles_data else 0 }}</h3>
+                  <small class="opacity-75">دور مسجل</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="card border-0 shadow-sm bg-info text-white">
+                <div class="card-body">
+                  <h6 class="text-white-50 mb-1">الصلاحيات</h6>
+                  <h3 class="mb-0 fw-bold">{{ permissions_data.total if permissions_data else 0 }}</h3>
+                  <small class="opacity-75">صلاحية متاحة</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+              <div class="card border-0 shadow-sm bg-warning text-white">
+                <div class="card-body">
+                  <h6 class="text-white-50 mb-1">الصلاحيات المحمية</h6>
+                  <h3 class="mb-0 fw-bold">{{ permissions_data.protected if permissions_data else 0 }}</h3>
+                  <small class="opacity-75">محمية من الحذف</small>
+                </div>
+              </div>
+            </div>
           </div>
           
-          <a href="{{ url_for('security.permissions_manager') }}" class="btn btn-success btn-lg" target="_blank">
-            <i class="fas fa-external-link-alt"></i> فتح الصلاحيات
-          </a>
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-gradient-success text-white">
+              <h5 class="mb-0"><i class="fas fa-shield-alt"></i> الأدوار والصلاحيات</h5>
+            </div>
+            <div class="card-body">
+              {% if roles_list %}
+                <div class="row">
+                  {% for role in roles_list %}
+                  <div class="col-md-6 mb-3">
+                    <div class="card border-primary">
+                      <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                          <strong><i class="fas fa-user-tag text-primary"></i> {{ role.name }}</strong>
+                          <span class="badge bg-primary">{{ role.permissions|length }} صلاحية</span>
+                        </div>
+                      </div>
+                      <div class="card-body">
+                        {% if role.description %}
+                          <p class="text-muted small mb-2">{{ role.description }}</p>
+                        {% endif %}
+                        {% if role.permissions %}
+                          <div class="mb-2">
+                            <small class="text-muted">الصلاحيات:</small>
+                            <div class="mt-1">
+                              {% for perm in role.permissions[:5] %}
+                                <span class="badge bg-info ml-1 mb-1">{{ perm.name }}</span>
+                              {% endfor %}
+                              {% if role.permissions|length > 5 %}
+                                <span class="badge bg-secondary">+{{ role.permissions|length - 5 }}</span>
+                              {% endif %}
+                            </div>
+                          </div>
+                        {% endif %}
+                        <a href="{{ url_for('roles.edit_role', role_id=role.id) }}" 
+                           class="btn btn-sm btn-outline-primary">
+                          <i class="fas fa-edit"></i> تعديل
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="alert alert-warning">لا توجد أدوار</div>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('roles.list_roles') }}" class="btn btn-success">
+              <i class="fas fa-shield-alt"></i> إدارة الأدوار
+            </a>
+            <a href="{{ url_for('permissions.list') }}" class="btn btn-info">
+              <i class="fas fa-key"></i> إدارة الصلاحيات
+            </a>
+            <a href="{{ url_for('security.permissions_manager') }}" class="btn btn-outline-secondary">
+              <i class="fas fa-external-link-alt"></i> مصفوفة الصلاحيات المتقدمة
+            </a>
+          </div>
         </div>
-        {% endif %}
+        </div>
         
       </div>
     </div>

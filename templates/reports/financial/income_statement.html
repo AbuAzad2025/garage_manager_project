@@ -83,7 +83,7 @@
                         <tfoot class="table-danger fw-bold">
                             <tr>
                                 <td>إجمالي المصاريف</td>
-                                <td class="text-end">{{ "{:,.2f}".format(total_expenses) }} ₪</td>
+                                <td class="text-end">{{ "{:,.2f}".format(operating_expenses) }} ₪</td>
                             </tr>
                         </tfoot>
                         
@@ -98,7 +98,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end {% if is_profit %}text-success{% else %}text-danger{% endif %}">
-                                    {{ "{:,.2f}".format(net_income|abs) }} ₪
+                                    {{ "{:,.2f}".format(net_profit|abs) }} ₪
                                 </td>
                             </tr>
                         </tfoot>
@@ -133,7 +133,7 @@
 function updateReport() {
     const fromDate = document.getElementById('from_date').value;
     const toDate = document.getElementById('to_date').value;
-    window.location.href = `/financial-reports/income-statement?from_date=${fromDate}&to_date=${toDate}`;
+    window.location.href = `/reports/financial/income-statement?start_date=${fromDate}&end_date=${toDate}`;
 }
 
 function exportToExcel() {

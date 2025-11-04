@@ -1,0 +1,286 @@
+{% extends 'base.html' %}
+{% block title %}🎓 التدريبات المتخصصة - ديناميكية{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      
+      <div class="card bg-gradient-primary text-white mb-4">
+        <div class="card-body">
+          <h2><i class="fas fa-graduation-cap"></i> مركز التدريبات المتخصصة</h2>
+          <p class="mb-0">اختر الباقات التدريبية التي تريدها - تدريب حقيقي وملموس</p>
+        </div>
+      </div>
+      
+      <div class="row">
+        
+        <div class="col-md-4 mb-4">
+          <div class="card border-success shadow h-100">
+            <div class="card-header bg-success text-white">
+              <h5><i class="fas fa-comments"></i> الترحيب والدردشة</h5>
+              <span class="badge bg-light text-dark">150 عنصر</span>
+            </div>
+            <div class="card-body">
+              <p>تدريب على:</p>
+              <ul class="small">
+                <li>الترحيب بالمستخدمين</li>
+                <li>الدردشة العادية المحترمة</li>
+                <li>استخدام عبارات مهذبة</li>
+                <li>بدء المحادثات</li>
+              </ul>
+              <div class="d-grid">
+                <button class="btn btn-success" onclick="trainPackage('greeting_conversation')">
+                  <i class="fas fa-play"></i> بدء التدريب
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+          <div class="card border-info shadow h-100">
+            <div class="card-header bg-info text-white">
+              <h5><i class="fas fa-building"></i> شركة أزاد</h5>
+              <span class="badge bg-light text-dark">80 عنصر</span>
+            </div>
+            <div class="card-body">
+              <p>تدريب على:</p>
+              <ul class="small">
+                <li>التعريف بالشركة</li>
+                <li>مميزات النظام</li>
+                <li>الوحدات المتوفرة</li>
+                <li>الريادة والتطور</li>
+                <li>طلب الدعم والتشجيع</li>
+              </ul>
+              <div class="d-grid">
+                <button class="btn btn-info" onclick="trainPackage('azad_company')">
+                  <i class="fas fa-play"></i> بدء التدريب
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+          <div class="card border-warning shadow h-100">
+            <div class="card-header bg-warning text-dark">
+              <h5><i class="fas fa-smile"></i> فنون الرد واللطافة</h5>
+              <span class="badge bg-dark">120 عنصر</span>
+            </div>
+            <div class="card-body">
+              <p>تدريب على:</p>
+              <ul class="small">
+                <li>مبادئ التواصل الفعال</li>
+                <li>الرد اللطيف والمهذب</li>
+                <li>أنماط الردود المختلفة</li>
+                <li>التعامل مع المواقف</li>
+              </ul>
+              <div class="d-grid">
+                <button class="btn btn-warning" onclick="trainPackage('communication_skills')">
+                  <i class="fas fa-play"></i> بدء التدريب
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+          <div class="card border-danger shadow h-100">
+            <div class="card-header bg-danger text-white">
+              <h5><i class="fas fa-shield-alt"></i> الأخلاق والاحترافية</h5>
+              <span class="badge bg-light text-dark">60 عنصر</span>
+            </div>
+            <div class="card-body">
+              <p>تدريب على:</p>
+              <ul class="small">
+                <li>البعد عن المواضيع غير اللائقة</li>
+                <li>الرد المهذب دائماً</li>
+                <li>الحدود المهنية</li>
+                <li>المبادئ الأخلاقية</li>
+              </ul>
+              <div class="d-grid">
+                <button class="btn btn-danger" onclick="trainPackage('ethics_professionalism')">
+                  <i class="fas fa-play"></i> بدء التدريب
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+          <div class="card border-primary shadow h-100">
+            <div class="card-header bg-primary text-white">
+              <h5><i class="fas fa-calculator"></i> بروفيسور محاسبة</h5>
+              <span class="badge bg-light text-dark">300 عنصر</span>
+            </div>
+            <div class="card-body">
+              <p>تدريب على:</p>
+              <ul class="small">
+                <li>20+ مفهوم محاسبي</li>
+                <li>المعادلات المحاسبية</li>
+                <li>القيود المحاسبية</li>
+                <li>القوائم المالية</li>
+              </ul>
+              <div class="d-grid">
+                <button class="btn btn-primary" onclick="trainPackage('accounting_professor')">
+                  <i class="fas fa-play"></i> بدء التدريب
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-4 mb-4">
+          <div class="card border-secondary shadow h-100">
+            <div class="card-header bg-secondary text-white">
+              <h5><i class="fas fa-chart-line"></i> الإدارة والمالية</h5>
+              <span class="badge bg-light text-dark">250 عنصر</span>
+            </div>
+            <div class="card-body">
+              <p>تدريب على:</p>
+              <ul class="small">
+                <li>مفاهيم الإدارة</li>
+                <li>النسب المالية</li>
+                <li>القرارات التجارية</li>
+                <li>التحليل المالي</li>
+              </ul>
+              <div class="d-grid">
+                <button class="btn btn-secondary" onclick="trainPackage('management_finance')">
+                  <i class="fas fa-play"></i> بدء التدريب
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+      </div>
+      
+      <div class="row mt-4">
+        <div class="col-12">
+          <div class="card bg-dark text-white">
+            <div class="card-body text-center">
+              <h4><i class="fas fa-rocket"></i> تدريب شامل - كل الباقات</h4>
+              <p class="mb-3">تدريب على جميع التخصصات مرة واحدة (960+ عنصر)</p>
+              <button class="btn btn-light btn-lg" onclick="trainAllPackages()">
+                <i class="fas fa-fire"></i> تدريب مكثف شامل
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="row mt-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header bg-info text-white">
+              <h5><i class="fas fa-tasks"></i> حالة التدريب</h5>
+            </div>
+            <div class="card-body">
+              <div id="training-status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<script>
+let statusCheckInterval = null;
+
+async function trainPackage(packageId) {
+  const statusDiv = document.getElementById('training-status');
+  statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> جاري التدريب...</div>';
+  
+  try {
+    const response = await fetch('/ai/admin/train-package', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({package_id: packageId})
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      statusDiv.innerHTML = `
+        <div class="alert alert-success">
+          <h5>تم التدريب بنجاح!</h5>
+          <p><strong>الباقة:</strong> ${data.package_name || packageId}</p>
+          <p><strong>العناصر المتعلمة:</strong> ${data.items_learned}</p>
+          <p class="mb-0"><i class="fas fa-check-circle"></i> تم حفظ المعرفة في الذاكرة</p>
+        </div>
+      `;
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'تم التدريب!',
+        text: `تم تعلم ${data.items_learned} عنصر بنجاح`,
+        confirmButtonText: 'رائع!'
+      });
+    } else {
+      statusDiv.innerHTML = `<div class="alert alert-danger">خطأ: ${data.error}</div>`;
+    }
+  } catch (error) {
+    statusDiv.innerHTML = `<div class="alert alert-danger">خطأ: ${error}</div>`;
+  }
+}
+
+async function trainAllPackages() {
+  const statusDiv = document.getElementById('training-status');
+  
+  Swal.fire({
+    title: 'تدريب شامل',
+    text: 'سيتم تدريب المساعد على جميع التخصصات. قد يستغرق دقيقة...',
+    icon: 'info',
+    showCancelButton: true,
+    confirmButtonText: 'ابدأ',
+    cancelButtonText: 'إلغاء'
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> جاري التدريب الشامل...</div>';
+      
+      try {
+        const response = await fetch('/ai/admin/train-all-packages', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          let html = '<div class="alert alert-success">';
+          html += '<h5>تم التدريب الشامل بنجاح!</h5>';
+          html += `<p><strong>الباقات المدربة:</strong> ${data.packages_trained}</p>`;
+          html += `<p><strong>إجمالي العناصر:</strong> ${data.total_items_learned}</p>`;
+          html += '<hr><h6>التفاصيل:</h6><ul>';
+          
+          for (const [pkg, result] of Object.entries(data.details)) {
+            if (result.success) {
+              html += `<li>${pkg}: ${result.items_learned} عنصر</li>`;
+            }
+          }
+          
+          html += '</ul></div>';
+          statusDiv.innerHTML = html;
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'تم التدريب الشامل!',
+            html: `<p>تم تدريب ${data.packages_trained} باقة</p><p>إجمالي: ${data.total_items_learned} عنصر</p>`,
+            confirmButtonText: 'ممتاز!'
+          });
+        } else {
+          statusDiv.innerHTML = `<div class="alert alert-danger">خطأ: ${data.error}</div>`;
+        }
+      } catch (error) {
+        statusDiv.innerHTML = `<div class="alert alert-danger">خطأ: ${error}</div>`;
+      }
+    }
+  });
+}
+</script>
+
+{% endblock %}
+
