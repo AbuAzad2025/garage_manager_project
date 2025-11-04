@@ -907,6 +907,13 @@ def account_statement(customer_id):
 
     # إضافة الرصيد الافتتاحي كأول قيد
     opening_balance = D(getattr(c, 'opening_balance', 0) or 0)
+    if opening_balance != 0 and c.currency != "ILS":
+        try:
+            from models import convert_amount
+            opening_balance = convert_amount(opening_balance, c.currency, "ILS", df or c.created_at)
+        except:
+            pass
+    
     if opening_balance != 0:
         # تاريخ الرصيد الافتتاحي: تاريخ إنشاء العميل أو أول معاملة
         opening_date = c.created_at
@@ -937,19 +944,63 @@ def account_statement(customer_id):
     total_credit = sum(e["credit"] for e in entries)
     balance = total_debit - total_credit  # ✅ الرصيد من كشف الحساب هو الصحيح
 
+    total_invoices_calc = D('0.00')
+    for inv in invoices:
+        amt = D(inv.total_amount or 0)
+        if inv.currency and inv.currency != "ILS":
+            try:
+                from models import convert_amount
+                amt = convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
+            except:
+                pass
+        total_invoices_calc += amt
+    
+    total_sales_calc = D('0.00')
+    for s in sales:
+        amt = D(s.total_amount or 0)
+        if s.currency and s.currency != "ILS":
+            try:
+                from models import convert_amount
+                amt = convert_amount(amt, s.currency, "ILS", s.sale_date)
+            except:
+                pass
+        total_sales_calc += amt
+    
+    total_preorders_calc = D('0.00')
+    for pre in preorders:
+        amt = D(pre.total_amount or 0)
+        if pre.currency and pre.currency != "ILS":
+            try:
+                from models import convert_amount
+                amt = convert_amount(amt, pre.currency, "ILS", pre.created_at)
+            except:
+                pass
+        total_preorders_calc += amt
+    
+    total_payments_calc = D('0.00')
+    for p in all_payments:
+        amt = D(p.total_amount or 0)
+        if p.currency and p.currency != "ILS":
+            try:
+                from models import convert_amount
+                amt = convert_amount(amt, p.currency, "ILS", p.payment_date)
+            except:
+                pass
+        total_payments_calc += amt
+    
     return render_template(
         "customers/account_statement.html",
         customer=c,
         ledger_entries=entries,
-        total_invoices=sum(D(inv.total_amount or 0) for inv in invoices),
-        total_sales=sum(D(s.total_amount or 0) for s in sales),
+        total_invoices=total_invoices_calc,
+        total_sales=total_sales_calc,
         total_services=sum(D(service_grand_total(srv)) for srv in services),
-        total_preorders=sum(D(pre.total_amount or 0) for pre in preorders),
+        total_preorders=total_preorders_calc,
         total_online_preorders=D(0),
-        total_payments=sum(D(p.total_amount or 0) for p in all_payments),
+        total_payments=total_payments_calc,
         total_debit=total_debit,
         total_credit=total_credit,
-        balance=balance,  # ✅ الرصيد من كشف الحساب
+        balance=balance,
         start_date=start_date,
         end_date=end_date,
     )

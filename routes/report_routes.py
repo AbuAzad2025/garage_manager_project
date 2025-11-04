@@ -1558,11 +1558,55 @@ def customer_detail_report(customer_id):
     preorders = preorders_query.order_by(OnlinePreOrder.created_at.desc()).all()
 
     # حساب الإجماليات
-    total_sales = sum(float(s.total_amount or 0) for s in sales)
-    total_invoices = sum(float(i.total_amount or 0) for i in invoices)
-    total_services = sum(float(s.total_amount or 0) for s in services)
-    total_payments = sum(float(p.total_amount or 0) for p in payments)
-    total_preorders = sum(float(p.total_amount or 0) for p in preorders)
+    total_sales = Decimal('0.00')
+    for s in sales:
+        amt = Decimal(str(s.total_amount or 0))
+        if s.currency and s.currency != "ILS":
+            try:
+                amt = convert_amount(amt, s.currency, "ILS", s.sale_date)
+            except:
+                pass
+        total_sales += amt
+    
+    total_invoices = Decimal('0.00')
+    for i in invoices:
+        amt = Decimal(str(i.total_amount or 0))
+        if i.currency and i.currency != "ILS":
+            try:
+                amt = convert_amount(amt, i.currency, "ILS", i.invoice_date)
+            except:
+                pass
+        total_invoices += amt
+    
+    total_services = Decimal('0.00')
+    for s in services:
+        amt = Decimal(str(s.total_amount or 0))
+        if s.currency and s.currency != "ILS":
+            try:
+                amt = convert_amount(amt, s.currency, "ILS", s.received_at)
+            except:
+                pass
+        total_services += amt
+    
+    total_payments = Decimal('0.00')
+    for p in payments:
+        amt = Decimal(str(p.total_amount or 0))
+        if p.currency and p.currency != "ILS":
+            try:
+                amt = convert_amount(amt, p.currency, "ILS", p.payment_date)
+            except:
+                pass
+        total_payments += amt
+    
+    total_preorders = Decimal('0.00')
+    for p in preorders:
+        amt = Decimal(str(p.total_amount or 0))
+        if hasattr(p, 'currency') and p.currency and p.currency != "ILS":
+            try:
+                amt = convert_amount(amt, p.currency, "ILS", p.created_at)
+            except:
+                pass
+        total_preorders += amt
 
     # الرصيد الحالي
     current_balance = float(customer.balance or 0)
@@ -1730,7 +1774,16 @@ def supplier_detail_report(supplier_id):
     total_sales = sum(Decimal(str(s.total_amount or 0)) for s in sales)
     total_services = sum(Decimal(str(s.total_amount or 0)) for s in services)
     total_preorders = sum(Decimal(str(p.total_amount or 0)) for p in preorders)
-    total_expenses = sum(Decimal(str(e.amount or 0)) for e in expenses)
+    
+    total_expenses = Decimal('0.00')
+    for e in expenses:
+        amt = Decimal(str(e.amount or 0))
+        if e.currency and e.currency != "ILS":
+            try:
+                amt = convert_amount(amt, e.currency, "ILS", e.date)
+            except:
+                pass
+        total_expenses += amt
 
     # الرصيد الحالي
     current_balance = float(supplier.balance or 0)
@@ -1903,7 +1956,16 @@ def partner_detail_report(partner_id):
     total_services = sum(Decimal(str(s.total_amount or 0)) for s in services)
     total_preorders = sum(Decimal(str(p.total_amount or 0)) for p in preorders)
     total_service_parts = sum(Decimal(str(sp.quantity * sp.unit_price or 0)) for sp in service_parts)
-    total_expenses = sum(Decimal(str(e.amount or 0)) for e in expenses)
+    
+    total_expenses = Decimal('0.00')
+    for e in expenses:
+        amt = Decimal(str(e.amount or 0))
+        if e.currency and e.currency != "ILS":
+            try:
+                amt = convert_amount(amt, e.currency, "ILS", e.date)
+            except:
+                pass
+        total_expenses += amt
 
     # الرصيد الحالي
     current_balance = float(partner.balance or 0)

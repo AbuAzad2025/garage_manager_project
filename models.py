@@ -2457,6 +2457,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     @hybrid_property
     def total_paid(self):
         from decimal import Decimal
+        from sqlalchemy import or_, and_
         direct_payments = db.session.query(Payment).filter(
             Payment.supplier_id == self.id,
             Payment.direction == PaymentDirection.OUT.value,
@@ -2491,7 +2492,24 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
                 except:
                     pass
         
-        return float(direct + via_loans)
+        expenses = db.session.query(Expense).filter(
+            or_(
+                Expense.supplier_id == self.id,
+                and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == self.id)
+            )
+        ).all()
+        expenses_total = Decimal('0.00')
+        for exp in expenses:
+            amt = Decimal(str(exp.amount or 0))
+            if exp.currency == "ILS":
+                expenses_total += amt
+            else:
+                try:
+                    expenses_total += convert_amount(amt, exp.currency, "ILS", exp.date)
+                except:
+                    pass
+        
+        return float(direct + via_loans + expenses_total)
 
     @total_paid.expression
     def total_paid(cls):
@@ -2547,7 +2565,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     def balance_in_ils(self):
         """الرصيد بالشيكل - حساب دقيق مع تحويل العملات"""
         try:
-            # حساب المدفوعات بالشيكل
+            from sqlalchemy import or_, and_
             payments = db.session.query(Payment).filter(
                 Payment.supplier_id == self.id,
                 Payment.status == PaymentStatus.COMPLETED.value
@@ -2559,30 +2577,40 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
                 currency = payment.currency or "ILS"
                 direction = payment.direction
                 
-                # تحويل للشيكل باستخدام الأسعار الحقيقية
                 if currency == "ILS":
                     converted_amount = amount
                 else:
                     try:
-                        # استخدام الأسعار اليدوية فقط لتجنب مشاكل قاعدة البيانات
                         converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
                     except Exception as e:
-                        # تسجيل الخطأ - لا نستخدم المبلغ الأصلي لأنه بعملة مختلفة
                         try:
                             from flask import current_app
                             current_app.logger.error(f"❌ خطأ في تحويل العملة لحساب رصيد المورد #{self.id}: {str(e)}")
                         except:
                             pass
-                        # تجاهل هذا المبلغ من الحساب
                         continue
                 
-                # تطبيق اتجاه الدفع
                 if direction == PaymentDirection.OUT.value:
                     total_paid_ils += converted_amount
                 else:
                     total_paid_ils -= converted_amount
             
-            # حساب الرصيد الأساسي بالشيكل
+            expenses = db.session.query(Expense).filter(
+                or_(
+                    Expense.supplier_id == self.id,
+                    and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == self.id)
+                )
+            ).all()
+            for exp in expenses:
+                amt = Decimal(str(exp.amount or 0))
+                if exp.currency == "ILS":
+                    total_paid_ils += amt
+                else:
+                    try:
+                        total_paid_ils += convert_amount(amt, exp.currency, "ILS", exp.date)
+                    except:
+                        pass
+            
             base_balance = Decimal(str(self.balance or 0))
             if self.currency == "ILS":
                 base_balance_ils = base_balance
@@ -3137,6 +3165,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     @hybrid_property
     def total_paid(self):
         from decimal import Decimal
+        from sqlalchemy import or_, and_
         payments = db.session.query(Payment).filter(
             Payment.partner_id == self.id,
             Payment.direction == PaymentDirection.OUT.value,
@@ -3152,6 +3181,23 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
                     total += convert_amount(amt, p.currency, "ILS", p.payment_date)
                 except:
                     pass
+        
+        expenses = db.session.query(Expense).filter(
+            or_(
+                Expense.partner_id == self.id,
+                and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == self.id)
+            )
+        ).all()
+        for exp in expenses:
+            amt = Decimal(str(exp.amount or 0))
+            if exp.currency == "ILS":
+                total += amt
+            else:
+                try:
+                    total += convert_amount(amt, exp.currency, "ILS", exp.date)
+                except:
+                    pass
+        
         return float(total)
 
     @total_paid.expression
@@ -3170,7 +3216,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     def balance_in_ils(self):
         """الرصيد بالشيكل - حساب دقيق مع تحويل العملات"""
         try:
-            # حساب المدفوعات بالشيكل
+            from sqlalchemy import or_, and_
             payments = db.session.query(Payment).filter(
                 Payment.partner_id == self.id,
                 Payment.status == PaymentStatus.COMPLETED.value
@@ -3182,30 +3228,40 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
                 currency = payment.currency or "ILS"
                 direction = payment.direction
 
-                # تحويل للشيكل باستخدام الأسعار الحقيقية
                 if currency == "ILS":
                     converted_amount = amount
                 else:
                     try:
-                        # استخدام الأسعار اليدوية فقط لتجنب مشاكل قاعدة البيانات
                         converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
                     except Exception as e:
-                        # تسجيل الخطأ - لا نستخدم المبلغ الأصلي لأنه بعملة مختلفة
                         try:
                             from flask import current_app
                             current_app.logger.error(f"❌ خطأ في تحويل العملة لحساب رصيد الشريك #{self.id}: {str(e)}")
                         except:
                             pass
-                        # تجاهل هذا المبلغ من الحساب
                         continue
 
-                # تطبيق اتجاه الدفع
                 if direction == PaymentDirection.OUT.value:
                     total_paid_ils += converted_amount
                 else:
                     total_paid_ils -= converted_amount
+            
+            expenses = db.session.query(Expense).filter(
+                or_(
+                    Expense.partner_id == self.id,
+                    and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == self.id)
+                )
+            ).all()
+            for exp in expenses:
+                amt = Decimal(str(exp.amount or 0))
+                if exp.currency == "ILS":
+                    total_paid_ils += amt
+                else:
+                    try:
+                        total_paid_ils += convert_amount(amt, exp.currency, "ILS", exp.date)
+                    except:
+                        pass
 
-            # حساب الرصيد الأساسي بالشيكل
             base_balance = Decimal(str(self.balance or 0))
             if self.currency == "ILS":
                 base_balance_ils = base_balance
@@ -4326,7 +4382,7 @@ class EmployeeAdvanceInstallment(db.Model, TimestampMixin, AuditMixin):
     employee = relationship('Employee', back_populates='advance_installments')
     advance_expense = relationship('Expense', foreign_keys=[advance_expense_id])
     salary_expense = relationship('Expense', foreign_keys=[paid_in_salary_expense_id])
-    
+
     __table_args__ = ()
 
 

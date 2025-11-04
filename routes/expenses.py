@@ -1066,19 +1066,9 @@ def edit(exp_id):
 @login_required
 # @permission_required("manage_expenses")  # Commented out
 def delete(exp_id):
-    from models import EmployeeDeduction, EmployeeAdvance, EmployeeAdvanceInstallment, Payment
-    
     exp = _get_or_404(Expense, exp_id)
     
     try:
-        EmployeeDeduction.query.filter_by(expense_id=exp_id).update({"expense_id": None})
-        EmployeeAdvance.query.filter_by(expense_id=exp_id).update({"expense_id": None})
-        EmployeeAdvanceInstallment.query.filter_by(advance_expense_id=exp_id).delete()
-        EmployeeAdvanceInstallment.query.filter_by(paid_in_salary_expense_id=exp_id).update({"paid_in_salary_expense_id": None})
-        
-        for payment in Payment.query.filter_by(expense_id=exp_id).all():
-            db.session.delete(payment)
-        
         db.session.delete(exp)
         db.session.commit()
         flash("✅ تم حذف المصروف", "success")

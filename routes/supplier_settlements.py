@@ -412,6 +412,13 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         # ═══════════════════════════════════════════════════════════
         
         opening_balance = Decimal(str(getattr(supplier, 'opening_balance', 0) or 0))
+        supplier_currency = getattr(supplier, 'currency', 'ILS') or 'ILS'
+        
+        if supplier_currency != 'ILS' and opening_balance != 0:
+            try:
+                opening_balance = convert_amount(opening_balance, supplier_currency, 'ILS', date_from)
+            except:
+                pass
         
         # ═══════════════════════════════════════════════════════════
         # 🟢 حقوق المورد (ما له علينا - قطع أخذناها منه)
@@ -457,6 +464,28 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         # 7. مرتجعات له (OUT في Exchange)
         returns_to_supplier = _get_returns_to_supplier(supplier_id, date_from, date_to)
         
+        # 8. مصاريف مدفوعة له (تُعتبر كدفعات)
+        expenses_to_supplier = Expense.query.filter(
+            or_(
+                Expense.supplier_id == supplier_id,
+                and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == supplier_id)
+            ),
+            Expense.date >= date_from,
+            Expense.date <= date_to
+        ).all()
+        
+        expenses_total = Decimal('0.00')
+        for exp in expenses_to_supplier:
+            amt = Decimal(str(exp.amount or 0))
+            if exp.currency == "ILS":
+                expenses_total += amt
+            else:
+                try:
+                    from models import convert_amount
+                    expenses_total += convert_amount(amt, exp.currency, "ILS", exp.date)
+                except:
+                    pass
+        
         # ═══════════════════════════════════════════════════════════
         # الحساب المحاسبي الصحيح
         # ═══════════════════════════════════════════════════════════
@@ -465,7 +494,7 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         net_before_payments = supplier_rights - supplier_obligations
         
         # الدفعات والمرتجعات
-        paid_to_supplier = Decimal(str(payments_to_supplier.get("total_ils", 0)))
+        paid_to_supplier = Decimal(str(payments_to_supplier.get("total_ils", 0))) + expenses_total
         received_from_supplier = Decimal(str(payments_from_supplier.get("total_ils", 0))) + \
                                  Decimal(str(preorders_prepaid.get("total_ils", 0)))
         returns_value = Decimal(str(returns_to_supplier.get("total_value_ils", 0)))

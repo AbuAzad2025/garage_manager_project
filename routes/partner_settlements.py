@@ -419,6 +419,13 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # ═══════════════════════════════════════════════════════════
         
         opening_balance = Decimal(str(getattr(partner, 'opening_balance', 0) or 0))
+        partner_currency = getattr(partner, 'currency', 'ILS') or 'ILS'
+        
+        if partner_currency != 'ILS' and opening_balance != 0:
+            try:
+                opening_balance = convert_amount(opening_balance, partner_currency, 'ILS', date_from)
+            except:
+                pass
         
         # ═══════════════════════════════════════════════════════════
         # 🔵 جانب المدين (ما له علينا - حقوقه)

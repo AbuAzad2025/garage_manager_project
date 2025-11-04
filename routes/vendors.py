@@ -602,8 +602,63 @@ def suppliers_statement(supplier_id: int):
             per_product[pid]["qty_paid"] += 1
             per_product[pid]["val_paid"] += amt
 
+    expense_q = Expense.query.filter(
+        or_(
+            Expense.supplier_id == supplier.id,
+            and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == supplier.id)
+        )
+    )
+    if df:
+        expense_q = expense_q.filter(Expense.date >= df)
+    if dt:
+        expense_q = expense_q.filter(Expense.date < dt)
+    
+    for exp in expense_q.all():
+        d = exp.date
+        amt = q2(exp.amount or 0)
+        
+        if exp.currency and exp.currency != "ILS" and amt > 0:
+            try:
+                from models import convert_amount
+                convert_date = d if d else (df if df else supplier.created_at)
+                amt = convert_amount(amt, exp.currency, "ILS", convert_date)
+            except Exception as e:
+                try:
+                    from flask import current_app
+                    current_app.logger.error(f"Error converting expense #{exp.id} amount: {e}")
+                except:
+                    pass
+        
+        exp_type_name = getattr(getattr(exp, 'type', None), 'name', 'مصروف')
+        ref = f"مصروف #{exp.id}"
+        statement = f"مصروف: {exp_type_name}"
+        if exp.description:
+            statement += f" - {exp.description}"
+        
+        entries.append({
+            "date": d,
+            "type": "EXPENSE",
+            "ref": ref,
+            "statement": statement,
+            "debit": amt,
+            "credit": Decimal("0.00")
+        })
+        total_debit += amt
+
     # إضافة الرصيد الافتتاحي كأول قيد
     opening_balance = Decimal(getattr(supplier, 'opening_balance', 0) or 0)
+    if opening_balance != 0 and supplier.currency and supplier.currency != "ILS":
+        try:
+            from models import convert_amount
+            convert_date = df if df else supplier.created_at
+            opening_balance = convert_amount(opening_balance, supplier.currency, "ILS", convert_date)
+        except Exception as e:
+            try:
+                from flask import current_app
+                current_app.logger.error(f"Error converting supplier #{supplier.id} opening balance: {e}")
+            except:
+                pass
+    
     if opening_balance != 0:
         # تاريخ الرصيد الافتتاحي: تاريخ إنشاء المورد أو أول معاملة
         opening_date = supplier.created_at
@@ -922,8 +977,63 @@ def partners_statement(partner_id: int):
             else:
                 total_credit += amt
 
+    expense_q = Expense.query.filter(
+        or_(
+            Expense.partner_id == partner.id,
+            and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id)
+        )
+    )
+    if df:
+        expense_q = expense_q.filter(Expense.date >= df)
+    if dt:
+        expense_q = expense_q.filter(Expense.date < dt)
+    
+    for exp in expense_q.all():
+        d = exp.date
+        amt = q2(exp.amount or 0)
+        
+        if exp.currency and exp.currency != "ILS" and amt > 0:
+            try:
+                from models import convert_amount
+                convert_date = d if d else (df if df else partner.created_at)
+                amt = convert_amount(amt, exp.currency, "ILS", convert_date)
+            except Exception as e:
+                try:
+                    from flask import current_app
+                    current_app.logger.error(f"Error converting expense #{exp.id} amount: {e}")
+                except:
+                    pass
+        
+        exp_type_name = getattr(getattr(exp, 'type', None), 'name', 'مصروف')
+        ref = f"مصروف #{exp.id}"
+        statement = f"مصروف: {exp_type_name}"
+        if exp.description:
+            statement += f" - {exp.description}"
+        
+        entries.append({
+            "date": d,
+            "type": "EXPENSE",
+            "ref": ref,
+            "statement": statement,
+            "debit": amt,
+            "credit": Decimal("0.00")
+        })
+        total_debit += amt
+
     # إضافة الرصيد الافتتاحي كأول قيد
     opening_balance = Decimal(getattr(partner, 'opening_balance', 0) or 0)
+    if opening_balance != 0 and partner.currency and partner.currency != "ILS":
+        try:
+            from models import convert_amount
+            convert_date = df if df else partner.created_at
+            opening_balance = convert_amount(opening_balance, partner.currency, "ILS", convert_date)
+        except Exception as e:
+            try:
+                from flask import current_app
+                current_app.logger.error(f"Error converting partner #{partner.id} opening balance: {e}")
+            except:
+                pass
+    
     if opening_balance != 0:
         # تاريخ الرصيد الافتتاحي: تاريخ إنشاء الشريك أو أول معاملة
         opening_date = partner.created_at
