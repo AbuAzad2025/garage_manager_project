@@ -1,6 +1,10 @@
 <footer class="main-footer enhanced-footer text-center" dir="rtl">
   <div class="container">
     <div class="footer-brand">
+      <img src="{{ url_for('static', filename='img/azad_logo_emblem.png') }}"
+           alt="Azad Logo"
+           class="footer-logo"
+           style="max-height: 50px;">
       <div class="footer-company">
         <strong class="footer-company-name">{{ system_settings.company_name or 'شركة أزاد للنظم الذكية' }}</strong>
         <small class="footer-system-name">{{ system_settings.system_name or 'نظام إدارة الكراج المتكامل' }}</small>
