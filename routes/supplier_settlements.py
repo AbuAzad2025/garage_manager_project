@@ -417,7 +417,7 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         if supplier_currency != 'ILS' and opening_balance != 0:
             try:
                 opening_balance = convert_amount(opening_balance, supplier_currency, 'ILS', date_from)
-            except:
+            except Exception:
                 pass
         
         # ═══════════════════════════════════════════════════════════
@@ -443,28 +443,13 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         # 4. الحجوزات المسبقة (إذا كان عميلاً)
         preorders_to_supplier = _get_supplier_preorders(supplier_id, date_from, date_to)
         
-        # التزامات المورد
+        # 7. مرتجعات له (OUT في Exchange)
+        returns_to_supplier = _get_returns_to_supplier(supplier_id, date_from, date_to)
+        
         supplier_obligations = Decimal(str(sales_to_supplier.get("total_ils", 0))) + \
                                Decimal(str(services_to_supplier.get("total_ils", 0))) + \
                                Decimal(str(preorders_to_supplier.get("total_ils", 0) if isinstance(preorders_to_supplier, dict) else 0))
         
-        # ═══════════════════════════════════════════════════════════
-        # 💰 الدفعات والمرتجعات (كلها تُخصم من الرصيد)
-        # ═══════════════════════════════════════════════════════════
-        
-        # 4. دفعنا له (OUT)
-        payments_to_supplier = _get_payments_to_supplier(supplier_id, supplier, date_from, date_to)
-        
-        # 5. دفع لنا (IN)
-        payments_from_supplier = _get_payments_from_supplier(supplier_id, supplier, date_from, date_to)
-        
-        # 6. أرصدة الحجوزات المسبقة (العربون) - تُحسب كدفعة واردة
-        preorders_prepaid = _get_supplier_preorders_prepaid(supplier_id, supplier, date_from, date_to)
-        
-        # 7. مرتجعات له (OUT في Exchange)
-        returns_to_supplier = _get_returns_to_supplier(supplier_id, date_from, date_to)
-        
-        # 8. مصاريف مدفوعة له (تُعتبر كدفعات)
         expenses_to_supplier = Expense.query.filter(
             or_(
                 Expense.supplier_id == supplier_id,
@@ -483,8 +468,21 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
                 try:
                     from models import convert_amount
                     expenses_total += convert_amount(amt, exp.currency, "ILS", exp.date)
-                except:
+                except Exception:
                     pass
+        
+        # ═══════════════════════════════════════════════════════════
+        # 💰 الدفعات والمرتجعات
+        # ═══════════════════════════════════════════════════════════
+        
+        # 4. دفعنا له (OUT)
+        payments_to_supplier = _get_payments_to_supplier(supplier_id, supplier, date_from, date_to)
+        
+        # 5. دفع لنا (IN)
+        payments_from_supplier = _get_payments_from_supplier(supplier_id, supplier, date_from, date_to)
+        
+        # 6. أرصدة الحجوزات المسبقة (العربون) - تُحسب كدفعة واردة
+        preorders_prepaid = _get_supplier_preorders_prepaid(supplier_id, supplier, date_from, date_to)
         
         # ═══════════════════════════════════════════════════════════
         # الحساب المحاسبي الصحيح
@@ -494,14 +492,12 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         net_before_payments = supplier_rights - supplier_obligations
         
         # الدفعات والمرتجعات
-        paid_to_supplier = Decimal(str(payments_to_supplier.get("total_ils", 0))) + expenses_total
+        paid_to_supplier = Decimal(str(payments_to_supplier.get("total_ils", 0)))
         received_from_supplier = Decimal(str(payments_from_supplier.get("total_ils", 0))) + \
                                  Decimal(str(preorders_prepaid.get("total_ils", 0)))
         returns_value = Decimal(str(returns_to_supplier.get("total_value_ils", 0)))
         
-        # الرصيد النهائي = الرصيد الافتتاحي + (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا) - (مرتجعات له)
-        # مثال: رصيد افتتاحي 50 + (له 100 - عليه 30) - دفعنا له 60 + دفع لنا 20 = 80
-        balance = opening_balance + net_before_payments - paid_to_supplier + received_from_supplier - returns_value
+        balance = opening_balance + net_before_payments - paid_to_supplier + received_from_supplier - returns_value - expenses_total
         
         # القطع غير المسعرة
         unpriced_items = exchange_items.get("unpriced_items", [])
@@ -549,6 +545,11 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
                 "total_returns": float(returns_value),
                 "total_settled": float(paid_to_supplier + received_from_supplier + returns_value)
             },
+            # 💸 المصاريف
+            "expenses": {
+                "total_ils": float(expenses_total),
+                "count": len(expenses_to_supplier)
+            },
             # 🎯 الرصيد
             "balance": {
                 "gross": float(net_before_payments),
@@ -558,7 +559,7 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
                 "payment_direction": "OUT" if balance > 0 else "IN" if balance < 0 else None,
                 "action": "ندفع له" if balance > 0 else "يدفع لنا" if balance < 0 else "لا شيء",
                 "currency": "ILS",
-                "formula": f"({float(opening_balance):.2f} + {float(supplier_rights):.2f} - {float(supplier_obligations):.2f} - {float(paid_to_supplier):.2f} + {float(received_from_supplier):.2f} - {float(returns_value):.2f}) = {float(balance):.2f}"
+                "formula": f"({float(opening_balance):.2f} + {float(supplier_rights):.2f} - {float(supplier_obligations):.2f} - {float(paid_to_supplier):.2f} + {float(received_from_supplier):.2f} - {float(returns_value):.2f} - {float(expenses_total):.2f}) = {float(balance):.2f}"
             },
             # معلومات إضافية
             "unpriced_items": unpriced_items,
@@ -861,7 +862,7 @@ def _check_required_fx_rates(currencies: list) -> dict:
                 missing_rates.append(currency)
             else:
                 available_rates[currency] = float(rate)
-        except:
+        except Exception:
             missing_rates.append(currency)
     
     return {
@@ -906,15 +907,11 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
     جلب القطع من مستودع التبادل (ما أخذناه من المورد)
     مع تحويل العملات إلى ILS
     
-    ✅ يجلب من:
-    1. ExchangeTransaction (معاملات التبادل المسجلة)
-    2. StockLevel في مستودعات التبادل (المخزون الحالي)
+    ✅ يجلب من ExchangeTransaction فقط (المعاملات التاريخية)
+    ⚠️ لا يجلب StockLevel لأن المخزون الحالي هو نتيجة المعاملات نفسها
     """
-    from models import ExchangeTransaction, Warehouse, WarehouseType, Product, StockLevel
+    from models import ExchangeTransaction
     
-    # ═══════════════════════════════════════════════════════════
-    # 1. جلب من ExchangeTransaction (المعاملات التاريخية)
-    # ═══════════════════════════════════════════════════════════
     transactions = db.session.query(ExchangeTransaction).options(
         joinedload(ExchangeTransaction.product)
     ).filter(
@@ -928,18 +925,15 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
     unpriced_items = []
     total_ils = Decimal('0.00')
     
-    # معالجة المعاملات التاريخية
     for tx in transactions:
         prod = tx.product
         qty = Decimal(str(tx.quantity or 0))
         unit_cost = Decimal(str(tx.unit_cost or 0))
         
-        # محاولة الحصول على السعر
         if unit_cost == 0:
             if prod and prod.purchase_price:
                 unit_cost = Decimal(str(prod.purchase_price))
             else:
-                # قطعة غير مسعّرة - يجب تسعيرها قبل التوثيق
                 unpriced_items.append({
                     "id": tx.id,
                     "product_id": tx.product_id,
@@ -949,20 +943,17 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
                     "date": tx.created_at.strftime("%Y-%m-%d") if tx.created_at else "",
                     "suggested_price": 0
                 })
-                # تجاهلها في الحساب حتى يتم تسعيرها
                 continue
         
         value = qty * unit_cost
         
-        # ✅ تحويل العملة إذا كانت غير ILS
-        # جلب عملة المنتج
         product_currency = getattr(prod, 'currency', 'ILS') if prod else 'ILS'
         
         if product_currency != 'ILS':
             try:
                 value_ils = _convert_to_ils(value, product_currency, tx.created_at)
             except Exception:
-                value_ils = value  # إذا فشل التحويل، نستخدم القيمة الأصلية
+                value_ils = value
         else:
             value_ils = value
         
@@ -979,73 +970,6 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
             "date": tx.created_at.strftime("%Y-%m-%d") if tx.created_at else "",
             "currency": "ILS"
         })
-    
-    # ═══════════════════════════════════════════════════════════
-    # 2. جلب المخزون الحالي من مستودعات التبادل
-    # ═══════════════════════════════════════════════════════════
-    exchange_warehouses = db.session.query(Warehouse).filter(
-        Warehouse.warehouse_type == WarehouseType.EXCHANGE.value
-    ).all()
-    
-    for wh in exchange_warehouses:
-        stocks = db.session.query(
-            Product.id.label("product_id"),
-            Product.name.label("product_name"),
-            Product.sku,
-            StockLevel.quantity,
-            Product.purchase_price,
-            Product.currency,
-            StockLevel.created_at
-        ).join(
-            StockLevel, StockLevel.product_id == Product.id
-        ).filter(
-            StockLevel.warehouse_id == wh.id,
-            Product.supplier_id == supplier_id,
-            StockLevel.quantity > 0
-        ).all()
-        
-        for stock in stocks:
-            qty = Decimal(str(stock.quantity or 0))
-            unit_cost = Decimal(str(stock.purchase_price or 0))
-            product_currency = stock.currency or 'ILS'
-            
-            if unit_cost == 0:
-                unpriced_items.append({
-                    "product_id": stock.product_id,
-                    "product_name": stock.product_name,
-                    "product_sku": stock.sku,
-                    "quantity": int(qty),
-                    "warehouse_name": wh.name,
-                    "date": stock.created_at.strftime("%Y-%m-%d") if stock.created_at else "",
-                    "suggested_price": 0
-                })
-                continue
-            
-            value = qty * unit_cost
-            
-            # ✅ تحويل العملة إذا كانت غير ILS
-            if product_currency != 'ILS':
-                try:
-                    value_ils = _convert_to_ils(value, product_currency, stock.created_at)
-                except Exception:
-                    value_ils = value
-            else:
-                value_ils = value
-            
-            total_ils += value_ils
-            
-            items.append({
-                "product_id": stock.product_id,
-                "product_name": stock.product_name,
-                "product_sku": stock.sku,
-                "quantity": int(qty),
-                "unit_cost": float(unit_cost),
-                "total_value": float(value_ils),
-                "warehouse_name": wh.name,
-                "date": stock.created_at.strftime("%Y-%m-%d") if stock.created_at else "",
-                "currency": "ILS",
-                "source": "stock"  # للتمييز عن المعاملات
-            })
     
     return {
         "items": items,
@@ -1565,10 +1489,10 @@ def _get_supplier_preorders(supplier_id: int, date_from: datetime, date_to: date
     items = []
     total_ils = Decimal('0.00')
     
-    # جلب الحجوزات المسبقة
     preorders = db.session.query(PreOrder).filter(
         PreOrder.customer_id == supplier.customer_id,
         PreOrder.status.in_(['CONFIRMED', 'COMPLETED', 'DELIVERED']),
+        PreOrder.status != 'FULFILLED',
         PreOrder.created_at >= date_from,
         PreOrder.created_at <= date_to
     ).all()
@@ -1608,10 +1532,10 @@ def _get_supplier_preorders_prepaid(supplier_id: int, supplier: Supplier, date_f
     if not supplier.customer_id:
         return {"items": [], "total_ils": 0.0, "count": 0}
     
-    # جلب الحجوزات المسبقة للعميل المرتبط بالمورد (جميع الحالات)
     preorders = db.session.query(PreOrder).filter(
         PreOrder.customer_id == supplier.customer_id,
         PreOrder.prepaid_amount > 0,
+        PreOrder.status != 'FULFILLED',
         PreOrder.preorder_date >= date_from,
         PreOrder.preorder_date <= date_to
     ).order_by(PreOrder.preorder_date).all()
@@ -1805,7 +1729,7 @@ def approve_settlement(supplier_id):
     try:
         date_from_dt = datetime.fromisoformat(date_from.replace("Z", "+00:00")) if isinstance(date_from, str) else date_from
         date_to_dt = datetime.fromisoformat(date_to.replace("Z", "+00:00")) if isinstance(date_to, str) else date_to
-    except:
+    except Exception:
         flash("تنسيق التاريخ غير صحيح", "error")
         return redirect(url_for("supplier_settlements_bp.supplier_settlement", supplier_id=supplier_id))
     
@@ -1833,7 +1757,7 @@ def approve_settlement(supplier_id):
         obligations_sales=Decimal(str(balance_data.get("obligations", {}).get("sales_to_supplier", {}).get("total_ils", 0))),
         obligations_services=Decimal(str(balance_data.get("obligations", {}).get("services_to_supplier", {}).get("total_ils", 0))),
         obligations_preorders=Decimal(str(balance_data.get("obligations", {}).get("preorders_to_supplier", {}).get("total_ils", 0) if isinstance(balance_data.get("obligations", {}).get("preorders_to_supplier"), dict) else 0)),
-        obligations_expenses=0,
+        obligations_expenses=Decimal(str(balance_data.get("expenses", {}).get("total_ils", 0))),
         obligations_total=Decimal(str(balance_data.get("obligations", {}).get("total", 0))),
         payments_out=Decimal(str(balance_data.get("payments", {}).get("total_paid", 0))),
         payments_in=Decimal(str(balance_data.get("payments", {}).get("total_received", 0))),

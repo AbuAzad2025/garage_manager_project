@@ -249,7 +249,7 @@ def _serialize_payment_min(p, *, full=False):
         try:
             from models import convert_amount
             amount_in_ils = float(convert_amount(p.total_amount, p.currency, 'ILS', p.payment_date))
-        except:
+        except Exception:
             # fallback: استخدام fx_rate_used المحفوظ
             if p.fx_rate_used and p.fx_rate_used > 0:
                 amount_in_ils = float(p.total_amount or 0) * float(p.fx_rate_used)
@@ -538,7 +538,7 @@ def index():
                     from models import convert_amount
                     converted = float(convert_amount(p.total_amount, p.currency, 'ILS', p.payment_date))
                     page_sum_ils += converted
-                except:
+                except Exception:
                     pass
         
         return jsonify({
@@ -621,27 +621,23 @@ def create_payment():
             elif et == "SUPPLIER" and eid:
                 s = db.session.get(Supplier, int(eid))
                 if s:
-                    balance = int(q0(getattr(s, "balance", 0) or 0))
+                    balance = int(q0(s.balance_in_ils or 0))
                     entity_info = {"type": "supplier", "name": s.name, "balance": balance, "currency": getattr(s, "currency", "ILS")}
-                    # ملء المبلغ تلقائياً إذا كان هناك رصيد
                     if pre_amount is None and balance > 0:
                         pre_amount = balance
                     if not preset_currency:
                         form.currency.data = getattr(s, "currency", "ILS")
-                    # ملء اسم المورد في search field
                     if hasattr(form, 'supplier_search'):
                         form.supplier_search.data = s.name
             elif et == "PARTNER" and eid:
                 p = db.session.get(Partner, int(eid))
                 if p:
-                    balance = int(q0(getattr(p, "balance", 0) or 0))
+                    balance = int(q0(p.balance_in_ils or 0))
                     entity_info = {"type": "partner", "name": p.name, "balance": balance, "currency": getattr(p, "currency", "ILS")}
-                    # ملء المبلغ تلقائياً إذا كان هناك رصيد
                     if pre_amount is None and balance > 0:
                         pre_amount = balance
                     if not preset_currency:
                         form.currency.data = getattr(p, "currency", "ILS")
-                    # ملء اسم الشريك في search field
                     if hasattr(form, 'partner_search'):
                         form.partner_search.data = p.name
             elif et == "SALE" and eid:
@@ -862,6 +858,7 @@ def create_payment():
             notes_raw = (_fd(getattr(form, "note", None)) or _fd(getattr(form, "notes", None)) or "")
             related_customer_id = None
             related_supplier_id = None
+            related_partner_id = None
             person_name = None
             if etype == "CUSTOMER":
                 related_customer_id = target_id
@@ -895,33 +892,67 @@ def create_payment():
                 related_supplier_id = target_id
                 s = db.session.get(Supplier, target_id) if target_id else None
                 person_name = getattr(s, "name", None)
-            elif etype == "SHIPMENT":
-                shp = db.session.get(Shipment, target_id)
-                related_supplier_id = getattr(shp, "supplier_id", None) if shp else None
+            elif etype == "PARTNER":
+                related_partner_id = target_id
+                p = db.session.get(Partner, target_id) if target_id else None
+                person_name = getattr(p, "name", None)
+            elif etype == "LOAN":
+                from models import SupplierLoanSettlement
+                loan_settlement = db.session.get(SupplierLoanSettlement, target_id)
+                related_supplier_id = getattr(loan_settlement, "supplier_id", None) if loan_settlement else None
                 if related_supplier_id:
                     s = db.session.get(Supplier, related_supplier_id)
                     person_name = getattr(s, "name", None)
+            elif etype == "EXPENSE":
+                from models import Expense
+                expense = db.session.get(Expense, target_id)
+                if expense:
+                    related_supplier_id = getattr(expense, "supplier_id", None)
+                    related_partner_id = getattr(expense, "partner_id", None)
+                    if related_supplier_id:
+                        s = db.session.get(Supplier, related_supplier_id)
+                        person_name = getattr(s, "name", None)
+                    elif related_partner_id:
+                        p = db.session.get(Partner, related_partner_id)
+                        person_name = getattr(p, "name", None)
+                    elif expense.payee_name:
+                        person_name = expense.payee_name
+            elif etype == "SHIPMENT":
+                shp = db.session.get(Shipment, target_id)
+                related_supplier_id = getattr(shp, "supplier_id", None) if shp else None
+                related_partner_id = getattr(shp, "partner_id", None) if shp else None
+                if related_supplier_id:
+                    s = db.session.get(Supplier, related_supplier_id)
+                    person_name = getattr(s, "name", None)
+                elif related_partner_id:
+                    p = db.session.get(Partner, related_partner_id)
+                    person_name = getattr(p, "name", None)
             ref_text = (form.reference.data or "").strip()
             if not ref_text and person_name:
                 if direction_val == "IN":
                     ref_text = f"دفعة واردة من {person_name}"
                 else:
                     ref_text = f"دفعة صادرة إلى {person_name}"
-            # منع تعارض القيد: لا نحفظ customer_id/supplier_id إذا كان هناك sale_id أو invoice_id أو entity_id آخر
             final_customer_id = None
             final_supplier_id = None
+            final_partner_id = None
             
             if etype == "CUSTOMER":
                 final_customer_id = target_id
             elif etype == "SUPPLIER":
                 final_supplier_id = target_id
-            # لا نحفظ related_customer_id/related_supplier_id لتجنب تعارض القيد
+            elif etype == "PARTNER":
+                final_partner_id = target_id
+            else:
+                final_customer_id = related_customer_id
+                final_supplier_id = related_supplier_id
+                final_partner_id = related_partner_id
             
             payment = Payment(
                 entity_type=etype,
                 customer_id=final_customer_id,
                 supplier_id=final_supplier_id,
-                partner_id=(target_id if etype == "PARTNER" else None),
+                partner_id=final_partner_id,
                 shipment_id=(target_id if etype == "SHIPMENT" else None),
                 expense_id=(target_id if etype == "EXPENSE" else None),
                 loan_settlement_id=(target_id if etype == "LOAN" else None),
@@ -1229,7 +1260,9 @@ def create_expense_payment(exp_id):
         payment = Payment(
             entity_type="EXPENSE",
             expense_id=exp.id,
-            total_amount=q0(actual_amount_expense),  # ✅ المبلغ الفعلي المدفوع
+            supplier_id=getattr(exp, "supplier_id", None),
+            partner_id=getattr(exp, "partner_id", None),
+            total_amount=q0(actual_amount_expense),
             currency=ensure_currency(form.currency.data or getattr(exp, "currency", "ILS")),
             method=getattr(method_val, "value", method_val),
             direction=_dir_to_db("OUT"),

@@ -21,6 +21,15 @@
           <a href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}" class="fw-bold text-primary">
             {{ customer.name }}
           </a>
+          {% if customer.supplier_link %}
+            <span class="badge bg-purple text-white ms-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" title="مرتبط بالمورد: {{ customer.supplier_link[0].name }}">
+              <i class="fas fa-truck ml-1"></i>مورد
+            </span>
+          {% elif customer.partner_link %}
+            <span class="badge bg-pink text-white ms-2" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" title="مرتبط بالشريك: {{ customer.partner_link[0].name }}">
+              <i class="fas fa-handshake ml-1"></i>شريك
+            </span>
+          {% endif %}
         </td>
         <td>{{ customer.phone or '-' }}</td>
         <td class="hide-mobile">{{ customer.email or '-' }}</td>

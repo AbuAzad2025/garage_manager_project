@@ -1123,6 +1123,44 @@ def payment_create(direction, entity_type, target_id, amount, method, status, cu
         raise click.ClickException(f"Unsupported entity-type: {entity_type}")
     try:
         with _begin():
+            entity_kwargs = {fk: int(target_id)}
+            
+            if entity_type == PaymentEntityType.SALE.value and target_id:
+                sale = db.session.get(Sale, int(target_id))
+                if sale and sale.customer_id:
+                    entity_kwargs['customer_id'] = sale.customer_id
+            elif entity_type == PaymentEntityType.INVOICE.value and target_id:
+                invoice = db.session.get(Invoice, int(target_id))
+                if invoice and invoice.customer_id:
+                    entity_kwargs['customer_id'] = invoice.customer_id
+            elif entity_type == PaymentEntityType.SERVICE.value and target_id:
+                service = db.session.get(ServiceRequest, int(target_id))
+                if service and service.customer_id:
+                    entity_kwargs['customer_id'] = service.customer_id
+            elif entity_type == PaymentEntityType.PREORDER.value and target_id:
+                preorder = db.session.get(PreOrder, int(target_id))
+                if preorder and preorder.customer_id:
+                    entity_kwargs['customer_id'] = preorder.customer_id
+            elif entity_type == PaymentEntityType.SHIPMENT.value and target_id:
+                shipment = db.session.get(Shipment, int(target_id))
+                if shipment:
+                    if shipment.supplier_id:
+                        entity_kwargs['supplier_id'] = shipment.supplier_id
+                    if shipment.partner_id:
+                        entity_kwargs['partner_id'] = shipment.partner_id
+            elif entity_type == PaymentEntityType.EXPENSE.value and target_id:
+                expense = db.session.get(Expense, int(target_id))
+                if expense:
+                    if expense.supplier_id:
+                        entity_kwargs['supplier_id'] = expense.supplier_id
+                    if expense.partner_id:
+                        entity_kwargs['partner_id'] = expense.partner_id
+            elif entity_type == PaymentEntityType.LOAN.value and target_id:
+                from models import SupplierLoanSettlement
+                loan = db.session.get(SupplierLoanSettlement, int(target_id))
+                if loan and loan.supplier_id:
+                    entity_kwargs['supplier_id'] = loan.supplier_id
+            
             p = Payment(
                 total_amount=_Q2(amount),
                 method=_method_enum(method),
@@ -1132,7 +1170,7 @@ def payment_create(direction, entity_type, target_id, amount, method, status, cu
                 currency=currency.upper(),
                 reference=reference or None,
                 notes=notes or None,
-                **{fk: int(target_id)},
+                **entity_kwargs,
             )
             db.session.add(p)
         click.echo(f"OK: payment {p.payment_number} created for {entity_type}={target_id} amount={float(p.total_amount):.2f}")
@@ -1503,7 +1541,7 @@ def expense_pay(expense_id, amount, method, currency):
     ex=db.session.get(Expense, expense_id)
     if not ex: raise click.ClickException("Expense not found")
     amt=_Q2(amount)
-    p=Payment(direction=PaymentDirection.OUT.value, entity_type=PaymentEntityType.EXPENSE.value, expense_id=ex.id, total_amount=amt, currency=(currency or "ILS").upper(), method=method.lower(), status=PaymentStatus.COMPLETED.value, reference=f"EXP-{ex.id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
+    p=Payment(direction=PaymentDirection.OUT.value, entity_type=PaymentEntityType.EXPENSE.value, expense_id=ex.id, supplier_id=getattr(ex, 'supplier_id', None), partner_id=getattr(ex, 'partner_id', None), total_amount=amt, currency=(currency or "ILS").upper(), method=method.lower(), status=PaymentStatus.COMPLETED.value, reference=f"EXP-{ex.id}-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}")
     try:
         with _begin(): db.session.add(p)
         click.echo(f"OK: expense paid. payment_id={p.id} balance={ex.balance:.2f} is_paid={ex.is_paid}")
@@ -1904,6 +1942,17 @@ def optimize_db():
     except Exception as e:
         click.echo(click.style(f"❌ خطأ: {str(e)}", fg="red"))
 
+@click.command("workflow-check-timeouts")
+@with_appcontext
+def workflow_check_timeouts():
+    """فحص حالات الـ Workflows المتأخرة وتنفيذ التصعيد وفق القواعد المعرفة."""
+    try:
+        from services.workflow_engine import WorkflowEngine
+        WorkflowEngine.check_timeouts()
+        click.echo("✅ تم فحص الـ Workflows المتأخرة وتنفيذ التصعيد (إن وجد)")
+    except Exception as e:
+        click.echo(click.style(f"❌ خطأ أثناء فحص الـ Workflows: {str(e)}", fg="red"))
+
 def register_cli(app) -> None:
     commands=[
         seed_roles, sync_permissions, list_permissions, list_roles, role_add_perms, create_role, export_rbac,
@@ -1913,7 +1962,7 @@ def register_cli(app) -> None:
         stock_transfer, stock_exchange, stock_reserve, stock_unreserve, shipment_create, shipment_status,
         supplier_settlement_draft, supplier_settlement_confirm, partner_settlement_draft, partner_settlement_confirm,
         payment_create, payment_list, invoice_list, invoice_update_status, preorder_create,
-        sr_create, sr_add_part, sr_add_task, sr_recalc, sr_set_status, sr_show,
+        sr_create, sr_add_part, sr_add_task, sr_recalc, sr_set_status, sr_show, 
         cart_create, cart_add_item, order_from_cart, order_set_status, order_add_item,
         onlinepay_create, onlinepay_decrypt_card, expense_create, expense_pay,
         stock_adjustment_create, stock_adjustment_add_item, stock_adjustment_finalize,
@@ -1922,6 +1971,7 @@ def register_cli(app) -> None:
         currency_balance, currency_validate, currency_report, currency_health, currency_update, currency_test,
         create_superadmin,
         optimize_db,
-        seed_employees, seed_salaries, seed_expenses_demo, seed_branches
+        seed_employees, seed_salaries, seed_expenses_demo, seed_branches,
+        workflow_check_timeouts
     ]
     for cmd in commands: app.cli.add_command(cmd)

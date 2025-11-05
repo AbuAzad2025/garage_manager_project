@@ -1896,7 +1896,7 @@ def import_preview(id):
                 payload["analysis"] = _analyze(raw_rows)
                 _write_tmp_payload(token, payload)
                 flash("تم حفظ تعديلات المعاينة.", "success")
-            except:
+            except Exception:
                 flash("تعذر حفظ التعديلات.", "danger")
 
         return redirect(url_for("warehouse_bp.import_preview", id=w.id, token=token))
@@ -1947,7 +1947,7 @@ def import_commit(id):
                     for r in (obj.get("normalized") or obj.get("rows") or [])
                 ]
                 analysis = _analyze(raw_rows)
-            except:
+            except Exception:
                 analysis = payload.get("analysis") or {}
         else:
             analysis = payload.get("analysis") or {}
@@ -2035,14 +2035,14 @@ def import_commit(id):
                     return d
                 try:
                     return Decimal(str(v))
-                except:
+                except Exception:
                     return d
 
             def _iv(k):
                 try:
                     v = data.get(k)
                     return int(float(v)) if v not in (None, "", "None") else None
-                except:
+                except Exception:
                     return None
 
             price = _dv("price")
@@ -2250,7 +2250,7 @@ def import_commit(id):
                     )
                 )
                 db.session.commit()
-            except:
+            except Exception:
                 db.session.rollback()
             flash(
                 f"فحص فقط: جديد={inserted}, تحديث={updated}, متجاهل={skipped}, أخطاء={errors}",
@@ -2280,7 +2280,7 @@ def import_commit(id):
                     )
                 )
                 db.session.commit()
-            except:
+            except Exception:
                 db.session.rollback()
             flash(
                 f"تم الترحيل: جديد={inserted}, تحديث={updated}, متجاهل={skipped}, أخطاء={errors}",
@@ -2511,13 +2511,13 @@ def ajax_exchange(warehouse_id):
     def _i(k, d=None):
         try:
             v = data.get(k); return int(v) if v not in (None, "", "None") else d
-        except: return d
+        except Exception: return d
     def _qty(v):
         try: return int(float(v))
-        except: return 0
+        except Exception: return 0
     def _f(v):
         try: return float(v) if v not in (None, "", "None") else None
-        except: return None
+        except Exception: return None
     pid = _i("product_id")
     partner_id = _i("partner_id")
     qty = _qty(data.get("quantity"))
@@ -2842,6 +2842,7 @@ def preorder_create():
             pay = Payment(
                 entity_type=(PaymentEntityType.PREORDER.value if hasattr(PaymentEntityType, "PREORDER") else "PREORDER"),
                 preorder_id=preorder.id,
+                customer_id=preorder.customer_id,
                 direction=PaymentDirection.IN.value,
                 status=PaymentStatus.COMPLETED.value,
                 payment_date=datetime.utcnow(),

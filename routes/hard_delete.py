@@ -39,13 +39,13 @@ def delete_customer(customer_id):
                     Product.supplier_international_id == customer_id
                 )
             ).count()
-        except:
+        except Exception:
             products_count = 0
         
         # طلبات الصيانة
         try:
             services_count = db.session.query(ServiceRequest).filter_by(customer_id=customer_id).count()
-        except:
+        except Exception:
             services_count = 0
         
         # النفقات
@@ -54,14 +54,14 @@ def delete_customer(customer_id):
                 payee_type='CUSTOMER',
                 payee_entity_id=customer_id
             ).count()
-        except:
+        except Exception:
             expenses_count = 0
         
         # الحجوزات
         try:
             from models import Preorder
             preorders_count = db.session.query(Preorder).filter_by(customer_id=customer_id).count()
-        except:
+        except Exception:
             preorders_count = 0
         
         return render_template(
@@ -88,7 +88,7 @@ def delete_customer(customer_id):
             
             try:
                 services_count = db.session.query(ServiceRequest).filter_by(customer_id=customer_id).count()
-            except:
+            except Exception:
                 services_count = 0
             
             try:
@@ -96,13 +96,13 @@ def delete_customer(customer_id):
                     payee_type='CUSTOMER',
                     payee_entity_id=customer_id
                 ).count()
-            except:
+            except Exception:
                 expenses_count = 0
             
             try:
                 from models import Preorder
                 preorders_count = db.session.query(Preorder).filter_by(customer_id=customer_id).count()
-            except:
+            except Exception:
                 preorders_count = 0
             
             return render_template(
@@ -134,7 +134,7 @@ def delete_customer(customer_id):
             
             try:
                 services_count = db.session.query(ServiceRequest).filter_by(customer_id=customer_id).count()
-            except:
+            except Exception:
                 services_count = 0
             
             try:
@@ -142,13 +142,13 @@ def delete_customer(customer_id):
                     payee_type='CUSTOMER',
                     payee_entity_id=customer_id
                 ).count()
-            except:
+            except Exception:
                 expenses_count = 0
             
             try:
                 from models import Preorder
                 preorders_count = db.session.query(Preorder).filter_by(customer_id=customer_id).count()
-            except:
+            except Exception:
                 preorders_count = 0
             
             return render_template(

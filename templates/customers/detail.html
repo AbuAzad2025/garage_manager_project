@@ -77,7 +77,7 @@
           ('التصنيف', customer.category or '-', 'fas fa-tags'),
           ('حد الائتمان', customer.credit_limit|format_currency, 'fas fa-credit-card'),
           ('معدل الخصم', customer.discount_rate|format_percent, 'fas fa-percent'),
-          ('الرصيد الحالي', '<span class="fw-bold '+('text-danger' if customer.balance<0 else 'text-success')+'">'+(customer.balance|format_currency)+'</span>', 'fas fa-wallet'),
+          ('الرصيد الحالي', '<span class="fw-bold '+('text-danger' if customer.balance>0 else 'text-success' if customer.balance<0 else '')+'">'+(customer.balance|format_currency)+'</span>', 'fas fa-wallet'),
           ('الحالة', ('<span class="badge bg-success">نشط</span>' if customer.is_active else '<span class="badge bg-secondary">غير نشط</span>'), 'fas fa-toggle-on'),
           ('ملاحظات', customer.notes or '-', 'fas fa-sticky-note')
         ] %}

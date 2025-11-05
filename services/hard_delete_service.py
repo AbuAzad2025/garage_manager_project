@@ -97,7 +97,7 @@ class HardDeleteService:
                 try:
                     self.deletion_log.mark_failed(str(e))
                     db.session.commit()
-                except:
+                except Exception:
                     pass
             return {"success": False, "error": f"فشل في حذف العميل: {str(e)}"}
     
@@ -243,7 +243,7 @@ class HardDeleteService:
                 try:
                     self.deletion_log.mark_failed(str(e))
                     db.session.commit()
-                except:
+                except Exception:
                     pass
             return {"success": False, "error": f"فشل في حذف المورد: {str(e)}"}
     
@@ -298,7 +298,7 @@ class HardDeleteService:
                 try:
                     self.deletion_log.mark_failed(str(e))
                     db.session.commit()
-                except:
+                except Exception:
                     pass
             return {"success": False, "error": f"فشل في حذف الشريك: {str(e)}"}
     
@@ -625,7 +625,7 @@ class HardDeleteService:
                 from models import ServiceTask, ServicePart
                 db.session.query(ServiceTask).filter_by(service_id=service.id).delete()
                 db.session.query(ServicePart).filter_by(service_id=service.id).delete()
-            except:
+            except Exception:
                 pass
             db.session.delete(service)
         
@@ -635,12 +635,48 @@ class HardDeleteService:
         ).delete()
         
         try:
-            from models import Preorder
-            db.session.query(Preorder).filter_by(customer_id=customer_id).delete()
-        except:
+            from models import PreOrder
+            db.session.query(PreOrder).filter_by(customer_id=customer_id).delete(synchronize_session=False)
+        except Exception:
             pass
         
-        db.session.query(Customer).filter_by(id=customer_id).delete()
+        try:
+            from models import Invoice, InvoiceLine
+            invoices = db.session.query(Invoice).filter_by(customer_id=customer_id).all()
+            for invoice in invoices:
+                try:
+                    db.session.query(InvoiceLine).filter_by(invoice_id=invoice.id).delete(synchronize_session=False)
+                except Exception:
+                    pass
+                try:
+                    db.session.delete(invoice)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        
+        try:
+            from sqlalchemy import text as sql_text
+            db.session.execute(sql_text("DELETE FROM payment_splits WHERE payment_id IN (SELECT id FROM payments WHERE customer_id = :cid)"), {"cid": customer_id})
+        except Exception:
+            pass
+        
+        try:
+            from sqlalchemy import text as sql_text
+            db.session.execute(sql_text("DELETE FROM checks WHERE payment_id IN (SELECT id FROM payments WHERE customer_id = :cid)"), {"cid": customer_id})
+        except Exception:
+            pass
+        
+        try:
+            from sqlalchemy import text as sql_text
+            db.session.execute(sql_text("DELETE FROM gl_entries WHERE batch_id IN (SELECT id FROM gl_batches WHERE source_type = 'PAYMENT' AND source_id IN (SELECT id FROM payments WHERE customer_id = :cid))"), {"cid": customer_id})
+            db.session.execute(sql_text("DELETE FROM gl_batches WHERE source_type = 'PAYMENT' AND source_id IN (SELECT id FROM payments WHERE customer_id = :cid)"), {"cid": customer_id})
+            db.session.execute(sql_text("DELETE FROM gl_entries WHERE batch_id IN (SELECT id FROM gl_batches WHERE entity_type = 'CUSTOMER' AND entity_id = :cid)"), {"cid": customer_id})
+            db.session.execute(sql_text("DELETE FROM gl_batches WHERE entity_type = 'CUSTOMER' AND entity_id = :cid"), {"cid": customer_id})
+        except Exception:
+            pass
+        
+        db.session.query(Customer).filter_by(id=customer_id).delete(synchronize_session=False)
     
     def _delete_sale_data(self, sale_id: int):
         """حذف بيانات البيع"""
@@ -958,6 +994,7 @@ class HardDeleteService:
     def _delete_supplier_data(self, supplier_id: int):
         """حذف بيانات المورد"""
         from models import Expense, ProductSupplierLoan, SupplierLoanSettlement
+        from sqlalchemy import text as sql_text
         
         supplier = db.session.get(Supplier, supplier_id)
         linked_customer_id = supplier.customer_id if supplier else None
@@ -967,19 +1004,19 @@ class HardDeleteService:
             for shipment in shipments:
                 try:
                     db.session.query(ShipmentItem).filter_by(shipment_id=shipment.id).delete()
-                except:
+                except Exception:
                     pass
                 try:
                     from models import ShipmentPartner
                     db.session.query(ShipmentPartner).filter_by(shipment_id=shipment.id).delete()
-                except:
+                except Exception:
                     pass
                 try:
                     shipment._skip_gl_reversal = True
                     db.session.delete(shipment)
-                except:
+                except Exception:
                     pass
-        except:
+        except Exception:
             pass
         
         try:
@@ -988,13 +1025,13 @@ class HardDeleteService:
                 try:
                     from models import SupplierLoanSettlement
                     db.session.query(SupplierLoanSettlement).filter_by(loan_id=loan.id).delete()
-                except:
+                except Exception:
                     pass
                 try:
                     db.session.delete(loan)
-                except:
+                except Exception:
                     pass
-        except:
+        except Exception:
             pass
         
         try:
@@ -1002,7 +1039,7 @@ class HardDeleteService:
                 payee_type='SUPPLIER',
                 payee_entity_id=supplier_id
             ).delete()
-        except:
+        except Exception:
             pass
         
         try:
@@ -1010,7 +1047,7 @@ class HardDeleteService:
             for payment in payments:
                 payment._skip_gl_reversal = True
                 db.session.delete(payment)
-        except:
+        except Exception:
             pass
         
         try:
@@ -1019,58 +1056,57 @@ class HardDeleteService:
             for invoice in invoices:
                 try:
                     db.session.query(InvoiceLine).filter_by(invoice_id=invoice.id).delete()
-                except:
+                except Exception:
                     pass
                 try:
                     db.session.delete(invoice)
-                except:
+                except Exception:
                     pass
-        except:
+        except Exception:
             pass
         
         try:
             from models import PreOrder
             db.session.query(PreOrder).filter_by(supplier_id=supplier_id).delete()
-        except:
+        except Exception:
             pass
         
         if linked_customer_id:
             try:
-                try:
-                    db.session.query(Sale).filter_by(customer_id=linked_customer_id).delete()
-                except:
-                    pass
+                db.session.execute(sql_text("PRAGMA foreign_keys=OFF"))
                 
-                try:
-                    db.session.query(Payment).filter_by(customer_id=linked_customer_id).delete()
-                except:
-                    pass
+                db.session.execute(sql_text("DELETE FROM sale_lines WHERE sale_id IN (SELECT id FROM sales WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM sales WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM payment_splits WHERE payment_id IN (SELECT id FROM payments WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM checks WHERE payment_id IN (SELECT id FROM payments WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM payments WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM invoice_lines WHERE invoice_id IN (SELECT id FROM invoices WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM invoices WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM service_requests WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM preorders WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM gl_entries WHERE batch_id IN (SELECT id FROM gl_batches WHERE source_type = 'PAYMENT' AND source_id IN (SELECT id FROM payments WHERE customer_id = :cid))"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM gl_batches WHERE source_type = 'PAYMENT' AND source_id IN (SELECT id FROM payments WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM gl_entries WHERE batch_id IN (SELECT id FROM gl_batches WHERE entity_type = 'CUSTOMER' AND entity_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM gl_batches WHERE entity_type = 'CUSTOMER' AND entity_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM customers WHERE id = :cid"), {"cid": linked_customer_id})
+                db.session.flush()
                 
-                try:
-                    from models import ServiceRequest
-                    db.session.query(ServiceRequest).filter_by(customer_id=linked_customer_id).delete()
-                except:
-                    pass
-                
-                try:
-                    db.session.query(Customer).filter_by(id=linked_customer_id).delete()
-                except:
-                    pass
-            except Exception as e:
-                pass
+                db.session.execute(sql_text("PRAGMA foreign_keys=ON"))
+            except Exception:
+                db.session.execute(sql_text("PRAGMA foreign_keys=ON"))
         
         try:
             db.session.query(Product).filter(
                 Product.supplier_local_id == supplier_id
             ).update({Product.supplier_local_id: None}, synchronize_session=False)
-        except:
+        except Exception:
             pass
         
         try:
             db.session.query(Product).filter(
                 Product.supplier_international_id == supplier_id
             ).update({Product.supplier_international_id: None}, synchronize_session=False)
-        except:
+        except Exception:
             pass
         
         db.session.query(Supplier).filter_by(id=supplier_id).delete()
@@ -1078,18 +1114,19 @@ class HardDeleteService:
     def _delete_partner_data(self, partner_id: int):
         """حذف بيانات الشريك"""
         from models import Expense, WarehousePartnerShare, ProductPartner
+        from sqlalchemy import text as sql_text
         
         partner = db.session.get(Partner, partner_id)
         linked_customer_id = partner.customer_id if partner else None
         
         try:
             db.session.query(WarehousePartnerShare).filter_by(partner_id=partner_id).delete()
-        except:
+        except Exception:
             pass
         
         try:
             db.session.query(ProductPartner).filter_by(partner_id=partner_id).delete()
-        except:
+        except Exception:
             pass
         
         try:
@@ -1097,20 +1134,20 @@ class HardDeleteService:
             for sale in sales:
                 try:
                     db.session.query(SaleLine).filter_by(sale_id=sale.id).delete()
-                except:
+                except Exception:
                     pass
                 try:
                     sale._skip_gl_reversal = True
                     db.session.delete(sale)
-                except:
+                except Exception:
                     pass
-        except:
+        except Exception:
             pass
         
         try:
             from models import ShipmentPartner
             db.session.query(ShipmentPartner).filter_by(partner_id=partner_id).delete()
-        except:
+        except Exception:
             pass
         
         try:
@@ -1118,7 +1155,7 @@ class HardDeleteService:
                 payee_type='PARTNER',
                 payee_entity_id=partner_id
             ).delete()
-        except:
+        except Exception:
             pass
         
         try:
@@ -1126,7 +1163,7 @@ class HardDeleteService:
             for payment in payments:
                 payment._skip_gl_reversal = True
                 db.session.delete(payment)
-        except:
+        except Exception:
             pass
         
         try:
@@ -1135,45 +1172,44 @@ class HardDeleteService:
             for invoice in invoices:
                 try:
                     db.session.query(InvoiceLine).filter_by(invoice_id=invoice.id).delete()
-                except:
+                except Exception:
                     pass
                 try:
                     db.session.delete(invoice)
-                except:
+                except Exception:
                     pass
-        except:
+        except Exception:
             pass
         
         try:
             from models import PreOrder
             db.session.query(PreOrder).filter_by(partner_id=partner_id).delete()
-        except:
+        except Exception:
             pass
         
         if linked_customer_id:
             try:
-                try:
-                    db.session.query(Sale).filter_by(customer_id=linked_customer_id).delete()
-                except:
-                    pass
+                db.session.execute(sql_text("PRAGMA foreign_keys=OFF"))
                 
-                try:
-                    db.session.query(Payment).filter_by(customer_id=linked_customer_id).delete()
-                except:
-                    pass
+                db.session.execute(sql_text("DELETE FROM sale_lines WHERE sale_id IN (SELECT id FROM sales WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM sales WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM payment_splits WHERE payment_id IN (SELECT id FROM payments WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM checks WHERE payment_id IN (SELECT id FROM payments WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM payments WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM invoice_lines WHERE invoice_id IN (SELECT id FROM invoices WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM invoices WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM service_requests WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM preorders WHERE customer_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM gl_entries WHERE batch_id IN (SELECT id FROM gl_batches WHERE source_type = 'PAYMENT' AND source_id IN (SELECT id FROM payments WHERE customer_id = :cid))"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM gl_batches WHERE source_type = 'PAYMENT' AND source_id IN (SELECT id FROM payments WHERE customer_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM gl_entries WHERE batch_id IN (SELECT id FROM gl_batches WHERE entity_type = 'CUSTOMER' AND entity_id = :cid)"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM gl_batches WHERE entity_type = 'CUSTOMER' AND entity_id = :cid"), {"cid": linked_customer_id})
+                db.session.execute(sql_text("DELETE FROM customers WHERE id = :cid"), {"cid": linked_customer_id})
+                db.session.flush()
                 
-                try:
-                    from models import ServiceRequest
-                    db.session.query(ServiceRequest).filter_by(customer_id=linked_customer_id).delete()
-                except:
-                    pass
-                
-                try:
-                    db.session.query(Customer).filter_by(id=linked_customer_id).delete()
-                except:
-                    pass
-            except Exception as e:
-                pass
+                db.session.execute(sql_text("PRAGMA foreign_keys=ON"))
+            except Exception:
+                db.session.execute(sql_text("PRAGMA foreign_keys=ON"))
         
         db.session.query(Partner).filter_by(id=partner_id).delete()
     
@@ -1406,13 +1442,25 @@ class HardDeleteService:
             
             payment = Payment(
                 id=payment_data["id"],
-                entity_type=payment_data["entity_type"],
-                entity_id=payment_data["entity_id"],
+                entity_type=payment_data.get("entity_type"),
+                customer_id=payment_data.get("customer_id"),
+                supplier_id=payment_data.get("supplier_id"),
+                partner_id=payment_data.get("partner_id"),
+                sale_id=payment_data.get("sale_id"),
+                invoice_id=payment_data.get("invoice_id"),
+                service_id=payment_data.get("service_id"),
+                preorder_id=payment_data.get("preorder_id"),
+                shipment_id=payment_data.get("shipment_id"),
+                expense_id=payment_data.get("expense_id"),
+                loan_settlement_id=payment_data.get("loan_settlement_id"),
                 total_amount=Decimal(str(payment_data["total_amount"])),
                 payment_date=datetime.fromisoformat(payment_data["payment_date"]) if payment_data.get("payment_date") else None,
-                method=payment_data["method"],
-                status=payment_data["status"],
-                direction=payment_data["direction"]
+                method=payment_data.get("method"),
+                status=payment_data.get("status"),
+                direction=payment_data.get("direction"),
+                reference=payment_data.get("reference"),
+                notes=payment_data.get("notes"),
+                payment_number=payment_data.get("payment_number")
             )
             db.session.add(payment)
             
@@ -1579,7 +1627,7 @@ class HardDeleteService:
                         "description": batch.description
                     })
                     db.session.delete(batch)
-            except:
+            except Exception:
                 pass
             
             check._skip_gl_reversal = True
@@ -1604,7 +1652,7 @@ class HardDeleteService:
                 try:
                     self.deletion_log.mark_failed(str(e))
                     db.session.commit()
-                except:
+                except Exception:
                     pass
             return {"success": False, "error": f"فشل في حذف الشيك: {str(e)}"}
     

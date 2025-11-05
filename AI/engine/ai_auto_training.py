@@ -46,7 +46,7 @@ def should_auto_train():
         
         return False
     
-    except:
+    except Exception:
         return False
 
 def execute_silent_training():
@@ -111,7 +111,7 @@ def init_auto_training():
     try:
         if should_auto_train():
             execute_silent_training()
-    except:
+    except Exception:
         pass
 
 if __name__ == '__main__':

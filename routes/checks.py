@@ -46,7 +46,7 @@ def _check_gl_batch_reverse(mapper, connection, target):
                 rate = fx_rate(target.currency, 'ILS', target.check_date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         bank_account = GL_ACCOUNTS.get("BANK", "1010_BANK")
@@ -422,7 +422,7 @@ def get_checks():
                     from_dt = datetime.strptime(from_date, '%Y-%m-%d')
                     payment_checks = payment_checks.filter(Payment.check_due_date >= from_dt)
                     payment_with_splits = payment_with_splits.filter(Payment.check_due_date >= from_dt)
-                except:
+                except Exception:
                     pass
             
             if to_date:
@@ -430,7 +430,7 @@ def get_checks():
                     to_dt = datetime.strptime(to_date, '%Y-%m-%d')
                     payment_checks = payment_checks.filter(Payment.check_due_date <= to_dt)
                     payment_with_splits = payment_with_splits.filter(Payment.check_due_date <= to_dt)
-                except:
+                except Exception:
                     pass
             
             for payment in payment_checks.all():
@@ -548,14 +548,14 @@ def get_checks():
                 try:
                     from_dt = datetime.strptime(from_date, '%Y-%m-%d')
                     expense_checks = expense_checks.filter(Expense.check_due_date >= from_dt)
-                except:
+                except Exception:
                     pass
             
             if to_date:
                 try:
                     to_dt = datetime.strptime(to_date, '%Y-%m-%d')
                     expense_checks = expense_checks.filter(Expense.check_due_date <= to_dt)
-                except:
+                except Exception:
                     pass
             
             for expense in expense_checks.all():
@@ -658,14 +658,14 @@ def get_checks():
                 try:
                     from_dt = datetime.strptime(from_date, '%Y-%m-%d')
                     manual_checks_query = manual_checks_query.filter(Check.check_due_date >= from_dt)
-                except:
+                except Exception:
                     pass
             
             if to_date:
                 try:
                     to_dt = datetime.strptime(to_date, '%Y-%m-%d')
                     manual_checks_query = manual_checks_query.filter(Check.check_due_date <= to_dt)
-                except:
+                except Exception:
                     pass
             
             for check in manual_checks_query.all():
@@ -782,7 +782,7 @@ def get_statistics():
             else:
                 try:
                     amt_ils = convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
+                except Exception:
                     amt_ils = Decimal('0.00')
             
             incoming_total += amt_ils
@@ -821,7 +821,7 @@ def get_statistics():
             else:
                 try:
                     amt_ils = convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
+                except Exception:
                     amt_ils = Decimal('0.00')
             
             outgoing_total += amt_ils
@@ -860,7 +860,7 @@ def get_statistics():
             else:
                 try:
                     amt_ils = convert_amount(amt, exp.currency, "ILS", exp.date)
-                except:
+                except Exception:
                     amt_ils = Decimal('0.00')
             
             expense_total += amt_ils

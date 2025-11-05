@@ -205,6 +205,9 @@
         </div>
         <div id="exchangeInSection" class="collapse show section-content">
             <div class="card-body">
+                <div class="alert alert-info alert-sm mb-3">
+                    <i class="fas fa-info-circle"></i> <strong>ملاحظة:</strong> الأرقام في الجدول بالعملة الأصلية للمعاملة. الإجمالي أعلاه محسوب بعد تحويل جميع العملات إلى الشيكل (ILS).
+                </div>
                 <div class="table-responsive">
                     <table class="table table-sm table-hover">
                         <thead class="table-light">
@@ -233,8 +236,8 @@
                         </tbody>
                         <tfoot class="table-secondary">
                             <tr>
-                                <th colspan="5" class="text-end">الإجمالي:</th>
-                                <th colspan="2">{{ total_exchange_in|format_currency }}</th>
+                                <th colspan="5" class="text-end">الإجمالي (بعد تحويل العملات إلى ILS):</th>
+                                <th colspan="2"><strong class="text-success">{{ total_exchange_in|format_currency }} ₪</strong></th>
                             </tr>
                         </tfoot>
                     </table>

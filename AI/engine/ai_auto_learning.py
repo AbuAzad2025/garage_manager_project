@@ -87,7 +87,7 @@ class AutoLearningEngine:
             else:
                 self.last_scan_time = None
                 self.last_scan_data = {}
-        except:
+        except Exception:
             self.last_scan_time = None
             self.last_scan_data = {}
     
@@ -482,7 +482,7 @@ class AutoLearningEngine:
                     log = json.load(f)
                     return log[-limit:]
             return []
-        except:
+        except Exception:
             return []
 
 

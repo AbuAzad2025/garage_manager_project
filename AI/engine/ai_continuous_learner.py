@@ -24,7 +24,7 @@ class ContinuousLearner:
             try:
                 with open(kb_file, 'r', encoding='utf-8') as f:
                     self.knowledge_base = json.load(f)
-            except:
+            except Exception:
                 pass
     
     def start_learning_session(self) -> Dict[str, Any]:
@@ -326,7 +326,7 @@ class ContinuousLearner:
                 else:
                     phase['discoveries'].append('No changes detected - system is stable')
             
-            except:
+            except Exception:
                 pass
         else:
             phase['discoveries'].append('First learning session - building initial knowledge base')

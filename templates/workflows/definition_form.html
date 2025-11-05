@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'تعديل' if definition else 'إضافة' }} Workflow{% endblock %}
+
+{% block extra_css %}
+<style>
+.workflow-step {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 10px;
+    background: #f9f9f9;
+}
+.workflow-step:hover {
+    background: #f0f0f0;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+.step-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-cogs"></i> {{ 'تعديل' if definition else 'إضافة' }} Workflow</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('workflows.index') }}">Workflows</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('workflows.definitions') }}">التعريفات</a></li>
+                    <li class="breadcrumb-item active">{{ 'تعديل' if definition else 'إضافة' }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row">
+            <div class="col-md-8">
+                <form method="POST" id="workflowForm">
+                    
+                    <div class="card">
+                        <div class="card-header bg-primary">
+                            <h3 class="card-title"><i class="fas fa-info-circle"></i> معلومات Workflow</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>رمز Workflow <span class="text-danger">*</span></label>
+                                        <input type="text" name="workflow_code" class="form-control" 
+                                               value="{{ definition.workflow_code if definition else '' }}" 
+                                               {{ 'readonly' if definition else '' }}
+                                               placeholder="MILESTONE_APPROVAL" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>نوع Workflow <span class="text-danger">*</span></label>
+                                        <select name="workflow_type" class="form-control" required>
+                                            <option value="APPROVAL" {{ 'selected' if definition and definition.workflow_type == 'APPROVAL' else '' }}>موافقة</option>
+                                            <option value="REVIEW" {{ 'selected' if definition and definition.workflow_type == 'REVIEW' else '' }}>مراجعة</option>
+                                            <option value="NOTIFICATION" {{ 'selected' if definition and definition.workflow_type == 'NOTIFICATION' else '' }}>إشعار</option>
+                                            <option value="CUSTOM" {{ 'selected' if definition and definition.workflow_type == 'CUSTOM' else '' }}>مخصص</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>الاسم (إنجليزي) <span class="text-danger">*</span></label>
+                                        <input type="text" name="workflow_name" class="form-control" 
+                                               value="{{ definition.workflow_name if definition else '' }}" 
+                                               placeholder="Milestone Approval Process" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>الاسم (عربي)</label>
+                                        <input type="text" name="workflow_name_ar" class="form-control" 
+                                               value="{{ definition.workflow_name_ar if definition else '' }}" 
+                                               placeholder="عملية الموافقة على المحطات">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>نوع الكيان <span class="text-danger">*</span></label>
+                                <select name="entity_type" class="form-control" {{ 'disabled' if definition else '' }} required>
+                                    <option value="MILESTONE" {{ 'selected' if definition and definition.entity_type == 'MILESTONE' else '' }}>محطات المشاريع</option>
+                                    <option value="CHANGE_ORDER" {{ 'selected' if definition and definition.entity_type == 'CHANGE_ORDER' else '' }}>أوامر التغيير</option>
+                                    <option value="RISK" {{ 'selected' if definition and definition.entity_type == 'RISK' else '' }}>المخاطر</option>
+                                    <option value="TASK" {{ 'selected' if definition and definition.entity_type == 'TASK' else '' }}>المهام</option>
+                                    <option value="EXPENSE" {{ 'selected' if definition and definition.entity_type == 'EXPENSE' else '' }}>المصاريف</option>
+                                    <option value="PAYMENT" {{ 'selected' if definition and definition.entity_type == 'PAYMENT' else '' }}>المدفوعات</option>
+                                </select>
+                                {% if definition %}
+                                <input type="hidden" name="entity_type" value="{{ definition.entity_type }}">
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>الوصف</label>
+                                <textarea name="description" class="form-control" rows="3">{{ definition.description if definition else '' }}</textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>مهلة التنفيذ (ساعات)</label>
+                                        <input type="number" name="timeout_hours" class="form-control" 
+                                               value="{{ definition.timeout_hours if definition else '' }}" 
+                                               placeholder="24">
+                                        <small class="text-muted">اتركها فارغة لعدم تحديد مهلة</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label class="d-block">&nbsp;</label>
+                                        <div class="custom-control custom-checkbox">
+                                            <input type="checkbox" name="auto_start" class="custom-control-input" id="auto_start"
+                                                   {{ 'checked' if definition and definition.auto_start else '' }}>
+                                            <label class="custom-control-label" for="auto_start">
+                                                بدء تلقائي عند إنشاء الكيان
+                                            </label>
+                                        </div>
+                                        {% if definition %}
+                                        <div class="custom-control custom-checkbox mt-2">
+                                            <input type="checkbox" name="is_active" class="custom-control-input" id="is_active"
+                                                   {{ 'checked' if definition.is_active else '' }}>
+                                            <label class="custom-control-label" for="is_active">
+                                                Workflow نشط
+                                            </label>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header bg-info">
+                            <h3 class="card-title"><i class="fas fa-list-ol"></i> خطوات Workflow</h3>
+                            <div class="card-tools">
+                                <button type="button" class="btn btn-sm btn-success" onclick="addStep()">
+                                    <i class="fas fa-plus"></i> إضافة خطوة
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="stepsContainer">
+                                {% if definition and definition.steps_definition %}
+                                    {% for step in definition.steps_definition %}
+                                    <div class="workflow-step" data-step="{{ loop.index }}">
+                                        <div class="step-header">
+                                            <h5><i class="fas fa-step-forward"></i> خطوة {{ loop.index }}</h5>
+                                            <button type="button" class="btn btn-sm btn-danger" onclick="removeStep(this)">
+                                                <i class="fas fa-trash"></i> حذف
+                                            </button>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>اسم الخطوة</label>
+                                            <input type="text" class="form-control step-name" value="{{ step.name }}" placeholder="مراجعة المدير" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>الموافقون (User IDs مفصولة بفواصل)</label>
+                                            <input type="text" class="form-control step-approvers" value="{{ step.approvers|join(',') if step.approvers else '' }}" placeholder="1,2,3">
+                                            <small class="text-muted">مثال: 1,2,3 أو اكتب ALL للجميع</small>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                <p class="text-muted text-center">
+                                    <i class="fas fa-info-circle"></i> اضغط "إضافة خطوة" لبدء تصميم Workflow
+                                </p>
+                                {% endif %}
+                            </div>
+                            
+                            <input type="hidden" name="steps_definition" id="stepsDefinitionInput">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <a href="{{ url_for('workflows.definitions') }}" class="btn btn-default">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> {{ 'تحديث' if definition else 'حفظ' }}
+                            </button>
+                        </div>
+                    </div>
+                    
+                </form>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-lightbulb"></i> نصائح</h3>
+                    </div>
+                    <div class="card-body">
+                        <h6><i class="fas fa-check-circle text-success"></i> رمز Workflow:</h6>
+                        <p class="small">استخدم رمز فريد وواضح مثل: MILESTONE_APPROVAL</p>
+                        
+                        <h6><i class="fas fa-check-circle text-success"></i> الخطوات:</h6>
+                        <p class="small">رتب الخطوات حسب تسلسل الموافقة المطلوب</p>
+                        
+                        <h6><i class="fas fa-check-circle text-success"></i> الموافقون:</h6>
+                        <p class="small">أدخل User IDs مثل: 1,2,3 أو ALL لجميع المستخدمين</p>
+                        
+                        <h6><i class="fas fa-check-circle text-success"></i> البدء التلقائي:</h6>
+                        <p class="small">عند التفعيل، سيبدأ Workflow تلقائياً عند إنشاء الكيان</p>
+                    </div>
+                </div>
+                
+                <div class="card bg-info">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-info-circle"></i> معاينة</h3>
+                    </div>
+                    <div class="card-body" id="workflowPreview">
+                        <p class="text-muted text-center">سيتم عرض معاينة الخطوات هنا</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let stepCounter = {{ definition.steps_definition|length if definition and definition.steps_definition else 0 }};
+
+function addStep() {
+    stepCounter++;
+    const container = document.getElementById('stepsContainer');
+    
+    if (container.children.length === 1 && container.children[0].tagName === 'P') {
+        container.innerHTML = '';
+    }
+    
+    const stepHTML = `
+        <div class="workflow-step" data-step="${stepCounter}">
+            <div class="step-header">
+                <h5><i class="fas fa-step-forward"></i> خطوة ${stepCounter}</h5>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeStep(this)">
+                    <i class="fas fa-trash"></i> حذف
+                </button>
+            </div>
+            <div class="form-group">
+                <label>اسم الخطوة</label>
+                <input type="text" class="form-control step-name" placeholder="مراجعة المدير" required>
+            </div>
+            <div class="form-group">
+                <label>الموافقون (User IDs مفصولة بفواصل)</label>
+                <input type="text" class="form-control step-approvers" placeholder="1,2,3">
+                <small class="text-muted">مثال: 1,2,3 أو اكتب ALL للجميع</small>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', stepHTML);
+    updatePreview();
+}
+
+function removeStep(button) {
+    button.closest('.workflow-step').remove();
+    renumberSteps();
+    updatePreview();
+}
+
+function renumberSteps() {
+    const steps = document.querySelectorAll('.workflow-step');
+    steps.forEach((step, index) => {
+        step.querySelector('h5').innerHTML = `<i class="fas fa-step-forward"></i> خطوة ${index + 1}`;
+        step.setAttribute('data-step', index + 1);
+    });
+}
+
+function updatePreview() {
+    const steps = collectSteps();
+    const preview = document.getElementById('workflowPreview');
+    
+    if (steps.length === 0) {
+        preview.innerHTML = '<p class="text-muted text-center">سيتم عرض معاينة الخطوات هنا</p>';
+        return;
+    }
+    
+    let html = '<ol class="pl-3">';
+    steps.forEach((step, index) => {
+        html += `<li class="mb-2">
+            <strong>${step.name}</strong><br>
+            <small class="text-muted">موافقون: ${step.approvers.join(', ')}</small>
+        </li>`;
+    });
+    html += '</ol>';
+    
+    preview.innerHTML = html;
+}
+
+function collectSteps() {
+    const steps = [];
+    const stepElements = document.querySelectorAll('.workflow-step');
+    
+    stepElements.forEach((stepEl) => {
+        const name = stepEl.querySelector('.step-name').value.trim();
+        const approversStr = stepEl.querySelector('.step-approvers').value.trim();
+        
+        if (!name) return;
+        
+        let approvers = [];
+        if (approversStr.toUpperCase() === 'ALL') {
+            approvers = ['ALL'];
+        } else if (approversStr) {
+            approvers = approversStr.split(',').map(id => {
+                const num = parseInt(id.trim());
+                return isNaN(num) ? id.trim() : num;
+            }).filter(id => id);
+        }
+        
+        steps.push({
+            name: name,
+            approvers: approvers
+        });
+    });
+    
+    return steps;
+}
+
+document.getElementById('workflowForm').addEventListener('submit', function(e) {
+    const steps = collectSteps();
+    
+    if (steps.length === 0) {
+        e.preventDefault();
+        alert('يجب إضافة خطوة واحدة على الأقل!');
+        return;
+    }
+    
+    document.getElementById('stepsDefinitionInput').value = JSON.stringify(steps);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    updatePreview();
+    
+    document.querySelectorAll('.step-name, .step-approvers').forEach(input => {
+        input.addEventListener('input', updatePreview);
+    });
+});
+</script>
+{% endblock %}
+

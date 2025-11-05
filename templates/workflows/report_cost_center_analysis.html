@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}تحليل مراكز التكلفة{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-chart-pie"></i> تحليل مراكز التكلفة</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('workflows.index') }}">Workflows</a></li>
+                    <li class="breadcrumb-item active">تحليل مراكز التكلفة</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{{ url_for('workflows.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> العودة
+                </a>
+                <button class="btn btn-secondary" onclick="window.print()">
+                    <i class="fas fa-print"></i> طباعة
+                </button>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h6>إجمالي الميزانية</h6>
+                        <h3 class="text-primary">{{ "{:,.2f}".format(totals.total_budget) }} ₪</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h6>إجمالي المنصرف</h6>
+                        <h3 class="text-warning">{{ "{:,.2f}".format(totals.total_allocated) }} ₪</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h6>الانحراف</h6>
+                        <h3 class="{{ 'text-success' if totals.total_variance > 0 else 'text-danger' }}">
+                            {{ "{:,.2f}".format(totals.total_variance) }} ₪
+                        </h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-building"></i> تفصيل مراكز التكلفة</h3>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>مركز التكلفة</th>
+                            <th>الميزانية</th>
+                            <th>المنصرف</th>
+                            <th>الانحراف</th>
+                            <th>معدل الاستخدام</th>
+                            <th>التوزيع حسب المصدر</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in analysis_data %}
+                        <tr>
+                            <td>
+                                <strong>{{ data.center.code }}</strong> - {{ data.center.name }}
+                            </td>
+                            <td>{{ "{:,.2f}".format(data.budget) }} ₪</td>
+                            <td>{{ "{:,.2f}".format(data.total_allocated) }} ₪</td>
+                            <td class="{{ 'text-success' if data.variance > 0 else 'text-danger' }}">
+                                {{ "{:,.2f}".format(data.variance) }} ₪
+                                ({{ "%.1f"|format(data.variance_percent) }}%)
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-{{ 'success' if data.utilization_rate < 80 else ('warning' if data.utilization_rate < 100 else 'danger') }}" 
+                                         style="width: {{ data.utilization_rate if data.utilization_rate <= 100 else 100 }}%">
+                                        {{ "%.0f"|format(data.utilization_rate) }}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% for source, amount in data.by_source.items() %}
+                                <span class="badge badge-info">{{ source }}: {{ "{:,.0f}".format(amount) }} ₪</span>
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">لا توجد بيانات</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+

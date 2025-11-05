@@ -33,7 +33,7 @@ class PerformanceTracker:
                     data = json.load(f)
                     self.metrics = data.get('metrics', self.metrics)
                     self.performance_log = data.get('log', [])[-1000:]
-            except:
+            except Exception:
                 pass
     
     def record_query(self, query: str, response: Dict, execution_time: float):
@@ -94,7 +94,7 @@ class PerformanceTracker:
                     'log': self.performance_log[-1000:],
                     'last_updated': datetime.now().isoformat()
                 }, f, ensure_ascii=False, indent=2)
-        except:
+        except Exception:
             pass
     
     def get_performance_report(self) -> Dict:

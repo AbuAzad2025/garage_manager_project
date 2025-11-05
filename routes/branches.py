@@ -260,7 +260,7 @@ def branch_dashboard(branch_id):
         else:
             try:
                 monthly_expenses += convert_amount(amt, exp.currency, "ILS", exp.date)
-            except:
+            except Exception:
                 pass
     
     stats['monthly_expenses'] = float(monthly_expenses)
@@ -440,7 +440,7 @@ def branch_report(branch_id):
         else:
             try:
                 expenses_total_ils += convert_amount(amt, exp.currency, "ILS", exp.date)
-            except:
+            except Exception:
                 pass
     
     stats = {
@@ -469,7 +469,7 @@ def branch_report(branch_id):
         else:
             try:
                 amt_ils = convert_amount(amt, exp.currency, "ILS", exp.date)
-            except:
+            except Exception:
                 amt_ils = Decimal('0.00')
         
         expense_types_dict[type_name]['count'] += 1

@@ -142,8 +142,24 @@
                     {% endif %}
                   </td>
                   <td>
-                    <small>{{ entry.transaction_type }}</small><br>
-                    <small class="text-muted">#{{ entry.transaction_reference or entry.transaction_id }}</small>
+                    <small>
+                      {% if entry.transaction_type == 'SALE' %}
+                        <span class="badge badge-primary"><i class="fas fa-shopping-cart"></i> بيع</span>
+                      {% elif entry.transaction_type == 'SALE_RETURN' %}
+                        <span class="badge badge-danger"><i class="fas fa-undo"></i> مرتجع بيع</span>
+                      {% elif entry.transaction_type == 'PURCHASE' %}
+                        <span class="badge badge-info"><i class="fas fa-truck"></i> شراء</span>
+                      {% elif entry.transaction_type == 'SERVICE' %}
+                        <span class="badge badge-warning"><i class="fas fa-wrench"></i> صيانة</span>
+                      {% elif entry.transaction_type == 'INVOICE' %}
+                        <span class="badge badge-secondary"><i class="fas fa-file-invoice"></i> فاتورة</span>
+                      {% elif entry.transaction_type == 'ONLINE_PREORDER' %}
+                        <span class="badge badge-success"><i class="fas fa-globe"></i> طلب أونلاين</span>
+                      {% else %}
+                        <span class="badge badge-dark">{{ entry.transaction_type }}</span>
+                      {% endif %}
+                    </small><br>
+                    <small class="text-muted"><strong>#{{ entry.transaction_reference or entry.transaction_id }}</strong></small>
                   </td>
                   <td>{{ "%.2f"|format(entry.base_amount) }} {{ entry.currency }}</td>
                   <td>{{ "%.1f"|format(entry.tax_rate) }}%</td>

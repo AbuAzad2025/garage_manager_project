@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% block title %}إدارة Workflows{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">
+                    <i class="fas fa-project-diagram text-primary"></i> 
+                    إدارة Workflows (BPM)
+                </h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('advanced.accounting_control') }}"><i class="fas fa-sliders-h"></i> المحاسبة المتقدمة</a></li>
+                    <li class="breadcrumb-item active">Workflows</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3 no-print">
+            <div class="col-12">
+                <div class="btn-group mb-2">
+                    <a href="{{ url_for('advanced.accounting_control') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> العودة للوحة التحكم
+                    </a>
+                    <a href="{{ url_for('workflows.definitions') }}" class="btn btn-primary">
+                        <i class="fas fa-cogs"></i> إدارة التعريفات
+                    </a>
+                    <a href="{{ url_for('workflows.instances') }}" class="btn btn-info">
+                        <i class="fas fa-tasks"></i> نسخ التنفيذ
+                    </a>
+                    <a href="{{ url_for('workflows.my_pending') }}" class="btn btn-warning">
+                        <i class="fas fa-clock"></i> مهامي المعلقة
+                    </a>
+                </div>
+                <div class="btn-group mb-2">
+                    <a href="{{ url_for('workflows.report_summary') }}" class="btn btn-success">
+                        <i class="fas fa-chart-bar"></i> تقرير ملخص
+                    </a>
+                    <a href="{{ url_for('workflows.report_performance') }}" class="btn btn-info">
+                        <i class="fas fa-chart-line"></i> أداء المستخدمين
+                    </a>
+                    <a href="{{ url_for('workflows.report_cost_center_analysis') }}" class="btn btn-warning">
+                        <i class="fas fa-chart-pie"></i> تحليل مراكز التكلفة
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="info-box bg-primary">
+                    <span class="info-box-icon"><i class="fas fa-project-diagram"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">إجمالي Workflows</span>
+                        <span class="info-box-number">{{ stats.total }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-info">
+                    <span class="info-box-icon"><i class="fas fa-spinner"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">قيد التنفيذ</span>
+                        <span class="info-box-number">{{ stats.in_progress }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-success">
+                    <span class="info-box-icon"><i class="fas fa-check-circle"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">تمت الموافقة</span>
+                        <span class="info-box-number">{{ stats.approved }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="info-box bg-danger">
+                    <span class="info-box-icon"><i class="fas fa-times-circle"></i></span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">تم الرفض</span>
+                        <span class="info-box-number">{{ stats.rejected }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>معدل الموافقة</h6>
+                        <h3 class="text-success">{{ "%.1f"|format(stats.approval_rate) }}%</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>متوسط وقت الإنجاز</h6>
+                        <h3 class="text-primary">{{ "%.1f"|format(stats.avg_completion_hours) }} ساعة</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>Workflows نشطة</h6>
+                        <h3 class="text-info">{{ active_definitions|length }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-history"></i> آخر Workflows</h3>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>رمز النسخة</th>
+                            <th>Workflow</th>
+                            <th>الكيان</th>
+                            <th>الحالة</th>
+                            <th>الخطوة</th>
+                            <th>بدأ بواسطة</th>
+                            <th>تاريخ البدء</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for instance in recent_instances %}
+                        <tr>
+                            <td><code>{{ instance.instance_code }}</code></td>
+                            <td>{{ instance.workflow_definition.workflow_name }}</td>
+                            <td>
+                                <span class="badge badge-secondary">{{ instance.entity_type }}</span>
+                                #{{ instance.entity_id }}
+                            </td>
+                            <td>
+                                {% if instance.status == 'APPROVED' %}
+                                    <span class="badge badge-success"><i class="fas fa-check"></i> تمت الموافقة</span>
+                                {% elif instance.status == 'REJECTED' %}
+                                    <span class="badge badge-danger"><i class="fas fa-times"></i> مرفوض</span>
+                                {% elif instance.status == 'IN_PROGRESS' %}
+                                    <span class="badge badge-info"><i class="fas fa-spinner"></i> قيد التنفيذ</span>
+                                {% elif instance.status == 'PENDING_APPROVAL' %}
+                                    <span class="badge badge-warning"><i class="fas fa-clock"></i> بانتظار الموافقة</span>
+                                {% elif instance.status == 'CANCELLED' %}
+                                    <span class="badge badge-secondary"><i class="fas fa-ban"></i> ملغي</span>
+                                {% else %}
+                                    <span class="badge badge-light">{{ instance.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                         style="width: {{ instance.progress_percentage }}%">
+                                        {{ instance.current_step }}/{{ instance.total_steps }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ instance.starter.username if instance.starter else '-' }}</td>
+                            <td>{{ instance.started_at.strftime('%Y-%m-%d %H:%M') if instance.started_at else '-' }}</td>
+                            <td>
+                                <a href="{{ url_for('workflows.view_instance', id=instance.id) }}" 
+                                   class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i> عرض
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">
+                                <i class="fas fa-inbox"></i> لا توجد workflows حالياً
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary">
+                        <h3 class="card-title"><i class="fas fa-cogs"></i> Workflows النشطة</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group">
+                            {% for definition in active_definitions %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ definition.workflow_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ definition.workflow_code }}</small>
+                                </div>
+                                <span class="badge badge-primary badge-pill">{{ definition.entity_type }}</span>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-center text-muted">
+                                لا توجد workflows نشطة
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-success">
+                        <h3 class="card-title"><i class="fas fa-info-circle"></i> حول نظام BPM</h3>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>إدارة العمليات التجارية (BPM)</strong> تتيح لك:</p>
+                        <ul>
+                            <li><i class="fas fa-check text-success"></i> أتمتة عمليات الموافقة</li>
+                            <li><i class="fas fa-check text-success"></i> تتبع تقدم المهام</li>
+                            <li><i class="fas fa-check text-success"></i> تحديد مسؤوليات واضحة</li>
+                            <li><i class="fas fa-check text-success"></i> رصد الأداء والإنتاجية</li>
+                            <li><i class="fas fa-check text-success"></i> تحسين الشفافية والمساءلة</li>
+                        </ul>
+                        <hr>
+                        <p class="mb-0">
+                            <a href="{{ url_for('workflows.definitions') }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-plus"></i> إنشاء Workflow جديد
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+

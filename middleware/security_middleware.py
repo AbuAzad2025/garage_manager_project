@@ -25,7 +25,7 @@ def check_ip_allowed(ip):
         blacklist_raw = SystemSettings.get_setting('ip_blacklist', '[]')
         try:
             blacklist = json.loads(blacklist_raw) if isinstance(blacklist_raw, str) else blacklist_raw
-        except:
+        except Exception:
             blacklist = []
         
         if ip in blacklist:
@@ -35,7 +35,7 @@ def check_ip_allowed(ip):
         whitelist_raw = SystemSettings.get_setting('ip_whitelist', '[]')
         try:
             whitelist = json.loads(whitelist_raw) if isinstance(whitelist_raw, str) else whitelist_raw
-        except:
+        except Exception:
             whitelist = []
         
         if ip not in whitelist:
@@ -52,12 +52,12 @@ def check_ip_allowed(ip):
                 blocked_countries_raw = SystemSettings.get_setting('blocked_countries', '[]')
                 try:
                     blocked_countries = json.loads(blocked_countries_raw) if isinstance(blocked_countries_raw, str) else blocked_countries_raw
-                except:
+                except Exception:
                     blocked_countries = []
                 
                 if country_code in blocked_countries:
                     return {'allowed': False, 'reason': f'الدولة {country_code} محظورة'}
-        except:
+        except Exception:
             pass
     
     return {'allowed': True, 'reason': 'مسموح'}

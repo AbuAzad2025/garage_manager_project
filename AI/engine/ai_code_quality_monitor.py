@@ -398,7 +398,7 @@ class CodeQualityMonitor:
                         "Form might be missing CSRF protection",
                         str(py_file)
                     )
-            except:
+            except Exception:
                 pass
         
         # 2. فحص session security
@@ -420,7 +420,7 @@ class CodeQualityMonitor:
                         "SESSION_COOKIE_HTTPONLY not configured",
                         'app.py'
                     )
-            except:
+            except Exception:
                 pass
     
     # ═══════════════════════════════════════════════════════════════════════
@@ -450,7 +450,7 @@ class CodeQualityMonitor:
                         "Possible N+1 query pattern detected",
                         f"{py_file}:{line_num}"
                     )
-            except:
+            except Exception:
                 pass
     
     # ═══════════════════════════════════════════════════════════════════════

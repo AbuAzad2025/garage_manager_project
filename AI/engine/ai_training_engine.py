@@ -70,7 +70,7 @@ class AITrainingEngine:
             if os.path.exists(TRAINING_STATUS_FILE):
                 with open(TRAINING_STATUS_FILE, 'r', encoding='utf-8') as f:
                     self.status = json.load(f)
-        except:
+        except Exception:
             pass
     
     def save_status(self):
@@ -663,7 +663,7 @@ class AITrainingEngine:
                     log = json.load(f)
                     return log[-limit:]
             return []
-        except:
+        except Exception:
             return []
 
 

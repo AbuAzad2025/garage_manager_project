@@ -25,7 +25,7 @@ class DeepMemory:
             try:
                 with open(ltm_file, 'r', encoding='utf-8') as f:
                     self.long_term_memory = json.load(f)
-            except:
+            except Exception:
                 pass
         
         sem_file = self.memory_dir / 'semantic_memory.json'
@@ -33,7 +33,7 @@ class DeepMemory:
             try:
                 with open(sem_file, 'r', encoding='utf-8') as f:
                     self.semantic_memory = json.load(f)
-            except:
+            except Exception:
                 pass
         
         proc_file = self.memory_dir / 'procedural_memory.json'
@@ -41,7 +41,7 @@ class DeepMemory:
             try:
                 with open(proc_file, 'r', encoding='utf-8') as f:
                     self.procedural_memory = json.load(f)
-            except:
+            except Exception:
                 pass
     
     def remember_fact(self, category: str, key: str, value: Any, importance: int = 5):

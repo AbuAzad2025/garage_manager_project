@@ -415,7 +415,7 @@ def backup_manager():
     if auto_backup_schedule and auto_backup_schedule.value:
         try:
             schedule_info = json.loads(auto_backup_schedule.value)
-        except:
+        except Exception:
             schedule_info = {}
     
     current_db_type = _detect_current_db_type()
@@ -540,7 +540,7 @@ def test_db_connection():
                 # جلب معلومات إضافية
                 try:
                     version = conn.execute(text("SELECT version()")).scalar()
-                except:
+                except Exception:
                     version = "غير متاح"
                 
                 return jsonify({
@@ -692,9 +692,9 @@ def _merge_databases(source_db_path, mode='smart'):
                         placeholders = ','.join(['?' for _ in row])
                         cursor_target.execute(f"INSERT OR IGNORE INTO {table_name} VALUES ({placeholders})", row)
                         added_count += cursor_target.rowcount
-                    except:
+                    except Exception:
                         pass
-        except:
+        except Exception:
             pass
     
     conn_target.commit()
@@ -710,7 +710,7 @@ def _get_db_size():
         db_path = os.path.join(current_app.root_path, 'instance', 'app.db')
         size = os.path.getsize(db_path) / (1024 * 1024)
         return f'{size:.2f} MB'
-    except:
+    except Exception:
         return 'N/A'
 
 
@@ -723,7 +723,7 @@ def _count_all_records():
             count = db.session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
             total += count
         return total
-    except:
+    except Exception:
         return 0
 
 
@@ -732,7 +732,7 @@ def _check_database():
     try:
         db.session.execute(text("SELECT 1"))
         return {'name': 'قاعدة البيانات', 'status': 'ok', 'message': 'تعمل بشكل صحيح'}
-    except:
+    except Exception:
         return {'name': 'قاعدة البيانات', 'status': 'error', 'message': 'خطأ في الاتصال'}
 
 
@@ -745,7 +745,7 @@ def _check_disk_space():
         if free_gb < 1:
             return {'name': 'المساحة', 'status': 'warning', 'message': f'متبقي {free_gb:.2f} GB'}
         return {'name': 'المساحة', 'status': 'ok', 'message': f'متبقي {free_gb:.2f} GB'}
-    except:
+    except Exception:
         return {'name': 'المساحة', 'status': 'unknown', 'message': 'غير معروف'}
 
 
@@ -757,7 +757,7 @@ def _check_permissions():
             f.write('test')
         os.remove(test_file)
         return {'name': 'صلاحيات الكتابة', 'status': 'ok', 'message': 'صلاحيات صحيحة'}
-    except:
+    except Exception:
         return {'name': 'صلاحيات الكتابة', 'status': 'error', 'message': 'لا توجد صلاحيات'}
 
 
@@ -787,7 +787,7 @@ def _check_performance():
             return {'name': 'الأداء', 'status': 'warning', 'message': f'{elapsed:.0f}ms'}
         else:
             return {'name': 'الأداء', 'status': 'error', 'message': f'{elapsed:.0f}ms بطيء'}
-    except:
+    except Exception:
         return {'name': 'الأداء', 'status': 'unknown', 'message': 'غير معروف'}
 
 
@@ -1762,7 +1762,7 @@ def _detect_current_db_type():
             return 'SQL Server'
         else:
             return 'Unknown'
-    except:
+    except Exception:
         return 'SQLite'
 
 
@@ -1904,7 +1904,7 @@ def _get_all_tenants():
         if modules_setting and modules_setting.value:
             try:
                 modules = json.loads(modules_setting.value)
-            except:
+            except Exception:
                 modules = []
         
         tenant_list.append({
@@ -1971,7 +1971,7 @@ def _create_tenant_database(db_path):
             for (table_name,) in tables:
                 try:
                     cursor.execute(f"DELETE FROM {table_name}")
-                except:
+                except Exception:
                     pass
             
             conn.commit()

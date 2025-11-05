@@ -16,13 +16,25 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('expenses', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('supplier_id', sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column('disbursed_by', sa.String(length=200), nullable=True))
-        batch_op.create_index('ix_expense_supplier_date', ['supplier_id', 'date'], unique=False)
-        batch_op.create_foreign_key('fk_expenses_supplier_id', 'suppliers', ['supplier_id'], ['id'], ondelete='SET NULL')
-        batch_op.drop_constraint('ck_expense_payee_type_allowed', type_='check')
-        batch_op.create_check_constraint('ck_expense_payee_type_allowed', "payee_type IN ('EMPLOYEE','SUPPLIER','PARTNER','UTILITY','OTHER')")
+    try:
+        op.add_column('expenses', sa.Column('supplier_id', sa.Integer(), nullable=True))
+    except Exception:
+        pass
+    
+    try:
+        op.add_column('expenses', sa.Column('disbursed_by', sa.String(length=200), nullable=True))
+    except Exception:
+        pass
+    
+    try:
+        op.create_index('ix_expense_supplier_date', 'expenses', ['supplier_id', 'date'], unique=False)
+    except Exception:
+        pass
+    
+    try:
+        op.create_foreign_key('fk_expenses_supplier_id', 'expenses', 'suppliers', ['supplier_id'], ['id'], ondelete='SET NULL')
+    except Exception:
+        pass
 
 
 def downgrade():

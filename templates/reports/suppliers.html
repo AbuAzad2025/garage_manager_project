@@ -41,9 +41,9 @@
                 <td>{{ r.name }}</td>
                 <td class="text-end">
                   {% if r.balance > 0 %}
-                    <span class="text-danger">{{ "{:,.2f}".format(r.balance) }}</span>
+                    <span class="text-success">{{ "{:,.2f}".format(r.balance) }}</span>
                   {% elif r.balance < 0 %}
-                    <span class="text-success">{{ "{:,.2f}".format(r.balance|abs) }}</span>
+                    <span class="text-danger">{{ "{:,.2f}".format(r.balance|abs) }}</span>
                   {% else %}
                     {{ "{:,.2f}".format(r.balance) }}
                   {% endif %}

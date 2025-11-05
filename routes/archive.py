@@ -138,7 +138,7 @@ def view_archive(archive_id):
     # تحليل البيانات المؤرشفة
     try:
         archived_data = json.loads(archive.archived_data)
-    except:
+    except Exception:
         archived_data = {}
     
     return render_template('archive/view.html', archive=archive, archived_data=archived_data)

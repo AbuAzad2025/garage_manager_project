@@ -668,12 +668,12 @@ body {
 /* ==================== FOOTER ENHANCEMENTS ==================== */
 
 .enhanced-footer {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #ffffff;
+  background: #ffffff;
+  color: #2d3748;
   font-weight: 600;
   padding: 30px 0;
-  border-top: 4px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.1);
+  border-top: 3px solid #e2e8f0;
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.08);
   margin-top: auto;
 }
 
@@ -685,18 +685,19 @@ body {
   flex-wrap: wrap;
   margin-bottom: 20px;
   padding-bottom: 20px;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+  border-bottom: 2px solid #e2e8f0;
 }
 
 .footer-logo {
-  height: 50px;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2)) brightness(1.1);
+  height: 60px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
   transition: all 0.3s ease;
+  object-fit: contain;
 }
 
 .footer-logo:hover {
-  transform: scale(1.1) rotate(5deg);
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3)) brightness(1.2);
+  transform: scale(1.05) rotate(3deg);
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
 }
 
 .footer-company {
@@ -708,14 +709,15 @@ body {
   display: block;
   font-weight: 900;
   letter-spacing: 0.5px;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #1a202c;
+  text-shadow: none;
 }
 
 .footer-system-name {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
+  color: #4a5568;
   font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  text-shadow: none;
 }
 
 .footer-flag {
@@ -724,16 +726,18 @@ body {
   gap: 8px;
   font-weight: 800;
   padding: 8px 15px;
-  background: rgba(255, 255, 255, 0.15);
+  background: #f7fafc;
   border-radius: 20px;
-  backdrop-filter: blur(10px);
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   transition: all 0.3s ease;
 }
 
 .footer-flag:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: #edf2f7;
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e0;
 }
 
 .footer-flag .flag-icon {
@@ -742,22 +746,22 @@ body {
 }
 
 .footer-flag .flag-text {
-  color: #ffffff;
+  color: #2d3748;
   font-size: 1.1rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  text-shadow: none;
 }
 
 .footer-contact {
   margin: 20px 0;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background: #f7fafc;
   border-radius: 12px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .footer-contact-link {
-  color: #ffffff;
+  color: #2d3748;
   text-decoration: none;
   font-weight: 700;
   font-size: 1rem;
@@ -767,33 +771,36 @@ body {
   gap: 8px;
   padding: 10px 15px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
 }
 
 .footer-contact-link:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.2);
+  color: #1a202c;
+  background: #edf2f7;
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-color: #cbd5e0;
 }
 
 .footer-contact-link i {
   font-size: 1.3rem;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));
+  color: #4299e1;
 }
 
 .footer-copyright {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 2px solid rgba(255, 255, 255, 0.2);
+  border-top: 2px solid #e2e8f0;
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.3px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  color: #4a5568;
+  text-shadow: none;
 }
 
 .footer-divider {
-  color: rgba(255, 255, 255, 0.5);
+  color: #cbd5e0;
   font-weight: 300;
 }
 

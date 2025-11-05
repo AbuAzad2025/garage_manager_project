@@ -125,7 +125,7 @@ def load_training_policy():
             with open(TRAINING_POLICY, 'r', encoding='utf-8') as f:
                 return json.load(f)
         return {}
-    except:
+    except Exception:
         return {}
 
 def check_policy_compliance(confidence, has_data):

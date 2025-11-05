@@ -743,7 +743,7 @@ class NotificationLog(db.Model):
         if self.extra_data:
             try:
                 return json.loads(self.extra_data)
-            except:
+            except Exception:
                 return {}
         return {}
     
@@ -1057,7 +1057,7 @@ def _fetch_external_fx_rate(base: str, quote: str, at: datetime) -> Decimal:
         online_fx_enabled = SystemSettings.get_setting('online_fx_enabled', True)
         if not online_fx_enabled:
             return None
-    except:
+    except Exception:
         # في حالة عدم وجود SystemSettings، استمر بالطريقة العادية
         pass
     
@@ -1256,7 +1256,7 @@ def get_fx_rate_with_fallback(base: str, quote: str, at: datetime | None = None)
                     'timestamp': at or datetime.now(timezone.utc),
                     'success': True
                 }
-        except:
+        except Exception:
             pass
         
         # في حالة فشل الأونلاين، جرب السعر المحلي
@@ -1271,7 +1271,7 @@ def get_fx_rate_with_fallback(base: str, quote: str, at: datetime | None = None)
                     'timestamp': at or datetime.now(timezone.utc),
                     'success': True
                 }
-        except:
+        except Exception:
             pass
         
         # في حالة فشل كل شيء، استخدم سعر افتراضي
@@ -1907,7 +1907,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             else:
                 try:
                     total += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
-                except:
+                except Exception:
                     pass
         return float(total)
 
@@ -1938,7 +1938,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             else:
                 try:
                     total += convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
+                except Exception:
                     pass
         return float(total)
 
@@ -1969,7 +1969,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             if self.currency != "ILS":
                 try:
                     ob = convert_amount(ob, self.currency, "ILS")
-                except:
+                except Exception:
                     pass  # استخدم القيمة الأصلية إذا فشل التحويل
             
             # ✅ المبيعات المؤكدة - جلب كل سجل وتحويله
@@ -1985,8 +1985,8 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 else:
                     try:
                         sales_total += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                    except:
-                        pass  # تجاهل إذا فشل التحويل
+                    except Exception:
+                        pass
             
             # ✅ المرتجعات المؤكدة (تخفض من الدين)
             returns = session.query(SaleReturn).filter(
@@ -2001,7 +2001,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 else:
                     try:
                         returns_total += convert_amount(amt, r.currency, "ILS", r.created_at)
-                    except:
+                    except Exception:
                         pass
             
             # ✅ الفواتير (كل الفواتير غير الملغاة) - جلب كل سجل وتحويله
@@ -2017,7 +2017,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 else:
                     try:
                         invoices_total += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
-                    except:
+                    except Exception:
                         pass
             
             services = session.query(ServiceRequest).filter(
@@ -2031,7 +2031,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 else:
                     try:
                         services_total += convert_amount(amt, srv.currency, "ILS", srv.received_at)
-                    except:
+                    except Exception:
                         pass
             
             # ✅ الحجوزات المسبقة - جلب كل سجل وتحويله
@@ -2047,7 +2047,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 else:
                     try:
                         preorders_total += convert_amount(amt, p.currency, "ILS", p.preorder_date)
-                    except:
+                    except Exception:
                         pass
             
             # ✅ الطلبات الأونلاين - جلب كل سجل وتحويله
@@ -2063,7 +2063,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 else:
                     try:
                         online_orders_total += convert_amount(amt, oo.currency, "ILS", oo.created_at)
-                    except:
+                    except Exception:
                         pass
             
             # ✅ الدفعات الواردة - جلب من جميع المصادر المرتبطة بالعميل
@@ -2127,7 +2127,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 else:
                     try:
                         payments_in += convert_amount(amt, p.currency, "ILS", p.payment_date)
-                    except:
+                    except Exception:
                         pass
             
             # ✅ الدفعات الصادرة - جلب من جميع المصادر المرتبطة بالعميل
@@ -2191,37 +2191,15 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 else:
                     try:
                         payments_out += convert_amount(amt, p.currency, "ILS", p.payment_date)
-                    except:
+                    except Exception:
                         pass
             
-            # 🎯 الرصيد النهائي بالطريقة المحاسبية الصحيحة (مدين - دائن)
-            # الرصيد الافتتاحي:
-            #   - إذا سالب (-11200) = عليه لنا (مدين) → يضاف للمدين بقيمة موجبة
-            #   - إذا موجب (+11200) = له علينا (دائن) → يضاف للدائن
-            
-            # المدين (Debit): ما عليه لنا
-            debit = Decimal('0.00')
-            if ob < 0:  # رصيد افتتاحي سالب = عليه لنا
-                debit += abs(ob)
-            # المبيعات والفواتير والخدمات والحجوزات والطلبات الأونلاين (ناقص المرتجعات)
-            debit += sales_total + invoices_total + services_total + preorders_total + online_orders_total - returns_total
-            
-            # الدائن (Credit): ما له علينا
-            credit = Decimal('0.00')
-            if ob > 0:  # رصيد افتتاحي موجب = له علينا
-                credit += ob
-            credit += payments_in  # الدفعات الواردة
-            credit -= payments_out  # الدفعات الصادرة تنقص من الدائن
-            
-            # الرصيد النهائي = الدائن - المدين
-            # سالب (-X) = عليه لنا (مدين)
-            # موجب (+X) = له علينا (دائن)
-            final_balance = credit - debit
+            final_balance = ob + payments_in - (sales_total + invoices_total + services_total + preorders_total + online_orders_total - returns_total) - payments_out
             
             return float(final_balance)
         except Exception as e:
-            import sys
-            print(f"⚠️ خطأ في حساب رصيد العميل #{self.id}: {e}", file=sys.stderr)
+            from flask import current_app
+            current_app.logger.warning(f"⚠️ خطأ في حساب رصيد العميل #{self.id}: {e}")
             return 0.0
 
     @hybrid_property
@@ -2252,7 +2230,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                         try:
                             from flask import current_app
                             current_app.logger.error(f"❌ خطأ في تحويل العملة لحساب رصيد العميل #{self.id}: {str(e)}")
-                        except:
+                        except Exception:
                             pass
                         # تجاهل هذا المبلغ من الحساب
                         continue
@@ -2285,7 +2263,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                         try:
                             from flask import current_app
                             current_app.logger.error(f"❌ خطأ في تحويل العملة للفاتورة #{invoice.id}: {str(e)}")
-                        except:
+                        except Exception:
                             pass
                         # تجاهل هذا المبلغ
                         continue
@@ -2363,7 +2341,7 @@ def _customer_opening_balance_gl(mapper, connection, target: "Customer"):
                 if hist and hasattr(hist, 'history'):
                     if not hist.history.has_changes():
                         return  # لم يتغير opening_balance - لا داعي للقيد
-            except:
+            except Exception:
                 pass  # في حالة after_insert لن يكون هناك history
         
         opening_balance = float(getattr(target, 'opening_balance', 0) or 0)
@@ -2399,8 +2377,8 @@ def _customer_opening_balance_gl(mapper, connection, target: "Customer"):
             entity_id=target.id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للعميل #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للعميل #{target.id}: {e}")
 
 
 class Supplier(db.Model, TimestampMixin, AuditMixin):
@@ -2415,7 +2393,6 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     email = db.Column(db.String(120), unique=True, index=True, nullable=True)
     address = db.Column(db.String(200))
     notes = db.Column(db.Text)
-    balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     payment_terms = db.Column(db.String(50))
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
     opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له علينا، سالب=عليه لنا)")
@@ -2471,7 +2448,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     direct += convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
+                except Exception:
                     pass
         
         via_loans_payments = db.session.query(Payment).join(
@@ -2489,7 +2466,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     via_loans += convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
+                except Exception:
                     pass
         
         expenses = db.session.query(Expense).filter(
@@ -2506,7 +2483,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     expenses_total += convert_amount(amt, exp.currency, "ILS", exp.date)
-                except:
+                except Exception:
                     pass
         
         return float(direct + via_loans + expenses_total)
@@ -2535,94 +2512,112 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
         return direct_subq + via_loans_subq
 
     @hybrid_property
-    def net_balance(self):
-        return q(self.balance or 0) - q(self.total_paid or 0)
-
-    @net_balance.expression
-    def net_balance(cls):
-        direct_subq = (
-            select(func.coalesce(func.sum(Payment.total_amount), 0))
-            .where(
-                (Payment.supplier_id == cls.id)
-                & (Payment.direction == PaymentDirection.OUT.value)
-                & (Payment.status == PaymentStatus.COMPLETED.value)
-            )
-            .scalar_subquery()
-        )
-        via_loans_subq = (
-            select(func.coalesce(func.sum(Payment.total_amount), 0))
-            .select_from(Payment.__table__.join(SupplierLoanSettlement, SupplierLoanSettlement.id == Payment.loan_settlement_id))
-            .where(
-                (Payment.direction == PaymentDirection.OUT.value)
-                & (Payment.status == PaymentStatus.COMPLETED.value)
-                & (SupplierLoanSettlement.supplier_id == cls.id)
-            )
-            .scalar_subquery()
-        )
-        return cls.balance - (direct_subq + via_loans_subq)
-
-    @hybrid_property
-    def balance_in_ils(self):
-        """الرصيد بالشيكل - حساب دقيق مع تحويل العملات"""
+    def balance(self):
         try:
-            from sqlalchemy import or_, and_
-            payments = db.session.query(Payment).filter(
-                Payment.supplier_id == self.id,
-                Payment.status == PaymentStatus.COMPLETED.value
+            from extensions import cache
+            cache_key = f'supplier_balance_{self.id}'
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
+            
+            from sqlalchemy.orm import object_session
+            from decimal import Decimal
+            session = object_session(self)
+            if not session:
+                return 0.0
+            
+            def _to_ils(amt, curr, dt):
+                amt = Decimal(str(amt or 0))
+                if not amt:
+                    return Decimal('0.00')
+                curr = (curr or "ILS").strip().upper()
+                if curr == "ILS":
+                    return amt
+                try:
+                    return convert_amount(amt, curr, "ILS", dt)
+                except Exception:
+                    return Decimal('0.00')
+            
+            ob = _to_ils(self.opening_balance, self.currency, None)
+            
+            exchange_in = session.query(ExchangeTransaction).filter(
+                ExchangeTransaction.supplier_id == self.id,
+                ExchangeTransaction.direction.in_(['IN', 'PURCHASE', 'CONSIGN_IN'])
             ).all()
+            exchange_total = sum(_to_ils(tx.quantity * (tx.unit_cost or 0), 'ILS', tx.created_at) for tx in exchange_in)
             
-            total_paid_ils = Decimal("0.00")
-            for payment in payments:
-                amount = Decimal(str(payment.total_amount or 0))
-                currency = payment.currency or "ILS"
-                direction = payment.direction
-                
-                if currency == "ILS":
-                    converted_amount = amount
-                else:
-                    try:
-                        converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
-                    except Exception as e:
-                        try:
-                            from flask import current_app
-                            current_app.logger.error(f"❌ خطأ في تحويل العملة لحساب رصيد المورد #{self.id}: {str(e)}")
-                        except:
-                            pass
-                        continue
-                
-                if direction == PaymentDirection.OUT.value:
-                    total_paid_ils += converted_amount
-                else:
-                    total_paid_ils -= converted_amount
+            sales_total = Decimal('0.00')
+            services_total = Decimal('0.00')
+            preorders_total = Decimal('0.00')
             
-            expenses = db.session.query(Expense).filter(
+            if self.customer_id:
+                sales = session.query(Sale).filter(
+                    Sale.customer_id == self.customer_id,
+                    Sale.status == SaleStatus.CONFIRMED
+                ).all()
+                sales_total = sum(_to_ils(s.total_amount, s.currency, s.sale_date) for s in sales)
+                
+                services = session.query(ServiceRequest).filter(
+                    ServiceRequest.customer_id == self.customer_id,
+                    ServiceRequest.status == ServiceStatus.COMPLETED
+                ).all()
+                services_total = sum(_to_ils(srv.total_amount, srv.currency, srv.received_at) for srv in services)
+                
+                preorders = session.query(PreOrder).filter(
+                    PreOrder.customer_id == self.customer_id,
+                    PreOrder.status.in_(['CONFIRMED', 'COMPLETED', 'DELIVERED', 'FULFILLED'])
+                ).all()
+                preorders_total = sum(_to_ils(po.total_amount, po.currency, po.preorder_date) for po in preorders)
+            
+            payments_out = session.query(Payment).filter(
+                Payment.supplier_id == self.id,
+                Payment.direction == PaymentDirection.OUT,
+                Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+            ).all()
+            paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out)
+            
+            payments_in = session.query(Payment).filter(
+                Payment.supplier_id == self.id,
+                Payment.direction == PaymentDirection.IN,
+                Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+            ).all()
+            received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in)
+            
+            returns = session.query(ExchangeTransaction).filter(
+                ExchangeTransaction.supplier_id == self.id,
+                ExchangeTransaction.direction.in_(['OUT', 'RETURN'])
+            ).all()
+            returns_total = sum(_to_ils(tx.quantity * (tx.unit_cost or 0), 'ILS', tx.created_at) for tx in returns)
+            
+            expenses = session.query(Expense).filter(
                 or_(
                     Expense.supplier_id == self.id,
                     and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == self.id)
                 )
             ).all()
-            for exp in expenses:
-                amt = Decimal(str(exp.amount or 0))
-                if exp.currency == "ILS":
-                    total_paid_ils += amt
-                else:
-                    try:
-                        total_paid_ils += convert_amount(amt, exp.currency, "ILS", exp.date)
-                    except:
-                        pass
+            expenses_total = sum(_to_ils(exp.amount, exp.currency, exp.date) for exp in expenses)
             
-            base_balance = Decimal(str(self.balance or 0))
-            if self.currency == "ILS":
-                base_balance_ils = base_balance
-            else:
-                try:
-                    base_balance_ils = convert_amount(base_balance, self.currency, "ILS")
-                except Exception:
-                    base_balance_ils = base_balance
+            final_balance = ob + exchange_total - sales_total - services_total - preorders_total - paid_out + received_in - returns_total - expenses_total
             
-            return base_balance_ils - total_paid_ils
-        except Exception:
-            return Decimal("0.00")
+            result = float(final_balance)
+            cache.set(cache_key, result, timeout=300)
+            return result
+            
+        except Exception as e:
+            from flask import current_app
+            try:
+                current_app.logger.warning(f"⚠️ خطأ في حساب رصيد المورد #{self.id}: {e}")
+            except Exception:
+                pass
+            return 0.0
+
+    @hybrid_property
+    def net_balance(self):
+        return q(self.balance or 0) - q(self.total_paid or 0)
+
+    @hybrid_property
+    def balance_in_ils(self):
+        return self.balance
 
     def to_dict(self):
         return {
@@ -2639,79 +2634,28 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
         return f"<Supplier {self.name}>"
     
     def ensure_customer_link(self):
-        """إنشاء أو ربط عميل تلقائياً"""
-        if not self.customer_id and self.id:
-            # البحث عن عميل موجود بنفس البيانات
-            existing = Customer.query.filter(
-                (Customer.phone == self.phone) if self.phone else False
-            ).first()
-            
+        """ربط عميل تلقائياً - يبحث بالهاتف فقط (الأدق)"""
+        if not self.customer_id and self.id and self.phone:
+            existing = Customer.query.filter(Customer.phone == self.phone).first()
             if existing:
                 self.customer_id = existing.id
-            else:
-                # إنشاء عميل جديد بنفس الاسم
-                customer = Customer(
-                    name=self.name,  # نفس الاسم بدون إضافات
-                    phone=self.phone or '0000000',
-                    whatsapp=self.phone or '0000000',
-                    email=self.email or f'supplier_{self.id}@system.local',
-                    address=self.address,
-                    currency=self.currency,
-                    credit_limit=0,
-                    notes=f"حساب مرتبط بالمورد #{self.id}"
-                )
-                db.session.add(customer)
-                db.session.flush()
-                self.customer_id = customer.id
 
 
 # Event listener لإنشاء عميل تلقائياً للمورد الجديد
 @event.listens_for(Supplier, "after_insert")  
 def supplier_after_insert_create_customer(mapper, connection, target):
-    """إنشاء عميل تلقائياً بعد إضافة مورد"""
-    if not target.customer_id:
-        from sqlalchemy import insert as sa_insert, select as sa_select, update as sa_update
+    """ربط عميل تلقائياً للمورد الجديد - يبحث بالهاتف فقط (الأدق)"""
+    if not target.customer_id and target.phone:
+        from sqlalchemy import select as sa_select, update as sa_update
         
-        # البحث عن عميل موجود بالهاتف
-        existing_customer_id = None
-        if target.phone:
-            result = connection.execute(
-                sa_select(Customer.id).where(Customer.phone == target.phone)
-            ).first()
-            if result:
-                existing_customer_id = result[0]
+        result = connection.execute(
+            sa_select(Customer.id).where(Customer.phone == target.phone)
+        ).first()
         
-        if existing_customer_id:
-            # ربط بالعميل الموجود
+        if result:
+            existing_customer_id = result[0]
             connection.execute(
                 sa_update(Supplier).where(Supplier.id == target.id).values(customer_id=existing_customer_id)
-            )
-            # تحديث اسم العميل
-            connection.execute(
-                sa_update(Customer).where(Customer.id == existing_customer_id).values(
-                    name=sa_text(f"name || ' (مورد)'")
-                )
-            )
-        else:
-            # إنشاء عميل جديد
-            result = connection.execute(
-                sa_insert(Customer).values(
-                    name=f"{target.name} (مورد)",
-                    phone=target.phone or "0000000000",  # قيمة افتراضية إذا لم يكن هناك رقم
-                    whatsapp=target.phone or "0000000000",
-                    email=target.email or f"supplier_{target.id}@temp.local",
-                    address=target.address,
-                    currency=target.currency,
-                    credit_limit=0,
-                    notes=f"عميل مرتبط بالمورد #{target.id}",
-                    created_at=datetime.now(timezone.utc)
-                ).returning(Customer.id)
-            )
-            customer_id = result.scalar_one()
-            
-            # ربط المورد بالعميل
-            connection.execute(
-                sa_update(Supplier).where(Supplier.id == target.id).values(customer_id=customer_id)
             )
 
 
@@ -2742,7 +2686,7 @@ def _supplier_opening_balance_gl(mapper, connection, target: "Supplier"):
                 if hist and hasattr(hist, 'history'):
                     if not hist.history.has_changes():
                         return  # لم يتغير opening_balance - لا داعي للقيد
-            except:
+            except Exception:
                 pass  # في حالة after_insert لن يكون هناك history
         
         opening_balance = float(getattr(target, 'opening_balance', 0) or 0)
@@ -2778,8 +2722,8 @@ def _supplier_opening_balance_gl(mapper, connection, target: "Supplier"):
             entity_id=target.id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للمورد #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للمورد #{target.id}: {e}")
 
 
 class SupplierSettlement(db.Model, TimestampMixin, AuditMixin):
@@ -3106,7 +3050,6 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     phone_number = db.Column(db.String(20), unique=True)
     email = db.Column(db.String(120), unique=True, index=True, nullable=True)
     address = db.Column(db.String(200))
-    balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     share_percentage = db.Column(db.Numeric(5, 2), default=0, nullable=False, server_default=sa_text("0"))
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
     opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له علينا، سالب=عليه لنا)")
@@ -3179,7 +3122,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     total += convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
+                except Exception:
                     pass
         
         expenses = db.session.query(Expense).filter(
@@ -3195,7 +3138,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     total += convert_amount(amt, exp.currency, "ILS", exp.date)
-                except:
+                except Exception:
                     pass
         
         return float(total)
@@ -3213,84 +3156,95 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
         )
 
     @hybrid_property
-    def balance_in_ils(self):
-        """الرصيد بالشيكل - حساب دقيق مع تحويل العملات"""
+    def balance(self):
         try:
-            from sqlalchemy import or_, and_
-            payments = db.session.query(Payment).filter(
-                Payment.partner_id == self.id,
-                Payment.status == PaymentStatus.COMPLETED.value
-            ).all()
-
-            total_paid_ils = Decimal("0.00")
-            for payment in payments:
-                amount = Decimal(str(payment.total_amount or 0))
-                currency = payment.currency or "ILS"
-                direction = payment.direction
-
-                if currency == "ILS":
-                    converted_amount = amount
-                else:
-                    try:
-                        converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
-                    except Exception as e:
-                        try:
-                            from flask import current_app
-                            current_app.logger.error(f"❌ خطأ في تحويل العملة لحساب رصيد الشريك #{self.id}: {str(e)}")
-                        except:
-                            pass
-                        continue
-
-                if direction == PaymentDirection.OUT.value:
-                    total_paid_ils += converted_amount
-                else:
-                    total_paid_ils -= converted_amount
+            from extensions import cache
+            cache_key = f'partner_balance_{self.id}'
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
             
-            expenses = db.session.query(Expense).filter(
+            from sqlalchemy.orm import object_session
+            from decimal import Decimal
+            session = object_session(self)
+            if not session:
+                return 0.0
+            
+            def _to_ils(amt, curr, dt):
+                amt = Decimal(str(amt or 0))
+                if not amt:
+                    return Decimal('0.00')
+                curr = (curr or "ILS").strip().upper()
+                if curr == "ILS":
+                    return amt
+                try:
+                    return convert_amount(amt, curr, "ILS", dt)
+                except Exception:
+                    return Decimal('0.00')
+            
+            ob = _to_ils(self.opening_balance, self.currency, None)
+            
+            inventory_share = Decimal('0.00')
+            sales_share = Decimal('0.00')
+            sales_to_partner = Decimal('0.00')
+            services_total = Decimal('0.00')
+            
+            if self.customer_id:
+                sales = session.query(Sale).filter(
+                    Sale.customer_id == self.customer_id,
+                    Sale.status == SaleStatus.CONFIRMED
+                ).all()
+                sales_to_partner = sum(_to_ils(s.total_amount, s.currency, s.sale_date) for s in sales)
+                
+                services = session.query(ServiceRequest).filter(
+                    ServiceRequest.customer_id == self.customer_id,
+                    ServiceRequest.status == ServiceStatus.COMPLETED
+                ).all()
+                services_total = sum(_to_ils(srv.total_amount, srv.currency, srv.received_at) for srv in services)
+            
+            payments_out = session.query(Payment).filter(
+                Payment.partner_id == self.id,
+                Payment.direction == PaymentDirection.OUT,
+                Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+            ).all()
+            paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out)
+            
+            payments_in = session.query(Payment).filter(
+                Payment.partner_id == self.id,
+                Payment.direction == PaymentDirection.IN,
+                Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
+            ).all()
+            received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in)
+            
+            expenses = session.query(Expense).filter(
                 or_(
                     Expense.partner_id == self.id,
                     and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == self.id)
                 )
             ).all()
-            for exp in expenses:
-                amt = Decimal(str(exp.amount or 0))
-                if exp.currency == "ILS":
-                    total_paid_ils += amt
-                else:
-                    try:
-                        total_paid_ils += convert_amount(amt, exp.currency, "ILS", exp.date)
-                    except:
-                        pass
+            expenses_total = sum(_to_ils(exp.amount, exp.currency, exp.date) for exp in expenses)
+            
+            final_balance = ob + inventory_share + sales_share - sales_to_partner - services_total - paid_out + received_in - expenses_total
+            
+            result = float(final_balance)
+            cache.set(cache_key, result, timeout=300)
+            return result
+            
+        except Exception as e:
+            from flask import current_app
+            try:
+                current_app.logger.warning(f"⚠️ خطأ في حساب رصيد الشريك #{self.id}: {e}")
+            except Exception:
+                pass
+            return 0.0
 
-            base_balance = Decimal(str(self.balance or 0))
-            if self.currency == "ILS":
-                base_balance_ils = base_balance
-            else:
-                try:
-                    base_balance_ils = convert_amount(base_balance, self.currency, "ILS")
-                except Exception:
-                    base_balance_ils = base_balance
-
-            return base_balance_ils - total_paid_ils
-        except Exception:
-            return Decimal("0.00")
+    @hybrid_property
+    def balance_in_ils(self):
+        return self.balance
 
     @hybrid_property
     def net_balance(self):
         return q(self.balance or 0) - q(self.total_paid or 0)
-
-    @net_balance.expression
-    def net_balance(cls):
-        paid_subq = (
-            select(func.coalesce(func.sum(Payment.total_amount), 0))
-            .where(
-                (Payment.partner_id == cls.id)
-                & (Payment.direction == PaymentDirection.OUT.value)
-                & (Payment.status == PaymentStatus.COMPLETED.value)
-            )
-            .scalar_subquery()
-        )
-        return cls.balance - paid_subq
 
     def to_dict(self):
         return {
@@ -3307,74 +3261,28 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
         return f"<Partner {self.name}>"
     
     def ensure_customer_link(self):
-        """إنشاء أو ربط عميل تلقائياً"""
-        if not self.customer_id and self.id:
-            # البحث عن عميل موجود بنفس البيانات
-            existing = Customer.query.filter(
-                (Customer.phone == self.phone_number) if self.phone_number else False
-            ).first()
-            
+        """ربط عميل تلقائياً - يبحث بالهاتف فقط (الأدق)"""
+        if not self.customer_id and self.id and self.phone_number:
+            existing = Customer.query.filter(Customer.phone == self.phone_number).first()
             if existing:
                 self.customer_id = existing.id
-            else:
-                # إنشاء عميل جديد بنفس الاسم
-                customer = Customer(
-                    name=self.name,  # نفس الاسم بدون إضافات
-                    phone=self.phone_number or '0000000',
-                    whatsapp=self.phone_number or '0000000',
-                    email=self.email or f'partner_{self.id}@system.local',
-                    address=self.address,
-                    currency=self.currency,
-                    credit_limit=0,
-                    notes=f"حساب مرتبط بالشريك #{self.id}"
-                )
-                db.session.add(customer)
-                db.session.flush()
-                self.customer_id = customer.id
 
 
 # Event listener لإنشاء عميل تلقائياً للشريك الجديد
 @event.listens_for(Partner, "after_insert")
 def partner_after_insert_create_customer(mapper, connection, target):
-    """إنشاء عميل تلقائياً بعد إضافة شريك"""
-    if not target.customer_id:
-        from sqlalchemy import insert as sa_insert, select as sa_select, update as sa_update
+    """ربط عميل تلقائياً للشريك الجديد - يبحث بالهاتف فقط (الأدق)"""
+    if not target.customer_id and target.phone_number:
+        from sqlalchemy import select as sa_select, update as sa_update
         
-        # البحث عن عميل موجود بنفس رقم الهاتف
-        existing_customer_id = None
-        if target.phone_number:
-            result = connection.execute(
-                sa_select(Customer.id).where(Customer.phone == target.phone_number)
-            ).first()
-            if result:
-                existing_customer_id = result[0]
+        result = connection.execute(
+            sa_select(Customer.id).where(Customer.phone == target.phone_number)
+        ).first()
         
-        if existing_customer_id:
-            # ربط بالعميل الموجود (بدون تغيير اسمه)
+        if result:
+            existing_customer_id = result[0]
             connection.execute(
                 sa_update(Partner).where(Partner.id == target.id).values(customer_id=existing_customer_id)
-            )
-        else:
-            # إنشاء عميل جديد بنفس الاسم
-            result = connection.execute(
-                sa_insert(Customer).values(
-                    name=target.name,  # نفس الاسم بدون إضافة
-                    phone=target.phone_number or '0000000',
-                    whatsapp=target.phone_number or '0000000',
-                    email=target.email or f'partner_{target.id}@system.local',
-                    address=target.address,
-                    currency=target.currency,
-                    credit_limit=0,
-                    notes=f"حساب مرتبط بالشريك #{target.id}",
-                    created_at=datetime.now(timezone.utc),
-                    is_active=True
-                ).returning(Customer.id)
-            )
-            customer_id = result.scalar_one()
-            
-            # ربط الشريك بالعميل
-            connection.execute(
-                sa_update(Partner).where(Partner.id == target.id).values(customer_id=customer_id)
             )
 
 
@@ -3408,7 +3316,7 @@ def _partner_opening_balance_gl(mapper, connection, target: "Partner"):
                 if hist and hasattr(hist, 'history'):
                     if not hist.history.has_changes():
                         return  # لم يتغير opening_balance - لا داعي للقيد
-            except:
+            except Exception:
                 pass  # في حالة after_insert لن يكون هناك history
         
         opening_balance = float(getattr(target, 'opening_balance', 0) or 0)
@@ -3444,402 +3352,15 @@ def _partner_opening_balance_gl(mapper, connection, target: "Partner"):
             entity_id=target.id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للشريك #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للشريك #{target.id}: {e}")
 
-
-def update_partner_balance(partner_id: int, connection=None):
-    from decimal import Decimal, ROUND_HALF_UP
-    
-    partner = db.session.get(Partner, partner_id)
-    if not partner:
-        return 0.0
-    
-    def _to_ils(amt, curr, dt):
-        amt = Decimal(str(amt or 0))
-        if not amt or amt == 0:
-            return Decimal('0.00')
-        curr = (curr or "ILS").strip().upper()
-        if curr == "ILS":
-            return amt.quantize(Decimal("0.01"), ROUND_HALF_UP)
-        try:
-            converted = convert_amount(amt, curr, "ILS", dt)
-            return Decimal(str(converted)).quantize(Decimal("0.01"), ROUND_HALF_UP)
-        except:
-            return Decimal('0.00')
-    
-    ob = _to_ils(partner.opening_balance, partner.currency, None)
-    
-    sales_share_total = Decimal('0.00')
-    sales = db.session.query(Sale).filter(Sale.status == SaleStatus.CONFIRMED).all()
-    for sale in sales:
-        for line in sale.lines:
-            from models import ProductPartner, WarehousePartnerShare
-            pp = db.session.query(ProductPartner).filter(
-                ProductPartner.product_id == line.product_id,
-                ProductPartner.partner_id == partner_id
-            ).first()
-            wps = db.session.query(WarehousePartnerShare).filter(
-                WarehousePartnerShare.product_id == line.product_id,
-                WarehousePartnerShare.partner_id == partner_id
-            ).first()
-            share_pct = Decimal(str((pp.share_percent if pp else 0) or (wps.share_percentage if wps else 0) or 0))
-            if share_pct > 0:
-                line_total = Decimal(str(line.quantity or 0)) * Decimal(str(line.unit_price or 0))
-                line_total_ils = _to_ils(line_total, sale.currency, sale.sale_date)
-                sales_share_total += line_total_ils * (share_pct / Decimal('100'))
-    
-    from models import ProductPartner as PP
-    inventory_shares = db.session.query(PP).filter(PP.partner_id == partner_id).all()
-    inventory_total = sum(_to_ils(inv.share_amount, 'ILS', None) for inv in inventory_shares)
-    
-    sales_to_partner = []
-    if partner.customer_id:
-        sales_to_partner = db.session.query(Sale).filter(
-            Sale.customer_id == partner.customer_id,
-            Sale.status == SaleStatus.CONFIRMED
-        ).all()
-    sales_to_total = sum(_to_ils(s.total_amount, s.currency, s.sale_date) for s in sales_to_partner)
-    
-    services_to_partner = []
-    if partner.customer_id:
-        services_to_partner = db.session.query(ServiceRequest).filter(
-            ServiceRequest.customer_id == partner.customer_id,
-            ServiceRequest.status == ServiceStatus.COMPLETED
-        ).all()
-    services_to_total = sum(_to_ils(srv.total_amount, srv.currency, srv.received_at) for srv in services_to_partner)
-    
-    # ✅ الدفعات الصادرة (OUT) - جلب من جميع المصادر
-    payments_out_direct = db.session.query(Payment).filter(
-        Payment.partner_id == partner_id,
-        Payment.direction == PaymentDirection.OUT,
-        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-    ).all()
-    
-    payments_out_all = list(payments_out_direct)
-    
-    if partner.customer_id:
-        # الدفعات المرتبطة بالعميل المرتبط بالشريك
-        payments_out_from_customer = db.session.query(Payment).filter(
-            Payment.customer_id == partner.customer_id,
-            Payment.direction == PaymentDirection.OUT,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بمبيعات للعميل
-        payments_out_from_sales = db.session.query(Payment).join(
-            Sale, Payment.sale_id == Sale.id
-        ).filter(
-            Sale.customer_id == partner.customer_id,
-            Payment.direction == PaymentDirection.OUT,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بخدمات للعميل
-        payments_out_from_services = db.session.query(Payment).join(
-            ServiceRequest, Payment.service_id == ServiceRequest.id
-        ).filter(
-            ServiceRequest.customer_id == partner.customer_id,
-            Payment.direction == PaymentDirection.OUT,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # دمج وإزالة التكرار
-        seen_ids = set(p.id for p in payments_out_all)
-        for p in payments_out_from_customer + payments_out_from_sales + payments_out_from_services:
-            if p.id not in seen_ids:
-                seen_ids.add(p.id)
-                payments_out_all.append(p)
-    
-    paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out_all)
-    
-    # ✅ الدفعات الواردة (IN) - جلب من جميع المصادر
-    payments_in_direct = db.session.query(Payment).filter(
-        Payment.partner_id == partner_id,
-        Payment.direction == PaymentDirection.IN,
-        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-    ).all()
-    
-    payments_in_all = list(payments_in_direct)
-    
-    if partner.customer_id:
-        # الدفعات المرتبطة بالعميل المرتبط بالشريك
-        payments_in_from_customer = db.session.query(Payment).filter(
-            Payment.customer_id == partner.customer_id,
-            Payment.direction == PaymentDirection.IN,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بمبيعات للعميل
-        payments_in_from_sales = db.session.query(Payment).join(
-            Sale, Payment.sale_id == Sale.id
-        ).filter(
-            Sale.customer_id == partner.customer_id,
-            Payment.direction == PaymentDirection.IN,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بخدمات للعميل
-        payments_in_from_services = db.session.query(Payment).join(
-            ServiceRequest, Payment.service_id == ServiceRequest.id
-        ).filter(
-            ServiceRequest.customer_id == partner.customer_id,
-            Payment.direction == PaymentDirection.IN,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # دمج وإزالة التكرار
-        seen_ids = set(p.id for p in payments_in_all)
-        for p in payments_in_from_customer + payments_in_from_sales + payments_in_from_services:
-            if p.id not in seen_ids:
-                seen_ids.add(p.id)
-                payments_in_all.append(p)
-    
-    received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in_all)
-    
-    preorders_total = Decimal('0.00')
-    if partner.customer_id:
-        from models import PreOrder
-        preorders = db.session.query(PreOrder).filter(
-            PreOrder.customer_id == partner.customer_id,
-            PreOrder.status.in_(['CONFIRMED', 'COMPLETED'])
-        ).all()
-        for po in preorders:
-            preorders_total += _to_ils(po.prepaid_amount, po.currency, po.created_at)
-    
-    damaged_items_total = Decimal('0.00')
-    from models import StockAdjustment, StockAdjustmentItem, ProductPartner, Product
-    damaged_query = db.session.query(
-        StockAdjustmentItem.quantity,
-        StockAdjustmentItem.unit_cost,
-        ProductPartner.share_percent,
-        Product.currency,
-        StockAdjustment.date
-    ).join(
-        StockAdjustment, StockAdjustmentItem.adjustment_id == StockAdjustment.id
-    ).join(
-        ProductPartner, ProductPartner.product_id == StockAdjustmentItem.product_id
-    ).join(
-        Product, Product.id == StockAdjustmentItem.product_id
-    ).filter(
-        ProductPartner.partner_id == partner_id,
-        StockAdjustment.reason == 'DAMAGED',
-        ProductPartner.share_percent > 0
-    ).all()
-    for item in damaged_query:
-        partner_loss = Decimal(str(item.quantity)) * Decimal(str(item.unit_cost or 0)) * Decimal(str(item.share_percent)) / Decimal("100")
-        damaged_items_total += _to_ils(partner_loss, item.currency, item.date)
-    
-    returns_liability_total = Decimal('0.00')
-    from models import SaleReturnLine
-    return_lines = db.session.query(
-        SaleReturnLine.quantity,
-        SaleReturnLine.unit_price,
-        SaleReturn.currency,
-        SaleReturn.created_at
-    ).join(
-        SaleReturn, SaleReturnLine.sale_return_id == SaleReturn.id
-    ).filter(
-        SaleReturnLine.liability_party == 'PARTNER',
-        SaleReturn.status == 'CONFIRMED'
-    ).all()
-    for line in return_lines:
-        return_amount = Decimal(str(line.quantity or 0)) * Decimal(str(line.unit_price or 0))
-        returns_liability_total += _to_ils(return_amount, line.currency, line.created_at)
-    
-    expenses_deducted = Decimal('0.00')
-    from models import Expense
-    expenses = db.session.query(Expense).filter(
-        Expense.partner_id == partner_id
-    ).all()
-    for exp in expenses:
-        expenses_deducted += _to_ils(exp.amount, exp.currency, exp.date)
-    
-    balance = ob + sales_share_total + inventory_total + preorders_total - sales_to_total - services_to_total - damaged_items_total - returns_liability_total - expenses_deducted - paid_out + received_in
-    
-    if connection is None:
-        connection = db.session.connection()
-    
-    from sqlalchemy import text as sa_text
-    update_query = sa_text("UPDATE partners SET balance = :balance WHERE id = :partner_id")
-    connection.execute(update_query, {"balance": float(balance), "partner_id": partner_id})
-    
-    return float(balance)
 
 def update_supplier_balance(supplier_id: int, connection=None):
-    from decimal import Decimal, ROUND_HALF_UP
-    
-    supplier = db.session.get(Supplier, supplier_id)
-    if not supplier:
-        return 0.0
-    
-    def _to_ils(amt, curr, dt):
-        amt = Decimal(str(amt or 0))
-        if not amt or amt == 0:
-            return Decimal('0.00')
-        curr = (curr or "ILS").strip().upper()
-        if curr == "ILS":
-            return amt.quantize(Decimal("0.01"), ROUND_HALF_UP)
-        try:
-            converted = convert_amount(amt, curr, "ILS", dt)
-            return Decimal(str(converted)).quantize(Decimal("0.01"), ROUND_HALF_UP)
-        except:
-            return Decimal('0.00')
-    
-    ob = _to_ils(supplier.opening_balance, supplier.currency, None)
-    
-    exchange_in = db.session.query(ExchangeTransaction).filter(
-        ExchangeTransaction.supplier_id == supplier_id,
-        ExchangeTransaction.direction.in_(['IN', 'PURCHASE', 'CONSIGN_IN'])
-    ).all()
-    exchange_total = sum(_to_ils(tx.quantity * (tx.unit_cost or 0), 'ILS', tx.created_at) for tx in exchange_in)
-    
-    sales_to_sup = []
-    if supplier.customer_id:
-        sales_to_sup = db.session.query(Sale).filter(
-            Sale.customer_id == supplier.customer_id,
-            Sale.status == SaleStatus.CONFIRMED
-        ).all()
-    sales_total = sum(_to_ils(s.total_amount, s.currency, s.sale_date) for s in sales_to_sup)
-    
-    services_to_sup = []
-    if supplier.customer_id:
-        services_to_sup = db.session.query(ServiceRequest).filter(
-            ServiceRequest.customer_id == supplier.customer_id,
-            ServiceRequest.status == ServiceStatus.COMPLETED
-        ).all()
-    services_total = sum(_to_ils(srv.total_amount, srv.currency, srv.received_at) for srv in services_to_sup)
-    
-    preorders_to_sup = []
-    if supplier.customer_id:
-        preorders_to_sup = db.session.query(PreOrder).filter(
-            PreOrder.customer_id == supplier.customer_id,
-            PreOrder.status.in_(['CONFIRMED', 'COMPLETED', 'DELIVERED', 'FULFILLED'])
-        ).all()
-    preorders_total = sum(_to_ils(po.total_amount, po.currency, po.preorder_date) for po in preorders_to_sup)
-    
-    # ✅ الدفعات الصادرة (OUT) - جلب من جميع المصادر
-    payments_out_direct = db.session.query(Payment).filter(
-        Payment.supplier_id == supplier_id,
-        Payment.direction == PaymentDirection.OUT,
-        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-    ).all()
-    
-    payments_out_all = list(payments_out_direct)
-    
-    if supplier.customer_id:
-        # الدفعات المرتبطة بالعميل المرتبط بالمورد
-        payments_out_from_customer = db.session.query(Payment).filter(
-            Payment.customer_id == supplier.customer_id,
-            Payment.direction == PaymentDirection.OUT,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بمبيعات للعميل
-        payments_out_from_sales = db.session.query(Payment).join(
-            Sale, Payment.sale_id == Sale.id
-        ).filter(
-            Sale.customer_id == supplier.customer_id,
-            Payment.direction == PaymentDirection.OUT,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بخدمات للعميل
-        payments_out_from_services = db.session.query(Payment).join(
-            ServiceRequest, Payment.service_id == ServiceRequest.id
-        ).filter(
-            ServiceRequest.customer_id == supplier.customer_id,
-            Payment.direction == PaymentDirection.OUT,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بحجوزات للعميل
-        payments_out_from_preorders = db.session.query(Payment).join(
-            PreOrder, Payment.preorder_id == PreOrder.id
-        ).filter(
-            PreOrder.customer_id == supplier.customer_id,
-            Payment.direction == PaymentDirection.OUT,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # دمج وإزالة التكرار
-        seen_ids = set(p.id for p in payments_out_all)
-        for p in payments_out_from_customer + payments_out_from_sales + payments_out_from_services + payments_out_from_preorders:
-            if p.id not in seen_ids:
-                seen_ids.add(p.id)
-                payments_out_all.append(p)
-    
-    paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out_all)
-    
-    # ✅ الدفعات الواردة (IN) - جلب من جميع المصادر
-    payments_in_direct = db.session.query(Payment).filter(
-        Payment.supplier_id == supplier_id,
-        Payment.direction == PaymentDirection.IN,
-        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-    ).all()
-    
-    payments_in_all = list(payments_in_direct)
-    
-    if supplier.customer_id:
-        # الدفعات المرتبطة بالعميل المرتبط بالمورد
-        payments_in_from_customer = db.session.query(Payment).filter(
-            Payment.customer_id == supplier.customer_id,
-            Payment.direction == PaymentDirection.IN,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بمبيعات للعميل
-        payments_in_from_sales = db.session.query(Payment).join(
-            Sale, Payment.sale_id == Sale.id
-        ).filter(
-            Sale.customer_id == supplier.customer_id,
-            Payment.direction == PaymentDirection.IN,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بخدمات للعميل
-        payments_in_from_services = db.session.query(Payment).join(
-            ServiceRequest, Payment.service_id == ServiceRequest.id
-        ).filter(
-            ServiceRequest.customer_id == supplier.customer_id,
-            Payment.direction == PaymentDirection.IN,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # الدفعات المرتبطة بحجوزات للعميل
-        payments_in_from_preorders = db.session.query(Payment).join(
-            PreOrder, Payment.preorder_id == PreOrder.id
-        ).filter(
-            PreOrder.customer_id == supplier.customer_id,
-            Payment.direction == PaymentDirection.IN,
-            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-        ).all()
-        
-        # دمج وإزالة التكرار
-        seen_ids = set(p.id for p in payments_in_all)
-        for p in payments_in_from_customer + payments_in_from_sales + payments_in_from_services + payments_in_from_preorders:
-            if p.id not in seen_ids:
-                seen_ids.add(p.id)
-                payments_in_all.append(p)
-    
-    received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in_all)
-    
-    returns = db.session.query(ExchangeTransaction).filter(
-        ExchangeTransaction.supplier_id == supplier_id,
-        ExchangeTransaction.direction.in_(['OUT', 'RETURN'])
-    ).all()
-    returns_total = sum(_to_ils(tx.quantity * (tx.unit_cost or 0), 'ILS', tx.created_at) for tx in returns)
-    
-    balance = ob + exchange_total - sales_total - services_total - preorders_total - paid_out + received_in - returns_total
-    
-    if connection is None:
-        connection = db.session.connection()
-    
-    from sqlalchemy import text as sa_text
-    update_query = sa_text("UPDATE suppliers SET balance = :balance WHERE id = :supplier_id")
-    connection.execute(update_query, {"balance": float(balance), "supplier_id": supplier_id})
-    
-    return float(balance)
+    pass
+
+def update_partner_balance(partner_id: int, connection=None):
+    pass
 
 
 class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
@@ -3922,7 +3443,7 @@ class PartnerSettlement(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     total += convert_amount(amt, p.currency, settlement_currency, p.payment_date)
-                except:
+                except Exception:
                     pass
         return float(total)
 
@@ -3967,7 +3488,7 @@ def _ps_after_update_approved(mapper, connection, target: PartnerSettlement):
                 {"ob": float(target.closing_balance or 0), "pid": target.partner_id}
             )
             update_partner_balance(target.partner_id, connection)
-    except:
+    except Exception:
         pass
 
 
@@ -4149,7 +3670,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     total += convert_amount(amt, exp.currency, "ILS", exp.date)
-                except:
+                except Exception:
                     pass
         return float(total)
 
@@ -4173,7 +3694,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     total += convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
+                except Exception:
                     pass
         return float(total)
 
@@ -4253,7 +3774,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
             if not rates['enabled']:
                 return 0.0
             return float(self.salary or 0) * (rates['employee_rate'] / 100)
-        except:
+        except Exception:
             return 0.0
     
     @property
@@ -4265,7 +3786,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
             if not rates['enabled']:
                 return 0.0
             return float(self.salary or 0) * (rates['company_rate'] / 100)
-        except:
+        except Exception:
             return 0.0
     
     @property
@@ -4283,7 +3804,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
                 return ((75000 * 0.05) + (75000 * 0.10) + ((salary_annual - 150000) * 0.15)) / 12
             else:
                 return ((75000 * 0.05) + (75000 * 0.10) + (150000 * 0.15) + ((salary_annual - 300000) * 0.20)) / 12
-        except:
+        except Exception:
             return 0.0
     
     @property
@@ -4295,7 +3816,7 @@ class Employee(db.Model, TimestampMixin, AuditMixin):
                 return 0.0
             years_of_service = (date.today() - self.hire_date).days / 365.25
             return float(self.salary or 0) * years_of_service
-        except:
+        except Exception:
             return 0.0
     
     @property
@@ -4749,9 +4270,17 @@ class Warehouse(db.Model, TimestampMixin, AuditMixin):
         return iv
     @hybrid_property
     def warehouse_type_display(self):
-        m={WarehouseType.MAIN.value:"رئيسي",WarehouseType.INVENTORY.value:"مخزن",WarehouseType.EXCHANGE.value:"تبادل",WarehouseType.PARTNER.value:"شريك",WarehouseType.ONLINE.value:"أونلاين",WarehouseType.SUPPLIER.value:"مورد"}
-        wt=getattr(self,'warehouse_type',None); key=getattr(wt,'value',wt)
-        return m.get(key,key)
+        m = {
+            WarehouseType.MAIN.value: "رئيسي",
+            WarehouseType.INVENTORY.value: "مخزن",
+            WarehouseType.EXCHANGE.value: "تبادل",
+            WarehouseType.PARTNER.value: "شريك",
+            WarehouseType.ONLINE.value: "أونلاين",
+            WarehouseType.SUPPLIER.value: "مورد"
+        }
+        wt = getattr(self, 'warehouse_type', None)
+        key = getattr(wt, 'value', wt)
+        return m.get(key, key)
     @hybrid_property
     def is_online(self):
         wt=getattr(self,'warehouse_type',None); key=getattr(wt,'value',wt)
@@ -4903,9 +4432,22 @@ def _ensure_stock_row(connection, product_id: int, warehouse_id: int):
     dialect = getattr(connection, "dialect", None); dname = getattr(dialect, "name", "") if dialect else ""
     try:
         if dname.startswith("postgre"):
-            connection.execute(sa_text("INSERT INTO stock_levels (product_id, warehouse_id, quantity, reserved_quantity) VALUES (:p, :w, 0, 0) ON CONFLICT (product_id, warehouse_id) DO NOTHING"), {"p": product_id, "w": warehouse_id})
+            connection.execute(
+                sa_text(
+                    "INSERT INTO stock_levels (product_id, warehouse_id, quantity, reserved_quantity) "
+                    "VALUES (:p, :w, 0, 0) ON CONFLICT (product_id, warehouse_id) DO NOTHING"
+                ),
+                {"p": product_id, "w": warehouse_id}
+            )
         else:
-            connection.execute(sa_text("INSERT INTO stock_levels (product_id, warehouse_id, quantity, reserved_quantity) SELECT :p, :w, 0, 0 WHERE NOT EXISTS (SELECT 1 FROM stock_levels WHERE product_id = :p AND warehouse_id = :w)"), {"p": product_id, "w": warehouse_id})
+            connection.execute(
+                sa_text(
+                    "INSERT INTO stock_levels (product_id, warehouse_id, quantity, reserved_quantity) "
+                    "SELECT :p, :w, 0, 0 WHERE NOT EXISTS "
+                    "(SELECT 1 FROM stock_levels WHERE product_id = :p AND warehouse_id = :w)"
+                ),
+                {"p": product_id, "w": warehouse_id}
+            )
     except Exception:
         pass
     return connection.execute(sa_text("SELECT id FROM stock_levels WHERE product_id = :p AND warehouse_id = :w"), {"p": product_id, "w": warehouse_id}).first()
@@ -5063,13 +4605,6 @@ def _exchange_after_insert(mapper, connection, target: "ExchangeTransaction"):
     delta = _ex_dir_sign(target.direction) * int(target.quantity or 0)
     if delta: _apply_stock_delta(connection, target.product_id, target.warehouse_id, delta)
     _maybe_post_gl_exchange(connection, target)
-    
-    # تحديث رصيد المورد
-    if hasattr(target, 'supplier_id') and target.supplier_id:
-        try:
-            update_supplier_balance(target.supplier_id, connection)
-        except Exception as e:
-            pass
 
 @event.listens_for(ExchangeTransaction, "after_update")
 def _exchange_after_update(mapper, connection, target: "ExchangeTransaction"):
@@ -5087,25 +4622,11 @@ def _exchange_after_update(mapper, connection, target: "ExchangeTransaction"):
         redo_delta = _ex_dir_sign(d_new) * int(q_new or 0)
         if redo_delta: _apply_stock_delta(connection, int(p_new), int(w_new), redo_delta)
     _maybe_post_gl_exchange(connection, target)
-    
-    # تحديث رصيد المورد
-    if hasattr(target, 'supplier_id') and target.supplier_id:
-        try:
-            update_supplier_balance(target.supplier_id, connection)
-        except Exception as e:
-            pass
 
 @event.listens_for(ExchangeTransaction, "after_delete")
 def _exchange_after_delete(mapper, connection, target: "ExchangeTransaction"):
     delta = -_ex_dir_sign(target.direction) * int(target.quantity or 0)
     if delta: _apply_stock_delta(connection, target.product_id, target.warehouse_id, delta)
-    
-    # تحديث رصيد المورد
-    if hasattr(target, 'supplier_id') and target.supplier_id:
-        try:
-            update_supplier_balance(target.supplier_id, connection)
-        except Exception as e:
-            pass
 
 def _maybe_post_gl_exchange(connection, tx: "ExchangeTransaction"):
     try:
@@ -5137,7 +4658,18 @@ def _maybe_post_gl_exchange(connection, tx: "ExchangeTransaction"):
         purpose = "OUT"
     else:
         return
-    _gl_upsert_batch_and_entries(connection, source_type="EXCHANGE", source_id=int(tx.id), purpose=str(purpose).upper(), currency=str(currency).upper(), memo=memo, entries=entries, ref=ref, entity_type="SUPPLIER" if tx.supplier_id else None, entity_id=int(tx.supplier_id) if tx.supplier_id else None)
+    _gl_upsert_batch_and_entries(
+        connection,
+        source_type="EXCHANGE",
+        source_id=int(tx.id),
+        purpose=str(purpose).upper(),
+        currency=str(currency).upper(),
+        memo=memo,
+        entries=entries,
+        ref=ref,
+        entity_type="SUPPLIER" if tx.supplier_id else None,
+        entity_id=int(tx.supplier_id) if tx.supplier_id else None
+    )
 
 class WarehousePartnerShare(db.Model, TimestampMixin):
     __tablename__ = 'warehouse_partner_shares'
@@ -5273,16 +4805,45 @@ class PreOrder(db.Model, TimestampMixin, AuditMixin):
     def total_amount(cls): return cls.total_with_tax
     @hybrid_property
     def total_paid(self):
-        return float(db.session.query(func.coalesce(func.sum(Payment.total_amount), 0)).filter(Payment.preorder_id == self.id, Payment.status == PaymentStatus.COMPLETED.value, Payment.direction == PaymentDirection.IN.value).scalar() or 0)
+        return float(
+            db.session.query(func.coalesce(func.sum(Payment.total_amount), 0))
+            .filter(
+                Payment.preorder_id == self.id,
+                Payment.status == PaymentStatus.COMPLETED.value,
+                Payment.direction == PaymentDirection.IN.value
+            )
+            .scalar() or 0
+        )
     @total_paid.expression
     def total_paid(cls):
-        return (select(func.coalesce(func.sum(Payment.total_amount), 0)).where((Payment.preorder_id == cls.id) & (Payment.status == PaymentStatus.COMPLETED.value) & (Payment.direction == PaymentDirection.IN.value)).scalar_subquery())
+        return (
+            select(func.coalesce(func.sum(Payment.total_amount), 0))
+            .where(
+                (Payment.preorder_id == cls.id)
+                & (Payment.status == PaymentStatus.COMPLETED.value)
+                & (Payment.direction == PaymentDirection.IN.value)
+            )
+            .scalar_subquery()
+        )
     @hybrid_property
     def balance_due(self): return D(self.total_amount) - D(self.total_paid or 0)
     @balance_due.expression
     def balance_due(cls):
-        total_expr = (select((Product.price * cls.quantity) * (1 + (func.coalesce(cls.tax_rate, 0) / 100.0))).select_from(Product).where(Product.id == cls.product_id).scalar_subquery())
-        paid_expr = (select(func.coalesce(func.sum(Payment.total_amount), 0)).where((Payment.preorder_id == cls.id) & (Payment.status == PaymentStatus.COMPLETED.value) & (Payment.direction == PaymentDirection.IN.value)).scalar_subquery())
+        total_expr = (
+            select((Product.price * cls.quantity) * (1 + (func.coalesce(cls.tax_rate, 0) / 100.0)))
+            .select_from(Product)
+            .where(Product.id == cls.product_id)
+            .scalar_subquery()
+        )
+        paid_expr = (
+            select(func.coalesce(func.sum(Payment.total_amount), 0))
+            .where(
+                (Payment.preorder_id == cls.id)
+                & (Payment.status == PaymentStatus.COMPLETED.value)
+                & (Payment.direction == PaymentDirection.IN.value)
+            )
+            .scalar_subquery()
+        )
         return total_expr - paid_expr
     @hybrid_property
     def net_balance(self): return self.balance_due
@@ -5334,7 +4895,7 @@ def _preorder_gl_batch_upsert(mapper, connection, target: "PreOrder"):
                         rate = fx_rate(target.currency, 'ILS', target.preorder_date or datetime.utcnow(), raise_on_missing=False)
                         if rate and rate > 0:
                             amount_ils = float(amount * float(rate))
-                    except:
+                    except Exception:
                         pass
                 
                 ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
@@ -5354,7 +4915,7 @@ def _preorder_gl_batch_upsert(mapper, connection, target: "PreOrder"):
                     entity_type="CUSTOMER",
                     entity_id=target.customer_id
                 )
-        except:
+        except Exception:
             pass
         return
     
@@ -5373,7 +4934,7 @@ def _preorder_gl_batch_upsert(mapper, connection, target: "PreOrder"):
                 rate = fx_rate(target.currency, 'ILS', target.preorder_date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         # القيد المحاسبي للحجز المسبق:
@@ -5399,8 +4960,8 @@ def _preorder_gl_batch_upsert(mapper, connection, target: "PreOrder"):
             entity_id=target.customer_id or target.supplier_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للحجز #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للحجز #{target.id}: {e}")
 
 @event.listens_for(PreOrder, "after_update")
 def _preorder_reservation_flow(mapper, connection, target: "PreOrder"):
@@ -5470,8 +5031,11 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     archived_at = db.Column(db.DateTime, index=True)
     archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     archive_reason = db.Column(db.String(200))
+    
+    cost_center_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id"), index=True)
 
     customer = db.relationship("Customer", back_populates="sales")
+    cost_center = db.relationship("CostCenter", backref=db.backref("sales", lazy="dynamic"))
     seller = db.relationship("User", back_populates="sales", foreign_keys=[seller_id])
     cancelled_by_user = db.relationship("User", back_populates="cancelled_sales", foreign_keys=[cancelled_by])
     archived_by_user = db.relationship("User", foreign_keys=[archived_by])
@@ -5631,46 +5195,6 @@ def _sale_before_insert_ref(mapper, connection, target: "Sale"):
         except Exception:
             pass
 
-@event.listens_for(Sale, "after_insert", propagate=True)
-@event.listens_for(Sale, "after_update", propagate=True)
-@event.listens_for(Sale, "after_delete", propagate=True)
-def _update_partner_supplier_balance_on_sale(mapper, connection, target: "Sale"):
-    """تحديث رصيد الشريك/المورد عند إنشاء/تعديل/حذف المبيعة"""
-    try:
-        # التحقق من أن الفاتورة مؤكدة
-        if target.status != SaleStatus.CONFIRMED.value:
-            return
-        
-        # جلب العميل المرتبط بالمبيعة
-        customer_id = getattr(target, "customer_id", None)
-        if not customer_id:
-            return
-        
-        from sqlalchemy import text as sa_text
-        
-        # التحقق من وجود مورد مرتبط بهذا العميل
-        supplier_result = connection.execute(
-            sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
-            {"cid": customer_id}
-        ).fetchone()
-        
-        if supplier_result:
-            supplier_id = supplier_result[0]
-            update_supplier_balance(supplier_id, connection)
-        
-        # التحقق من وجود شريك مرتبط بهذا العميل
-        partner_result = connection.execute(
-            sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
-            {"cid": customer_id}
-        ).fetchone()
-        
-        if partner_result:
-            partner_id = partner_result[0]
-            update_partner_balance(partner_id, connection)
-    
-    except Exception as e:
-        pass
-
 @event.listens_for(Sale, "before_insert")
 @event.listens_for(Sale, "before_update")
 def _compute_total_amount(mapper, connection, target: "Sale"):
@@ -5726,6 +5250,70 @@ def _reserve_release_on_status_change(target, value, oldvalue, initiator):
 
 @event.listens_for(Sale, "after_insert")
 @event.listens_for(Sale, "after_update")
+def _sale_create_tax_entry(mapper, connection, target: "Sale"):
+    """إنشاء/تحديث سجل ضريبي للبيع تلقائياً"""
+    if target.status != SaleStatus.CONFIRMED.value:
+        return
+    
+    tax_rate = float(target.tax_rate or 0)
+    if tax_rate <= 0:
+        return
+    
+    try:
+        from sqlalchemy import select as sa_select, delete as sa_delete
+        
+        sale_date = target.sale_date or datetime.now(timezone.utc)
+        subtotal = sum(float(l.net_amount or 0) for l in (target.lines or []))
+        discount = float(target.discount_total or 0)
+        base_amount = max(subtotal - discount, 0)
+        tax_amount = base_amount * (tax_rate / 100.0)
+        total_amount = base_amount + tax_amount
+        
+        connection.execute(
+            sa_delete(TaxEntry).where(
+                TaxEntry.transaction_type == 'SALE',
+                TaxEntry.transaction_id == target.id
+            )
+        )
+        
+        connection.execute(
+            sa_insert(TaxEntry).values(
+                entry_type='OUTPUT_VAT',
+                transaction_type='SALE',
+                transaction_id=target.id,
+                transaction_reference=target.sale_number,
+                tax_rate=tax_rate,
+                base_amount=base_amount,
+                tax_amount=tax_amount,
+                total_amount=total_amount,
+                currency=target.currency or 'ILS',
+                fiscal_year=sale_date.year,
+                fiscal_month=sale_date.month,
+                tax_period=f"{sale_date.year}-{sale_date.month:02d}",
+                customer_id=target.customer_id,
+                notes=f'بيع: {target.sale_number}',
+                created_at=datetime.now(timezone.utc)
+            )
+        )
+    except Exception:
+        pass
+
+@event.listens_for(Sale, "before_delete")
+def _sale_delete_tax_entry(mapper, connection, target: "Sale"):
+    """حذف سجل الضريبة عند حذف البيع"""
+    try:
+        from sqlalchemy import delete as sa_delete
+        connection.execute(
+            sa_delete(TaxEntry).where(
+                TaxEntry.transaction_type == 'SALE',
+                TaxEntry.transaction_id == target.id
+            )
+        )
+    except Exception:
+        pass
+
+@event.listens_for(Sale, "after_insert")
+@event.listens_for(Sale, "after_update")
 def _sale_gl_batch_upsert(mapper, connection, target: "Sale"):
     """إنشاء/تحديث GLBatch للبيع تلقائياً"""
     # فقط للمبيعات المؤكدة
@@ -5747,7 +5335,7 @@ def _sale_gl_batch_upsert(mapper, connection, target: "Sale"):
                 rate = fx_rate(target.currency, 'ILS', target.sale_date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         # جلب SaleLines لتحليل نسب الشركاء/الموردين
@@ -5894,8 +5482,8 @@ def _sale_gl_batch_upsert(mapper, connection, target: "Sale"):
         )
     except Exception as e:
         # تسجيل الخطأ لكن عدم إيقاف العملية
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للبيع #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للبيع #{target.id}: {e}")
 
 
 @event.listens_for(Sale, "before_delete")
@@ -5919,7 +5507,7 @@ def _sale_gl_batch_reverse(mapper, connection, target: "Sale"):
                 rate = fx_rate(target.currency, 'ILS', target.sale_date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(total_amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
@@ -5945,8 +5533,8 @@ def _sale_gl_batch_reverse(mapper, connection, target: "Sale"):
             entity_id=target.customer_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في عكس قيد البيع #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في عكس قيد البيع #{target.id}: {e}")
 
 
 class SaleLine(db.Model, TimestampMixin):
@@ -6098,6 +5686,8 @@ class SaleReturn(db.Model, TimestampMixin, AuditMixin):
     status = db.Column(sa_str_enum(["DRAFT","CONFIRMED","CANCELLED"], name="sale_return_status"), nullable=False, default="DRAFT", index=True)
     notes = db.Column(db.Text)
     total_amount = db.Column(db.Numeric(12,2), nullable=False, default=0)
+    tax_rate = db.Column(db.Numeric(5, 2), default=0)
+    tax_amount = db.Column(db.Numeric(12, 2), default=0)
     currency = db.Column(db.String(10), nullable=False, default="ILS")
     
     # حقول سعر الصرف
@@ -6115,7 +5705,10 @@ class SaleReturn(db.Model, TimestampMixin, AuditMixin):
     credit_note = db.relationship("Invoice")
     lines = db.relationship("SaleReturnLine", back_populates="sale_return", cascade="all, delete-orphan", order_by="SaleReturnLine.id")
 
-    __table_args__ = ()
+    __table_args__ = (
+        db.CheckConstraint("tax_rate >= 0 AND tax_rate <= 100", name="ck_sale_return_tax_rate_0_100"),
+        db.CheckConstraint("tax_amount >= 0", name="ck_sale_return_tax_non_negative"),
+    )
 
 class SaleReturnLine(db.Model):
     __tablename__ = "sale_return_lines"
@@ -6217,8 +5810,8 @@ def _srl_after_insert(mapper, connection, t: "SaleReturnLine"):
                 # COMPANY أو None = الشركة تتحمل (لا نحتاج action)
                 
         except Exception as e:
-            import sys
-            print(f"⚠️ خطأ في حساب خسارة المنتج التالف: {e}", file=sys.stderr)
+            from flask import current_app
+            current_app.logger.warning(f"⚠️ خطأ في حساب خسارة المنتج التالف: {e}")
 
 @event.listens_for(SaleReturnLine, "after_delete")
 def _srl_after_delete(mapper, connection, t: "SaleReturnLine"):
@@ -6230,6 +5823,87 @@ def _srl_after_delete(mapper, connection, t: "SaleReturnLine"):
             select(func.coalesce(func.sum(SaleReturnLine.quantity * SaleReturnLine.unit_price), 0)).where(SaleReturnLine.sale_return_id == t.sale_return_id)
         ).scalar_one() or 0
         connection.execute(update(SaleReturn).where(SaleReturn.id == t.sale_return_id).values(total_amount=q(total)))
+
+# ═══════════════════════════════════════════════════════════════════════
+# 💰 Tax Listeners for SaleReturn - مستمعات الضرائب للمرتجعات
+# ═══════════════════════════════════════════════════════════════════════
+
+@event.listens_for(SaleReturn, "after_insert")
+@event.listens_for(SaleReturn, "after_update")
+def _sale_return_create_tax_entry(mapper, connection, target: "SaleReturn"):
+    """إنشاء/تحديث سجل ضريبي عكسي للمرتجع تلقائياً"""
+    if target.status != 'CONFIRMED':
+        return
+    
+    total_amount = float(target.total_amount or 0)
+    if total_amount <= 0:
+        return
+    
+    tax_rate = 0.0
+    
+    if target.sale_id:
+        try:
+            from sqlalchemy import select as sa_select
+            sale_data = connection.execute(
+                sa_select(Sale.tax_rate).where(Sale.id == target.sale_id)
+            ).first()
+            if sale_data:
+                tax_rate = float(sale_data[0] or 0)
+        except Exception:
+            pass
+    
+    if tax_rate <= 0:
+        return
+    
+    try:
+        from sqlalchemy import select as sa_select, delete as sa_delete
+        
+        base_amount = total_amount / (1 + (tax_rate / 100.0))
+        tax_amount = total_amount - base_amount
+        
+        connection.execute(
+            sa_delete(TaxEntry).where(
+                TaxEntry.transaction_type == 'SALE_RETURN',
+                TaxEntry.transaction_id == target.id
+            )
+        )
+        
+        return_date = datetime.now(timezone.utc)
+        connection.execute(
+            sa_insert(TaxEntry).values(
+                entry_type='OUTPUT_VAT',
+                transaction_type='SALE_RETURN',
+                transaction_id=target.id,
+                transaction_reference=str(target.id),
+                tax_rate=tax_rate,
+                base_amount=-abs(base_amount),
+                tax_amount=-abs(tax_amount),
+                total_amount=-abs(total_amount),
+                currency=target.currency or 'ILS',
+                fiscal_year=return_date.year,
+                fiscal_month=return_date.month,
+                tax_period=f"{return_date.year}-{return_date.month:02d}",
+                customer_id=target.customer_id,
+                notes=f'مرتجع بيع: {target.id}',
+                created_at=return_date
+            )
+        )
+    except Exception:
+        pass
+
+@event.listens_for(SaleReturn, "before_delete")
+def _sale_return_delete_tax_entry(mapper, connection, target: "SaleReturn"):
+    """حذف سجل الضريبة عند حذف المرتجع"""
+    try:
+        from sqlalchemy import delete as sa_delete
+        connection.execute(
+            sa_delete(TaxEntry).where(
+                TaxEntry.transaction_type == 'SALE_RETURN',
+                TaxEntry.transaction_id == target.id
+            )
+        )
+    except Exception:
+        pass
 
 class Invoice(db.Model, TimestampMixin):
     __tablename__ = "invoices"
@@ -6333,7 +6007,7 @@ class Invoice(db.Model, TimestampMixin):
             else:
                 try:
                     total += convert_amount(amt, p.currency, invoice_currency, p.payment_date)
-                except:
+                except Exception:
                     pass
         return float(total)
 
@@ -6479,9 +6153,22 @@ def _recompute_invoice_totals(connection, invoice_id: int):
     # حساب المجاميع من البنود باستخدام subquery
     totals = connection.execute(
         select(
-            func.coalesce(func.sum(InvoiceLine.quantity * InvoiceLine.unit_price), 0.0).label('gross'),
-            func.coalesce(func.sum((InvoiceLine.quantity * InvoiceLine.unit_price) * (func.coalesce(InvoiceLine.discount, 0) / 100.0)), 0.0).label('disc'),
-            func.coalesce(func.sum(((InvoiceLine.quantity * InvoiceLine.unit_price) * (1 - (func.coalesce(InvoiceLine.discount, 0) / 100.0))) * (func.coalesce(InvoiceLine.tax_rate, 0) / 100.0)), 0.0).label('tax')
+            func.coalesce(
+                func.sum(InvoiceLine.quantity * InvoiceLine.unit_price), 0.0
+            ).label('gross'),
+            func.coalesce(
+                func.sum(
+                    (InvoiceLine.quantity * InvoiceLine.unit_price)
+                    * (func.coalesce(InvoiceLine.discount, 0) / 100.0)
+                ), 0.0
+            ).label('disc'),
+            func.coalesce(
+                func.sum(
+                    ((InvoiceLine.quantity * InvoiceLine.unit_price)
+                     * (1 - (func.coalesce(InvoiceLine.discount, 0) / 100.0)))
+                    * (func.coalesce(InvoiceLine.tax_rate, 0) / 100.0)
+                ), 0.0
+            ).label('tax')
         ).where(InvoiceLine.invoice_id == invoice_id)
     ).first()
     
@@ -6509,6 +6196,83 @@ def _inv_touch_totals(mapper, connection, target: "Invoice"):
     if target.id:
         _recompute_invoice_totals(connection, int(target.id))
 
+# ===== إنشاء سجلات ضريبية تلقائية للفواتير =====
+@event.listens_for(Invoice, "after_insert")
+@event.listens_for(Invoice, "after_update")
+def _invoice_create_tax_entry(mapper, connection, target: "Invoice"):
+    """إنشاء/تحديث سجل ضريبي للفاتورة تلقائياً"""
+    if target.cancelled_at:
+        return
+    
+    tax_amount = float(target.tax_amount or 0)
+    if tax_amount <= 0:
+        return
+    
+    try:
+        from sqlalchemy import select as sa_select, delete as sa_delete
+        
+        invoice_date = target.invoice_date or datetime.now(timezone.utc)
+        total_amount = float(target.total_amount or 0)
+        base_amount = total_amount - tax_amount
+        
+        if base_amount > 0:
+            tax_rate = (tax_amount / base_amount) * 100.0
+        else:
+            return
+        
+        entry_type = 'OUTPUT_VAT'
+        customer_id = target.customer_id
+        supplier_id = None
+        
+        if target.supplier_id:
+            entry_type = 'INPUT_VAT'
+            supplier_id = target.supplier_id
+            customer_id = None
+        
+        connection.execute(
+            sa_delete(TaxEntry).where(
+                TaxEntry.transaction_type == 'INVOICE',
+                TaxEntry.transaction_id == target.id
+            )
+        )
+        
+        connection.execute(
+            sa_insert(TaxEntry).values(
+                entry_type=entry_type,
+                transaction_type='INVOICE',
+                transaction_id=target.id,
+                transaction_reference=target.invoice_number,
+                tax_rate=tax_rate,
+                base_amount=base_amount,
+                tax_amount=tax_amount,
+                total_amount=total_amount,
+                currency=target.currency or 'ILS',
+                fiscal_year=invoice_date.year,
+                fiscal_month=invoice_date.month,
+                tax_period=f"{invoice_date.year}-{invoice_date.month:02d}",
+                customer_id=customer_id,
+                supplier_id=supplier_id,
+                notes=f'فاتورة: {target.invoice_number}',
+                created_at=datetime.now(timezone.utc)
+            )
+        )
+    except Exception:
+        pass
+
+@event.listens_for(Invoice, "before_delete")
+def _invoice_delete_tax_entry(mapper, connection, target: "Invoice"):
+    """حذف سجل الضريبة عند حذف الفاتورة"""
+    try:
+        from sqlalchemy import delete as sa_delete
+        connection.execute(
+            sa_delete(TaxEntry).where(
+                TaxEntry.transaction_type == 'INVOICE',
+                TaxEntry.transaction_id == target.id
+            )
+        )
+    except Exception:
+        pass
+
 # ===== إنشاء قيود GL تلقائية للفواتير =====
 @event.listens_for(Invoice, "after_insert")
 @event.listens_for(Invoice, "after_update")
@@ -6526,7 +6290,7 @@ def _invoice_gl_batch_upsert(mapper, connection, target: "Invoice"):
                         rate = fx_rate(target.currency, 'ILS', target.invoice_date or datetime.utcnow(), raise_on_missing=False)
                         if rate and rate > 0:
                             amount_ils = float(amount * float(rate))
-                    except:
+                    except Exception:
                         pass
                 
                 entity_type = "CUSTOMER" if target.customer_id else ("SUPPLIER" if target.supplier_id else "PARTNER")
@@ -6553,7 +6317,7 @@ def _invoice_gl_batch_upsert(mapper, connection, target: "Invoice"):
                     entity_type=entity_type,
                     entity_id=entity_id
                 )
-        except:
+        except Exception:
             pass
         return
     
@@ -6572,7 +6336,7 @@ def _invoice_gl_batch_upsert(mapper, connection, target: "Invoice"):
                 rate = fx_rate(target.currency, 'ILS', target.invoice_date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         # تحديد نوع الكيان والحساب
@@ -6621,8 +6385,8 @@ def _invoice_gl_batch_upsert(mapper, connection, target: "Invoice"):
             entity_id=entity_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للفاتورة #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للفاتورة #{target.id}: {e}")
 
 @event.listens_for(InvoiceLine, "after_insert")
 @event.listens_for(InvoiceLine, "after_update")
@@ -7071,7 +6835,7 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
                         rate = fx_rate(target.currency, 'ILS', target.payment_date or datetime.utcnow(), raise_on_missing=False)
                         if rate and rate > 0:
                             amount_ils = float(amount * float(rate))
-                    except:
+                    except Exception:
                         pass
                 
                 payment_method = (target.payment_method or 'CASH').upper()
@@ -7105,7 +6869,7 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
                     entity_type=entity_type,
                     entity_id=target.customer_id or target.supplier_id or target.partner_id
                 )
-        except:
+        except Exception:
             pass
         return
     
@@ -7133,7 +6897,7 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
                 rate = fx_rate(target.currency, 'ILS', target.payment_date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         # تحديد الحساب النقدي حسب طريقة الدفع والحالة
@@ -7202,8 +6966,8 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
         )
     except Exception as e:
         # تسجيل الخطأ لكن عدم إيقاف العملية
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للدفعة #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للدفعة #{target.id}: {e}")
 
 
 @event.listens_for(Payment, "before_delete")
@@ -7227,7 +6991,7 @@ def _payment_gl_batch_reverse(mapper, connection, target: "Payment"):
                 rate = fx_rate(target.currency, 'ILS', target.payment_date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         payment_method = (target.payment_method or 'CASH').upper()
@@ -7264,8 +7028,8 @@ def _payment_gl_batch_reverse(mapper, connection, target: "Payment"):
             entity_id=target.customer_id or target.supplier_id or target.partner_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في عكس قيد الدفعة #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في عكس قيد الدفعة #{target.id}: {e}")
 
 
 @event.listens_for(Payment, "after_insert", propagate=True)
@@ -7339,11 +7103,11 @@ def _payment_create_check_auto(mapper, connection, target: "Payment"):
             )
         )
         
-        import sys
-        print(f"✅ تم إنشاء سجل شيك رقم {check_number} من دفعة #{target.id}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check_number} من دفعة #{target.id}")
     except Exception as e:
-        import sys
-        print(f"⚠️ فشل إنشاء سجل شيك من دفعة #{target.id}: {str(e)}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ فشل إنشاء سجل شيك من دفعة #{target.id}: {str(e)}")
 
 
 class PaymentSplit(db.Model):
@@ -7598,7 +7362,7 @@ def _payment_split_create_check_auto(mapper, connection, target: "PaymentSplit")
             try:
                 import json
                 details = json.loads(details) if isinstance(details, str) else {}
-            except:
+            except Exception:
                 details = {}
         
         check_number = (details.get('check_number', '') or '').strip()
@@ -7632,7 +7396,7 @@ def _payment_split_create_check_auto(mapper, connection, target: "PaymentSplit")
                     check_due_date = date_parser.isoparse(check_due_date_raw)
                 else:
                     check_due_date = check_due_date_raw
-            except:
+            except Exception:
                 pass
         
         if not check_due_date:
@@ -7690,13 +7454,13 @@ def _payment_split_create_check_auto(mapper, connection, target: "PaymentSplit")
             )
         )
         
-        import sys
-        print(f"✅ تم إنشاء سجل شيك رقم {check_number} من دفعة جزئية #{target.id}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check_number} من دفعة جزئية #{target.id}")
     except Exception as e:
-        import sys
+        from flask import current_app
         import traceback
-        print(f"⚠️ فشل إنشاء سجل شيك من دفعة جزئية #{target.id}: {str(e)}", file=sys.stderr)
-        print(traceback.format_exc(), file=sys.stderr)
+        current_app.logger.warning(f"⚠️ فشل إنشاء سجل شيك من دفعة جزئية #{target.id}: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
 
 
 # ===== تحديث total_paid و balance_due في Sales تلقائياً =====
@@ -8393,7 +8157,7 @@ def _shipment_gl_batch_reverse(mapper, connection, target: "Shipment"):
                 rate = fx_rate(target.currency, 'ILS', target.date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(total_cost * float(rate))
-            except:
+            except Exception:
                 pass
         
         inventory_account = GL_ACCOUNTS.get("INV", "1300_INVENTORY")
@@ -8417,8 +8181,8 @@ def _shipment_gl_batch_reverse(mapper, connection, target: "Shipment"):
             entity_id=target.supplier_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في عكس قيد الشحنة #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في عكس قيد الشحنة #{target.id}: {e}")
 
 @event.listens_for(Shipment, "after_update")
 def _gl_on_shipment_arrived(mapper, connection, target: "Shipment"):
@@ -8580,8 +8344,11 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     archived_at = db.Column(db.DateTime, index=True)
     archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     archive_reason = db.Column(db.String(200))
+    
+    cost_center_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id"), index=True)
 
     customer = db.relationship("Customer", back_populates="service_requests")
+    cost_center = db.relationship("CostCenter", backref=db.backref("service_requests", lazy="dynamic"))
     mechanic = db.relationship("User", back_populates="mechanic_service_requests", foreign_keys=[mechanic_id])
     cancelled_by_user = db.relationship("User", back_populates="cancelled_service_requests", foreign_keys=[cancelled_by])
     archived_by_user = db.relationship("User", foreign_keys=[archived_by])
@@ -8682,13 +8449,21 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     total += convert_amount(amt, p.currency, service_currency, p.payment_date)
-                except:
+                except Exception:
                     pass
         return float(total)
 
     @total_paid.expression
     def total_paid(cls):
-        return select(func.coalesce(func.sum(Payment.total_amount), 0)).where((Payment.service_id == cls.id) & (Payment.status == PaymentStatus.COMPLETED.value) & (Payment.direction == PaymentDirection.IN.value)).scalar_subquery()
+        return (
+            select(func.coalesce(func.sum(Payment.total_amount), 0))
+            .where(
+                (Payment.service_id == cls.id)
+                & (Payment.status == PaymentStatus.COMPLETED.value)
+                & (Payment.direction == PaymentDirection.IN.value)
+            )
+            .scalar_subquery()
+        )
 
     @hybrid_property
     def balance_due(self):
@@ -8736,7 +8511,45 @@ class ServiceRequest(db.Model, TimestampMixin, AuditMixin):
     def __repr__(self): return f"<ServiceRequest {self.service_number or self.id}>"
 
     def to_dict(self):
-        return {"id": self.id,"service_number": self.service_number,"status": getattr(self.status, "value", self.status),"priority": getattr(self.priority, "value", self.priority),"customer_id": self.customer_id,"mechanic_id": self.mechanic_id,"vehicle_type_id": self.vehicle_type_id,"problem_description": self.problem_description,"diagnosis": self.diagnosis,"resolution": self.resolution,"notes": self.notes,"received_at": self.received_at.isoformat() if self.received_at else None,"started_at": self.started_at.isoformat() if self.started_at else None,"expected_delivery": self.expected_delivery.isoformat() if self.expected_delivery else None,"completed_at": self.completed_at.isoformat() if self.completed_at else None,"currency": self.currency,"tax_rate": float(self.tax_rate or 0),"discount_total": float(self.discount_total or 0),"parts_total": float(self.parts_total or 0),"labor_total": float(self.labor_total or 0),"total_amount": float(self.total_amount or 0),"subtotal": float(self.subtotal),"tax_amount": float(self.tax_amount),"total": float(self.total),"total_paid": float(self.total_paid),"balance_due": float(self.balance_due),"warranty_days": self.warranty_days,"warranty_until": self.warranty_until.isoformat() if self.warranty_until else None,"refunded_total": float(self.refunded_total or 0),"refundable_amount": float(self.refundable_amount),"refund_of_id": self.refund_of_id,"idempotency_key": self.idempotency_key,"cancelled_at": self.cancelled_at.isoformat() if self.cancelled_at else None,"cancelled_by": self.cancelled_by,"cancel_reason": self.cancel_reason,"parts": [p.to_dict() for p in self.parts] if self.parts else [],"tasks": [t.to_dict() for t in self.tasks] if self.tasks else []}
+        return {
+            "id": self.id,
+            "service_number": self.service_number,
+            "status": getattr(self.status, "value", self.status),
+            "priority": getattr(self.priority, "value", self.priority),
+            "customer_id": self.customer_id,
+            "mechanic_id": self.mechanic_id,
+            "vehicle_type_id": self.vehicle_type_id,
+            "problem_description": self.problem_description,
+            "diagnosis": self.diagnosis,
+            "resolution": self.resolution,
+            "notes": self.notes,
+            "received_at": self.received_at.isoformat() if self.received_at else None,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "expected_delivery": self.expected_delivery.isoformat() if self.expected_delivery else None,
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "currency": self.currency,
+            "tax_rate": float(self.tax_rate or 0),
+            "discount_total": float(self.discount_total or 0),
+            "parts_total": float(self.parts_total or 0),
+            "labor_total": float(self.labor_total or 0),
+            "total_amount": float(self.total_amount or 0),
+            "subtotal": float(self.subtotal),
+            "tax_amount": float(self.tax_amount),
+            "total": float(self.total),
+            "total_paid": float(self.total_paid),
+            "balance_due": float(self.balance_due),
+            "warranty_days": self.warranty_days,
+            "warranty_until": self.warranty_until.isoformat() if self.warranty_until else None,
+            "refunded_total": float(self.refunded_total or 0),
+            "refundable_amount": float(self.refundable_amount),
+            "refund_of_id": self.refund_of_id,
+            "idempotency_key": self.idempotency_key,
+            "cancelled_at": self.cancelled_at.isoformat() if self.cancelled_at else None,
+            "cancelled_by": self.cancelled_by,
+            "cancel_reason": self.cancel_reason,
+            "parts": [p.to_dict() for p in self.parts] if self.parts else [],
+            "tasks": [t.to_dict() for t in self.tasks] if self.tasks else []
+        }
 
 def _D(x):
     try:
@@ -8810,6 +8623,72 @@ _ALLOWED_SERVICE_TRANSITIONS = {
     "CANCELLED": set(),
 }
 
+@event.listens_for(ServiceRequest, "after_insert")
+@event.listens_for(ServiceRequest, "after_update")
+def _service_create_tax_entry(mapper, connection, target: ServiceRequest):
+    """إنشاء/تحديث سجل ضريبي للصيانة تلقائياً"""
+    if target.status not in ['COMPLETED', 'CLOSED']:
+        return
+    
+    tax_amount = float(target.tax_amount or 0)
+    if tax_amount <= 0:
+        return
+    
+    try:
+        from sqlalchemy import select as sa_select, delete as sa_delete
+        
+        service_date = target.received_at or datetime.now(timezone.utc)
+        total_amount = float(target.total_cost or 0)
+        base_amount = total_amount - tax_amount
+        
+        if base_amount > 0:
+            tax_rate = (tax_amount / base_amount) * 100.0
+        else:
+            return
+        
+        connection.execute(
+            sa_delete(TaxEntry).where(
+                TaxEntry.transaction_type == 'SERVICE',
+                TaxEntry.transaction_id == target.id
+            )
+        )
+        
+        connection.execute(
+            sa_insert(TaxEntry).values(
+                entry_type='OUTPUT_VAT',
+                transaction_type='SERVICE',
+                transaction_id=target.id,
+                transaction_reference=target.service_number,
+                tax_rate=tax_rate,
+                base_amount=base_amount,
+                tax_amount=tax_amount,
+                total_amount=total_amount,
+                currency=target.currency or 'ILS',
+                fiscal_year=service_date.year,
+                fiscal_month=service_date.month,
+                tax_period=f"{service_date.year}-{service_date.month:02d}",
+                customer_id=target.customer_id,
+                notes=f'صيانة: {target.service_number}',
+                created_at=datetime.now(timezone.utc)
+            )
+        )
+    except Exception:
+        pass
+
+@event.listens_for(ServiceRequest, "before_delete")
+def _service_delete_tax_entry(mapper, connection, target: ServiceRequest):
+    """حذف سجل الضريبة عند حذف الصيانة"""
+    try:
+        from sqlalchemy import delete as sa_delete
+        connection.execute(
+            sa_delete(TaxEntry).where(
+                TaxEntry.transaction_type == 'SERVICE',
+                TaxEntry.transaction_id == target.id
+            )
+        )
+    except Exception:
+        pass
+
 @event.listens_for(ServiceRequest, "before_insert")
 @event.listens_for(ServiceRequest, "before_update")
 def _compute_service_totals(mapper, connection, target: ServiceRequest):
@@ -8864,7 +8743,7 @@ def _service_gl_batch_upsert(mapper, connection, target: "ServiceRequest"):
                     rate = fx_rate(target.currency, 'ILS', target.received_at or datetime.utcnow(), raise_on_missing=False)
                     if rate and rate > 0:
                         amount_ils = float(amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         existing_batch = connection.execute(
@@ -8906,8 +8785,8 @@ def _service_gl_batch_upsert(mapper, connection, target: "ServiceRequest"):
             entity_id=target.customer_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للصيانة #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للصيانة #{target.id}: {e}")
 
 @event.listens_for(ServiceRequest, "before_delete")
 def _service_gl_batch_reverse(mapper, connection, target: "ServiceRequest"):
@@ -8929,7 +8808,7 @@ def _service_gl_batch_reverse(mapper, connection, target: "ServiceRequest"):
                 rate = fx_rate(target.currency, 'ILS', target.received_at or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(total_amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
@@ -8953,8 +8832,8 @@ def _service_gl_batch_reverse(mapper, connection, target: "ServiceRequest"):
             entity_id=target.customer_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في عكس قيد الصيانة #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في عكس قيد الصيانة #{target.id}: {e}")
 
 @event.listens_for(ServiceRequest, "after_update")
 def _gl_on_service_complete(mapper, connection, target: "ServiceRequest"):
@@ -9356,6 +9235,9 @@ class OnlinePreOrder(db.Model, TimestampMixin):
 
     prepaid_amount = db.Column(db.Numeric(12, 2), default=0)
     total_amount = db.Column(db.Numeric(12, 2), default=0)
+    base_amount = db.Column(db.Numeric(12, 2), default=0)
+    tax_rate = db.Column(db.Numeric(5, 2), default=0)
+    tax_amount = db.Column(db.Numeric(12, 2), default=0)
     currency = db.Column(db.String(10), default='ILS', nullable=False)
     
     # حقول سعر الصرف
@@ -9382,10 +9264,14 @@ class OnlinePreOrder(db.Model, TimestampMixin):
     cart = db.relationship('OnlineCart')
     items = db.relationship('OnlinePreOrderItem', back_populates='order', cascade='all, delete-orphan')
     payments = db.relationship('OnlinePayment', back_populates='order')
+    gl_batches = db.relationship("GLBatch", primaryjoin="and_(foreign(GLBatch.source_id)==OnlinePreOrder.id, GLBatch.source_type=='ONLINE_PREORDER')", viewonly=True, order_by="GLBatch.id")
 
     __table_args__ = (
         db.CheckConstraint('prepaid_amount >= 0', name='chk_online_prepaid_non_negative'),
         db.CheckConstraint('total_amount  >= 0', name='chk_online_total_non_negative'),
+        db.CheckConstraint('base_amount >= 0', name='chk_online_base_non_negative'),
+        db.CheckConstraint('tax_rate >= 0 AND tax_rate <= 100', name='chk_online_tax_rate_0_100'),
+        db.CheckConstraint('tax_amount >= 0', name='chk_online_tax_non_negative'),
         db.Index('ix_online_preorders_customer_status', 'customer_id', 'status'),
         db.Index('ix_online_preorders_status_paystatus', 'status', 'payment_status'),
     )
@@ -9508,7 +9394,7 @@ def _online_preorder_gl_batch_upsert(mapper, connection, target: "OnlinePreOrder
                         rate = fx_rate(target.currency, 'ILS', target.created_at or datetime.utcnow(), raise_on_missing=False)
                         if rate and rate > 0:
                             amount_ils = float(amount * float(rate))
-                    except:
+                    except Exception:
                         pass
                 
                 ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
@@ -9528,7 +9414,7 @@ def _online_preorder_gl_batch_upsert(mapper, connection, target: "OnlinePreOrder
                     entity_type="CUSTOMER",
                     entity_id=target.customer_id
                 )
-        except:
+        except Exception:
             pass
         return
     
@@ -9561,8 +9447,8 @@ def _online_preorder_gl_batch_upsert(mapper, connection, target: "OnlinePreOrder
             entity_id=target.customer_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للطلب الأونلاين #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للطلب الأونلاين #{target.id}: {e}")
 
 @event.listens_for(OnlinePreOrder, "after_update")
 def _op_reservation_flow(mapper, connection, target: "OnlinePreOrder"):
@@ -10177,8 +10063,11 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     archived_at = db.Column(db.DateTime, index=True)
     archived_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     archive_reason = db.Column(db.String(200))
+    
+    cost_center_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id"), index=True)
 
     employee = relationship("Employee", back_populates="expenses")
+    cost_center = relationship("CostCenter", backref=db.backref("expenses", lazy="dynamic"))
     branch = relationship('Branch', back_populates='expenses')
     site = relationship('Site', back_populates='expenses')
     type = relationship("ExpenseType", back_populates="expenses")
@@ -10283,7 +10172,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             else:
                 try:
                     total += convert_amount(amt, p.currency, expense_currency, p.payment_date)
-                except:
+                except Exception:
                     pass
         return float(total)
 
@@ -10415,7 +10304,7 @@ def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
                 rate = fx_rate(target.currency, 'ILS', target.date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         expense_account = GL_ACCOUNTS.get("EXP", "5000_EXPENSES")
@@ -10490,8 +10379,8 @@ def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
             entity_id=target.payee_entity_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للمصروف #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للمصروف #{target.id}: {e}")
 
 
 @event.listens_for(Expense, "before_delete")
@@ -10510,7 +10399,7 @@ def _expense_gl_batch_reverse(mapper, connection, target: "Expense"):
                 rate = fx_rate(target.currency, 'ILS', target.date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
-            except:
+            except Exception:
                 pass
         
         expense_account = GL_ACCOUNTS.get("EXP", "5000_EXPENSES")
@@ -10520,7 +10409,7 @@ def _expense_gl_batch_reverse(mapper, connection, target: "Expense"):
             ).scalar()
             if etype_row and isinstance(etype_row, dict):
                 expense_account = etype_row.get("gl_account_code") or expense_account
-        except:
+        except Exception:
             pass
         
         payment_method = (target.payment_method or 'cash').upper()
@@ -10546,8 +10435,8 @@ def _expense_gl_batch_reverse(mapper, connection, target: "Expense"):
             entity_id=target.payee_entity_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في عكس قيد المصروف #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في عكس قيد المصروف #{target.id}: {e}")
 
 
 @event.listens_for(PreOrder, "before_insert")
@@ -10642,8 +10531,8 @@ def _sale_return_gl_batch_upsert(mapper, connection, target: "SaleReturn"):
             entity_id=target.customer_id
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch للمرتجع #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للمرتجع #{target.id}: {e}")
 
 @event.listens_for(SaleReturn, "before_insert")
 def _sale_return_normalize_insert(mapper, connection, target: "SaleReturn"):
@@ -11218,10 +11107,10 @@ def _gl_upsert_batch_and_entries(
     
     if found_set != required_set:
         missing = required_set - found_set
-        import sys
-        print(f"⚠️ حسابات مفقودة: {missing}", file=sys.stderr)
-        print(f"⚠️ حسابات مطلوبة: {required_set}", file=sys.stderr)
-        print(f"⚠️ حسابات موجودة: {found_set}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ حسابات مفقودة: {missing}")
+        current_app.logger.warning(f"⚠️ حسابات مطلوبة: {required_set}")
+        current_app.logger.warning(f"⚠️ حسابات موجودة: {found_set}")
         raise ValueError(f"invalid or inactive account(s): {missing}")
 
     posted_exists = connection.execute(
@@ -11782,7 +11671,7 @@ class Check(db.Model, TimestampMixin, AuditMixin):
         if self.status_history:
             try:
                 history = json.loads(self.status_history)
-            except:
+            except Exception:
                 history = []
         
         # إضافة التغيير الجديد
@@ -11806,7 +11695,7 @@ class Check(db.Model, TimestampMixin, AuditMixin):
             return []
         try:
             return json.loads(self.status_history)
-        except:
+        except Exception:
             return []
     
     def get_entity_name(self):
@@ -11907,12 +11796,12 @@ def _check_sync_payment_status(mapper, connection, target: "Check"):
                 {"new_status": new_payment_status, "payment_id": payment_id}
             )
             
-            import sys
-            print(f"✅ تمت مزامنة حالة الدفعة #{payment_id} مع الشيك #{getattr(target, 'id', '?')} - {check_status} → {new_payment_status}", file=sys.stderr)
+            from flask import current_app
+            current_app.logger.info(f"✅ تمت مزامنة حالة الدفعة #{payment_id} مع الشيك #{getattr(target, 'id', '?')} - {check_status} → {new_payment_status}")
     
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في مزامنة حالة الدفعة للشيك #{getattr(target, 'id', '?')}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في مزامنة حالة الدفعة للشيك #{getattr(target, 'id', '?')}: {e}")
 
 
 @event.listens_for(Check, "before_update", propagate=True)
@@ -12583,6 +12472,8 @@ class Project(db.Model, TimestampMixin, AuditMixin):
     end_date = db.Column(db.Date, index=True)
     planned_end_date = db.Column(db.Date)
     budget_amount = db.Column(db.Numeric(15, 2), default=0)
+    estimated_cost = db.Column(db.Numeric(15, 2), default=0)
+    estimated_revenue = db.Column(db.Numeric(15, 2), default=0)
     actual_cost = db.Column(db.Numeric(15, 2), default=0)
     actual_revenue = db.Column(db.Numeric(15, 2), default=0)
     cost_center_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id"), index=True)
@@ -12763,8 +12654,8 @@ def _project_cost_gl_batch_create(mapper, connection, target: "ProjectCost"):
             )
             
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch لتكلفة المشروع #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch لتكلفة المشروع #{target.id}: {e}")
 
 
 @event.listens_for(ProjectRevenue, "after_insert")
@@ -12816,8 +12707,8 @@ def _project_revenue_gl_batch_create(mapper, connection, target: "ProjectRevenue
             )
             
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء GLBatch لإيراد المشروع #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch لإيراد المشروع #{target.id}: {e}")
 
 
 class ProjectTask(db.Model, TimestampMixin, AuditMixin):
@@ -12924,6 +12815,8 @@ class ProjectMilestone(db.Model, TimestampMixin, AuditMixin):
     due_date = db.Column(db.Date, nullable=False, index=True)
     completed_date = db.Column(db.Date, index=True)
     billing_amount = db.Column(db.Numeric(15, 2), default=0)
+    tax_rate = db.Column(db.Numeric(5, 2), default=0)
+    tax_amount = db.Column(db.Numeric(12, 2), default=0)
     billing_percentage = db.Column(db.Numeric(5, 2), default=0)
     invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), index=True)
     payment_terms_days = db.Column(db.Integer, default=30)
@@ -12943,6 +12836,8 @@ class ProjectMilestone(db.Model, TimestampMixin, AuditMixin):
     __table_args__ = (
         db.Index("ix_milestone_project_status", "project_id", "status"),
         db.CheckConstraint("billing_amount >= 0", name="ck_milestone_billing_ge_0"),
+        db.CheckConstraint("tax_rate >= 0 AND tax_rate <= 100", name="ck_milestone_tax_rate_0_100"),
+        db.CheckConstraint("tax_amount >= 0", name="ck_milestone_tax_non_negative"),
         db.CheckConstraint("billing_percentage >= 0 AND billing_percentage <= 100", name="ck_milestone_billing_pct"),
     )
     
@@ -13144,7 +13039,7 @@ def _time_log_update_task(mapper, connection, target: "ResourceTimeLog"):
                         "desc": f"تكلفة وقت موظف - {target.hours_worked} ساعة"
                     }
                 )
-    except:
+    except Exception:
         pass
 
 
@@ -13165,18 +13060,28 @@ def _milestone_auto_invoice(mapper, connection, target: "ProjectMilestone"):
             if project and project[3]:
                 invoice_number = f"MS-{target.milestone_number}"
                 
+                billing_amount = float(target.billing_amount or 0)
+                tax_rate = float(target.tax_rate or 0)
+                tax_amount = float(target.tax_amount or 0)
+                
+                if tax_amount <= 0 and tax_rate > 0:
+                    tax_amount = billing_amount * (tax_rate / 100.0)
+                
+                total_with_tax = billing_amount + tax_amount
+                
                 connection.execute(
                     sa_text("""INSERT INTO invoices 
                             (invoice_number, invoice_date, due_date, customer_id, source, kind, 
                              currency, tax_amount, total_amount, notes) 
                             VALUES (:num, :inv_dt, :due_dt, :cust_id, 'MANUAL', 'INVOICE', 
-                                    'ILS', 0, :amt, :notes)"""),
+                                    'ILS', :tax, :amt, :notes)"""),
                     {
                         "num": invoice_number,
                         "inv_dt": invoice_date,
                         "due_dt": due_date,
                         "cust_id": project[3],
-                        "amt": float(target.billing_amount),
+                        "tax": tax_amount,
+                        "amt": total_with_tax,
                         "notes": f"فاتورة محطة: {target.name} - مشروع: {project[2]}"
                     }
                 )
@@ -13192,8 +13097,8 @@ def _milestone_auto_invoice(mapper, connection, target: "ProjectMilestone"):
                         {"inv_id": new_invoice_id, "mid": target.id}
                     )
     except Exception as e:
-        import sys
-        print(f"⚠️ فشل إنشاء فاتورة تلقائية للمحطة #{target.id}: {e}", file=sys.stderr)
+        from flask import current_app
+        current_app.logger.warning(f"⚠️ فشل إنشاء فاتورة تلقائية للمحطة #{target.id}: {e}")
 
 
 @event.listens_for(ProjectChangeOrder, "after_update")
@@ -13210,7 +13115,7 @@ def _change_order_update_budget(mapper, connection, target: "ProjectChangeOrder"
                     sa_text("UPDATE projects SET end_date = date(end_date, '+' || :days || ' days') WHERE id = :pid"),
                     {"days": target.schedule_impact_days, "pid": target.project_id}
                 )
-    except:
+    except Exception:
         pass
 
 
@@ -13230,7 +13135,7 @@ def _resource_create_cost(mapper, connection, target: "ProjectResource"):
                     "desc": f"تخصيص مورد: {target.resource_type} - {target.resource_name}"
                 }
             )
-    except:
+    except Exception:
         pass
 
 
@@ -13252,7 +13157,7 @@ def _update_partner_on_return_change(mapper, connection, target):
                 ).fetchone()
                 if partner_result:
                     update_partner_balance(partner_result[0], connection)
-    except:
+    except Exception:
         pass
 
 
@@ -13269,7 +13174,7 @@ def _update_partner_on_service_change(mapper, connection, target):
             ).fetchone()
             if partner_result:
                 update_partner_balance(partner_result[0], connection)
-    except:
+    except Exception:
         pass
 
 
@@ -13280,7 +13185,7 @@ def _update_partner_on_expense_change(mapper, connection, target):
     try:
         if hasattr(target, 'partner_id') and target.partner_id:
             update_partner_balance(target.partner_id, connection)
-    except:
+    except Exception:
         pass
 
 @event.listens_for(Expense, "after_insert", propagate=True)
@@ -13290,7 +13195,7 @@ def _update_supplier_on_expense_change(mapper, connection, target):
     try:
         if hasattr(target, 'supplier_id') and target.supplier_id:
             update_supplier_balance(target.supplier_id, connection)
-    except:
+    except Exception:
         pass
 
 class CostCenterAlert(db.Model, TimestampMixin, AuditMixin):
@@ -13463,6 +13368,10 @@ class EngineeringTeam(db.Model, TimestampMixin, AuditMixin):
         db.Index('ix_eng_team_active', 'is_active'),
         db.Index('ix_eng_team_specialty', 'specialty'),
     )
+    
+    def __repr__(self):
+        return f"<EngineeringTeam {self.code} - {self.name}>"
+
 
 class EngineeringTeamMember(db.Model, TimestampMixin):
     __tablename__ = 'engineering_team_members'
@@ -13487,6 +13396,10 @@ class EngineeringTeamMember(db.Model, TimestampMixin):
         db.UniqueConstraint('team_id', 'employee_id', name='uq_team_member'),
         db.Index('ix_team_member_active', 'is_active'),
     )
+    
+    def __repr__(self):
+        return f"<EngineeringTeamMember Team#{self.team_id} Employee#{self.employee_id}>"
+
 
 class EngineeringSkill(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'engineering_skills'
@@ -13508,6 +13421,10 @@ class EngineeringSkill(db.Model, TimestampMixin, AuditMixin):
     __table_args__ = (
         db.Index('ix_skill_category', 'category'),
     )
+    
+    def __repr__(self):
+        return f"<EngineeringSkill {self.code} - {self.name}>"
+
 
 class EmployeeSkill(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'employee_skills'
@@ -13538,6 +13455,10 @@ class EmployeeSkill(db.Model, TimestampMixin, AuditMixin):
         db.UniqueConstraint('employee_id', 'skill_id', name='uq_employee_skill'),
         db.Index('ix_employee_skill_expiry', 'expiry_date'),
     )
+    
+    def __repr__(self):
+        return f"<EmployeeSkill Employee#{self.employee_id} Skill#{self.skill_id}>"
+
 
 class EngineeringTask(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'engineering_tasks'
@@ -13547,11 +13468,31 @@ class EngineeringTask(db.Model, TimestampMixin, AuditMixin):
     title = db.Column(db.String(300), nullable=False)
     description = db.Column(db.Text)
     
-    task_type = db.Column(sa_str_enum(['DESIGN', 'INSPECTION', 'MAINTENANCE', 'INSTALLATION', 'REPAIR', 'CONSULTATION', 'TESTING', 'CALIBRATION', 'TRAINING', 'OTHER'], name='eng_task_type'), nullable=False, index=True)
+    task_type = db.Column(
+        sa_str_enum([
+            'DESIGN', 'INSPECTION', 'MAINTENANCE', 'INSTALLATION', 'REPAIR',
+            'CONSULTATION', 'TESTING', 'CALIBRATION', 'TRAINING', 'OTHER'
+        ], name='eng_task_type'),
+        nullable=False,
+        index=True
+    )
     
-    priority = db.Column(sa_str_enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'CRITICAL'], name='eng_task_priority'), nullable=False, server_default=sa_text("'MEDIUM'"), index=True)
+    priority = db.Column(
+        sa_str_enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'CRITICAL'], name='eng_task_priority'),
+        nullable=False,
+        server_default=sa_text("'MEDIUM'"),
+        index=True
+    )
     
-    status = db.Column(sa_str_enum(['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'ON_HOLD', 'REVIEW', 'COMPLETED', 'CANCELLED', 'DEFERRED'], name='eng_task_status'), nullable=False, server_default=sa_text("'PENDING'"), index=True)
+    status = db.Column(
+        sa_str_enum([
+            'PENDING', 'ASSIGNED', 'IN_PROGRESS', 'ON_HOLD',
+            'REVIEW', 'COMPLETED', 'CANCELLED', 'DEFERRED'
+        ], name='eng_task_status'),
+        nullable=False,
+        server_default=sa_text("'PENDING'"),
+        index=True
+    )
     
     assigned_team_id = db.Column(db.Integer, db.ForeignKey('engineering_teams.id'), index=True)
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('employees.id'), index=True)
@@ -13609,6 +13550,10 @@ class EngineeringTask(db.Model, TimestampMixin, AuditMixin):
         db.Index('ix_eng_task_scheduled', 'scheduled_start', 'scheduled_end'),
         db.CheckConstraint('customer_satisfaction_rating >= 1 AND customer_satisfaction_rating <= 5', name='ck_task_rating_range'),
     )
+    
+    def __repr__(self):
+        return f"<EngineeringTask {self.task_number} - {self.title}>"
+
 
 class EngineeringTimesheet(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'engineering_timesheets'
@@ -13652,10 +13597,420 @@ class EngineeringTimesheet(db.Model, TimestampMixin, AuditMixin):
     gl_batch = db.relationship('GLBatch', backref=db.backref('engineering_timesheets', lazy='dynamic'))
     
     __table_args__ = (
-        db.Index('ix_timesheet_employee_date', 'employee_id', 'work_date'),
+        db.Index('ix_timesheet_employee_date', 'employee_id', 'work_date'),     
         db.Index('ix_timesheet_task', 'task_id'),
         db.Index('ix_timesheet_status', 'status'),
-        db.CheckConstraint('actual_work_hours > 0', name='ck_timesheet_hours_positive'),
-        db.CheckConstraint('break_duration_minutes >= 0', name='ck_timesheet_break_positive'),
+        db.CheckConstraint('actual_work_hours > 0', name='ck_timesheet_hours_positive'),                                                                        
+        db.CheckConstraint('break_duration_minutes >= 0', name='ck_timesheet_break_positive'),                                                                  
     )
+    
+    def __repr__(self):
+        return f"<EngineeringTimesheet Employee#{self.employee_id} {self.work_date}>"
+
+
+@event.listens_for(Sale, "after_insert")
+@event.listens_for(Sale, "after_update")
+def _auto_allocate_sale_to_cost_center(mapper, connection, target: "Sale"):
+    try:
+        if not target.cost_center_id or not target.total_amount:
+            return
+        
+        if float(target.total_amount or 0) <= 0:
+            return
+        
+        existing = connection.execute(
+            sa_text("""SELECT id FROM cost_center_allocations 
+                    WHERE source_type = 'SALE' AND source_id = :sid AND cost_center_id = :ccid"""),
+            {"sid": target.id, "ccid": target.cost_center_id}
+        ).fetchone()
+        
+        if existing:
+            connection.execute(
+                sa_text("""UPDATE cost_center_allocations 
+                        SET amount = :amt, allocation_date = :dt 
+                        WHERE id = :aid"""),
+                {
+                    "amt": float(target.total_amount),
+                    "dt": target.sale_date.date() if hasattr(target.sale_date, 'date') else target.sale_date,
+                    "aid": existing[0]
+                }
+            )
+        else:
+            connection.execute(
+                sa_text("""INSERT INTO cost_center_allocations 
+                        (cost_center_id, source_type, source_id, amount, percentage, allocation_date, notes)
+                        VALUES (:ccid, 'SALE', :sid, :amt, 100, :dt, :notes)"""),
+                {
+                    "ccid": target.cost_center_id,
+                    "sid": target.id,
+                    "amt": float(target.total_amount),
+                    "dt": target.sale_date.date() if hasattr(target.sale_date, 'date') else target.sale_date,
+                    "notes": f"توزيع تلقائي - بيع #{target.sale_number or target.id}"
+                }
+            )
+    except Exception:
+        pass
+
+
+@event.listens_for(Sale, "before_delete")
+def _auto_remove_sale_cost_center_allocation(mapper, connection, target: "Sale"):
+    try:
+        if target.cost_center_id:
+            connection.execute(
+                sa_text("""DELETE FROM cost_center_allocations 
+                        WHERE source_type = 'SALE' AND source_id = :sid"""),
+                {"sid": target.id}
+            )
+    except Exception:
+        pass
+
+
+@event.listens_for(ServiceRequest, "after_insert")
+@event.listens_for(ServiceRequest, "after_update")
+def _auto_allocate_service_to_cost_center(mapper, connection, target: "ServiceRequest"):
+    try:
+        if not target.cost_center_id or not target.total_amount:
+            return
+        
+        if float(target.total_amount or 0) <= 0:
+            return
+        
+        existing = connection.execute(
+            sa_text("""SELECT id FROM cost_center_allocations 
+                    WHERE source_type = 'SERVICE' AND source_id = :sid AND cost_center_id = :ccid"""),
+            {"sid": target.id, "ccid": target.cost_center_id}
+        ).fetchone()
+        
+        alloc_date = target.completed_at or target.received_at or date.today()
+        if hasattr(alloc_date, 'date'):
+            alloc_date = alloc_date.date()
+        
+        if existing:
+            connection.execute(
+                sa_text("""UPDATE cost_center_allocations 
+                        SET amount = :amt, allocation_date = :dt 
+                        WHERE id = :aid"""),
+                {
+                    "amt": float(target.total_amount),
+                    "dt": alloc_date,
+                    "aid": existing[0]
+                }
+            )
+        else:
+            connection.execute(
+                sa_text("""INSERT INTO cost_center_allocations 
+                        (cost_center_id, source_type, source_id, amount, percentage, allocation_date, notes)
+                        VALUES (:ccid, 'SERVICE', :sid, :amt, 100, :dt, :notes)"""),
+                {
+                    "ccid": target.cost_center_id,
+                    "sid": target.id,
+                    "amt": float(target.total_amount),
+                    "dt": alloc_date,
+                    "notes": f"توزيع تلقائي - صيانة #{target.service_number or target.id}"
+                }
+            )
+    except Exception:
+        pass
+
+
+@event.listens_for(ServiceRequest, "before_delete")
+def _auto_remove_service_cost_center_allocation(mapper, connection, target: "ServiceRequest"):
+    try:
+        if target.cost_center_id:
+            connection.execute(
+                sa_text("""DELETE FROM cost_center_allocations 
+                        WHERE source_type = 'SERVICE' AND source_id = :sid"""),
+                {"sid": target.id}
+            )
+    except Exception:
+        pass
+
+
+@event.listens_for(Expense, "after_insert")
+@event.listens_for(Expense, "after_update")
+def _auto_allocate_expense_to_cost_center(mapper, connection, target: "Expense"):
+    try:
+        cost_center_id = getattr(target, 'cost_center_id', None)
+        if not cost_center_id or not target.amount:
+            return
+        
+        if float(target.amount or 0) <= 0:
+            return
+        
+        existing = connection.execute(
+            sa_text("""SELECT id FROM cost_center_allocations 
+                    WHERE source_type = 'EXPENSE' AND source_id = :eid AND cost_center_id = :ccid"""),
+            {"eid": target.id, "ccid": cost_center_id}
+        ).fetchone()
+        
+        alloc_date = target.date
+        if hasattr(alloc_date, 'date'):
+            alloc_date = alloc_date.date()
+        
+        if existing:
+            connection.execute(
+                sa_text("""UPDATE cost_center_allocations 
+                        SET amount = :amt, allocation_date = :dt 
+                        WHERE id = :aid"""),
+                {
+                    "amt": float(target.amount),
+                    "dt": alloc_date,
+                    "aid": existing[0]
+                }
+            )
+        else:
+            connection.execute(
+                sa_text("""INSERT INTO cost_center_allocations 
+                        (cost_center_id, source_type, source_id, amount, percentage, allocation_date, notes)
+                        VALUES (:ccid, 'EXPENSE', :eid, :amt, 100, :dt, :notes)"""),
+                {
+                    "ccid": cost_center_id,
+                    "eid": target.id,
+                    "amt": float(target.amount),
+                    "dt": alloc_date,
+                    "notes": f"توزيع تلقائي - مصروف #{target.id}"
+                }
+            )
+    except Exception:
+        pass
+
+
+@event.listens_for(Expense, "before_delete")
+def _auto_remove_expense_cost_center_allocation(mapper, connection, target: "Expense"):
+    try:
+        cost_center_id = getattr(target, 'cost_center_id', None)
+        if cost_center_id:
+            connection.execute(
+                sa_text("""DELETE FROM cost_center_allocations 
+                        WHERE source_type = 'EXPENSE' AND source_id = :eid"""),
+                {"eid": target.id}
+            )
+    except Exception:
+        pass
+
+
+class WorkflowDefinition(db.Model, TimestampMixin, AuditMixin):
+    __tablename__ = "workflow_definitions"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    workflow_code = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    workflow_name = db.Column(db.String(200), nullable=False)
+    workflow_name_ar = db.Column(db.String(200))
+    description = db.Column(db.Text)
+    
+    workflow_type = db.Column(
+        sa_str_enum(['APPROVAL', 'REVIEW', 'NOTIFICATION', 'CUSTOM'], name='workflow_type'),
+        nullable=False,
+        default='APPROVAL',
+        index=True
+    )
+    
+    entity_type = db.Column(
+        sa_str_enum(['MILESTONE', 'CHANGE_ORDER', 'RISK', 'TASK', 'RESOURCE', 'EXPENSE', 'PAYMENT'], name='workflow_entity_type'),
+        nullable=False,
+        index=True
+    )
+    
+    steps_definition = db.Column(db.JSON, nullable=False)
+    
+    auto_start = db.Column(db.Boolean, default=False, nullable=False)
+    auto_start_condition = db.Column(db.JSON)
+    
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    version = db.Column(db.Integer, default=1, nullable=False)
+    
+    timeout_hours = db.Column(db.Integer)
+    escalation_rules = db.Column(db.JSON)
+    
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    updated_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    
+    creator = db.relationship("User", foreign_keys=[created_by], backref=db.backref("created_workflows", lazy="dynamic"))
+    updater = db.relationship("User", foreign_keys=[updated_by], backref=db.backref("updated_workflows", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_workflow_def_entity_active", "entity_type", "is_active"),
+    )
+    
+    def __repr__(self):
+        return f"<WorkflowDefinition {self.workflow_code}>"
+
+
+class WorkflowInstance(db.Model, TimestampMixin):
+    __tablename__ = "workflow_instances"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    workflow_definition_id = db.Column(db.Integer, db.ForeignKey("workflow_definitions.id", ondelete="RESTRICT"), nullable=False, index=True)
+    instance_code = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    
+    entity_type = db.Column(db.String(50), nullable=False, index=True)
+    entity_id = db.Column(db.Integer, nullable=False, index=True)
+    
+    status = db.Column(
+        sa_str_enum(['INITIATED', 'IN_PROGRESS', 'PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'COMPLETED', 'CANCELLED', 'TIMEOUT'], name='workflow_instance_status'),
+        nullable=False,
+        default='INITIATED',
+        index=True
+    )
+    
+    current_step = db.Column(db.Integer, default=1, nullable=False)
+    total_steps = db.Column(db.Integer, nullable=False)
+    
+    started_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    started_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    
+    completed_at = db.Column(db.DateTime, index=True)
+    completed_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    
+    cancelled_at = db.Column(db.DateTime, index=True)
+    cancelled_by = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    cancellation_reason = db.Column(db.Text)
+    
+    due_date = db.Column(db.DateTime, index=True)
+    
+    context_data = db.Column(db.JSON)
+    
+    workflow_definition = db.relationship("WorkflowDefinition", backref=db.backref("instances", lazy="dynamic"))
+    starter = db.relationship("User", foreign_keys=[started_by], backref=db.backref("started_workflow_instances", lazy="dynamic"))
+    completer = db.relationship("User", foreign_keys=[completed_by], backref=db.backref("completed_workflow_instances", lazy="dynamic"))
+    canceller = db.relationship("User", foreign_keys=[cancelled_by], backref=db.backref("cancelled_workflow_instances", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_workflow_inst_entity", "entity_type", "entity_id"),
+        db.Index("ix_workflow_inst_status_date", "status", "started_at"),
+    )
+    
+    def __repr__(self):
+        return f"<WorkflowInstance {self.instance_code}>"
+    
+    @hybrid_property
+    def is_overdue(self):
+        if self.status in ['COMPLETED', 'CANCELLED', 'APPROVED', 'REJECTED']:
+            return False
+        if self.due_date:
+            return datetime.now(timezone.utc) > self.due_date
+        return False
+    
+    @hybrid_property
+    def progress_percentage(self):
+        if self.total_steps == 0:
+            return 0
+        return (self.current_step / self.total_steps) * 100
+
+
+class WorkflowAction(db.Model, TimestampMixin):
+    __tablename__ = "workflow_actions"
+    
+    id = db.Column(db.Integer, primary_key=True)
+    workflow_instance_id = db.Column(db.Integer, db.ForeignKey("workflow_instances.id", ondelete="CASCADE"), nullable=False, index=True)
+    
+    step_number = db.Column(db.Integer, nullable=False)
+    step_name = db.Column(db.String(200), nullable=False)
+    
+    action_type = db.Column(
+        sa_str_enum(['APPROVE', 'REJECT', 'REVIEW', 'COMMENT', 'DELEGATE', 'REQUEST_INFO', 'PROVIDE_INFO'], name='workflow_action_type'),
+        nullable=False,
+        index=True
+    )
+    
+    actor_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    action_date = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    
+    decision = db.Column(db.String(50))
+    comments = db.Column(db.Text)
+    
+    attachments = db.Column(db.JSON)
+    
+    delegated_to = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    delegated_at = db.Column(db.DateTime)
+    
+    duration_hours = db.Column(db.Numeric(8, 2))
+    
+    workflow_instance = db.relationship("WorkflowInstance", backref=db.backref("actions", lazy="dynamic", cascade="all, delete-orphan", order_by="WorkflowAction.action_date"))
+    actor = db.relationship("User", foreign_keys=[actor_id], backref=db.backref("workflow_actions", lazy="dynamic"))
+    delegate = db.relationship("User", foreign_keys=[delegated_to], backref=db.backref("delegated_workflow_actions", lazy="dynamic"))
+    
+    __table_args__ = (
+        db.Index("ix_workflow_action_instance_step", "workflow_instance_id", "step_number"),
+        db.Index("ix_workflow_action_actor_date", "actor_id", "action_date"),
+    )
+    
+    def __repr__(self):
+        return f"<WorkflowAction {self.action_type} by User#{self.actor_id}>"
+
+
+@event.listens_for(ProjectMilestone, "after_insert")
+def _auto_start_milestone_workflow(mapper, connection, target: "ProjectMilestone"):
+    try:
+        if not target.approval_required:
+            return
+        
+        workflow_def = connection.execute(
+            sa_text("""SELECT id FROM workflow_definitions 
+                    WHERE workflow_code = 'MILESTONE_APPROVAL' 
+                    AND entity_type = 'MILESTONE' 
+                    AND is_active = 1""")
+        ).fetchone()
+        
+        if not workflow_def:
+            return
+        
+        from services.workflow_engine import WorkflowEngine
+        
+        instance_code = f"MILESTONE_APPROVAL-MILESTONE-{target.id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        connection.execute(
+            sa_text("""INSERT INTO workflow_instances 
+                    (workflow_definition_id, instance_code, entity_type, entity_id, 
+                     status, current_step, total_steps, started_by, started_at)
+                    VALUES (:wf_id, :code, 'MILESTONE', :eid, 'IN_PROGRESS', 1, 
+                            (SELECT json_array_length(steps_definition) FROM workflow_definitions WHERE id = :wf_id),
+                            :user_id, :started)"""),
+            {
+                "wf_id": workflow_def[0],
+                "code": instance_code,
+                "eid": target.id,
+                "user_id": target.created_by or 1,
+                "started": datetime.now(timezone.utc)
+            }
+        )
+    except Exception:
+        pass
+
+
+@event.listens_for(ProjectChangeOrder, "after_insert")
+def _auto_start_change_order_workflow(mapper, connection, target: "ProjectChangeOrder"):
+    try:
+        if target.status not in ['SUBMITTED', 'UNDER_REVIEW']:
+            return
+        
+        workflow_def = connection.execute(
+            sa_text("""SELECT id FROM workflow_definitions 
+                    WHERE workflow_code = 'CHANGE_ORDER_APPROVAL' 
+                    AND entity_type = 'CHANGE_ORDER' 
+                    AND is_active = 1""")
+        ).fetchone()
+        
+        if not workflow_def:
+            return
+        
+        instance_code = f"CHANGE_ORDER_APPROVAL-CHANGE_ORDER-{target.id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        connection.execute(
+            sa_text("""INSERT INTO workflow_instances 
+                    (workflow_definition_id, instance_code, entity_type, entity_id, 
+                     status, current_step, total_steps, started_by, started_at)
+                    VALUES (:wf_id, :code, 'CHANGE_ORDER', :eid, 'IN_PROGRESS', 1, 
+                            (SELECT json_array_length(steps_definition) FROM workflow_definitions WHERE id = :wf_id),
+                            :user_id, :started)"""),
+            {
+                "wf_id": workflow_def[0],
+                "code": instance_code,
+                "eid": target.id,
+                "user_id": target.requested_by or 1,
+                "started": datetime.now(timezone.utc)
+            }
+        )
+    except Exception:
+        pass
 

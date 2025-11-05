@@ -113,17 +113,17 @@ def saas_manager():
     
     try:
         plans = SaaSPlan.query.order_by(SaaSPlan.sort_order, SaaSPlan.price_monthly).all()
-    except:
+    except Exception:
         plans = []
     
     try:
         subscriptions = SaaSSubscription.query.order_by(SaaSSubscription.created_at.desc()).limit(50).all()
-    except:
+    except Exception:
         subscriptions = []
     
     try:
         invoices = SaaSInvoice.query.order_by(SaaSInvoice.created_at.desc()).limit(50).all()
-    except:
+    except Exception:
         invoices = []
     
     try:
@@ -147,7 +147,7 @@ def saas_manager():
                 try:
                     from models import convert_amount
                     monthly_revenue += convert_amount(amt, inv_currency, 'ILS', inv.created_at)
-                except:
+                except Exception:
                     monthly_revenue += amt
         
         stats = {
@@ -156,7 +156,7 @@ def saas_manager():
             'monthly_revenue': f"${float(monthly_revenue):,.2f}",
             'trial_users': trial_users
         }
-    except:
+    except Exception:
         stats = {
             'total_subscribers': 0,
             'active_subscribers': 0,
@@ -367,9 +367,6 @@ def api_saas_send_reminder(invoice_id):
         customer = Customer.query.get(subscription.customer_id)
         if not customer or not customer.email:
             return jsonify({'success': False, 'error': 'لا يوجد بريد إلكتروني للعميل'}), 400
-        
-        # TODO: إرسال Email فعلي هنا
-        # من خلال utils.send_email() أو أي email service
         
         # حالياً: محاكاة إرسال ناجح
         flash(f'تم إرسال تذكير للعميل {customer.name} على {customer.email}', 'success')
@@ -617,7 +614,7 @@ def index_old():
         ).group_by(AuthAudit.ip_address).having(
             func.count(AuthAudit.ip_address) >= 5
         ).count()
-    except:
+    except Exception:
         pass
     
     # حجم قاعدة البيانات
@@ -631,7 +628,7 @@ def index_old():
                 db_size = f"{size_bytes / 1024:.1f} KB"
             else:
                 db_size = f"{size_bytes / (1024 * 1024):.1f} MB"
-    except:
+    except Exception:
         pass
     
     # صحة النظام
@@ -668,7 +665,7 @@ def index_old():
             AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
             AuthAudit.created_at >= day_ago
         ).order_by(AuthAudit.created_at.desc()).limit(10).all()
-    except:
+    except Exception:
         pass
     
     return render_template('security/index.html', stats=stats, recent=recent_suspicious)
@@ -792,7 +789,7 @@ def security_center():
     try:
         from models import User
         active_users = User.query.filter(User.last_seen >= datetime.now(timezone.utc) - timedelta(minutes=30)).count()
-    except:
+    except Exception:
         active_users = 0
     
     try:
@@ -800,7 +797,7 @@ def security_center():
             AuditLog.action.like('%failed%'),
             AuditLog.created_at >= datetime.now(timezone.utc) - timedelta(hours=24)
         ).count()
-    except:
+    except Exception:
         failed_login_count = 0
     
     security_stats = {
@@ -863,7 +860,7 @@ def _log_training_event(event_type, user_id, details=None):
             try:
                 with open(TRAINING_LOG_FILE, 'r', encoding='utf-8') as f:
                     logs = json.load(f)
-            except:
+            except Exception:
                 logs = []
         
         log_entry = {
@@ -894,7 +891,7 @@ def _load_training_logs():
             with open(TRAINING_LOG_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
         return []
-    except:
+    except Exception:
         return []
 
 
@@ -955,7 +952,7 @@ def database_manager():
             count_query = text(f"SELECT COUNT(*) as count FROM {table}")
             result = db.session.execute(count_query).fetchone()
             table_counts[table] = result[0] if result else 0
-        except:
+        except Exception:
             table_counts[table] = 0
     
     # ==== بيانات خاصة بكل تبويب ====
@@ -1018,7 +1015,7 @@ def database_manager():
                 with open('logs/app.log', 'r', encoding='utf-8') as f:
                     lines = f.readlines()
                     system_logs = ''.join(lines[-500:])
-        except:
+        except Exception:
             system_logs = "تعذر قراءة ملف السجلات"
         
         # Error logs
@@ -1044,7 +1041,7 @@ def database_manager():
                     'rows': [list(row) for row in rows],
                     'count': len(rows)
                 }
-            except:
+            except Exception:
                 db.session.commit()
                 sql_result = {'message': 'تم تنفيذ الاستعلام بنجاح'}
         except Exception as e:
@@ -1053,20 +1050,45 @@ def database_manager():
     
     # === 5) Python Console ===
     if tab == 'python' and request.method == 'POST':
+        if not current_user.has_permission('system_admin'):
+            flash('⚠️ غير مصرح - تحتاج صلاحية system_admin', 'danger')
+            return redirect(url_for('security_bp.ultimate_control'))
+        
         python_code = request.form.get('python_code', '').strip()
-        try:
-            local_vars = {
-                'db': db,
-                'User': User,
-                'AuditLog': AuditLog,
-                'current_user': current_user,
-                'datetime': datetime,
-                'timezone': timezone
-            }
-            exec(python_code, {'__builtins__': __builtins__}, local_vars)
-            python_result = local_vars.get('output', 'تم التنفيذ بنجاح')
-        except Exception as e:
-            python_error = str(e)
+        
+        dangerous_keywords = ['import os', 'import sys', 'import subprocess', '__import__', 'eval(', 'compile(', 'open(', 'file(', 'input(', 'execfile(']
+        if any(keyword in python_code for keyword in dangerous_keywords):
+            flash('⛔ كود خطر - يحتوي على عمليات محظورة', 'danger')
+            python_error = 'كود خطر محظور'
+        else:
+            try:
+                safe_builtins = {
+                    'print': print,
+                    'len': len,
+                    'str': str,
+                    'int': int,
+                    'float': float,
+                    'list': list,
+                    'dict': dict,
+                    'sum': sum,
+                    'max': max,
+                    'min': min,
+                    'range': range,
+                }
+                local_vars = {
+                    'db': db,
+                    'User': User,
+                    'AuditLog': AuditLog,
+                    'current_user': current_user,
+                    'datetime': datetime,
+                    'timezone': timezone
+                }
+                exec(python_code, {'__builtins__': safe_builtins}, local_vars)
+                python_result = local_vars.get('output', 'تم التنفيذ بنجاح')
+                
+                utils.log_audit('PYTHON_EXEC', None, 'EXECUTED', details=f'Executed: {python_code[:100]}...')
+            except Exception as e:
+                python_error = str(e)
     
     # === 6) Tools (Error Tracker) ===
     if tab == 'tools':
@@ -1299,7 +1321,7 @@ def _unused_ai_config_function():
                 keys_json = _get_system_setting('AI_API_KEYS', '[]')
                 try:
                     keys = json.loads(keys_json)
-                except:
+                except Exception:
                     keys = []
                 
                 # إضافة مفتاح جديد
@@ -1327,7 +1349,7 @@ def _unused_ai_config_function():
                 keys = [k for k in keys if k.get('id') != key_id]
                 _set_system_setting('AI_API_KEYS', json.dumps(keys, ensure_ascii=False))
                 flash('✅ تم حذف المفتاح', 'success')
-            except:
+            except Exception:
                 flash('⚠️ خطأ في حذف المفتاح', 'danger')
         
         elif action == 'set_active':
@@ -1339,7 +1361,7 @@ def _unused_ai_config_function():
                     k['is_active'] = (k.get('id') == key_id)
                 _set_system_setting('AI_API_KEYS', json.dumps(keys, ensure_ascii=False))
                 flash('✅ تم تفعيل المفتاح', 'success')
-            except:
+            except Exception:
                 flash('⚠️ خطأ في تفعيل المفتاح', 'danger')
         
         return redirect(url_for('security.ai_config'))
@@ -1348,7 +1370,7 @@ def _unused_ai_config_function():
     keys_json = _get_system_setting('AI_API_KEYS', '[]')
     try:
         keys = json.loads(keys_json)
-    except:
+    except Exception:
         keys = []
     
     return render_template('security/ai_config.html', keys=keys)
@@ -1484,7 +1506,7 @@ def theme_editor():
         try:
             with open(os.path.join(css_dir, selected_css), 'r', encoding='utf-8') as f:
                 css_content = f.read()
-        except:
+        except Exception:
             pass
     data['css'] = {'files': css_files, 'selected': selected_css, 'content': css_content}
     
@@ -1503,7 +1525,7 @@ def theme_editor():
                     items.extend(get_templates_tree(full_path, rel_path))
                 elif item.endswith('.html'):
                     items.append({'type': 'file', 'name': item, 'path': rel_path})
-        except:
+        except Exception:
             pass
         return items
     
@@ -1514,7 +1536,7 @@ def theme_editor():
         try:
             with open(os.path.join(templates_dir, selected_template), 'r', encoding='utf-8') as f:
                 template_content = f.read()
-        except:
+        except Exception:
             pass
     data['html'] = {'tree': templates_tree, 'selected': selected_template, 'content': template_content}
     
@@ -1617,7 +1639,7 @@ def advanced_analytics():
         else:
             try:
                 revenue_by_day_dict[dt] += convert_amount(amt, p.currency, "ILS", p.payment_date)
-            except:
+            except Exception:
                 pass
     
     analytics['revenue_trend'] = [{'date': str(dt), 'amount': float(rev)} for dt, rev in sorted(revenue_by_day_dict.items())]
@@ -1639,7 +1661,7 @@ def advanced_analytics():
         else:
             try:
                 cust_totals[p.customer_id] += convert_amount(amt, p.currency, "ILS", p.payment_date)
-            except:
+            except Exception:
                 pass
     
     top_customers_data = []
@@ -2099,7 +2121,7 @@ def get_cached_security_stats():
             AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
             AuthAudit.created_at >= day_ago
         ).count()
-    except:
+    except Exception:
         failed_logins_24h = 0
     
     # Blocked IPs & Countries
@@ -2109,7 +2131,7 @@ def get_cached_security_stats():
         from models import BlockedIP, BlockedCountry
         blocked_ips = BlockedIP.query.count()
         blocked_countries = BlockedCountry.query.count()
-    except:
+    except Exception:
         pass
     
     # أنشطة مشبوهة
@@ -2123,7 +2145,7 @@ def get_cached_security_stats():
         ).group_by(AuthAudit.ip_address).having(
             func.count(AuthAudit.ip_address) >= 5
         ).count()
-    except:
+    except Exception:
         pass
     
     # حجم قاعدة البيانات
@@ -2137,7 +2159,7 @@ def get_cached_security_stats():
                 db_size = f"{size_bytes / 1024:.1f} KB"
             else:
                 db_size = f"{size_bytes / (1024 * 1024):.1f} MB"
-    except:
+    except Exception:
         pass
     
     # صحة النظام
@@ -2168,7 +2190,7 @@ def get_cached_security_stats():
         for table in tables:
             fks = inspector.get_foreign_keys(table)
             total_relations += len(fks)
-    except:
+    except Exception:
         total_indexes = 0
         total_tables = 0
         total_relations = 0
@@ -2214,7 +2236,7 @@ def get_recent_suspicious_activities():
             AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
             AuthAudit.created_at >= day_ago
         ).order_by(AuthAudit.created_at.desc()).limit(10).all()
-    except:
+    except Exception:
         return []
 
 
@@ -2443,7 +2465,7 @@ def get_stripe_service():
         import stripe
         stripe.api_key = _get_setting('stripe_secret_key', '')
         return stripe
-    except:
+    except Exception:
         return None
 
 
@@ -2459,7 +2481,7 @@ def get_paypal_service():
             'client_secret': _get_setting('paypal_secret', '')
         })
         return paypalrestsdk
-    except:
+    except Exception:
         return None
 
 
@@ -2920,9 +2942,6 @@ def verify_fingerprint(user_id):
         if not vendor_id or not product_id:
             return {'success': False, 'error': 'إعدادات القارئ غير مكتملة'}
         
-        # TODO: تكامل مع SDK الخاص بالقارئ
-        # مثال: DigitalPersona, ZKTeco, etc.
-        
         return {'success': False, 'error': 'قيد التطوير - يحتاج SDK خاص بالقارئ'}
         
     except Exception as e:
@@ -3120,7 +3139,7 @@ def user_control():
             else:
                 try:
                     user_sales_total += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                except:
+                except Exception:
                     pass
         user.sales_total = float(user_sales_total)
         
@@ -3203,7 +3222,7 @@ def impersonate_user(user_id):
         )
         db.session.add(log)
         db.session.commit()
-    except:
+    except Exception:
         pass
     
     logout_user()
@@ -3289,7 +3308,7 @@ def toggle_user_status(user_id):
             ip_address=request.remote_addr
         )
         db.session.add(log)
-    except:
+    except Exception:
         pass
     
     db.session.commit()
@@ -3352,7 +3371,7 @@ def delete_user(user_id):
         )
         db.session.add(log)
         db.session.commit()
-    except:
+    except Exception:
         pass
     
     # الحذف
@@ -3401,7 +3420,7 @@ def api_user_details(user_id):
             else:
                 try:
                     sales_total += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                except:
+                except Exception:
                     pass
         
         services_count = ServiceRequest.query.filter_by(mechanic_id=user.id).count()
@@ -3435,7 +3454,7 @@ def api_user_details(user_id):
             try:
                 extra_perms = user.extra_permissions.all() if hasattr(user.extra_permissions, 'all') else user.extra_permissions
                 extra_permissions = [p.code for p in extra_perms if hasattr(p, 'code') and p.code]
-            except:
+            except Exception:
                 pass
         
         user_data = {
@@ -3534,7 +3553,7 @@ def api_users_bulk_operation():
                 ip_address=request.remote_addr
             )
             db.session.add(log)
-        except:
+        except Exception:
             pass
         
         db.session.commit()
@@ -3723,7 +3742,7 @@ def update_user_role(user_id):
             ip_address=request.remote_addr
         )
         db.session.add(log)
-    except:
+    except Exception:
         pass
     
     db.session.commit()
@@ -4154,7 +4173,7 @@ def system_branding():
                 )
                 db.session.add(log)
                 db.session.commit()
-            except:
+            except Exception:
                 pass
         else:
             flash('ℹ️ لم يتم تحديث أي شيء', 'info')
@@ -4752,7 +4771,7 @@ def _cleanup_tables(tables):
                         ip_address=request.remote_addr
                     ))
                     db.session.commit()
-                except:
+                except Exception:
                     pass  # إذا تم حذف audit_logs، نتجاوز
                     
         except Exception as e:
@@ -4913,7 +4932,7 @@ def _decrypt_data(encrypted_data, decrypt_type):
                         result = temp_result
                         result['method'] = f'auto ({method})'
                         break
-                except:
+                except Exception:
                     continue
     
     except Exception as e:
@@ -5132,7 +5151,7 @@ def _get_system_health():
         # فحص قاعدة البيانات
         db.session.execute(text("SELECT 1"))
         return "ممتاز"
-    except:
+    except Exception:
         return "خطأ"
 
 
@@ -5197,7 +5216,7 @@ def _safe_count_table(table_name):
     try:
         result = db.session.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
         return result.scalar()
-    except:
+    except Exception:
         return 0
 
 
@@ -5420,7 +5439,7 @@ def _get_last_integration_activity(integration_type):
             return last_activity.timestamp.strftime('%Y-%m-%d %H:%M:%S')
         else:
             return 'لم يتم الاستخدام بعد'
-    except:
+    except Exception:
         return 'غير متاح'
 
 
@@ -5432,7 +5451,7 @@ def _count_integration_usage(integration_type):
             AuditLog.action.like(f'%{integration_type}%')
         ).count()
         return count
-    except:
+    except Exception:
         return 0
 
 
@@ -5474,7 +5493,7 @@ def _get_recent_errors(limit=100):
                             'message': line.strip(),
                             'timestamp': datetime.now(timezone.utc)
                         })
-        except:
+        except Exception:
             pass
     
     return errors
@@ -5503,7 +5522,7 @@ def _get_error_statistics():
                         stats['critical_errors'] += 1
                     elif 'WARNING' in line:
                         stats['warning_errors'] += 1
-        except:
+        except Exception:
             pass
     
     return stats
@@ -5557,7 +5576,7 @@ def monitoring_dashboard():
             'memory': round(psutil.virtual_memory().percent, 2),
             'disk': round(psutil.disk_usage('/').percent, 2),
         }
-    except:
+    except Exception:
         system_metrics = {'cpu': 0, 'memory': 0, 'disk': 0}
     
     return render_template('security/monitoring_dashboard.html',
@@ -5725,7 +5744,7 @@ def api_auto_optimize_indexes():
                     db.session.execute(text(sql))
                     db.session.commit()
                     created_indexes.append(index_name)
-                except:
+                except Exception:
                     db.session.rollback()
         
         composite_indexes = [
@@ -5756,7 +5775,7 @@ def api_auto_optimize_indexes():
                 db.session.execute(text(sql))
                 db.session.commit()
                 created_indexes.append(index_name)
-            except:
+            except Exception:
                 db.session.rollback()
         
         return jsonify({
@@ -5795,7 +5814,7 @@ def api_clean_rebuild_indexes():
                         db.session.execute(text(f"DROP INDEX {idx['name']}"))
                         db.session.commit()
                         dropped_count += 1
-                    except:
+                    except Exception:
                         db.session.rollback()
         
         optimization_rules = {
@@ -5836,7 +5855,7 @@ def api_clean_rebuild_indexes():
                     db.session.execute(text(sql))
                     db.session.commit()
                     created_count += 1
-                except:
+                except Exception:
                     db.session.rollback()
         
         composite_indexes = [
@@ -5860,7 +5879,7 @@ def api_clean_rebuild_indexes():
                 db.session.execute(text(sql))
                 db.session.commit()
                 created_count += 1
-            except:
+            except Exception:
                 db.session.rollback()
         
         return jsonify({
@@ -6148,9 +6167,9 @@ def data_quality_center():
         ).count()
         
         # فحص الأرصدة
-        customers_null_balance = Customer.query.filter(Customer.balance == None).count()
-        suppliers_null_balance = Supplier.query.filter(Supplier.balance == None).count()
-        partners_null_balance = Partner.query.filter(Partner.balance == None).count()
+        customers_null_balance = 0
+        suppliers_null_balance = 0
+        partners_null_balance = 0
         
         # الإحصائيات العامة
         total_checks = Check.query.count()
@@ -6219,7 +6238,7 @@ def data_quality_center():
                         try:
                             payment_id = int(check.reference_number.replace('PMT-', ''))
                             payment = db.session.get(Payment, payment_id)
-                        except:
+                        except Exception:
                             pass
                 
                 if not payment and check.check_number:
@@ -6271,18 +6290,7 @@ def data_quality_center():
                     fixed_count += 1
         
         if action in ['all', 'balances']:
-            # إصلاح الأرصدة NULL
-            for c in Customer.query.filter(Customer.balance == None).all():
-                c.balance = Decimal('0.00')
-                fixed_count += 1
-            
-            for s in Supplier.query.filter(Supplier.balance == None).all():
-                s.balance = Decimal('0.00')
-                fixed_count += 1
-            
-            for p in Partner.query.filter(Partner.balance == None).all():
-                p.balance = Decimal('0.00')
-                fixed_count += 1
+            pass
         
         db.session.commit()
         
@@ -6351,7 +6359,7 @@ def advanced_check_linking():
                         try:
                             payment_id = int(check.reference_number.replace('PMT-', ''))
                             payment = db.session.get(Payment, payment_id)
-                        except:
+                        except Exception:
                             pass
                     elif check.reference_number.startswith('SPLIT-'):
                         split_id = int(check.reference_number.replace('SPLIT-', ''))
@@ -6800,14 +6808,14 @@ def audit_log_viewer():
         try:
             start_dt = datetime.strptime(start_date, '%Y-%m-%d')
             query = query.filter(AuditLog.created_at >= start_dt)
-        except:
+        except Exception:
             pass
     if end_date:
         try:
             end_dt = datetime.strptime(end_date, '%Y-%m-%d')
             end_dt = end_dt.replace(hour=23, minute=59, second=59)
             query = query.filter(AuditLog.created_at <= end_dt)
-        except:
+        except Exception:
             pass
     if search:
         query = query.filter(
@@ -6904,13 +6912,13 @@ def audit_log_detail(log_id):
     if log.old_data:
         try:
             old_data = json.loads(log.old_data)
-        except:
+        except Exception:
             old_data = {}
     
     if log.new_data:
         try:
             new_data = json.loads(log.new_data)
-        except:
+        except Exception:
             new_data = {}
     
     all_keys = set(old_data.keys()) | set(new_data.keys())

@@ -147,7 +147,7 @@
     {% set stats = [
       ('إجمالي مدين (مستحق للشريك)', total_debit, 'text-danger', 'fa-arrow-up'),
       ('إجمالي دائن (دفعات للشريك)', total_credit, 'text-success', 'fa-arrow-down'),
-      ('الرصيد', balance, balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '', 'fa-balance-scale')
+      ('الرصيد', balance, balance > 0 and 'text-success' or balance < 0 and 'text-danger' or '', 'fa-balance-scale')
     ] %}
     <div class="col-12 col-md-4">
       <div class="card shadow-sm h-100 border-success">
@@ -195,7 +195,7 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <div class="text-muted small">🎯 الرصيد النهائي</div>
-              <div class="fs-4 fw-bold {% if balance_data and balance_data.success %}{{ balance_data.balance.amount > 0 and 'text-success' or balance_data.balance.amount < 0 and 'text-danger' or 'text-secondary' }}{% else %}{{ balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '' }}{% endif %}">
+              <div class="fs-4 fw-bold {% if balance_data and balance_data.success %}{{ balance_data.balance.amount > 0 and 'text-success' or balance_data.balance.amount < 0 and 'text-danger' or 'text-secondary' }}{% else %}{{ balance > 0 and 'text-success' or balance < 0 and 'text-danger' or '' }}{% endif %}">
                 {% if balance_data and balance_data.success %}
                   {{ "%.2f"|format(balance_data.balance.amount|abs) }} ₪
                 {% else %}
@@ -275,18 +275,15 @@
                 {% if (e.type == 'PAYMENT_IN' or e.type == 'PAYMENT_OUT' or e.type == 'CHECK_BOUNCED' or e.type == 'CHECK_PENDING') and e.get('payment_details') %}
                   {% set pd = e.payment_details %}
                   
-                  {# Badge حالة الشيك #}
                   {% if e.type == 'CHECK_BOUNCED' %}
                     <span class="badge bg-danger"><i class="fas fa-ban"></i> شيك مرفوض</span>
                   {% elif e.type == 'CHECK_PENDING' %}
                     <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> شيك معلق</span>
                   {% endif %}
                   
-                  {# البيان الأساسي #}
                   <div class="small">
                     {{ e.statement }}
                     
-                    {# تفاصيل الشيك #}
                     {% if pd.method_raw == 'cheque' %}
                       {% if pd.check_number %}<br>رقم: <strong>{{ pd.check_number }}</strong>{% endif %}
                       {% if pd.check_bank %} - {{ pd.check_bank }}{% endif %}
@@ -295,11 +292,56 @@
                   </div>
                 {% else %}
                   {{ e.statement or '-' }}
+                  {% if e.get('has_details') and e.get('details') %}
+                    <button class="btn btn-sm btn-link p-0" type="button" data-toggle="collapse" data-target="#details-{{ loop.index }}" style="font-size: 0.75rem;">
+                      <i class="fas fa-chevron-down"></i> التفاصيل
+                    </button>
+                    <div class="collapse mt-2" id="details-{{ loop.index }}">
+                      <table class="table table-sm table-bordered mb-0" style="font-size: 0.7rem;">
+                        <thead class="bg-light">
+                          <tr>
+                            <th>النوع</th>
+                            <th>الاسم</th>
+                            <th>الكمية</th>
+                            <th>السعر</th>
+                            <th>المجموع</th>
+                            <th>نسبة الشريك</th>
+                            <th>نصيب الشريك</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for item in e.details %}
+                          <tr>
+                            <td>{{ item.get('type', 'قطعة') }}</td>
+                            <td>{{ item.get('name') or item.get('product', '—') }}</td>
+                            <td>{{ item.get('qty', 0) }}</td>
+                            <td>{{ "%.2f"|format(item.get('price', 0)) }} ₪</td>
+                            <td>{{ "%.2f"|format(item.get('total', 0)) }} ₪</td>
+                            <td>
+                              {% if item.get('type') == 'خدمة' %}
+                                <span class="text-muted">—</span>
+                              {% else %}
+                                <strong class="text-primary">{{ "%.2f"|format(item.get('share_pct', 0)) }}%</strong>
+                              {% endif %}
+                            </td>
+                            <td>
+                              {% if item.get('type') == 'خدمة' %}
+                                <span class="text-muted">—</span>
+                              {% else %}
+                                <strong class="text-success">{{ "%.2f"|format(item.get('share_amount', 0)) }} ₪</strong>
+                              {% endif %}
+                            </td>
+                          </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                  {% endif %}
                 {% endif %}
               </td>
               <td class="text-end">{{ e.debit|format_currency }}</td>
               <td class="text-end">{{ e.credit|format_currency }}</td>
-              <td class="text-end fw-bold {% if e.balance > 0 %}text-danger{% elif e.balance < 0 %}text-success{% endif %}">
+              <td class="text-end fw-bold {% if e.balance > 0 %}text-success{% elif e.balance < 0 %}text-danger{% endif %}">
                 {{ e.balance|format_currency }}
               </td>
             </tr>
@@ -314,7 +356,7 @@
               <th colspan="4" class="text-end">الإجمالي</th>
               <th class="text-end">{{ total_debit|format_currency }}</th>
               <th class="text-end">{{ total_credit|format_currency }}</th>
-              <th class="text-end {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">
+              <th class="text-end {% if balance > 0 %}text-success{% elif balance < 0 %}text-danger{% endif %}">
                 {{ balance|format_currency }}
               </th>
             </tr>
@@ -402,6 +444,62 @@
       </div>
     </div>
   </div>
+
+  {% if inventory_items %}
+  <div class="card shadow-sm mt-4">
+    <div class="card-header bg-warning text-dark">
+      <h5 class="mb-0"><i class="fas fa-boxes ml-2"></i>مخزون الشريك (القطع غير المباعة)</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered table-striped align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>اسم المنتج</th>
+              <th>SKU</th>
+              <th>المستودع</th>
+              <th class="text-center">الكمية</th>
+              <th class="text-end">سعر الشراء</th>
+              <th class="text-end">قيمة المنتج</th>
+              <th class="text-center">نسبة الشريك</th>
+              <th class="text-end">نصيب الشريك</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_inventory_value = 0 %}
+            {% set total_partner_share = 0 %}
+            {% for item in inventory_items %}
+              {% set total_inventory_value = total_inventory_value + item.product_value %}
+              {% set total_partner_share = total_partner_share + item.partner_share_value %}
+              <tr>
+                <td><strong>{{ item.product_name }}</strong></td>
+                <td class="text-muted">{{ item.sku }}</td>
+                <td>{{ item.warehouse_name }}</td>
+                <td class="text-center"><span class="badge bg-info">{{ item.quantity }}</span></td>
+                <td class="text-end">{{ "%.2f"|format(item.purchase_price) }} ₪</td>
+                <td class="text-end">{{ "%.2f"|format(item.product_value) }} ₪</td>
+                <td class="text-center"><strong class="text-primary">{{ "%.2f"|format(item.share_pct) }}%</strong></td>
+                <td class="text-end"><strong class="text-success">{{ "%.2f"|format(item.partner_share_value) }} ₪</strong></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <th colspan="5" class="text-end">الإجمالي</th>
+              <th class="text-end">{{ "%.2f"|format(total_inventory_value) }} ₪</th>
+              <th></th>
+              <th class="text-end"><strong class="text-success">{{ "%.2f"|format(total_partner_share) }} ₪</strong></th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="alert alert-info mt-3 mb-0">
+        <i class="fas fa-info-circle ml-2"></i>
+        <strong>ملاحظة:</strong> هذا الجدول يعرض القطع الموجودة في المخزون (غير المباعة) مع نسبة مشاركة الشريك فيها.
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
 </div>
 

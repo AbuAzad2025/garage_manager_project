@@ -494,7 +494,7 @@ def calculate_vat(amount, country='palestine'):
                 rate = 0
             else:
                 rate = get_vat_rate()
-        except:
+        except Exception:
             # Fallback للقيمة المحفوظة
             rate = FINANCE_KNOWLEDGE['tax_palestine']['vat_rate']
     elif country.lower() == 'israel':

@@ -880,13 +880,12 @@ def top_products():
 
 @reports_bp.route("/suppliers", methods=["GET"], endpoint="suppliers_report")
 def suppliers_report():
-    # استخدام Supplier.balance المحدّث تلقائياً
     q = Supplier.query.order_by(Supplier.name.asc()).all()
     
     data = []
     total_balance = 0
     for supplier in q:
-        balance = float(supplier.balance or 0)
+        balance = float(supplier.balance_in_ils or 0)
         data.append(
             {
                 "id": supplier.id,
@@ -913,28 +912,21 @@ def partners_report():
     
     data = []
     total_balance = 0
-    total_paid = 0
     for partner in q:
-        balance = float(partner.balance or 0)
+        balance = float(partner.balance_in_ils or 0)
         share = float(partner.share_percentage or 0)
-        paid = 0
         data.append(
             {
                 "id": partner.id,
                 "name": partner.name,
                 "balance": balance,
-                "total_paid": paid,
-                "net_balance": balance - paid,
                 "share_percentage": share,
             }
         )
         total_balance += balance
-        total_paid += paid
     
     totals = {
         "balance": total_balance,
-        "total_paid": total_paid,
-        "net_balance": total_balance - total_paid,
     }
     return render_template(
         "reports/partners.html",
@@ -1127,7 +1119,7 @@ def sales_advanced_report():
     if customer_id:
         try:
             query = query.filter(Sale.customer_id == int(customer_id))
-        except:
+        except Exception:
             pass
     
     if status_filter:
@@ -1564,7 +1556,7 @@ def customer_detail_report(customer_id):
         if s.currency and s.currency != "ILS":
             try:
                 amt = convert_amount(amt, s.currency, "ILS", s.sale_date)
-            except:
+            except Exception:
                 pass
         total_sales += amt
     
@@ -1574,7 +1566,7 @@ def customer_detail_report(customer_id):
         if i.currency and i.currency != "ILS":
             try:
                 amt = convert_amount(amt, i.currency, "ILS", i.invoice_date)
-            except:
+            except Exception:
                 pass
         total_invoices += amt
     
@@ -1584,7 +1576,7 @@ def customer_detail_report(customer_id):
         if s.currency and s.currency != "ILS":
             try:
                 amt = convert_amount(amt, s.currency, "ILS", s.received_at)
-            except:
+            except Exception:
                 pass
         total_services += amt
     
@@ -1594,7 +1586,7 @@ def customer_detail_report(customer_id):
         if p.currency and p.currency != "ILS":
             try:
                 amt = convert_amount(amt, p.currency, "ILS", p.payment_date)
-            except:
+            except Exception:
                 pass
         total_payments += amt
     
@@ -1604,7 +1596,7 @@ def customer_detail_report(customer_id):
         if hasattr(p, 'currency') and p.currency and p.currency != "ILS":
             try:
                 amt = convert_amount(amt, p.currency, "ILS", p.created_at)
-            except:
+            except Exception:
                 pass
         total_preorders += amt
 
@@ -1756,37 +1748,43 @@ def supplier_detail_report(supplier_id):
     except Exception as e:
         balance_data = {"success": False, "error": str(e)}
     
-    # حساب الإجماليات
+    # حساب الإجماليات - استخدام التسوية الذكية ALWAYS
     from decimal import Decimal
     
     if balance_data and balance_data.get("success"):
+        # ✅ استخدام بيانات التسوية الذكية (مع تحويل العملات)
         total_exchange_in = Decimal(str(balance_data.get("rights", {}).get("exchange_items", {}).get("total_value_ils", 0)))
         total_payments_out = Decimal(str(balance_data.get("payments", {}).get("total_paid", 0)))
         total_payments_in = Decimal(str(balance_data.get("payments", {}).get("total_received", 0)))
         total_obligations = Decimal(str(balance_data.get("obligations", {}).get("total", 0)))
+        total_sales = Decimal(str(balance_data.get("obligations", {}).get("sales_to_supplier", {}).get("total_ils", 0)))
+        total_services = Decimal(str(balance_data.get("obligations", {}).get("services_to_supplier", {}).get("total_ils", 0)))
+        total_preorders = Decimal(str(balance_data.get("obligations", {}).get("preorders_to_supplier", {}).get("total_ils", 0) if isinstance(balance_data.get("obligations", {}).get("preorders_to_supplier"), dict) else 0))
+        total_expenses = Decimal(str(balance_data.get("expenses", {}).get("total_ils", 0)))
+        total_exchange_out = Decimal(str(balance_data.get("payments", {}).get("total_returns", 0)))
     else:
+        # ⚠️ Fallback: حساب يدوي بدون تحويل عملات (غير دقيق)
         total_payments_out = sum(Decimal(str(p.total_amount or 0)) for p in payments_out)
         total_payments_in = sum(Decimal(str(p.total_amount or 0)) for p in payments_in)
         total_exchange_in = sum(Decimal(str((tx.quantity or 0) * (tx.unit_cost or 0))) for tx in exchange_transactions if tx.direction in ['IN', 'PURCHASE', 'CONSIGN_IN'])
+        total_exchange_out = sum(Decimal(str((tx.quantity or 0) * (tx.unit_cost or 0))) for tx in exchange_transactions if tx.direction in ['OUT', 'RETURN', 'CONSIGN_OUT'])
+        total_sales = sum(Decimal(str(s.total_amount or 0)) for s in sales)
+        total_services = sum(Decimal(str(s.total_amount or 0)) for s in services)
+        total_preorders = sum(Decimal(str(p.total_amount or 0)) for p in preorders)
         total_obligations = Decimal('0.00')
-    
-    total_exchange_out = sum(Decimal(str((tx.quantity or 0) * (tx.unit_cost or 0))) for tx in exchange_transactions if tx.direction in ['OUT', 'RETURN', 'CONSIGN_OUT'])
-    total_sales = sum(Decimal(str(s.total_amount or 0)) for s in sales)
-    total_services = sum(Decimal(str(s.total_amount or 0)) for s in services)
-    total_preorders = sum(Decimal(str(p.total_amount or 0)) for p in preorders)
-    
-    total_expenses = Decimal('0.00')
-    for e in expenses:
-        amt = Decimal(str(e.amount or 0))
-        if e.currency and e.currency != "ILS":
-            try:
-                amt = convert_amount(amt, e.currency, "ILS", e.date)
-            except:
-                pass
-        total_expenses += amt
+        
+        total_expenses = Decimal('0.00')
+        for e in expenses:
+            amt = Decimal(str(e.amount or 0))
+            if e.currency and e.currency != "ILS":
+                try:
+                    amt = convert_amount(amt, e.currency, "ILS", e.date)
+                except Exception:
+                    pass
+            total_expenses += amt
 
-    # الرصيد الحالي
-    current_balance = float(supplier.balance or 0)
+    # الرصيد الحالي - موحد من التسويات الذكية
+    current_balance = balance_data.get('balance', {}).get('amount', 0) if balance_data.get('success') else float(supplier.balance_in_ils)
 
     return render_template(
         "reports/supplier_detail.html",
@@ -1963,12 +1961,12 @@ def partner_detail_report(partner_id):
         if e.currency and e.currency != "ILS":
             try:
                 amt = convert_amount(amt, e.currency, "ILS", e.date)
-            except:
+            except Exception:
                 pass
         total_expenses += amt
 
-    # الرصيد الحالي
-    current_balance = float(partner.balance or 0)
+    # الرصيد الحالي - موحد من التسويات الذكية
+    current_balance = balance_data.get('balance', {}).get('amount', 0) if balance_data.get('success') else float(partner.balance_in_ils)
 
     # حساب حصة الشريك
     partner_share = (float(partner.share_percentage or 0) / 100) * (float(total_preorders) + float(total_service_parts)) if partner.share_percentage else 0
@@ -1984,7 +1982,7 @@ def partner_detail_report(partner_id):
         service_parts=service_parts,
         expenses=expenses,
         inventory=inventory,
-        balance_data=balance_data,  # ✅ إضافة البيانات الذكية
+        balance_data=balance_data,
         total_payments_out=float(total_payments_out),
         total_payments_in=float(total_payments_in),
         total_sales=float(total_sales),
@@ -1993,8 +1991,8 @@ def partner_detail_report(partner_id):
         total_service_parts=float(total_service_parts),
         total_expenses=float(total_expenses),
         total_inventory=float(total_inventory),
-        total_sales_share=float(total_sales_share),  # ✅ نصيب المبيعات
-        total_obligations=float(total_obligations),   # ✅ الالتزامات
+        total_sales_share=float(total_sales_share),
+        total_obligations=float(total_obligations),
         partner_share=partner_share,
         current_balance=current_balance,
         start_date=request.args.get("start", ""),

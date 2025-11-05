@@ -302,7 +302,7 @@ def dashboard():
         else:
             try:
                 total_revenue += convert_amount(amt, s.currency, "ILS", s.sale_date)
-            except:
+            except Exception:
                 pass
     total_revenue = float(total_revenue)
     
@@ -320,7 +320,7 @@ def dashboard():
             else:
                 try:
                     spent += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                except:
+                except Exception:
                     pass
         if spent > 0:
             top_customers_data.append((cust.name, float(spent)))
@@ -344,7 +344,7 @@ def dashboard():
             else:
                 try:
                     revenue_prod += convert_amount(line_amt, sale.currency, "ILS", sale.sale_date)
-                except:
+                except Exception:
                     pass
         if sold > 0:
             top_products_data.append((prod.name, sold, float(revenue_prod)))
@@ -368,7 +368,7 @@ def dashboard():
         else:
             try:
                 monthly_revenue[ym] += convert_amount(amt, s.currency, "ILS", s.sale_date)
-            except:
+            except Exception:
                 pass
     
     months, counts, revenue = [], [], []
@@ -456,7 +456,7 @@ def list_sales():
             all_sales_query = all_sales_query.filter(Sale.sale_date >= datetime.fromisoformat(df))
         if dt:
             all_sales_query = all_sales_query.filter(Sale.sale_date <= datetime.fromisoformat(dt))
-    except:
+    except Exception:
         pass
     
     all_sales = all_sales_query.all()

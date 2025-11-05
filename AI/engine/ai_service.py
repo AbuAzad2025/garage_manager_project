@@ -82,13 +82,13 @@ def gather_system_context():
         try:
             result = db.session.execute(text("SELECT pg_database_size(current_database())")).scalar()
             db_size = f"{result / (1024**2):.2f} MB"
-        except:
+        except Exception:
             try:
                 # SQLite
                 db_path = 'instance/app.db'
                 if os.path.exists(db_path):
                     db_size = f"{os.path.getsize(db_path) / (1024**2):.2f} MB"
-            except:
+            except Exception:
                 pass
         
         # Counts
@@ -105,7 +105,7 @@ def gather_system_context():
                 context_fx_rate = f"{float(latest_fx.rate):.2f} (تاريخ: {latest_fx.created_at.strftime('%Y-%m-%d')})"
             else:
                 context_fx_rate = 'غير متوفر'
-        except:
+        except Exception:
             context_fx_rate = 'غير متوفر'
         
         context = {
@@ -210,7 +210,7 @@ def get_system_navigation_context():
                 'modules': system_map['modules'],
                 'categories': {k: len(v) for k, v in system_map['routes']['by_category'].items()}
             }
-    except:
+    except Exception:
         pass
     return {}
 
@@ -226,7 +226,7 @@ def get_data_awareness_context():
                 'functional_modules': list(schema['functional_mapping'].keys()),
                 'available_models': list(schema['models'].keys())
             }
-    except:
+    except Exception:
         pass
     return {}
 
@@ -1093,7 +1093,7 @@ def build_system_message(system_context):
 - حدد الرابط الصحيح
 - أعط الرابط الكامل للمستخدم
 """
-    except:
+    except Exception:
         pass
     
     # إضافة الوعي البنيوي
@@ -1137,7 +1137,7 @@ def build_system_message(system_context):
 5. ارفض فقط إذا كانت الثقة < 20%
 6. استخدم المنطق والاستنتاج من البيانات المتاحة
 """
-    except:
+    except Exception:
         pass
     
     system_msg += """
@@ -1380,7 +1380,7 @@ def search_database_for_query(query):
                         vat_info = calculate_vat(amount, country)
                         results['vat_calculation'] = vat_info
                         results['vat_calculation']['country'] = country
-                except:
+                except Exception:
                     pass
         
         if intent.get('currency') or 'صرف' in query or 'سعر' in query:
@@ -1398,7 +1398,7 @@ def search_database_for_query(query):
                         'rate': float(fx.rate),
                         'date': fx.created_at.strftime('%Y-%m-%d') if fx.created_at else 'N/A'
                     } for fx in recent_fx]
-            except:
+            except Exception:
                 pass
         
         # البحث عن اسم محدد في السؤال (أولوية)
@@ -1423,7 +1423,7 @@ def search_database_for_query(query):
                         }
                         found_name = word
                         break
-                except:
+                except Exception:
                     pass
         
         # تحليل اليوم (Today Analysis)
@@ -1575,7 +1575,7 @@ def search_database_for_query(query):
                         'name': p.name,
                         'balance': getattr(p, 'balance', 0)
                     } for p in partners[:10]]
-            except:
+            except Exception:
                 pass
         
         # 8. التسويات (Settlements)
@@ -1585,7 +1585,7 @@ def search_database_for_query(query):
                 supplier_settlements = SupplierSettlement.query.all()
                 results['partner_settlements_count'] = len(partner_settlements)
                 results['supplier_settlements_count'] = len(supplier_settlements)
-            except:
+            except Exception:
                 pass
         
         # 9. الحسابات (Accounts)
@@ -1593,7 +1593,7 @@ def search_database_for_query(query):
             try:
                 accounts = Account.query.all()
                 results['accounts_count'] = len(accounts)
-            except:
+            except Exception:
                 pass
         
         # 10. الأدوار والصلاحيات (Roles & Permissions)
@@ -1622,7 +1622,7 @@ def search_database_for_query(query):
             try:
                 preorders = PreOrder.query.all()
                 results['preorders_count'] = len(preorders)
-            except:
+            except Exception:
                 pass
         
         # 13. السلة (Cart)
@@ -1630,7 +1630,7 @@ def search_database_for_query(query):
             try:
                 carts = OnlineCart.query.all()
                 results['carts_count'] = len(carts)
-            except:
+            except Exception:
                 pass
         
         # 14. الصيانة (ServiceRequest) - شامل
@@ -1902,7 +1902,7 @@ def log_local_mode_usage():
         with open(log_file, 'w', encoding='utf-8') as f:
             json.dump(logs, f, ensure_ascii=False, indent=2)
     
-    except:
+    except Exception:
         pass
 
 def ai_chat_response(message, search_results=None, session_id='default'):
@@ -1961,7 +1961,7 @@ def ai_chat_response(message, search_results=None, session_id='default'):
                             try:
                                 value_str = json.dumps(value, ensure_ascii=False, indent=2)
                                 search_summary += f"\n📌 {key}:\n{value_str}\n"
-                            except:
+                            except Exception:
                                 search_summary += f"\n📌 {key}: {str(value)}\n"
                     
                     enhanced_message = message + search_summary
@@ -2292,18 +2292,18 @@ def local_intelligent_response(message):
     # استيراد جميع المكونات الذكية
     try:
         from AI.engine.ai_knowledge import get_local_faq_responses, get_local_quick_rules
-    except:
+    except Exception:
         get_local_faq_responses = lambda: {}
         get_local_quick_rules = lambda: {}
     
     try:
         from AI.engine.ai_auto_discovery import auto_discover_if_needed, find_route_by_keyword
-    except:
+    except Exception:
         find_route_by_keyword = lambda x: None
     
     try:
         from AI.engine.ai_data_awareness import auto_build_if_needed, find_model_by_keyword
-    except:
+    except Exception:
         find_model_by_keyword = lambda x: None
     
     try:
@@ -2311,7 +2311,7 @@ def local_intelligent_response(message):
             is_sensitive_query, get_security_response, sanitize_response,
             is_owner, is_manager, get_user_role_name, log_security_event
         )
-    except:
+    except Exception:
         is_sensitive_query = lambda x: {'is_sensitive': False, 'is_owner_only': False}
         get_security_response = lambda x, y: None
         sanitize_response = lambda x: x
@@ -2325,7 +2325,7 @@ def local_intelligent_response(message):
             get_deep_system_knowledge, find_workflow_by_query,
             explain_relationship, explain_field, get_all_workflows_list
         )
-    except:
+    except Exception:
         get_deep_system_knowledge = lambda x: None
         find_workflow_by_query = lambda x: None
         explain_relationship = lambda x: None
@@ -2334,14 +2334,14 @@ def local_intelligent_response(message):
     
     try:
         from AI.engine.ai_user_guide_knowledge import search_user_guide, get_all_faqs, USER_GUIDE_KNOWLEDGE
-    except:
+    except Exception:
         search_user_guide = lambda x: None
         get_all_faqs = lambda: []
         USER_GUIDE_KNOWLEDGE = {}
     
     try:
         from AI.engine.ai_business_knowledge import search_business_knowledge, ACCOUNTING_KNOWLEDGE, TAX_KNOWLEDGE, CUSTOMS_KNOWLEDGE
-    except:
+    except Exception:
         search_business_knowledge = lambda x: {'results': []}
         ACCOUNTING_KNOWLEDGE = {}
         TAX_KNOWLEDGE = {}
@@ -2352,7 +2352,7 @@ def local_intelligent_response(message):
             get_settlement_explanation, get_question_suggestions, get_smart_promotion,
             get_comparison_response, get_pricing_hint, ALL_SYSTEM_OPERATIONS
         )
-    except:
+    except Exception:
         get_settlement_explanation = lambda x: None
         get_question_suggestions = lambda x: []
         get_smart_promotion = lambda x: ""
@@ -2366,7 +2366,7 @@ def local_intelligent_response(message):
             analyze_business_risks, smart_recommendations, feel_and_respond,
             think_and_deduce, proactive_alerts, innovate_solution
         )
-    except:
+    except Exception:
         analyze_customer_health = lambda x=None: {}
         analyze_inventory_intelligence = lambda: {}
         analyze_sales_performance = lambda x=30: {}
@@ -2383,7 +2383,7 @@ def local_intelligent_response(message):
         from AI.engine.ai_diagnostic_engine import smart_diagnose, diagnose_heavy_equipment, check_part_in_inventory
         from AI.engine.ai_predictive_analytics import predict_needed_parts, analyze_recurring_failures
         from AI.engine.ai_ecu_knowledge import explain_dtc_code, ecu_connection_guide, ECU_KNOWLEDGE
-    except:
+    except Exception:
         search_part_by_name = lambda x: None
         search_part_by_number = lambda x: None
         explain_part_function = lambda x: "لم أجد معلومات عن هذه القطعة"
@@ -2415,7 +2415,7 @@ def local_intelligent_response(message):
             engine = get_nlp_engine()
             result = engine.process(message)
             return engine.explain_understanding(result)
-        except:
+        except Exception:
             pass
     
     # 🔒 فحص أمني أولاً - حماية المعلومات الحساسة
@@ -2477,7 +2477,7 @@ def local_intelligent_response(message):
 ✨ **نظام Garage Manager - الأقوى في فلسطين!** 🇵🇸"""
             
             return response
-        except:
+        except Exception:
             return """👋 **أهلاً وسهلاً!**
 
 🤖 أنا المساعد الذكي - اسألني عن أي شيء! 😊"""
@@ -2522,7 +2522,7 @@ def local_intelligent_response(message):
 📦 **الوحدة:** {match.get('blueprint', 'N/A')}
 
 ✅ انقر على الرابط أو ابحث عنها في القائمة الجانبية!"""
-        except:
+        except Exception:
             pass
     
     # 💼 البحث في المعرفة المتخصصة (محاسبة، ضرائب، جمارك) أولاً
@@ -2584,7 +2584,7 @@ def local_intelligent_response(message):
 مثال: "ما هي خطوات الاستيراد؟" أو "كيف تحسب الرسوم الجمركية؟"
 """
                 return sanitize_response(response)
-    except:
+    except Exception:
         pass
     
     # 📚 البحث في دليل المستخدم - معرفة شاملة
@@ -2602,7 +2602,7 @@ def local_intelligent_response(message):
 
 🔗 **الرابط:** {best_result.get('route', 'N/A')}"""
                 return sanitize_response(response)
-    except:
+    except Exception:
         pass
     
     # 🧠 الذكاء المتقدم - workflows وشرح عميق
@@ -2612,7 +2612,7 @@ def local_intelligent_response(message):
             deep_knowledge = get_deep_system_knowledge(message)
             if deep_knowledge:
                 return sanitize_response(deep_knowledge)
-        except:
+        except Exception:
             pass
         
         # شرح الحقول والنماذج
@@ -2638,7 +2638,7 @@ def local_intelligent_response(message):
                 response += "\n✅ هذا هو شرح مبسط!"
                 
                 return sanitize_response(response)
-        except:
+        except Exception:
             pass
     
     # قائمة العمليات والمميزات - مع ترويج ذكي
@@ -2668,7 +2668,7 @@ def local_intelligent_response(message):
 💡 اسألني بالتفصيل عن أي شيء!"""
             
             return sanitize_response(response)
-        except:
+        except Exception:
             pass
     
     # 1. فحص FAQ أولاً
@@ -2723,7 +2723,7 @@ def local_intelligent_response(message):
                     
                     response += "\n💡 **توصيتي:** اعتنِ بهؤلاء العملاء - هم عمود المشروع!"
                     return sanitize_response(response)
-            except:
+            except Exception:
                 pass
         
         # افحص المخزون
@@ -2752,7 +2752,7 @@ def local_intelligent_response(message):
                 
                 response += "\n✅ هذا تحليل ذكي - أدركت المشكلة وأوصيت بالحل!"
                 return sanitize_response(response)
-            except:
+            except Exception:
                 pass
     
     # 2. فحص القواعد السريعة
@@ -2774,7 +2774,7 @@ def local_intelligent_response(message):
                         count = Supplier.query.count()
                     
                     return f"💡 **رد محلي فوري:**\n\n{rule['response_template'].format(count=count)}"
-                except:
+                except Exception:
                     pass
     
     # 💼 أسئلة متخصصة - محاسبة وضرائب وجمارك
@@ -2971,7 +2971,7 @@ AR = إجمالي الفواتير - المدفوعات المحصلة
 ✅ **حساب محلي دقيق 100%** - بدون اتصال إنترنت!
 
 💡 **لاحظ:** النظام يحسب VAT تلقائياً في جميع الفواتير!"""
-                except:
+                except Exception:
                     pass
         
         # حساب ضريبة الدخل
@@ -2994,7 +2994,7 @@ AR = إجمالي الفواتير - المدفوعات المحصلة
 📈 **النسبة الفعلية:** {(tax/income*100):.2f}%
 
 ✅ حساب حسب الشرائح التصاعدية الفلسطينية!"""
-                except:
+                except Exception:
                     pass
     
     # 4. معلومات عن الوحدات
@@ -3131,7 +3131,7 @@ AR = إجمالي الفواتير - المدفوعات المحصلة
             explanation = explain_part_function(message)
             if 'لم أجد' not in explanation:
                 return sanitize_response(explanation)
-        except:
+        except Exception:
             pass
     
     # التشخيص - عطل أو مشكلة
@@ -3143,7 +3143,7 @@ AR = إجمالي الفواتير - المدفوعات المحصلة
             else:
                 # أسئلة توضيحية
                 return sanitize_response(diagnosis_result['message'] + '\n\n' + '\n'.join(diagnosis_result.get('questions', [])))
-        except:
+        except Exception:
             pass
     
     # كود عطل DTC
@@ -3183,7 +3183,7 @@ AR = إجمالي الفواتير - المدفوعات المحصلة
 ✅ هذا تنبؤ ذكي بناءً على بيانات حقيقية!"""
                 
                 return sanitize_response(response)
-        except:
+        except Exception:
             pass
     
     # تحليل الأعطال المتكررة
@@ -3191,7 +3191,7 @@ AR = إجمالي الفواتير - المدفوعات المحصلة
         try:
             analysis = analyze_recurring_failures(180)
             return sanitize_response(analysis)
-        except:
+        except Exception:
             pass
     
     # شرح نظام معين
@@ -3444,7 +3444,7 @@ def _ai_chat_original(message, session_id='default'):
         try:
             generate_self_audit_report()
             _last_audit_time = current_time
-        except:
+        except Exception:
             pass
     
     return response

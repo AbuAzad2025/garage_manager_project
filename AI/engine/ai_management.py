@@ -220,7 +220,7 @@ def list_configured_apis() -> list:
             for name, data in keys.items()
         ]
         
-    except:
+    except Exception:
         return []
 
 
@@ -302,7 +302,7 @@ def get_training_job_status(job_id: str) -> dict:
         
         return None
         
-    except:
+    except Exception:
         return None
 
 
@@ -318,7 +318,7 @@ def list_training_jobs(limit: int = 10) -> list:
         # آخر N jobs
         return jobs[-limit:] if len(jobs) > limit else jobs
         
-    except:
+    except Exception:
         return []
 
 
@@ -382,7 +382,7 @@ def _get_interactions_stats() -> dict:
             'avg_confidence': round(avg_confidence, 1)
         }
         
-    except:
+    except Exception:
         return {
             'total': 0,
             'today': 0,
@@ -417,7 +417,7 @@ def _get_training_stats() -> dict:
             'failed': failed
         }
         
-    except:
+    except Exception:
         return {
             'total_jobs': 0,
             'completed': 0,
@@ -446,7 +446,7 @@ def _get_system_health() -> dict:
             'files_total': len(essential_files)
         }
         
-    except:
+    except Exception:
         return {
             'status': 'unknown',
             'score': 0,
@@ -465,7 +465,7 @@ def _get_performance_stats() -> dict:
             'memory_usage': 'normal'
         }
         
-    except:
+    except Exception:
         return {
             'avg_response_time': 0,
             'cache_hit_rate': 0,
@@ -530,7 +530,7 @@ def format_timestamp(iso_timestamp: str) -> str:
     try:
         dt = datetime.fromisoformat(iso_timestamp.replace('Z', '+00:00'))
         return dt.strftime('%Y-%m-%d %H:%M:%S')
-    except:
+    except Exception:
         return iso_timestamp
 
 
@@ -553,6 +553,6 @@ def calculate_eta(progress: float, started_at: str) -> str:
         else:
             return f'{int(remaining / 3600)} ساعة'
         
-    except:
+    except Exception:
         return 'غير معروف'
 

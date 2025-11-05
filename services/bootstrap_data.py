@@ -114,7 +114,7 @@ def seed_core_expense_types(db):
             db.session.commit()
             if added > 0:
                 print(f"✅ Bootstrap: Added {added} new expense types (skipped {skipped} existing)")
-        except:
+        except Exception:
             db.session.rollback()
     except Exception as e:
         from models import ExpenseType
@@ -134,14 +134,14 @@ def seed_core_expense_types(db):
                         is_active=True
                     )
                     db.session.add(new_type)
-            except:
+            except Exception:
                 pass
         try:
             db.session.commit()
-        except:
+        except Exception:
             try:
                 db.session.rollback()
-            except:
+            except Exception:
                 pass
 
 

@@ -20,7 +20,7 @@ class BookReader:
             try:
                 with open(index_file, 'r', encoding='utf-8') as f:
                     self.book_index = json.load(f)
-            except:
+            except Exception:
                 pass
     
     def _save_index(self):
@@ -245,7 +245,7 @@ class BookReader:
                             'matches_count': len(matching_lines),
                             'sample_matches': matching_lines[:5]
                         })
-                except:
+                except Exception:
                     pass
         
         return results

@@ -2,15 +2,47 @@
 {% block title %}{{ form.name.data and 'تعديل' or 'إضافة' }} مورد{% endblock %}
 
 {% block content %}
+<style>
+.card-header-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+.section-card {
+  border: none;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 15px !important;
+  transition: all 0.3s ease;
+}
+.section-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+.form-control-modern {
+  border-radius: 10px;
+  border: 2px solid #e0e6ed;
+  transition: all 0.3s ease;
+}
+.form-control-modern:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+.input-group-modern .input-group-text {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px 0 0 10px;
+}
+</style>
+
 <div class="container py-5">
   <div class="row justify-content-center">
-    <div class="col-md-7">
-      <div class="card shadow-sm rounded-4">
-        <div class="card-header bg-info text-white">
+    <div class="col-md-9">
+      <div class="card shadow-lg rounded-4 border-0">
+        <div class="card-header card-header-gradient text-white py-4">
           <div class="d-flex flex-wrap align-items-center justify-content-between">
-            <h4 class="mb-0 mr-2">
+            <h3 class="mb-0 mr-2 fw-bold">
               <i class="fas fa-truck-loading ml-2"></i>{{ form.name.data and 'تعديل' or 'إضافة' }} مورد
-            </h4>
+            </h3>
 
             {% if supplier %}
             <div class="d-flex flex-wrap">
@@ -61,89 +93,165 @@
           </div>
         </div>
 
-        <div class="card-body">
+        <div class="card-body p-4">
           <form method="post" autocomplete="off">
             {{ form.hidden_tag() }}
 
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                {{ form.name.label(class="form-label") }}
-                {{ form.name(class="form-control") }}
-                {% for err in form.name.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+            <div class="alert alert-primary border-0 mb-4 rounded-3" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
+              <i class="fas fa-info-circle ml-2"></i>
+              <strong>الحقول الإجبارية</strong> مُعلّمة بـ <span class="text-danger fw-bold fs-5">*</span>
+            </div>
+
+            <div class="row mb-4">
+              <div class="col-md-8">
+                {{ form.name.label(class="form-label fw-bold fs-5") }}
+                {{ form.name(class="form-control form-control-lg form-control-modern shadow-sm" + (' is-invalid' if form.name.errors else ''), placeholder="أدخل اسم المورد", autofocus=true) }}
+                {% for err in form.name.errors %}<div class="invalid-feedback d-block fw-bold">{{ err }}</div>{% endfor %}
               </div>
-              <div class="col-md-6 mb-3 d-flex align-items-center">
-                <div class="custom-control custom-checkbox mt-4">
+              <div class="col-md-4 d-flex align-items-center">
+                <div class="custom-control custom-switch custom-control-lg mt-4">
                   {{ form.is_local(class="custom-control-input", id="is_local") }}
-                  <label class="custom-control-label" for="is_local">{{ form.is_local.label.text }}</label>
+                  <label class="custom-control-label fw-bold fs-6" for="is_local">
+                    <i class="fas fa-map-marker-alt text-success ml-1"></i>{{ form.is_local.label.text }}
+                  </label>
                 </div>
               </div>
             </div>
 
-            <div class="row mt-3">
-              <div class="col-md-6">
-                {{ form.identity_number.label(class="form-label") }}
-                {{ form.identity_number(class="form-control") }}
-                {% for err in form.identity_number.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
-              </div>
-              <div class="col-md-6">
-                {{ form.contact.label(class="form-label") }}
-                {{ form.contact(class="form-control") }}
-                {% for err in form.contact.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
-              </div>
-            </div>
-
-            <div class="row g-3 mt-3">
-              <div class="col-md-6">
-                {{ form.phone.label(class="form-label") }}
-                {{ form.phone(class="form-control") }}
-                {% for err in form.phone.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
-              </div>
-              <div class="col-md-6">
-                {{ form.address.label(class="form-label") }}
-                {{ form.address(class="form-control") }}
-                {% for err in form.address.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
-              </div>
-            </div>
-
-            <div class="mt-3">
-              {{ form.notes.label(class="form-label") }}
-              {{ form.notes(class="form-control", rows="3") }}
-              {% for err in form.notes.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
-            </div>
-
-            <div class="row g-3 mt-3">
-              <div class="col-md-4">
-                <label class="form-label fw-bold">{{ form.opening_balance.label.text }} <i class="fas fa-info-circle text-info" title="موجب = له علينا، سالب = عليه لنا"></i></label>
-                <div class="input-group">
-                  {{ form.opening_balance(class="form-control" + (' is-invalid' if form.opening_balance.errors else ''), placeholder="0.00") }}
-                  <span class="input-group-text">₪</span>
+            <div class="section-card shadow-sm mb-4">
+              <div class="card-body p-4">
+                <h5 class="card-title mb-4" style="color: #667eea;">
+                  <i class="fas fa-id-card ml-2"></i>معلومات الاتصال
+                </h5>
+                
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    {{ form.phone.label(class="form-label fw-bold") }}
+                    <div class="input-group input-group-modern shadow-sm">
+                      <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                      {{ form.phone(class="form-control form-control-modern" + (' is-invalid' if form.phone.errors else ''), placeholder="05xxxxxxxx", style="border-radius: 0 10px 10px 0;") }}
+                    </div>
+                    {% for err in form.phone.errors %}<div class="text-danger small mt-1 fw-bold">{{ err }}</div>{% endfor %}
+                  </div>
+                  <div class="col-md-6">
+                    {{ form.email.label(class="form-label fw-bold") }}
+                    <div class="input-group input-group-modern shadow-sm">
+                      <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                      {{ form.email(class="form-control form-control-modern" + (' is-invalid' if form.email.errors else ''), placeholder="supplier@example.com", style="border-radius: 0 10px 10px 0;") }}
+                    </div>
+                    {% for err in form.email.errors %}<div class="text-danger small mt-1 fw-bold">{{ err }}</div>{% endfor %}
+                  </div>
                 </div>
-                {% for err in form.opening_balance.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+
+                <div class="row g-3 mt-3">
+                  <div class="col-md-6">
+                    {{ form.identity_number.label(class="form-label fw-bold") }}
+                    <div class="input-group input-group-modern shadow-sm">
+                      <span class="input-group-text"><i class="fas fa-id-badge"></i></span>
+                      {{ form.identity_number(class="form-control form-control-modern", placeholder="رقم الهوية أو الملف الضريبي", style="border-radius: 0 10px 10px 0;") }}
+                    </div>
+                    {% for err in form.identity_number.errors %}<div class="text-danger small mt-1 fw-bold">{{ err }}</div>{% endfor %}
+                  </div>
+                  <div class="col-md-6">
+                    {{ form.contact.label(class="form-label fw-bold") }}
+                    <div class="input-group shadow-sm">
+                      <span class="input-group-text bg-light border-0"><i class="fas fa-comments text-primary"></i></span>
+                      {{ form.contact(class="form-control form-control-modern", placeholder="معلومات إضافية للتواصل") }}
+                    </div>
+                    {% for err in form.contact.errors %}<div class="text-danger small mt-1 fw-bold">{{ err }}</div>{% endfor %}
+                  </div>
+                </div>
+
+                <div class="mt-3">
+                  {{ form.address.label(class="form-label fw-bold") }}
+                  <div class="input-group input-group-modern shadow-sm">
+                    <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
+                    {{ form.address(class="form-control form-control-modern", placeholder="العنوان الكامل", style="border-radius: 0 10px 10px 0;") }}
+                  </div>
+                  {% for err in form.address.errors %}<div class="text-danger small mt-1 fw-bold">{{ err }}</div>{% endfor %}
+                </div>
               </div>
-              <div class="col-md-4">
-                {{ form.currency.label(class="form-label") }}
-                {{ form.currency(class="form-control") }}
-                {% for err in form.currency.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+            </div>
+
+            <div class="section-card shadow-sm mb-4">
+              <div class="card-body p-4">
+                <h5 class="card-title mb-4" style="color: #667eea;">
+                  <i class="fas fa-dollar-sign ml-2"></i>المعلومات المالية
+                </h5>
+                
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    {{ form.currency.label(class="form-label fw-bold fs-6") }}
+                    <div class="shadow-sm">
+                      {{ form.currency(class="form-control form-control-lg form-control-modern border-2" + (' is-invalid' if form.currency.errors else ''), style="background: linear-gradient(to right, #fff 0%, #f8f9fa 100%);") }}
+                    </div>
+                    {% for err in form.currency.errors %}<div class="invalid-feedback d-block fw-bold">{{ err }}</div>{% endfor %}
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-bold">{{ form.opening_balance.label.text }}</label>
+                    <div class="input-group shadow-sm">
+                      {{ form.opening_balance(class="form-control form-control-lg form-control-modern" + (' is-invalid' if form.opening_balance.errors else ''), placeholder="0.00") }}
+                      <span class="input-group-text bg-gradient text-white fw-bold" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none;">₪</span>
+                    </div>
+                    <small class="text-muted mt-1 d-block">
+                      <i class="fas fa-arrow-up text-success"></i> <strong>موجب</strong> = له علينا | 
+                      <i class="fas fa-arrow-down text-danger"></i> <strong>سالب</strong> = عليه لنا
+                    </small>
+                    {% for err in form.opening_balance.errors %}<div class="text-danger small mt-1 fw-bold">{{ err }}</div>{% endfor %}
+                  </div>
+                  <div class="col-md-4">
+                    {{ form.payment_terms.label(class="form-label fw-bold") }}
+                    <div class="input-group shadow-sm">
+                      <span class="input-group-text bg-light border-0"><i class="fas fa-calendar-alt text-info"></i></span>
+                      {{ form.payment_terms(class="form-control form-control-modern", placeholder="مثال: 30 يوم") }}
+                    </div>
+                    {% for err in form.payment_terms.errors %}<div class="text-danger small mt-1 fw-bold">{{ err }}</div>{% endfor %}
+                  </div>
+                </div>
               </div>
-              <div class="col-md-4">
-                {{ form.payment_terms.label(class="form-label") }}
-                {{ form.payment_terms(class="form-control") }}
-                {% for err in form.payment_terms.errors %}<small class="text-danger">{{ err }}</small>{% endfor %}
+            </div>
+
+            <div class="mb-4">
+              {{ form.notes.label(class="form-label fw-bold") }}
+              <div class="shadow-sm">
+                {{ form.notes(class="form-control form-control-modern", rows="3", placeholder="ملاحظات إضافية (اختياري)", style="resize: vertical;") }}
               </div>
+              {% for err in form.notes.errors %}<div class="text-danger small mt-1 fw-bold">{{ err }}</div>{% endfor %}
             </div>
 
             {% if supplier %}
-            <div class="mt-3">
-              <label class="form-label">الرصيد الحالي</label>
-              <input type="text" class="form-control" value="{{ '%.2f'|format(supplier.net_balance) }}" readonly>
+            <div class="card shadow-lg mb-4 border-0" style="background: linear-gradient(135deg, {{ '#ffebee' if supplier.net_balance < 0 else '#e8f5e9' }} 0%, {{ '#ffcdd2' if supplier.net_balance < 0 else '#c8e6c9' }} 100%);">
+              <div class="card-body p-4">
+                <h5 class="mb-3" style="color: {{ '#d32f2f' if supplier.net_balance < 0 else '#388e3c' }};">
+                  <i class="fas fa-wallet ml-2"></i>الرصيد الحالي
+                </h5>
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <h2 class="mb-0 fw-bold" style="color: {{ '#d32f2f' if supplier.net_balance < 0 else '#388e3c' }};">
+                      {{ '%.2f'|format(supplier.net_balance) }} 
+                      <span class="fs-4">{{ supplier.currency or 'ILS' }}</span>
+                    </h2>
+                    <p class="mb-0 text-muted">
+                      <i class="fas fa-{{ 'arrow-down' if supplier.net_balance < 0 else 'arrow-up' }} ml-1"></i>
+                      <strong>{{ 'له علينا' if supplier.net_balance > 0 else ('عليه لنا' if supplier.net_balance < 0 else 'متوازن') }}</strong>
+                    </p>
+                  </div>
+                  <div>
+                    <i class="fas fa-{{ 'exclamation-triangle' if supplier.net_balance < 0 else 'check-circle' }} fa-3x" style="color: {{ '#d32f2f' if supplier.net_balance < 0 else '#388e3c' }};"></i>
+                  </div>
+                </div>
+              </div>
             </div>
             {% endif %}
 
-            <div class="d-flex flex-wrap gap-2 mt-4">
-              <button type="submit" class="btn btn-{{ form.name.data and 'warning' or 'success' }}">
-                <i class="fas fa-save ml-1"></i> حفظ
+            <div class="d-flex flex-wrap gap-3 mt-5 border-top pt-4">
+              <button type="submit" class="btn btn-lg shadow-lg px-5 py-3 fw-bold" style="background: linear-gradient(135deg, {{ '#ff9800' if form.name.data else '#4caf50' }} 0%, {{ '#f57c00' if form.name.data else '#388e3c' }} 100%); border: none; color: white; border-radius: 15px;">
+                <i class="fas fa-{{ form.name.data and 'edit' or 'plus-circle' }} ml-2"></i>
+                {{ form.name.data and 'تحديث المورد' or 'إضافة المورد' }}
               </button>
-              <a href="{{ url_for('vendors_bp.suppliers_list') }}" class="btn btn-outline-secondary">عودة</a>
+              <a href="{{ url_for('vendors_bp.suppliers_list') }}" class="btn btn-lg btn-outline-secondary px-4 py-3 fw-bold" style="border-radius: 15px; border-width: 2px;">
+                <i class="fas fa-times ml-2"></i>إلغاء
+              </a>
             </div>
           </form>
         </div>

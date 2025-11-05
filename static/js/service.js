@@ -309,6 +309,19 @@
     $formPart.on('input change', 'input[name="discount"], input[name="quantity"], input[name="unit_price"]', function () { 
       validateDiscount($formPart); 
     });
+    $('#add-part-service').on('click', function(e) {
+      e.preventDefault();
+      if (!validateDiscount($formPart)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'خطأ في البيانات',
+          text: 'الرجاء التأكد من أن الخصم لا يتجاوز إجمالي البند',
+          confirmButtonText: 'حسناً'
+        });
+        return false;
+      }
+      $formPart.trigger('submit');
+    });
     $formPart.on('submit', function(e) {
       if (!validateDiscount($formPart)) {
         e.preventDefault();

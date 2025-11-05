@@ -71,7 +71,7 @@ class SelfEvolutionEngine:
                     data = json.load(f)
                     self.evolution_metrics = data.get('metrics', self.evolution_metrics)
                     self.performance_history = data.get('history', [])
-        except:
+        except Exception:
             pass
     
     def save_state(self):

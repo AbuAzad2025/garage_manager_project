@@ -392,7 +392,7 @@ def get_ledger_data():
                         rate = fx_rate(product_currency, 'ILS', datetime.utcnow(), raise_on_missing=False)
                         if rate and rate > 0:
                             price = float(price * float(rate))
-                    except:
+                    except Exception:
                         pass
                 
                 total_stock_value += qty * price
@@ -1035,7 +1035,7 @@ def get_ledger_data():
                     rate = fx_rate(product_currency, 'ILS', datetime.utcnow(), raise_on_missing=False)
                     if rate and rate > 0:
                         price = float(price * float(rate))
-                except:
+                except Exception:
                     pass
             
             total_stock_value_stats += qty * price
@@ -1314,7 +1314,7 @@ def get_accounts_summary():
                     rate = fx_rate(product_currency, 'ILS', datetime.utcnow(), raise_on_missing=False)
                     if rate and rate > 0:
                         price = float(price * float(rate))
-                except:
+                except Exception:
                     pass
             
             total_stock_value += qty * price
@@ -1388,7 +1388,7 @@ def get_receivables_detailed_summary():
                 else:
                     try:
                         total_receivable += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                    except:
+                    except Exception:
                         pass
                 if oldest_date is None or (s.sale_date and s.sale_date < oldest_date):
                     oldest_date = s.sale_date
@@ -1406,7 +1406,7 @@ def get_receivables_detailed_summary():
                 else:
                     try:
                         total_receivable += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
-                    except:
+                    except Exception:
                         pass
                 ref_dt = inv.invoice_date or inv.created_at
                 if oldest_date is None or (ref_dt and ref_dt < oldest_date):
@@ -1425,7 +1425,7 @@ def get_receivables_detailed_summary():
                 else:
                     try:
                         total_receivable += convert_amount(amt, srv.currency, "ILS", srv.received_at)
-                    except:
+                    except Exception:
                         pass
                 ref_dt = srv.received_at or srv.created_at
                 if oldest_date is None or (ref_dt and ref_dt < oldest_date):
@@ -1444,7 +1444,7 @@ def get_receivables_detailed_summary():
                 else:
                     try:
                         total_receivable += convert_amount(amt, p.currency, "ILS", p.preorder_date)
-                    except:
+                    except Exception:
                         pass
                 ref_dt = p.preorder_date or p.created_at
                 if oldest_date is None or (ref_dt and ref_dt < oldest_date):
@@ -1463,7 +1463,7 @@ def get_receivables_detailed_summary():
                 else:
                     try:
                         total_receivable += convert_amount(amt, oo.currency, "ILS", oo.created_at)
-                    except:
+                    except Exception:
                         pass
                 if oldest_date is None or (oo.created_at and oo.created_at < oldest_date):
                     oldest_date = oo.created_at
@@ -1481,7 +1481,7 @@ def get_receivables_detailed_summary():
                 else:
                     try:
                         total_receivable -= convert_amount(amt, r.currency, "ILS", r.created_at)
-                    except:
+                    except Exception:
                         pass
             
             payments_in_direct = Payment.query.filter(Payment.customer_id == customer.id, Payment.direction == 'IN', Payment.status.in_(['COMPLETED', 'PENDING']))
@@ -1523,7 +1523,7 @@ def get_receivables_detailed_summary():
                 else:
                     try:
                         converted = convert_amount(amt, p.currency, "ILS", p.payment_date)
-                    except:
+                    except Exception:
                         continue
                 
                 if p.direction == 'IN':
@@ -1578,7 +1578,7 @@ def get_receivables_detailed_summary():
                         rate = fx_rate(expense.currency, 'ILS', expense.date, raise_on_missing=False)
                         if rate > 0:
                             amount = float(amount * float(rate))
-                    except:
+                    except Exception:
                         pass
                 total_purchases += amount
                 
@@ -1606,7 +1606,7 @@ def get_receivables_detailed_summary():
                         rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
                         if rate > 0:
                             amount = float(amount * float(rate))
-                    except:
+                    except Exception:
                         pass
                 total_payments += amount
                 
@@ -1656,7 +1656,7 @@ def get_receivables_detailed_summary():
                         rate = fx_rate(expense.currency, 'ILS', expense.date, raise_on_missing=False)
                         if rate > 0:
                             amount = float(amount * float(rate))
-                    except:
+                    except Exception:
                         pass
                 total_expenses += amount
                 
@@ -1693,7 +1693,7 @@ def get_receivables_detailed_summary():
                         rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
                         if rate > 0:
                             amount = float(amount * float(rate))
-                    except:
+                    except Exception:
                         pass
                 total_in += amount
                 
@@ -1707,7 +1707,7 @@ def get_receivables_detailed_summary():
                         rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
                         if rate > 0:
                             amount = float(amount * float(rate))
-                    except:
+                    except Exception:
                         pass
                 total_out += amount
                 

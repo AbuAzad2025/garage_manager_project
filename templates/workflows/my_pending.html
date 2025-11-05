@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}مهامي المعلقة - Workflows{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-tasks"></i> مهامي المعلقة</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('workflows.index') }}">Workflows</a></li>
+                    <li class="breadcrumb-item active">مهامي المعلقة</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{{ url_for('workflows.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> العودة
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h3 class="card-title"><i class="fas fa-clipboard-list"></i> Workflows تحتاج موافقتي ({{ pending_instances|length }})</h3>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>رمز النسخة</th>
+                            <th>Workflow</th>
+                            <th>الكيان</th>
+                            <th>الخطوة الحالية</th>
+                            <th>بدأ بواسطة</th>
+                            <th>تاريخ البدء</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for instance in pending_instances %}
+                        <tr class="table-warning">
+                            <td><code>{{ instance.instance_code }}</code></td>
+                            <td><strong>{{ instance.workflow_definition.workflow_name }}</strong></td>
+                            <td>
+                                <span class="badge badge-secondary">{{ instance.entity_type }}</span> 
+                                #{{ instance.entity_id }}
+                            </td>
+                            <td>
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar bg-warning" style="width: {{ instance.progress_percentage }}%">
+                                        {{ instance.current_step }}/{{ instance.total_steps }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ instance.starter.username }}</td>
+                            <td>{{ instance.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                <a href="{{ url_for('workflows.view_instance', id=instance.id) }}" 
+                                   class="btn btn-warning btn-sm">
+                                    <i class="fas fa-clipboard-check"></i> مراجعة واتخاذ قرار
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted">
+                                <i class="fas fa-check-circle"></i> لا توجد مهام معلقة - رائع!
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+

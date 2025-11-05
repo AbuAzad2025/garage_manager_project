@@ -75,17 +75,17 @@ def security_control():
     
     try:
         whitelist = json.loads(whitelist_raw) if isinstance(whitelist_raw, str) else whitelist_raw
-    except:
+    except Exception:
         whitelist = []
     
     try:
         blacklist = json.loads(blacklist_raw) if isinstance(blacklist_raw, str) else blacklist_raw
-    except:
+    except Exception:
         blacklist = []
     
     try:
         blocked_countries = json.loads(blocked_countries_raw) if isinstance(blocked_countries_raw, str) else blocked_countries_raw
-    except:
+    except Exception:
         blocked_countries = []
     
     all_countries = [

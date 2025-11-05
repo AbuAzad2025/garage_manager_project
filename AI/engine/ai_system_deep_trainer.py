@@ -248,7 +248,7 @@ class SystemDeepTrainer:
                             )
                             items += 1
                     
-                    except:
+                    except Exception:
                         pass
         
         print(f"  Learned: {items} items")

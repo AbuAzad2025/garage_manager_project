@@ -48,14 +48,14 @@ class IntegratedIntelligence:
                     with open(kf, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                         self.knowledge_db.update(data)
-                except:
+                except Exception:
                     pass
     
     def _initialize_learning(self):
         try:
             from AI.engine.ai_learning_system import get_learning_system
             self.learning_system = get_learning_system()
-        except:
+        except Exception:
             pass
     
     def process_query(self, query: str, context: Dict) -> Dict[str, Any]:
@@ -220,7 +220,7 @@ class IntegratedIntelligence:
                     response_parts.append(str(db_data))
                     confidence = 0.7
                     sources.append('Database Search')
-            except:
+            except Exception:
                 pass
         
         final_answer = '\n'.join(response_parts) if response_parts else self._fallback_response(query)
@@ -254,7 +254,7 @@ class IntegratedIntelligence:
             
             with open(history_file, 'w', encoding='utf-8') as f:
                 json.dump(self.interaction_history[-500:], f, ensure_ascii=False, indent=2)
-        except:
+        except Exception:
             pass
     
     def _handle_action_request(self, query: str, context: Dict) -> Optional[Dict]:

@@ -29,6 +29,7 @@ from models import (
     ServicePart,
     ServiceRequest,
     ServiceStatus,
+    _find_partner_share_percentage,
 )
 
 class CSRFProtectForm(FlaskForm):
@@ -61,24 +62,23 @@ def suppliers_list():
         q = q.filter(or_(Supplier.name.ilike(term), Supplier.phone.ilike(term), Supplier.identity_number.ilike(term)))
     suppliers = q.order_by(Supplier.name).all()
     
-    # ✅ حساب الملخصات الإجمالية لجميع الموردين في الباكند
-    # الآن نستخدم Supplier.balance الذي يتحدث تلقائياً
+    # ✅ حساب الملخصات الإجمالية لجميع الموردين - موحد من balance_in_ils
     total_balance = 0.0
-    total_debit = 0.0  # ✅ المبالغ المستحقة للموردين (موجب)
-    total_credit = 0.0  # ✅ المبالغ المستحقة من الموردين (سالب)
+    total_debit = 0.0
+    total_credit = 0.0
     suppliers_with_debt = 0
     suppliers_with_credit = 0
     
     for supplier in suppliers:
-        balance = float(supplier.balance or 0)
+        balance = float(supplier.balance_in_ils or 0)
         total_balance += balance
         
         if balance > 0:
-            suppliers_with_debt += 1  # مستحق دفع للمورد (له علينا)
-            total_debit += balance  # ✅ إضافة للمدين
+            suppliers_with_debt += 1
+            total_debit += balance
         elif balance < 0:
-            suppliers_with_credit += 1  # المورد مدين لنا (عليه لنا)
-            total_credit += abs(balance)  # ✅ إضافة للدائن (قيمة موجبة)
+            suppliers_with_credit += 1
+            total_credit += abs(balance)
     
     summary = {
         'total_suppliers': len(suppliers),
@@ -392,7 +392,7 @@ def suppliers_statement(supplier_id: int):
             for part in (service.parts or []):
                 items.append({
                     "type": "قطعة",
-                    "name": part.product.name if part.product else "قطعة غيار",
+                    "name": part.part.name if part.part else "قطعة غيار",
                     "qty": part.quantity,
                     "price": float(part.unit_price or 0),
                     "total": float(q2(part.quantity * part.unit_price))
@@ -626,7 +626,7 @@ def suppliers_statement(supplier_id: int):
                 try:
                     from flask import current_app
                     current_app.logger.error(f"Error converting expense #{exp.id} amount: {e}")
-                except:
+                except Exception:
                     pass
         
         exp_type_name = getattr(getattr(exp, 'type', None), 'name', 'مصروف')
@@ -656,7 +656,7 @@ def suppliers_statement(supplier_id: int):
             try:
                 from flask import current_app
                 current_app.logger.error(f"Error converting supplier #{supplier.id} opening balance: {e}")
-            except:
+            except Exception:
                 pass
     
     if opening_balance != 0:
@@ -732,14 +732,16 @@ def suppliers_statement(supplier_id: int):
         (dt - timedelta(days=1)) if dt else datetime.utcnow()
     )
     
+    balance_unified = balance_data.get('balance', {}).get('amount', 0) if balance_data.get('success') else supplier.balance_in_ils
+    
     return render_template(
         "vendors/suppliers/statement.html",
         supplier=supplier,
         ledger_entries=out,
         total_debit=total_debit,
         total_credit=total_credit,
-        balance=balance,
-        balance_data=balance_data,  # ✅ إضافة البيانات المحاسبية
+        balance=balance_unified,
+        balance_data=balance_data,
         consignment_value=consignment_value,
         per_product=per_product,
         date_from=df if df else None,
@@ -758,16 +760,15 @@ def partners_list():
         q = q.filter(or_(Partner.name.ilike(term), Partner.phone_number.ilike(term), Partner.identity_number.ilike(term)))
     partners = q.order_by(Partner.name).all()
     
-    # ✅ حساب الملخصات الإجمالية لجميع الشركاء في الباكند
-    # الآن نستخدم Partner.balance الذي يتحدث تلقائياً
+    # ✅ حساب الملخصات الإجمالية لجميع الشركاء - موحد من balance_in_ils
     total_balance = 0.0
-    total_debit = 0.0  # ✅ المبالغ المستحقة للشركاء (موجب)
-    total_credit = 0.0  # ✅ المبالغ المستحقة من الشركاء (سالب)
+    total_debit = 0.0
+    total_credit = 0.0
     partners_with_debt = 0
     partners_with_credit = 0
     
     for partner in partners:
-        balance = float(partner.balance or 0)
+        balance = float(partner.balance_in_ils or 0)
         total_balance += balance
         
         if balance > 0:
@@ -818,7 +819,7 @@ def partners_statement(partner_id: int):
     
     # المبيعات للشريك (كعميل) — تُسجّل دائن - ⚡ محسّن
     if partner.customer_id:
-        from models import Sale, SaleStatus
+        from models import Sale, SaleStatus, _find_partner_share_percentage
         sale_q = (
             db.session.query(Sale)
             .options(joinedload(Sale.lines))
@@ -836,13 +837,41 @@ def partners_statement(partner_id: int):
             d = sale.sale_date
             amt = q2(sale.total_amount or 0)
             ref = sale.sale_number or f"فاتورة #{sale.id}"
+            
+            items = []
+            for line in (sale.lines or []):
+                product_id = line.product_id if hasattr(line, 'product_id') else None
+                warehouse_id = line.warehouse_id if hasattr(line, 'warehouse_id') else None
+                share_pct = _find_partner_share_percentage(partner.id, product_id, warehouse_id) if product_id else 0.0
+                line_total = float(q2(line.net_amount or 0))
+                share_amount = line_total * (share_pct / 100.0) if share_pct else 0.0
+                
+                items.append({
+                    "type": "قطعة",
+                    "name": line.product.name if line.product else "منتج",
+                    "qty": line.quantity or 0,
+                    "price": float(q2(line.unit_price or 0)),
+                    "total": line_total,
+                    "share_pct": share_pct,
+                    "share_amount": share_amount
+                })
+            
             statement = f"مبيعات للشريك - {ref}"
-            entries.append({"date": d, "type": "SALE", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
+            entries.append({
+                "date": d, 
+                "type": "SALE", 
+                "ref": ref, 
+                "statement": statement, 
+                "debit": Decimal("0.00"), 
+                "credit": amt,
+                "details": items,
+                "has_details": len(items) > 0
+            })
             total_credit += amt
     
     # الصيانة للشريك (كعميل) — تُسجّل دائن - ⚡ محسّن
     if partner.customer_id:
-        from models import ServiceRequest
+        from models import ServiceRequest, _find_partner_share_percentage
         service_q = (
             db.session.query(ServiceRequest)
             .options(joinedload(ServiceRequest.parts), joinedload(ServiceRequest.tasks))
@@ -860,8 +889,46 @@ def partners_statement(partner_id: int):
             d = service.received_at
             amt = q2(service.total_amount or 0)
             ref = service.service_number or f"صيانة #{service.id}"
+            
+            items = []
+            for part in (service.parts or []):
+                product_id = part.part_id if hasattr(part, 'part_id') else None
+                warehouse_id = part.warehouse_id if hasattr(part, 'warehouse_id') else None
+                share_pct = float(part.share_percentage or 0) if part.partner_id == partner.id else _find_partner_share_percentage(partner.id, product_id, warehouse_id) if product_id else 0.0
+                part_total = float(q2(part.quantity * part.unit_price))
+                share_amount = part_total * (share_pct / 100.0) if share_pct else 0.0
+                
+                items.append({
+                    "type": "قطعة",
+                    "name": part.part.name if part.part else "قطعة غيار",
+                    "qty": part.quantity,
+                    "price": float(part.unit_price or 0),
+                    "total": part_total,
+                    "share_pct": share_pct,
+                    "share_amount": share_amount
+                })
+            for task in (service.tasks or []):
+                items.append({
+                    "type": "خدمة",
+                    "name": task.description or "خدمة",
+                    "qty": task.quantity or 1,
+                    "price": float(task.unit_price or 0),
+                    "total": float(q2((task.quantity or 1) * task.unit_price)),
+                    "share_pct": 0,
+                    "share_amount": 0
+                })
+            
             statement = f"صيانة للشريك - {ref}"
-            entries.append({"date": d, "type": "SERVICE", "ref": ref, "statement": statement, "debit": Decimal("0.00"), "credit": amt})
+            entries.append({
+                "date": d, 
+                "type": "SERVICE", 
+                "ref": ref, 
+                "statement": statement, 
+                "debit": Decimal("0.00"), 
+                "credit": amt,
+                "details": items,
+                "has_details": len(items) > 0
+            })
             total_credit += amt
 
     # الدفعات
@@ -1001,7 +1068,7 @@ def partners_statement(partner_id: int):
                 try:
                     from flask import current_app
                     current_app.logger.error(f"Error converting expense #{exp.id} amount: {e}")
-                except:
+                except Exception:
                     pass
         
         exp_type_name = getattr(getattr(exp, 'type', None), 'name', 'مصروف')
@@ -1031,7 +1098,7 @@ def partners_statement(partner_id: int):
             try:
                 from flask import current_app
                 current_app.logger.error(f"Error converting partner #{partner.id} opening balance: {e}")
-            except:
+            except Exception:
                 pass
     
     if opening_balance != 0:
@@ -1073,6 +1140,78 @@ def partners_statement(partner_id: int):
         df if df else datetime(2024, 1, 1),
         (dt - timedelta(days=1)) if dt else datetime.utcnow()
     )
+    
+    balance_unified = balance_data.get('balance', {}).get('amount', 0) if balance_data.get('success') else partner.balance_in_ils
+    
+    inventory_items = []
+    try:
+        from models import WarehousePartnerShare, StockLevel, Product, Warehouse, _find_partner_share_percentage
+        
+        shares_q = db.session.query(WarehousePartnerShare).filter(
+            WarehousePartnerShare.partner_id == partner.id
+        ).all()
+        
+        for share in shares_q:
+            warehouse_id = share.warehouse_id
+            product_id = share.product_id
+            
+            if warehouse_id and product_id:
+                stock = db.session.query(StockLevel).filter(
+                    StockLevel.warehouse_id == warehouse_id,
+                    StockLevel.product_id == product_id,
+                    StockLevel.quantity > 0
+                ).first()
+                
+                if stock:
+                    product = db.session.get(Product, product_id)
+                    warehouse = db.session.get(Warehouse, warehouse_id)
+                    
+                    if product and warehouse:
+                        share_pct = float(share.share_percentage or 0)
+                        product_value = float(stock.quantity) * float(product.purchase_price or 0)
+                        partner_share_value = product_value * (share_pct / 100.0) if share_pct else 0.0
+                        
+                        inventory_items.append({
+                            'product_name': product.name,
+                            'sku': product.sku or '—',
+                            'warehouse_name': warehouse.name,
+                            'quantity': stock.quantity,
+                            'purchase_price': float(product.purchase_price or 0),
+                            'product_value': product_value,
+                            'share_pct': share_pct,
+                            'partner_share_value': partner_share_value
+                        })
+            elif warehouse_id:
+                warehouse = db.session.get(Warehouse, warehouse_id)
+                if warehouse:
+                    stocks = db.session.query(StockLevel, Product).join(
+                        Product, Product.id == StockLevel.product_id
+                    ).filter(
+                        StockLevel.warehouse_id == warehouse_id,
+                        StockLevel.quantity > 0
+                    ).all()
+                    
+                    for stock, product in stocks:
+                        share_pct = _find_partner_share_percentage(partner.id, product.id, warehouse_id)
+                        product_value = float(stock.quantity) * float(product.purchase_price or 0)
+                        partner_share_value = product_value * (share_pct / 100.0) if share_pct else 0.0
+                        
+                        inventory_items.append({
+                            'product_name': product.name,
+                            'sku': product.sku or '—',
+                            'warehouse_name': warehouse.name,
+                            'quantity': stock.quantity,
+                            'purchase_price': float(product.purchase_price or 0),
+                            'product_value': product_value,
+                            'share_pct': share_pct,
+                            'partner_share_value': partner_share_value
+                        })
+    except Exception as e:
+        try:
+            from flask import current_app
+            current_app.logger.error(f"Error fetching partner inventory: {e}")
+        except Exception:
+            pass
 
     return render_template(
         "vendors/partners/statement.html",
@@ -1080,8 +1219,9 @@ def partners_statement(partner_id: int):
         ledger_entries=out,
         total_debit=total_debit,
         total_credit=total_credit,
-        balance=balance,
-        balance_data=balance_data,  # ✅ إضافة البيانات المحاسبية
+        balance=balance_unified,
+        balance_data=balance_data,
+        inventory_items=inventory_items,
         date_from=df if df else None,
         date_to=(dt - timedelta(days=1)) if dt else None,
     )
@@ -1384,7 +1524,7 @@ def _calculate_supplier_incoming(supplier_id: int, date_from: datetime, date_to:
         else:
             try:
                 purchases += convert_amount(amt, exp.currency, "ILS", exp.date)
-            except:
+            except Exception:
                 pass
     
     # القطع المعطاة للمورد (ExchangeTransaction مع اتجاه OUT)
@@ -1404,7 +1544,7 @@ def _calculate_supplier_incoming(supplier_id: int, date_from: datetime, date_to:
         else:
             try:
                 products_given += convert_amount(amt, ex_currency, "ILS", ex.created_at)
-            except:
+            except Exception:
                 pass
     
     return {
@@ -1442,7 +1582,7 @@ def _calculate_partner_incoming(partner_id: int, date_from: datetime, date_to: d
         else:
             try:
                 sales_share += convert_amount(amt, sr_currency, "ILS", sr.received_at)
-            except:
+            except Exception:
                 pass
     
     # القطع المعطاة للشريك
@@ -1462,7 +1602,7 @@ def _calculate_partner_incoming(partner_id: int, date_from: datetime, date_to: d
         else:
             try:
                 products_given += convert_amount(amt, ex_currency, "ILS", ex.created_at)
-            except:
+            except Exception:
                 pass
     
     return {
@@ -1495,7 +1635,7 @@ def _calculate_partner_outgoing(partner_id: int, date_from: datetime, date_to: d
         else:
             try:
                 purchases_share += convert_amount(amt, exp.currency, "ILS", exp.date)
-            except:
+            except Exception:
                 pass
     
     # القطع المأخوذة من الشريك
@@ -1515,7 +1655,7 @@ def _calculate_partner_outgoing(partner_id: int, date_from: datetime, date_to: d
         else:
             try:
                 products_taken += convert_amount(amt, ex_currency, "ILS", ex.created_at)
-            except:
+            except Exception:
                 pass
     
     return {

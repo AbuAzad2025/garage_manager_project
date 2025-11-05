@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+{% block title %}لوحة الأرصدة التفاعلية{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-line ml-2"></i> لوحة الأرصدة التفاعلية</h2>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="refreshAllBalances()">
+        <i class="fas fa-sync-alt"></i> تحديث
+      </button>
+      <button class="btn btn-warning" onclick="clearCache()">
+        <i class="fas fa-trash"></i> مسح الكاش
+      </button>
+    </div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm" id="suppliers-summary">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1"><i class="fas fa-truck ml-1"></i> الموردون</h6>
+              <h3 class="mb-0 entity-count">{{ summary.suppliers.count }}</h3>
+              <p class="text-sm mb-0 mt-2">
+                <span class="total-balance {% if summary.suppliers.total_balance > 0 %}text-success{% elif summary.suppliers.total_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                  {{ "%.2f"|format(summary.suppliers.total_balance) }} ₪
+                </span>
+              </p>
+            </div>
+            <div>
+              <canvas id="suppliersChart" width="80" height="80"></canvas>
+            </div>
+          </div>
+          <hr>
+          <div class="d-flex justify-content-between text-sm">
+            <span class="text-success">له علينا: {{ summary.suppliers.positive }}</span>
+            <span class="text-danger">عليه لنا: {{ summary.suppliers.negative }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm" id="partners-summary">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1"><i class="fas fa-handshake ml-1"></i> الشركاء</h6>
+              <h3 class="mb-0 entity-count">{{ summary.partners.count }}</h3>
+              <p class="text-sm mb-0 mt-2">
+                <span class="total-balance {% if summary.partners.total_balance > 0 %}text-success{% elif summary.partners.total_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                  {{ "%.2f"|format(summary.partners.total_balance) }} ₪
+                </span>
+              </p>
+            </div>
+            <div>
+              <canvas id="partnersChart" width="80" height="80"></canvas>
+            </div>
+          </div>
+          <hr>
+          <div class="d-flex justify-content-between text-sm">
+            <span class="text-success">له علينا: {{ summary.partners.positive }}</span>
+            <span class="text-danger">عليه لنا: {{ summary.partners.negative }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm" id="customers-summary">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 class="text-muted mb-1"><i class="fas fa-users ml-1"></i> العملاء</h6>
+              <h3 class="mb-0 entity-count">{{ summary.customers.count }}</h3>
+              <p class="text-sm mb-0 mt-2">
+                <span class="total-balance {% if summary.customers.total_balance > 0 %}text-danger{% elif summary.customers.total_balance < 0 %}text-success{% else %}text-secondary{% endif %}">
+                  {{ "%.2f"|format(summary.customers.total_balance) }} ₪
+                </span>
+              </p>
+            </div>
+            <div>
+              <canvas id="customersChart" width="80" height="80"></canvas>
+            </div>
+          </div>
+          <hr>
+          <div class="d-flex justify-content-between text-sm">
+            <span class="text-danger">عليه لنا: {{ summary.customers.negative }}</span>
+            <span class="text-success">له علينا: {{ summary.customers.positive }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0"><i class="fas fa-chart-bar ml-2"></i> توزيع الأرصدة</h5>
+        </div>
+        <div class="card-body">
+          <canvas id="balancesChart" height="80"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0"><i class="fas fa-arrow-up ml-2"></i> أعلى 10 موردين (له علينا)</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>المورد</th>
+                <th>الرصيد</th>
+              </tr>
+            </thead>
+            <tbody id="top-suppliers">
+              {% for s in top_suppliers %}
+              <tr>
+                <td>{{ s.name }}</td>
+                <td class="text-success">{{ "%.2f"|format(s.balance) }} ₪</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-danger text-white">
+          <h5 class="mb-0"><i class="fas fa-arrow-down ml-2"></i> أعلى 10 عملاء (عليه لنا)</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>العميل</th>
+                <th>الرصيد</th>
+              </tr>
+            </thead>
+            <tbody id="top-customers">
+              {% for c in top_customers %}
+              <tr>
+                <td>{{ c.name }}</td>
+                <td class="text-danger">{{ "%.2f"|format(abs(c.balance)) }} ₪</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function refreshAllBalances() {
+  try {
+    const response = await fetch('/api/balances/summary?no_cache=1');
+    const data = await response.json();
+    
+    if (data.success) {
+      updateDashboard(data);
+      toastr.success('تم تحديث الأرصدة');
+    }
+  } catch (error) {
+    toastr.error('خطأ في تحديث الأرصدة');
+    console.error(error);
+  }
+}
+
+async function clearCache() {
+  try {
+    const response = await fetch('/api/balances/clear-cache', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+      }
+    });
+    const data = await response.json();
+    
+    if (data.success) {
+      toastr.success('تم مسح الكاش - سيتم إعادة الحساب');
+      setTimeout(refreshAllBalances, 500);
+    }
+  } catch (error) {
+    toastr.error('خطأ في مسح الكاش');
+    console.error(error);
+  }
+}
+
+function updateDashboard(data) {
+  if (data.suppliers) {
+    document.querySelector('#suppliers-summary .entity-count').textContent = data.suppliers.count;
+    document.querySelector('#suppliers-summary .total-balance').textContent = 
+      data.suppliers.total_balance.toFixed(2) + ' ₪';
+  }
+  
+  if (data.partners) {
+    document.querySelector('#partners-summary .entity-count').textContent = data.partners.count;
+    document.querySelector('#partners-summary .total-balance').textContent = 
+      data.partners.total_balance.toFixed(2) + ' ₪';
+  }
+  
+  if (data.customers) {
+    document.querySelector('#customers-summary .entity-count').textContent = data.customers.count;
+    document.querySelector('#customers-summary .total-balance').textContent = 
+      data.customers.total_balance.toFixed(2) + ' ₪';
+  }
+  
+  initCharts(data);
+}
+
+function initCharts(data) {
+  const suppliersData = {
+    positive: data.suppliers?.positive || 0,
+    negative: data.suppliers?.negative || 0
+  };
+  
+  const partnersData = {
+    positive: data.partners?.positive || 0,
+    negative: data.partners?.negative || 0
+  };
+  
+  const customersData = {
+    positive: data.customers?.positive || 0,
+    negative: data.customers?.negative || 0
+  };
+  
+  new Chart(document.getElementById('suppliersChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['له علينا', 'عليه لنا'],
+      datasets: [{
+        data: [suppliersData.positive, suppliersData.negative],
+        backgroundColor: ['#28a745', '#dc3545']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      legend: { display: false }
+    }
+  });
+  
+  new Chart(document.getElementById('partnersChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['له علينا', 'عليه لنا'],
+      datasets: [{
+        data: [partnersData.positive, partnersData.negative],
+        backgroundColor: ['#28a745', '#dc3545']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      legend: { display: false }
+    }
+  });
+  
+  new Chart(document.getElementById('customersChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['عليه لنا', 'له علينا'],
+      datasets: [{
+        data: [customersData.negative, customersData.positive],
+        backgroundColor: ['#dc3545', '#28a745']
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      legend: { display: false }
+    }
+  });
+  
+  new Chart(document.getElementById('balancesChart'), {
+    type: 'bar',
+    data: {
+      labels: ['الموردون', 'الشركاء', 'العملاء'],
+      datasets: [{
+        label: 'الرصيد الإجمالي (₪)',
+        data: [
+          data.suppliers?.total_balance || 0,
+          data.partners?.total_balance || 0,
+          data.customers?.total_balance || 0
+        ],
+        backgroundColor: function(context) {
+          const value = context.parsed.y;
+          return value > 0 ? '#28a745' : value < 0 ? '#dc3545' : '#6c757d';
+        }
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: function(value) {
+              return value.toFixed(2) + ' ₪';
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const initialData = {
+    suppliers: {
+      count: {{ summary.suppliers.count }},
+      total_balance: {{ summary.suppliers.total_balance }},
+      positive: {{ summary.suppliers.positive }},
+      negative: {{ summary.suppliers.negative }}
+    },
+    partners: {
+      count: {{ summary.partners.count }},
+      total_balance: {{ summary.partners.total_balance }},
+      positive: {{ summary.partners.positive }},
+      negative: {{ summary.partners.negative }}
+    },
+    customers: {
+      count: {{ summary.customers.count }},
+      total_balance: {{ summary.customers.total_balance }},
+      positive: {{ summary.customers.positive }},
+      negative: {{ summary.customers.negative }}
+    }
+  };
+  
+  initCharts(initialData);
+  
+  setInterval(refreshAllBalances, 60000);
+});
+</script>
+{% endblock %}
+

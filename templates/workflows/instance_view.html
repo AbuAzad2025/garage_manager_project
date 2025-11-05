@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% block title %}{{ instance.instance_code }} - تفاصيل Workflow{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-project-diagram"></i> {{ instance.instance_code }}</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('workflows.index') }}">Workflows</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('workflows.instances') }}">النسخ</a></li>
+                    <li class="breadcrumb-item active">{{ instance.instance_code }}</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{{ url_for('workflows.instances') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> العودة
+                </a>
+                {% if instance.status in ['IN_PROGRESS', 'PENDING_APPROVAL'] %}
+                <button class="btn btn-danger" data-toggle="modal" data-target="#cancelModal">
+                    <i class="fas fa-ban"></i> إلغاء Workflow
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                
+                <div class="card">
+                    <div class="card-header bg-primary">
+                        <h3 class="card-title"><i class="fas fa-info-circle"></i> معلومات Workflow</h3>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">Workflow:</th>
+                                <td><strong>{{ workflow_def.workflow_name }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>رمز النسخة:</th>
+                                <td><code>{{ instance.instance_code }}</code></td>
+                            </tr>
+                            <tr>
+                                <th>الكيان:</th>
+                                <td>
+                                    <span class="badge badge-secondary">{{ instance.entity_type }}</span> 
+                                    #{{ instance.entity_id }}
+                                    {% if entity %}
+                                        - <strong>{{ entity.name if entity.name else (entity.title if entity.title else '') }}</strong>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>الحالة:</th>
+                                <td>
+                                    {% if instance.status == 'APPROVED' %}
+                                        <span class="badge badge-success badge-lg"><i class="fas fa-check-circle"></i> تمت الموافقة</span>
+                                    {% elif instance.status == 'REJECTED' %}
+                                        <span class="badge badge-danger badge-lg"><i class="fas fa-times-circle"></i> مرفوض</span>
+                                    {% elif instance.status == 'IN_PROGRESS' %}
+                                        <span class="badge badge-info badge-lg"><i class="fas fa-spinner fa-spin"></i> قيد التنفيذ</span>
+                                    {% elif instance.status == 'PENDING_APPROVAL' %}
+                                        <span class="badge badge-warning badge-lg"><i class="fas fa-clock"></i> بانتظار الموافقة</span>
+                                    {% elif instance.status == 'CANCELLED' %}
+                                        <span class="badge badge-secondary badge-lg"><i class="fas fa-ban"></i> ملغي</span>
+                                    {% else %}
+                                        <span class="badge badge-light badge-lg">{{ instance.status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>التقدم:</th>
+                                <td>
+                                    <div class="progress" style="height: 25px;">
+                                        <div class="progress-bar bg-primary" role="progressbar" 
+                                             style="width: {{ instance.progress_percentage }}%">
+                                            الخطوة {{ instance.current_step }} من {{ instance.total_steps }}
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>بدأ بواسطة:</th>
+                                <td>{{ instance.starter.username }} - {{ instance.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% if instance.completed_at %}
+                            <tr>
+                                <th>اكتمل في:</th>
+                                <td>{{ instance.completed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if instance.cancelled_at %}
+                            <tr>
+                                <th>ألغي بواسطة:</th>
+                                <td>{{ instance.canceller.username if instance.canceller else '-' }} - {{ instance.cancelled_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            </tr>
+                            <tr>
+                                <th>سبب الإلغاء:</th>
+                                <td>{{ instance.cancellation_reason or '-' }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+
+                {% if current_step_def and (can_approve or can_reject) %}
+                <div class="card border-warning">
+                    <div class="card-header bg-warning">
+                        <h3 class="card-title"><i class="fas fa-clipboard-check"></i> إجراء مطلوب</h3>
+                    </div>
+                    <div class="card-body">
+                        <h5>الخطوة الحالية: {{ current_step_def.name }}</h5>
+                        <form method="POST" action="{{ url_for('workflows.execute_action', id=instance.id) }}">
+                            <div class="form-group">
+                                <label>التعليقات:</label>
+                                <textarea name="comments" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div class="btn-group">
+                                {% if can_approve %}
+                                <button type="submit" name="action_type" value="APPROVE" class="btn btn-success btn-lg">
+                                    <i class="fas fa-check"></i> موافقة
+                                </button>
+                                {% endif %}
+                                {% if can_reject %}
+                                <button type="submit" name="action_type" value="REJECT" class="btn btn-danger btn-lg">
+                                    <i class="fas fa-times"></i> رفض
+                                </button>
+                                {% endif %}
+                                <button type="submit" name="action_type" value="COMMENT" class="btn btn-info btn-lg">
+                                    <i class="fas fa-comment"></i> تعليق فقط
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="card">
+                    <div class="card-header bg-info">
+                        <h3 class="card-title"><i class="fas fa-history"></i> سجل الإجراءات</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="timeline">
+                            {% for action in history %}
+                            <div>
+                                <i class="fas fa-{{ 'check text-success' if action.action_type == 'APPROVE' else ('times text-danger' if action.action_type == 'REJECT' else 'comment text-info') }} bg-white"></i>
+                                <div class="timeline-item">
+                                    <span class="time"><i class="fas fa-clock"></i> {{ action.action_date.strftime('%Y-%m-%d %H:%M') }}</span>
+                                    <h3 class="timeline-header">
+                                        <strong>{{ action.actor.username }}</strong> - {{ action.step_name }}
+                                    </h3>
+                                    <div class="timeline-body">
+                                        <span class="badge badge-{{ 'success' if action.action_type == 'APPROVE' else ('danger' if action.action_type == 'REJECT' else 'info') }}">
+                                            {{ action.action_type }}
+                                        </span>
+                                        {% if action.comments %}
+                                        <p class="mt-2">{{ action.comments }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="col-md-4">
+                
+                <div class="card">
+                    <div class="card-header bg-secondary">
+                        <h3 class="card-title"><i class="fas fa-list-ol"></i> الخطوات</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for step in workflow_def.steps_definition %}
+                            <li class="list-group-item {{ 'active' if loop.index == instance.current_step else '' }} {{ 'list-group-item-success' if loop.index < instance.current_step else '' }}">
+                                <div class="d-flex justify-content-between">
+                                    <span>
+                                        <strong>{{ loop.index }}.</strong> {{ step.name }}
+                                    </span>
+                                    {% if loop.index < instance.current_step %}
+                                        <i class="fas fa-check-circle text-success"></i>
+                                    {% elif loop.index == instance.current_step %}
+                                        <i class="fas fa-spinner fa-spin text-primary"></i>
+                                    {% else %}
+                                        <i class="fas fa-circle text-muted"></i>
+                                    {% endif %}
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                {% if entity %}
+                <div class="card">
+                    <div class="card-header bg-success">
+                        <h3 class="card-title"><i class="fas fa-link"></i> الكيان المرتبط</h3>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>النوع:</strong> {{ instance.entity_type }}</p>
+                        <p><strong>الاسم:</strong> {{ entity.name if entity.name else (entity.title if entity.title else 'N/A') }}</p>
+                        {% if instance.entity_type == 'MILESTONE' %}
+                        <a href="{{ url_for('project_advanced.milestones', project_id=entity.project_id) }}" 
+                           class="btn btn-sm btn-success">
+                            <i class="fas fa-external-link-alt"></i> عرض المحطة
+                        </a>
+                        {% elif instance.entity_type == 'CHANGE_ORDER' %}
+                        <a href="{{ url_for('project_advanced.change_orders', project_id=entity.project_id) }}" 
+                           class="btn btn-sm btn-success">
+                            <i class="fas fa-external-link-alt"></i> عرض أمر التغيير
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<div class="modal fade" id="cancelModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h4 class="modal-title">إلغاء Workflow</h4>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <form method="POST" action="{{ url_for('workflows.cancel_instance', id=instance.id) }}">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>سبب الإلغاء:</label>
+                        <textarea name="reason" class="form-control" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-danger">تأكيد الإلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+

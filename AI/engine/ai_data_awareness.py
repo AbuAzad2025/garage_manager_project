@@ -350,7 +350,7 @@ def auto_build_if_needed():
         if age_days > 7:
             return build_data_schema()
     
-    except:
+    except Exception:
         pass
     
     return load_data_schema()

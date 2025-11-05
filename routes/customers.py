@@ -911,7 +911,7 @@ def account_statement(customer_id):
         try:
             from models import convert_amount
             opening_balance = convert_amount(opening_balance, c.currency, "ILS", df or c.created_at)
-        except:
+        except Exception:
             pass
     
     if opening_balance != 0:
@@ -951,7 +951,7 @@ def account_statement(customer_id):
             try:
                 from models import convert_amount
                 amt = convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
-            except:
+            except Exception:
                 pass
         total_invoices_calc += amt
     
@@ -962,7 +962,7 @@ def account_statement(customer_id):
             try:
                 from models import convert_amount
                 amt = convert_amount(amt, s.currency, "ILS", s.sale_date)
-            except:
+            except Exception:
                 pass
         total_sales_calc += amt
     
@@ -973,7 +973,7 @@ def account_statement(customer_id):
             try:
                 from models import convert_amount
                 amt = convert_amount(amt, pre.currency, "ILS", pre.created_at)
-            except:
+            except Exception:
                 pass
         total_preorders_calc += amt
     
@@ -984,7 +984,7 @@ def account_statement(customer_id):
             try:
                 from models import convert_amount
                 amt = convert_amount(amt, p.currency, "ILS", p.payment_date)
-            except:
+            except Exception:
                 pass
         total_payments_calc += amt
     

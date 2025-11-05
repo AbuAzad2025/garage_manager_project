@@ -188,7 +188,7 @@ def payment_summary_report_ils(start_date: date = None, end_date: date = None) -
                     try:
                         from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة في تقرير الدفعات للدفعة #{payment.id}: {str(e)}")
-                    except:
+                    except Exception:
                         pass
                     continue
             
@@ -378,7 +378,7 @@ def sales_report_ils(start_date: date | None, end_date: date | None, tz_name: st
                     try:
                         from flask import current_app
                         current_app.logger.error(f"❌ خطأ في تحويل العملة في تقرير المبيعات للبيع #{sale.id}: {str(e)}")
-                    except:
+                    except Exception:
                         pass
                     continue
             
@@ -473,7 +473,7 @@ def sales_report(start_date: date | None, end_date: date | None, tz_name: str = 
         else:
             try:
                 amt_ils = convert_amount(amt, sale.currency, "ILS", sale.sale_date)
-            except:
+            except Exception:
                 amt_ils = Decimal('0.00')
         
         # تحديد اليوم
@@ -568,7 +568,7 @@ def payment_summary_report(start_date, end_date):
         else:
             try:
                 amt_ils = convert_amount(amt, payment.currency, "ILS", payment.payment_date)
-            except:
+            except Exception:
                 amt_ils = Decimal('0.00')
         
         agg[method] += amt_ils
@@ -583,7 +583,7 @@ def payment_summary_report(start_date, end_date):
         else:
             try:
                 amt_ils = convert_amount(amt, payment.currency, "ILS", payment.payment_date)
-            except:
+            except Exception:
                 amt_ils = Decimal('0.00')
         
         agg[method] += amt_ils
@@ -629,7 +629,7 @@ def service_reports_report(start_date: date | None, end_date: date | None) -> di
                 revenue += convert_amount(Decimal(str(srv.total_amount or 0)), srv.currency, "ILS", srv.received_at)
                 parts += convert_amount(Decimal(str(srv.parts_total or 0)), srv.currency, "ILS", srv.received_at)
                 labor += convert_amount(Decimal(str(srv.labor_total or 0)), srv.currency, "ILS", srv.received_at)
-            except:
+            except Exception:
                 pass
     
     revenue = float(revenue)
@@ -711,7 +711,7 @@ def ar_aging_report(start_date=None, end_date=None):
             else:
                 try:
                     total_receivable += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                except:
+                except Exception:
                     pass
             ref_dt = s.sale_date or s.created_at
             if oldest_date is None or (ref_dt and ref_dt < oldest_date):
@@ -728,7 +728,7 @@ def ar_aging_report(start_date=None, end_date=None):
             else:
                 try:
                     total_receivable += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
-                except:
+                except Exception:
                     pass
             ref_dt = inv.invoice_date or inv.created_at
             if oldest_date is None or (ref_dt and ref_dt < oldest_date):
@@ -744,7 +744,7 @@ def ar_aging_report(start_date=None, end_date=None):
             else:
                 try:
                     total_receivable += convert_amount(amt, srv.currency, "ILS", srv.received_at)
-                except:
+                except Exception:
                     pass
             ref_dt = srv.received_at or srv.created_at
             if oldest_date is None or (ref_dt and ref_dt < oldest_date):
@@ -761,7 +761,7 @@ def ar_aging_report(start_date=None, end_date=None):
             else:
                 try:
                     total_receivable += convert_amount(amt, p.currency, "ILS", p.preorder_date)
-                except:
+                except Exception:
                     pass
             ref_dt = p.preorder_date or p.created_at
             if oldest_date is None or (ref_dt and ref_dt < oldest_date):
@@ -778,7 +778,7 @@ def ar_aging_report(start_date=None, end_date=None):
             else:
                 try:
                     total_receivable += convert_amount(amt, oo.currency, "ILS", oo.created_at)
-                except:
+                except Exception:
                     pass
             ref_dt = oo.created_at
             if oldest_date is None or (ref_dt and ref_dt < oldest_date):
@@ -795,7 +795,7 @@ def ar_aging_report(start_date=None, end_date=None):
             else:
                 try:
                     total_receivable -= convert_amount(amt, r.currency, "ILS", r.created_at)
-                except:
+                except Exception:
                     pass
         
         as_of_dt = datetime.combine(as_of, datetime.max.time())
@@ -875,7 +875,7 @@ def ar_aging_report(start_date=None, end_date=None):
             else:
                 try:
                     converted = convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
+                except Exception:
                     continue
             
             if p.direction == PaymentDirection.IN.value:
@@ -949,7 +949,7 @@ def ap_aging_report(start_date=None, end_date=None):
             else:
                 try:
                     total_payable += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
-                except:
+                except Exception:
                     pass
             ref_dt = inv.invoice_date or inv.created_at
             if oldest_date is None or (ref_dt and ref_dt < oldest_date):
@@ -994,7 +994,7 @@ def ap_aging_report(start_date=None, end_date=None):
             else:
                 try:
                     converted = convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except:
+                except Exception:
                     continue
             
             if p.direction == PaymentDirection.OUT.value:
@@ -1138,7 +1138,7 @@ def top_products_report(
             else:
                 try:
                     revenue_ils += convert_amount(line_amt, sale.currency, "ILS", sale.sale_date)
-                except:
+                except Exception:
                     pass
         
         rows_with_ils.append({

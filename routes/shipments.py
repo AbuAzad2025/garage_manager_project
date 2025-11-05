@@ -542,9 +542,7 @@ def create_shipment():
             # تحديث رصيد الشركاء عند إنشاء الشحنة (إذا كان هناك شركاء)
             if sh.partners:
                 for shipment_partner in sh.partners:
-                    if shipment_partner.partner_id:
-                        from models import update_partner_balance
-                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                    pass
             
             db.session.commit()
             flash("✅ تم إنشاء الشحنة بنجاح", "success")
@@ -765,9 +763,7 @@ def edit_shipment(id: int):
             # تحديث رصيد الشركاء عند تحديث الشحنة (إذا كان هناك شركاء)
             if sh.partners:
                 for shipment_partner in sh.partners:
-                    if shipment_partner.partner_id:
-                        from models import update_partner_balance
-                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                    pass
             
             db.session.commit()
 
@@ -804,9 +800,7 @@ def delete_shipment(id: int):
         # تحديث رصيد الشركاء قبل حذف الشحنة (إذا كان هناك شركاء)
         if sh.partners:
             for shipment_partner in sh.partners:
-                if shipment_partner.partner_id:
-                    from models import update_partner_balance
-                    update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                pass
         
         # تنظيف العلاقات قبل الحذف
         sh.partners.clear()
@@ -864,7 +858,7 @@ def shipment_detail(id: int):
             else:
                 try:
                     total_paid += convert_amount(amt, p.currency, sh.currency or "ILS", p.payment_date)
-                except:
+                except Exception:
                     pass
         total_paid = float(total_paid)
     except Exception:
@@ -957,9 +951,7 @@ def mark_arrived(id: int):
         # تحديث رصيد الشركاء عند وصول الشحنة (إذا كان هناك شركاء)
         if sh.partners:
             for shipment_partner in sh.partners:
-                if shipment_partner.partner_id:
-                    from models import update_partner_balance
-                    update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                pass
         
         db.session.commit()
         msg = f"✅ تم اعتماد وصول الشحنة {sh.shipment_number or sh.id} وتحديث المخزون"
@@ -992,9 +984,7 @@ def cancel_shipment(id: int):
         # تحديث رصيد الشركاء عند إلغاء الشحنة (إذا كان هناك شركاء)
         if sh.partners:
             for shipment_partner in sh.partners:
-                if shipment_partner.partner_id:
-                    from models import update_partner_balance
-                    update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                pass
         
         db.session.commit()
         msg = f"⚠️ تم إلغاء الشحنة {sh.shipment_number or sh.id}"
@@ -1030,9 +1020,7 @@ def mark_in_transit(id):
             # تحديث رصيد الشركاء عند وضع الشحنة في الطريق (إذا كان هناك شركاء)
             if sh.partners:
                 for shipment_partner in sh.partners:
-                    if shipment_partner.partner_id:
-                        from models import update_partner_balance
-                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                    pass
             
             db.session.commit()
             if _wants_json():
@@ -1067,9 +1055,7 @@ def mark_in_customs(id):
             # تحديث رصيد الشركاء عند وضع الشحنة في الجمارك (إذا كان هناك شركاء)
             if sh.partners:
                 for shipment_partner in sh.partners:
-                    if shipment_partner.partner_id:
-                        from models import update_partner_balance
-                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                    pass
             
             db.session.commit()
             if _wants_json():
@@ -1221,9 +1207,7 @@ def mark_delivered(id):
             # ✅ تحديث أرصدة الشركاء بعد حفظ التغييرات
             if sh.partners:
                 for shipment_partner in sh.partners:
-                    if shipment_partner.partner_id:
-                        from models import update_partner_balance
-                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                    pass
                 db.session.commit()
             
             if _wants_json():
@@ -1265,9 +1249,7 @@ def mark_returned(id):
             # تحديث رصيد الشركاء عند إرجاع الشحنة (إذا كان هناك شركاء)
             if sh.partners:
                 for shipment_partner in sh.partners:
-                    if shipment_partner.partner_id:
-                        from models import update_partner_balance
-                        update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                    pass
             
             db.session.commit()
             if _wants_json():
@@ -1297,9 +1279,7 @@ def update_delivery_attempt(id):
         # تحديث رصيد الشركاء عند تحديث محاولة التسليم (إذا كان هناك شركاء)
         if sh.partners:
             for shipment_partner in sh.partners:
-                if shipment_partner.partner_id:
-                    from models import update_partner_balance
-                    update_partner_balance(shipment_partner.partner_id, db.session.connection())
+                pass
         
         db.session.commit()
         if _wants_json():

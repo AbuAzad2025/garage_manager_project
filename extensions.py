@@ -518,7 +518,7 @@ def process_recurring_invoices(app):
                         )
                         db.session.add(schedule)
                         db.session.commit()
-                    except:
+                    except Exception:
                         pass
                     
                     app.logger.error(f"[Recurring Invoices] Failed to generate invoice for template {template.id}: {e}")

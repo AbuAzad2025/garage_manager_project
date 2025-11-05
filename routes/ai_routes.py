@@ -252,7 +252,7 @@ def system_map():
             with open(DISCOVERY_LOG_FILE, 'r', encoding='utf-8') as f:
                 logs = json.load(f)
                 logs = logs[-10:]  # آخر 10 سجلات
-        except:
+        except Exception:
             pass
     
     return render_template(
@@ -439,7 +439,7 @@ def analytics_queries():
                         'values': values
                     }
                 })
-    except:
+    except Exception:
         pass
     
     # Fallback data
@@ -477,7 +477,7 @@ def _get_ai_stats():
             'evolution_level': evo.get('evolution_level', 1),
             'learned_queries': learn.get('total_learned_queries', 0)
         }
-    except:
+    except Exception:
         pass
     
     return {'total_interactions': 0, 'success_rate': 0, 'avg_confidence': 0}
@@ -519,7 +519,7 @@ def _get_ai_stats_old():
             'today': 0
         }
         
-    except:
+    except Exception:
         return {
             'total_queries': 0,
             'successful': 0,
@@ -534,7 +534,7 @@ def _get_system_stats():
         from AI.engine.ai_service import gather_system_context
         ctx = gather_system_context()
         return ctx
-    except:
+    except Exception:
         pass
     
     return {}
@@ -553,7 +553,7 @@ def _get_system_stats_old():
                 'total_models': len(system_map.get('models', [])) if system_map.get('models') else 45,
                 'total_relationships': len(system_map.get('relationships', [])) if system_map.get('relationships') else 120
             }
-    except:
+    except Exception:
         pass
     
     return {
@@ -579,7 +579,7 @@ def _get_recent_queries(limit=5):
                 
                 return recent
         
-    except:
+    except Exception:
         pass
     
     return []
@@ -617,7 +617,7 @@ def _get_predictions():
             })
         
         return predictions
-    except:
+    except Exception:
         pass
     
     return []

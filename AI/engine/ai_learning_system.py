@@ -27,7 +27,7 @@ class LearningSystem:
                     self.learned_responses = data.get('responses', {})
                     self.error_corrections = data.get('corrections', {})
                     self.pattern_library = defaultdict(list, data.get('patterns', {}))
-            except:
+            except Exception:
                 pass
     
     def learn_from_interaction(self, query: str, response: str, feedback: str = None):

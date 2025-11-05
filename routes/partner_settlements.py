@@ -312,9 +312,11 @@ def show(settlement_id):
                 "sales": float(ps.obligations_sales_to_partner or 0),
                 "services": float(ps.obligations_services or 0),
                 "damaged": float(ps.obligations_damaged or 0),
-                "expenses": float(ps.obligations_expenses or 0),
                 "returns": float(ps.obligations_returns or 0),
                 "total": float(ps.obligations_total or 0)
+            },
+            "expenses": {
+                "total_ils": float(ps.obligations_expenses or 0)
             },
             "payments": {
                 "out": float(ps.payments_out or 0),
@@ -424,7 +426,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         if partner_currency != 'ILS' and opening_balance != 0:
             try:
                 opening_balance = convert_amount(opening_balance, partner_currency, 'ILS', date_from)
-            except:
+            except Exception:
                 pass
         
         # ═══════════════════════════════════════════════════════════
@@ -459,7 +461,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # 7. نصيبه من القطع التالفة
         damaged_items = _get_partner_damaged_items(partner_id, date_from, date_to)
         
-        # 8. المصروفات المخصومة (إن وجدت)
+        # 8. المصروفات المخصومة من رصيده
         expenses_deducted = _get_partner_expenses(partner_id, date_from, date_to)
         
         # ═══════════════════════════════════════════════════════════
@@ -467,15 +469,13 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # ═══════════════════════════════════════════════════════════
         
         # حقوق الشريك (ما استحقه من عمله)
-        # ✅ المخزون + نصيب المبيعات فقط
         partner_rights = Decimal(str(inventory.get("total_ils", 0) if isinstance(inventory, dict) else 0)) + \
                         Decimal(str(sales_share.get("total_share_ils", 0)))
         
         # التزامات الشريك (ما عليه لنا)
         partner_obligations = Decimal(str(sales_to_partner.get("total_ils", 0))) + \
                              Decimal(str(service_fees.get("total_ils", 0))) + \
-                             Decimal(str(damaged_items.get("total_ils", 0))) + \
-                             Decimal(str(expenses_deducted or 0))
+                             Decimal(str(damaged_items.get("total_ils", 0)))
         
         # صافي الحساب قبل احتساب الدفعات
         net_before_payments = partner_rights - partner_obligations
@@ -487,9 +487,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         received_from_partner = Decimal(str(payments_from_partner.get("total_ils", 0))) + \
                                Decimal(str(preorders_prepaid.get("total_ils", 0)))
         
-        # الرصيد النهائي = الرصيد الافتتاحي + (حقوقه - التزاماته) - (دفعنا له) + (دفع لنا)
-        # مثال: رصيد افتتاحي 30 + (له 100 - عليه 20) - دفعنا له 60 + دفع لنا 10 = 60
-        balance = opening_balance + net_before_payments - paid_to_partner + received_from_partner
+        balance = opening_balance + net_before_payments - paid_to_partner + received_from_partner - Decimal(str(expenses_deducted or 0))
         
         return {
             "success": True,
@@ -513,6 +511,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
             "rights": {
                 "inventory": inventory,
                 "sales_share": sales_share,
+                "preorders_share": preorders_prepaid,
                 "total": float(partner_rights)
             },
             # 🔴 التزامات الشريك (ما عليه لنا)
@@ -520,34 +519,31 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
                 "sales_to_partner": sales_to_partner,
                 "service_fees": service_fees,
                 "damaged_items": damaged_items,
-                "expenses": {"total_ils": float(expenses_deducted or 0)},
                 "total": float(partner_obligations)
             },
             # 💰 الدفعات المسددة
             "payments": {
-                "paid_to_partner": payments_to_partner,  # OUT - دفعنا له
-                "received_from_partner": payments_from_partner,  # IN - دفع لنا
-                "preorders_prepaid": preorders_prepaid,  # IN - أرصدة الحجوزات (دفعة واردة)
+                "paid_to_partner": payments_to_partner,
+                "received_from_partner": payments_from_partner,
+                "preorders_prepaid": preorders_prepaid,
                 "total_paid": float(paid_to_partner),
                 "total_received": float(received_from_partner),
                 "total_settled": float(paid_to_partner + received_from_partner)
             },
-            "rights": {
-                "inventory": inventory,
-                "sales_share": sales_share,
-                "preorders_share": preorders_prepaid,
-                "total": float(partner_rights)
+            # 💸 المصاريف
+            "expenses": {
+                "total_ils": float(expenses_deducted or 0)
             },
             # 🎯 الرصيد
             "balance": {
-                "gross": float(net_before_payments),  # قبل الدفعات
-                "net": float(balance),  # النهائي بعد الدفعات
+                "gross": float(net_before_payments),
+                "net": float(balance),
                 "amount": float(balance),
                 "direction": "له علينا" if balance > 0 else "عليه لنا" if balance < 0 else "متوازن",
                 "payment_direction": "OUT" if balance > 0 else "IN" if balance < 0 else None,
                 "action": "ندفع له" if balance > 0 else "يدفع لنا" if balance < 0 else "لا شيء",
                 "currency": "ILS",
-                "formula": f"({float(opening_balance):.2f} + {float(partner_rights):.2f} - {float(partner_obligations):.2f} - {float(paid_to_partner):.2f} + {float(received_from_partner):.2f}) = {float(balance):.2f}"
+                "formula": f"({float(opening_balance):.2f} + {float(partner_rights):.2f} - {float(partner_obligations):.2f} - {float(paid_to_partner):.2f} + {float(received_from_partner):.2f} - {float(expenses_deducted or 0):.2f}) = {float(balance):.2f}"
             },
             # معلومات إضافية
             "previous_settlements": _get_previous_partner_settlements(partner_id, date_from),
@@ -839,7 +835,7 @@ def _check_required_fx_rates(currencies: list) -> dict:
                 missing_rates.append(currency)
             else:
                 available_rates[currency] = float(rate)
-        except:
+        except Exception:
             missing_rates.append(currency)
     
     return {
@@ -1628,10 +1624,10 @@ def _get_partner_preorders_prepaid(partner_id: int, partner: Partner, date_from:
     if not partner.customer_id:
         return {"items": [], "total_ils": 0.0, "count": 0}
     
-    # جلب الحجوزات المسبقة للعميل المرتبط بالشريك (جميع الحالات)
     preorders = db.session.query(PreOrder).filter(
         PreOrder.customer_id == partner.customer_id,
         PreOrder.prepaid_amount > 0,
+        PreOrder.status != 'FULFILLED',
         PreOrder.preorder_date >= date_from,
         PreOrder.preorder_date <= date_to
     ).order_by(PreOrder.preorder_date).all()
@@ -2099,7 +2095,7 @@ def approve_settlement(partner_id):
     try:
         date_from_dt = datetime.fromisoformat(date_from.replace("Z", "+00:00")) if isinstance(date_from, str) else date_from
         date_to_dt = datetime.fromisoformat(date_to.replace("Z", "+00:00")) if isinstance(date_to, str) else date_to
-    except:
+    except Exception:
         flash("تنسيق التاريخ غير صحيح", "error")
         return redirect(url_for("partner_settlements_bp.partner_settlement", partner_id=partner_id))
     
@@ -2129,7 +2125,7 @@ def approve_settlement(partner_id):
         obligations_sales_to_partner=Decimal(str(balance_data.get("obligations", {}).get("sales_to_partner", {}).get("total_ils", 0))),
         obligations_services=Decimal(str(balance_data.get("obligations", {}).get("service_fees", {}).get("total_ils", 0))),
         obligations_damaged=Decimal(str(balance_data.get("obligations", {}).get("damaged_items", {}).get("total_ils", 0))),
-        obligations_expenses=Decimal(str(balance_data.get("obligations", {}).get("expenses", {}).get("total_ils", 0))),
+        obligations_expenses=Decimal(str(balance_data.get("expenses", {}).get("total_ils", 0))),
         obligations_returns=0,
         obligations_total=Decimal(str(balance_data.get("obligations", {}).get("total", 0))),
         payments_out=Decimal(str(balance_data.get("payments", {}).get("total_paid", 0))),

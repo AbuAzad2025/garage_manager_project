@@ -250,7 +250,7 @@ def daily_reports():
                 with open(report_file, 'r', encoding='utf-8') as f:
                     report_data = json.load(f)
                     reports.append(report_data)
-            except:
+            except Exception:
                 pass
         
         return render_template('ai/daily_reports.html', daily_reports=reports[:30])  # آخر 30 تقرير

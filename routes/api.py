@@ -1180,7 +1180,7 @@ def product_info(pid: int):
     else:
         try:
             converted_price = float(convert_amount(product_price, product_currency, target_currency))
-        except:
+        except Exception:
             converted_price = float(product_price)
     
     return jsonify({

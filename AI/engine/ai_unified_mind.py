@@ -54,7 +54,7 @@ class UnifiedMind:
                         'from_col': fk['constrained_columns'][0] if fk['constrained_columns'] else None,
                         'to_col': fk['referred_columns'][0] if fk['referred_columns'] else None
                     })
-        except:
+        except Exception:
             pass
     
     def think_and_understand(self, query: str, context: Dict) -> Dict[str, Any]:
@@ -117,7 +117,7 @@ class UnifiedMind:
             with open(log_file, 'w', encoding='utf-8') as f:
                 json.dump(logs[-500:], f, ensure_ascii=False, indent=2)
         
-        except:
+        except Exception:
             pass
     
     def _check_accounting_integrity(self, query: str, context: Dict) -> Dict:
@@ -449,7 +449,7 @@ class UnifiedMind:
                     action='مراجعة فورية',
                     data=audit_result
                 )
-        except:
+        except Exception:
             pass
     
     def connect_data(self, entity_type: str, entity_id: int) -> Dict:

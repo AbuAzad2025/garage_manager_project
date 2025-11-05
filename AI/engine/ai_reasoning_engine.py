@@ -350,7 +350,7 @@ VAT = الصافي × 0.16
                 }
                 for s in sales
             ]
-        except:
+        except Exception:
             return []
     
     def _get_customer_payments(self, customer_id: int) -> List[Dict]:
@@ -370,7 +370,7 @@ VAT = الصافي × 0.16
                 }
                 for p in payments
             ]
-        except:
+        except Exception:
             return []
     
     def _load_inference_rules(self):

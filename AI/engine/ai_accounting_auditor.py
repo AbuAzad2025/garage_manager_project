@@ -210,7 +210,7 @@ class AccountingAuditor:
                     'total_errors': len(self.detected_errors),
                     'last_updated': datetime.now().isoformat()
                 }, f, ensure_ascii=False, indent=2)
-        except:
+        except Exception:
             pass
     
     def get_audit_summary(self) -> Dict:

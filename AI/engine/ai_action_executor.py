@@ -362,9 +362,9 @@ class ActionExecutor:
                 return {'success': False, 'message': '❌ يجب تحديد عميل أو مورد أو شريك'}
             
             payment = Payment(
-                amount=Decimal(str(params['amount'])),
+                total_amount=Decimal(str(params['amount'])),
                 direction=params['direction'],
-                payment_method=params['payment_method'],
+                method=params['payment_method'],
                 customer_id=params.get('customer_id'),
                 supplier_id=params.get('supplier_id'),
                 partner_id=params.get('partner_id'),
@@ -372,7 +372,8 @@ class ActionExecutor:
                 reference=params.get('reference', '').strip() if params.get('reference') else None,
                 payment_date=datetime.now(timezone.utc),
                 status='COMPLETED',
-                created_by_id=self.user_id
+                created_by=self.user_id,
+                entity_type='CUSTOMER' if params.get('customer_id') else 'SUPPLIER' if params.get('supplier_id') else 'PARTNER'
             )
             
             db.session.add(payment)
@@ -799,7 +800,7 @@ class ActionExecutor:
             )
             db.session.add(log)
             db.session.commit()
-        except:
+        except Exception:
             pass  # لا نريد أن يفشل التنفيذ بسبب الـ logging
 
 

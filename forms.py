@@ -266,7 +266,7 @@ class EnumSelectField(SelectField):
                         choices.append((member.value, member.value))
                 
                 kwargs["choices"] = choices
-            except:
+            except Exception:
                 kwargs["choices"] = enum_choices(enum_cls, labels_map=labels_map, include_blank=include_blank, blank=blank)
         else:
             kwargs["choices"] = enum_choices(enum_cls, labels_map=labels_map, include_blank=include_blank, blank=blank)
@@ -888,17 +888,17 @@ class ProductSupplierLoanForm(FlaskForm):
 
 class SupplierForm(FlaskForm):
     id = HiddenField(filters=[lambda v: int(v) if v and str(v).strip().isdigit() else None])
-    name = StrippedStringField('اسم المورد', validators=[DataRequired(), Length(max=100)])
-    is_local = BooleanField('محلي؟')
-    identity_number = StrippedStringField('رقم الهوية/الملف الضريبي', validators=[Optional(), Length(max=100)])
+    name = StrippedStringField('اسم المورد *', validators=[DataRequired(message="الاسم مطلوب"), Length(max=100)])
+    is_local = BooleanField('مورد محلي')
+    identity_number = StrippedStringField('رقم الهوية / الملف الضريبي', validators=[Optional(), Length(max=100)])
     contact = StrippedStringField('معلومات التواصل', validators=[Optional(), Length(max=200)])
     phone = StrippedStringField('رقم الجوال', validators=[Optional(), Length(max=20), Unique(Supplier, "phone", message="رقم الهاتف مستخدم مسبقًا", normalizer=normalize_phone)])
-    email = StrippedStringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120), Unique(Supplier, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
+    email = StrippedStringField('البريد الإلكتروني', validators=[Optional(), Email(message="بريد إلكتروني غير صحيح"), Length(max=120), Unique(Supplier, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
     address = StrippedStringField('العنوان', validators=[Optional(), Length(max=200)])
     notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
-    opening_balance = MoneyField('الرصيد الافتتاحي (موجب=له، سالب=عليه)', validators=[Optional()])
+    opening_balance = MoneyField('الرصيد الافتتاحي', validators=[Optional()])
     payment_terms = StrippedStringField('شروط الدفع', validators=[Optional(), Length(max=50)])
-    currency = CurrencySelectField('العملة', validators=[Optional()])
+    currency = CurrencySelectField('العملة *', validators=[DataRequired(message="العملة مطلوبة")])
     submit = SubmitField('حفظ المورد')
 
     def validate_phone(self, field):
@@ -926,15 +926,15 @@ class SupplierForm(FlaskForm):
 
 class PartnerForm(FlaskForm):
     id = HiddenField(filters=[lambda v: int(v) if v and str(v).strip().isdigit() else None])
-    name = StrippedStringField('اسم الشريك', validators=[DataRequired(), Length(max=100)])
+    name = StrippedStringField('اسم الشريك *', validators=[DataRequired(message="الاسم مطلوب"), Length(max=100)])
     contact_info = StrippedStringField('معلومات التواصل', validators=[Optional(), Length(max=200)])
     identity_number = StrippedStringField('رقم الهوية', validators=[Optional(), Length(max=100)])
     phone_number = StrippedStringField('رقم الجوال', validators=[Optional(), Length(max=20), Unique(Partner, "phone_number", message="رقم الهاتف مستخدم مسبقًا", normalizer=normalize_phone)])
-    email = StrippedStringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120), Unique(Partner, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
+    email = StrippedStringField('البريد الإلكتروني', validators=[Optional(), Email(message="بريد إلكتروني غير صحيح"), Length(max=120), Unique(Partner, "email", message="البريد مستخدم مسبقًا", case_insensitive=True, normalizer=normalize_email)])
     address = StrippedStringField('العنوان', validators=[Optional(), Length(max=200)])
-    opening_balance = MoneyField('الرصيد الافتتاحي (موجب=له، سالب=عليه)', validators=[Optional()])
+    opening_balance = MoneyField('الرصيد الافتتاحي', validators=[Optional()])
     share_percentage = PercentField('نسبة الشريك (%)', validators=[Optional()])
-    currency = CurrencySelectField('العملة', validators=[DataRequired()])
+    currency = CurrencySelectField('العملة *', validators=[DataRequired(message="العملة مطلوبة")])
     notes = TextAreaField('ملاحظات', validators=[Optional(), Length(max=1000)])
     submit = SubmitField('حفظ الشريك')
 

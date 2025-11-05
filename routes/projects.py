@@ -111,8 +111,6 @@ def add_project():
                 start_date=start_date,
                 end_date=end_date,
                 budget_amount=estimated_cost,
-                estimated_cost=0,
-                estimated_revenue=0,
                 actual_cost=0,
                 actual_revenue=0,
                 status='PLANNED',

@@ -134,7 +134,7 @@ def dashboard():
             else:
                 try:
                     today_incoming += convert_amount(amt, sale.currency, "ILS", sale.sale_date)
-                except:
+                except Exception:
                     pass
     
     # 2️⃣ إضافة الدفعات اليومية (وارد/صادر)
@@ -157,7 +157,7 @@ def dashboard():
                 today_incoming += amt_ils
             else:
                 today_outgoing += amt_ils
-        except:
+        except Exception:
             pass
     
     # 3️⃣ إضافة المصاريف اليومية (صادر)
@@ -174,7 +174,7 @@ def dashboard():
                 today_outgoing += amt
             else:
                 today_outgoing += convert_amount(amt, expense.currency, "ILS", expense.date)
-        except:
+        except Exception:
             pass
     
     # 4️⃣ إضافة فواتير الموردين المستحقة (صادر)
@@ -191,7 +191,7 @@ def dashboard():
                 today_outgoing += amt
             else:
                 today_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.invoice_date)
-        except:
+        except Exception:
             pass
 
     today_net = float(today_incoming - today_outgoing)
@@ -215,7 +215,7 @@ def dashboard():
             else:
                 try:
                     week_incoming += convert_amount(amt, sale.currency, "ILS", sale.sale_date)
-                except:
+                except Exception:
                     pass
     
     # الدفعات الأسبوعية
@@ -238,7 +238,7 @@ def dashboard():
                 week_incoming += amt_ils
             else:
                 week_outgoing += amt_ils
-        except:
+        except Exception:
             pass
     
     # المصاريف الأسبوعية (صادر)
@@ -255,7 +255,7 @@ def dashboard():
                 week_outgoing += amt
             else:
                 week_outgoing += convert_amount(amt, expense.currency, "ILS", expense.date)
-        except:
+        except Exception:
             pass
     
     # الفواتير الأسبوعية (صادر)
@@ -272,7 +272,7 @@ def dashboard():
                 week_outgoing += amt
             else:
                 week_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.invoice_date)
-        except:
+        except Exception:
             pass
 
     week_net = float(week_incoming - week_outgoing)
@@ -299,7 +299,7 @@ def dashboard():
             try:
                 from models import convert_amount
                 amt_ils = convert_amount(amt, p.currency, "ILS", p.payment_date)
-            except:
+            except Exception:
                 amt_ils = Decimal('0.00')
         
         if p.direction == PaymentDirection.IN.value:
@@ -606,7 +606,7 @@ def cleanup_old_backups(db_dir, sql_dir, keep_days=7, keep_weekly=4, keep_monthl
                 else:
                     try:
                         filepath.unlink()
-                    except:
+                    except Exception:
                         pass
             elif age_days <= keep_days + (keep_weekly * 7) + (keep_monthly * 30):
                 if len(monthly_backups) < keep_monthly:
@@ -614,10 +614,10 @@ def cleanup_old_backups(db_dir, sql_dir, keep_days=7, keep_weekly=4, keep_monthl
                 else:
                     try:
                         filepath.unlink()
-                    except:
+                    except Exception:
                         pass
             else:
                 try:
                     filepath.unlink()
-                except:
+                except Exception:
                     pass

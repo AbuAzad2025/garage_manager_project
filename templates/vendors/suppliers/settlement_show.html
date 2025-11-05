@@ -134,11 +134,15 @@
                                 <span class="badge bg-info">{{ "%.2f"|format(settlement.payments_in) }}</span>
                                 <span class="mx-2">-</span>
                                 <span class="badge bg-warning">{{ "%.2f"|format(settlement.payments_returns) }}</span>
+                                {% if settlement.obligations_expenses > 0 %}
+                                <span class="mx-2">-</span>
+                                <span class="badge bg-danger">{{ "%.2f"|format(settlement.obligations_expenses) }}</span>
+                                {% endif %}
                                 <span class="mx-2">=</span>
                                 <span class="badge bg-primary fs-5">{{ "%.2f"|format(settlement.closing_balance) }} ₪</span>
                             </div>
                             <div class="text-center mt-2">
-                                <small class="text-muted">الافتتاحي + الحقوق - الالتزامات - دفعنا له + دفع لنا - المرتجعات = الختامي</small>
+                                <small class="text-muted">الافتتاحي + الحقوق - الالتزامات - دفعنا له + دفع لنا - المرتجعات {% if settlement.obligations_expenses > 0 %}- المصاريف{% endif %} = الختامي</small>
                             </div>
                         </div>
                     </div>
@@ -200,18 +204,24 @@
                         </div>
                         <div class="card-body">
                             <div class="row text-center">
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <h6 class="text-danger">💸 دفعنا له (OUT)</h6>
                                     <h4 class="text-danger">{{ "%.2f"|format(settlement.payments_out) }} ₪</h4>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <h6 class="text-success">💵 دفع لنا (IN)</h6>
                                     <h4 class="text-success">{{ "%.2f"|format(settlement.payments_in) }} ₪</h4>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <h6 class="text-warning">🔄 المرتجعات</h6>
                                     <h4 class="text-warning">{{ "%.2f"|format(settlement.payments_returns) }} ₪</h4>
                                 </div>
+                                {% if settlement.obligations_expenses > 0 %}
+                                <div class="col-md-3">
+                                    <h6 class="text-danger">💰 المصاريف</h6>
+                                    <h4 class="text-danger">{{ "%.2f"|format(settlement.obligations_expenses) }} ₪</h4>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>

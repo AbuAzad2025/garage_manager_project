@@ -147,7 +147,7 @@
     {% set stats = [
       ('إجمالي مدين (مطلوب للمورد)', total_debit, 'text-danger', 'fa-arrow-up'),
       ('إجمالي دائن (دفعات/مرتجعات/تسويات)', total_credit, 'text-success', 'fa-arrow-down'),
-      ('الرصيد', balance, balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '', 'fa-balance-scale')
+      ('الرصيد', balance, balance > 0 and 'text-success' or balance < 0 and 'text-danger' or '', 'fa-balance-scale')
     ] %}
     <div class="col-12 col-md-3">
       <div class="card shadow-sm h-100 border-success">
@@ -195,7 +195,7 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <div class="text-muted small">🎯 الرصيد</div>
-              <div class="fs-4 fw-bold {% if balance_data and balance_data.success %}{{ balance_data.balance.amount > 0 and 'text-success' or balance_data.balance.amount < 0 and 'text-danger' or 'text-secondary' }}{% else %}{{ balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '' }}{% endif %}">
+              <div class="fs-4 fw-bold {% if balance_data and balance_data.success %}{{ balance_data.balance.amount > 0 and 'text-success' or balance_data.balance.amount < 0 and 'text-danger' or 'text-secondary' }}{% else %}{{ balance > 0 and 'text-success' or balance < 0 and 'text-danger' or '' }}{% endif %}">
                 {% if balance_data and balance_data.success %}
                   {{ "%.2f"|format(balance_data.balance.amount|abs) }} ₪
                 {% else %}
@@ -319,7 +319,7 @@
               </td>
               <td class="text-end">{{ e.debit|format_currency }}</td>
               <td class="text-end">{{ e.credit|format_currency }}</td>
-              <td class="text-end fw-bold {% if e.balance > 0 %}text-danger{% elif e.balance < 0 %}text-success{% endif %}">
+              <td class="text-end fw-bold {% if e.balance > 0 %}text-success{% elif e.balance < 0 %}text-danger{% endif %}">
                 {{ e.balance|format_currency }}
               </td>
             </tr>
@@ -334,7 +334,7 @@
               <th colspan="4" class="text-end">الإجمالي</th>
               <th class="text-end">{{ total_debit|format_currency }}</th>
               <th class="text-end">{{ total_credit|format_currency }}</th>
-              <th class="text-end {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">
+              <th class="text-end {% if balance > 0 %}text-success{% elif balance < 0 %}text-danger{% endif %}">
                 {{ balance|format_currency }}
               </th>
             </tr>

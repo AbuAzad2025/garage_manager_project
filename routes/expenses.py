@@ -427,16 +427,16 @@ def generate_salary(emp_id):
                 payment_notes += f" - معاملة رقم {transfer_reference}"
             
             payment = Payment(
-                date=datetime.strptime(payment_date, '%Y-%m-%d'),
-                amount=actual_payment,
+                payment_date=datetime.strptime(payment_date, '%Y-%m-%d'),
+                total_amount=actual_payment,
                 currency=employee.currency,
                 direction='OUT',
                 method=payment_method.upper(),
                 entity_type='EXPENSE',
-                entity_id=salary_expense.id,
+                expense_id=salary_expense.id,
                 reference=f"دفع راتب {month}/{year} - {employee.name}",
                 notes=payment_notes,
-                created_by=current_user.username if current_user.is_authenticated else 'system'
+                created_by=current_user.id if current_user.is_authenticated else None
             )
             db.session.add(payment)
         

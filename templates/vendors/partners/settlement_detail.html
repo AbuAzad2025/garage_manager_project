@@ -46,7 +46,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <div class="card bg-success text-white">
                                 <div class="card-body text-center">
                                     <h6>الحقوق</h6>
@@ -54,7 +54,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <div class="card bg-danger text-white">
                                 <div class="card-body text-center">
                                     <h6>الالتزامات</h6>
@@ -62,7 +62,25 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
+                            <div class="card bg-warning">
+                                <div class="card-body text-center">
+                                    <h6>الدفعات</h6>
+                                    <h3>{{ "%.2f"|format(settlement_data.payments.net|abs) }} ₪</h3>
+                                </div>
+                            </div>
+                        </div>
+                        {% if settlement_data.expenses.total_ils > 0 %}
+                        <div class="col-md-2">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body text-center">
+                                    <h6>المصاريف</h6>
+                                    <h3>{{ "%.2f"|format(settlement_data.expenses.total_ils) }} ₪</h3>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-{% if settlement_data.expenses.total_ils > 0 %}1{% else %}3{% endif %}">
                             <div class="card bg-primary text-white">
                                 <div class="card-body text-center">
                                     <h6>الختامي</h6>

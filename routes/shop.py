@@ -30,6 +30,9 @@ from models import (
     PaymentStatus,
     PaymentDirection,
     PaymentEntityType,
+    GLBatch,
+    GLEntry,
+    TaxEntry,
 )
 import utils
 
@@ -772,7 +775,15 @@ def checkout():
     cart = get_active_cart(g.online_customer.id)
     if not cart or not cart.items:
         return _resp("سلتك فارغة.", "warning", to="shop.catalog")
-    subtotal = sum(i.quantity * float(i.price or 0) for i in cart.items)
+    
+    from models import SystemSettings
+    vat_enabled = SystemSettings.get_setting('vat_enabled', False)
+    vat_rate = float(SystemSettings.get_setting('default_vat_rate', 0.0)) if vat_enabled else 0.0
+    
+    subtotal_before_tax = sum(i.quantity * float(i.price or 0) for i in cart.items)
+    tax_amount = round(subtotal_before_tax * (vat_rate / 100.0), 2)
+    subtotal = subtotal_before_tax + tax_amount
+    
     rate = _prepaid_rate()
     prepaid = round(subtotal * rate, 2)
     if request.method == "POST":
@@ -801,17 +812,28 @@ def checkout():
                     if itm.quantity > available_qty(itm.product_id):
                         abort(409, description="الكمية المطلوبة غير متوفرة.")
                 payment_status = "PAID" if prepaid >= subtotal else ("PARTIAL" if prepaid > 0 else "PENDING")
+                
+                notes_parts = []
+                if vat_enabled and vat_rate > 0:
+                    notes_parts.append(f"الإجمالي شامل ضريبة {vat_rate}%")
+                    notes_parts.append(f"المبلغ قبل الضريبة: {subtotal_before_tax:.2f}")
+                    notes_parts.append(f"الضريبة: {tax_amount:.2f}")
+                
                 preorder = OnlinePreOrder(
                     customer_id=g.online_customer.id,
                     cart_id=cart.id,
                     order_number=f"PO-{uuid.uuid4().hex[:8].upper()}",
                     prepaid_amount=prepaid,
                     total_amount=subtotal,
+                    base_amount=subtotal_before_tax,
+                    tax_rate=vat_rate,
+                    tax_amount=tax_amount,
                     status="CONFIRMED",
                     payment_status=payment_status,
                     payment_method="card",
                     shipping_address=request.form.get("shipping_address") or getattr(g.online_customer, "address", None),
                     billing_address=request.form.get("billing_address") or getattr(g.online_customer, "address", None),
+                    notes=" | ".join(notes_parts) if notes_parts else None,
                 )
                 db.session.add(preorder)
                 db.session.flush()
@@ -851,20 +873,82 @@ def checkout():
                     op.status = "FAILED" if prepaid > 0 else "PENDING"
                 db.session.add(op)
                 if prepaid > 0 and op.status == "SUCCESS":
-                    db.session.add(
-                        Payment(
-                            entity_type=PaymentEntityType.CUSTOMER.value,
-                            customer_id=g.online_customer.id,
-                            direction=PaymentDirection.IN.value,
-                            status=PaymentStatus.COMPLETED.value,
-                            method="card",
-                            total_amount=prepaid,
-                            currency=getattr(g.online_customer, "currency", "ILS"),
-                            payment_date=datetime.utcnow(),
-                            reference=f"Online Preorder {preorder.order_number}",
-                            notes="Online prepaid via checkout",
-                        )
+                    payment = Payment(
+                        entity_type=PaymentEntityType.CUSTOMER.value,
+                        customer_id=g.online_customer.id,
+                        direction=PaymentDirection.IN.value,
+                        status=PaymentStatus.COMPLETED.value,
+                        method="card",
+                        total_amount=prepaid,
+                        currency=getattr(g.online_customer, "currency", "ILS"),
+                        payment_date=datetime.utcnow(),
+                        reference=f"Online Preorder {preorder.order_number}",
+                        notes="Online prepaid via checkout",
                     )
+                    db.session.add(payment)
+                    db.session.flush()
+                    op.payment_id = payment.id
+                    db.session.add(op)
+                
+                gl_batch = GLBatch(
+                    source_type='ONLINE_PREORDER',
+                    source_id=preorder.id,
+                    purpose='ONLINE_SALE',
+                    posted_at=datetime.utcnow(),
+                    currency=preorder.currency,
+                    memo=f"Online Preorder {preorder.order_number}",
+                    status='POSTED',
+                    entity_type='CUSTOMER',
+                    entity_id=g.online_customer.id
+                )
+                db.session.add(gl_batch)
+                db.session.flush()
+                
+                db.session.add(GLEntry(
+                    batch_id=gl_batch.id,
+                    account='1301',
+                    debit=subtotal,
+                    credit=0,
+                    ref=f"Online Order {preorder.order_number}"
+                ))
+                
+                db.session.add(GLEntry(
+                    batch_id=gl_batch.id,
+                    account='4100',
+                    debit=0,
+                    credit=subtotal_before_tax,
+                    ref=f"Online Sales {preorder.order_number}"
+                ))
+                
+                if vat_enabled and tax_amount > 0:
+                    db.session.add(GLEntry(
+                        batch_id=gl_batch.id,
+                        account='2300',
+                        debit=0,
+                        credit=tax_amount,
+                        ref=f"VAT {vat_rate}%"
+                    ))
+                    
+                    order_date = datetime.utcnow()
+                    tax_entry = TaxEntry(
+                        entry_type='OUTPUT_VAT',
+                        transaction_type='ONLINE_PREORDER',
+                        transaction_id=preorder.id,
+                        transaction_reference=preorder.order_number,
+                        tax_rate=float(vat_rate),
+                        base_amount=float(subtotal_before_tax),
+                        tax_amount=float(tax_amount),
+                        total_amount=float(subtotal),
+                        currency=preorder.currency,
+                        fiscal_year=order_date.year,
+                        fiscal_month=order_date.month,
+                        tax_period=f"{order_date.year}-{order_date.month:02d}",
+                        customer_id=g.online_customer.id,
+                        gl_entry_id=gl_batch.id,
+                        notes=f'طلب أونلاين: {preorder.order_number}'
+                    )
+                    db.session.add(tax_entry)
+                
                 cart.status = "CONVERTED"
             try:
                 if getattr(g.online_customer, "phone", None):
@@ -887,7 +971,13 @@ def checkout():
         except SQLAlchemyError as e:
             db.session.rollback()
             return _resp(f"خطأ أثناء الدفع: {e}", "danger")
-    return render_template("shop/pay_online.html", cart=cart, subtotal=subtotal, prepaid_amount=prepaid)
+    return render_template("shop/pay_online.html", 
+                          cart=cart, 
+                          subtotal=subtotal, 
+                          subtotal_before_tax=subtotal_before_tax if vat_enabled else subtotal,
+                          tax_amount=tax_amount if vat_enabled else 0,
+                          vat_rate=vat_rate if vat_enabled else 0,
+                          prepaid_amount=prepaid)
 
 @shop_bp.route("/preorders", endpoint="preorder_list")
 @online_customer_required

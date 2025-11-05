@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% block title %}تعريفات Workflows{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1><i class="fas fa-cogs"></i> تعريفات Workflows</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-left">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('workflows.index') }}">Workflows</a></li>
+                    <li class="breadcrumb-item active">التعريفات</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        
+        <div class="row mb-3">
+            <div class="col-12">
+                <a href="{{ url_for('workflows.index') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> العودة
+                </a>
+                <a href="{{ url_for('workflows.add_definition') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> تعريف جديد
+                </a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-list"></i> قائمة التعريفات</h3>
+                <div class="card-tools">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown">
+                            <i class="fas fa-filter"></i> فلترة
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-left">
+                            <a class="dropdown-item" href="?">الكل</a>
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" href="?entity_type=MILESTONE">المحطات</a>
+                            <a class="dropdown-item" href="?entity_type=CHANGE_ORDER">أوامر التغيير</a>
+                            <a class="dropdown-item" href="?entity_type=RISK">المخاطر</a>
+                            <a class="dropdown-item" href="?entity_type=EXPENSE">المصاريف</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>الرمز</th>
+                            <th>الاسم</th>
+                            <th>النوع</th>
+                            <th>الكيان</th>
+                            <th>الخطوات</th>
+                            <th>النسخ</th>
+                            <th>نشط؟</th>
+                            <th>الحالة</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in definitions_data %}
+                        {% set def = data.definition %}
+                        <tr>
+                            <td><code>{{ def.workflow_code }}</code></td>
+                            <td>
+                                <strong>{{ def.workflow_name }}</strong>
+                                {% if def.workflow_name_ar %}
+                                <br><small class="text-muted">{{ def.workflow_name_ar }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if def.workflow_type == 'APPROVAL' %}
+                                    <span class="badge badge-primary">موافقة</span>
+                                {% elif def.workflow_type == 'REVIEW' %}
+                                    <span class="badge badge-info">مراجعة</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">{{ def.workflow_type }}</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge badge-secondary">{{ def.entity_type }}</span></td>
+                            <td class="text-center">{{ def.steps_definition|length if def.steps_definition else 0 }}</td>
+                            <td class="text-center">
+                                <span class="badge badge-light">{{ data.instances_count }}</span>
+                                {% if data.active_instances > 0 %}
+                                <span class="badge badge-warning">{{ data.active_instances }} نشط</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if def.is_active %}
+                                    <span class="badge badge-success"><i class="fas fa-check"></i> نشط</span>
+                                {% else %}
+                                    <span class="badge badge-secondary"><i class="fas fa-times"></i> معطل</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ url_for('workflows.toggle_definition', id=def.id) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-{{ 'danger' if def.is_active else 'success' }}">
+                                        <i class="fas fa-{{ 'pause' if def.is_active else 'play' }}"></i>
+                                        {{ 'تعطيل' if def.is_active else 'تفعيل' }}
+                                    </button>
+                                </form>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('workflows.edit_definition', id=def.id) }}" 
+                                   class="btn btn-sm btn-warning">
+                                    <i class="fas fa-edit"></i> تعديل
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted">
+                                <i class="fas fa-inbox"></i> لا توجد تعريفات
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</section>
+{% endblock %}
+

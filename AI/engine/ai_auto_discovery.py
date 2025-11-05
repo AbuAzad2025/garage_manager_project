@@ -401,7 +401,7 @@ def auto_discover_if_needed():
         if age_hours > 24:
             return build_system_map()
     
-    except:
+    except Exception:
         pass
     
     return load_system_map()

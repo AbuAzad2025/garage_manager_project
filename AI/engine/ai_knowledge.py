@@ -132,7 +132,7 @@ class SystemKnowledgeBase:
                         if interactions:
                             recent = interactions[-20:]
                             avg_confidence = sum(i.get('confidence', 0) for i in recent) / len(recent)
-            except:
+            except Exception:
                 pass
             
             # حساب المؤشر النهائي

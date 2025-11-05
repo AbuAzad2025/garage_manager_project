@@ -67,10 +67,12 @@ from routes.recurring_invoices import recurring_bp
 from routes.health import health_bp
 from routes.security import security_bp
 from routes.advanced_control import advanced_bp
+from routes.workflows import workflows_bp
 from routes.security_control import security_control_bp
 from routes.archive import archive_bp
 from routes.archive_routes import archive_routes_bp
 from routes.sale_returns import returns_bp
+from routes.balances_api import balances_api_bp
 
 
 # ========== تفعيل Foreign Keys في SQLite ==========
@@ -509,6 +511,8 @@ def create_app(config_object=Config) -> Flask:
         projects_bp,
         project_advanced_bp,
         recurring_bp,
+        workflows_bp,
+        balances_api_bp,
     ]
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)
@@ -744,12 +748,12 @@ def create_app(config_object=Config) -> Flask:
                             return False
                         return setting.value
                     return default
-                except:
+                except Exception:
                     return default
             
             settings = {
-                'system_name': _get_setting('system_name', 'Garage Manager'),
-                'company_name': _get_setting('COMPANY_NAME', 'Azad Garage'),
+                'system_name': _get_setting('system_name', 'نظام إدارة متكامل'),
+                'company_name': _get_setting('COMPANY_NAME', 'AZAD Systems'),
                 'custom_logo': _get_setting('custom_logo', ''),
                 'custom_favicon': _get_setting('custom_favicon', ''),
                 'primary_color': _get_setting('primary_color', '#007bff'),
@@ -761,7 +765,7 @@ def create_app(config_object=Config) -> Flask:
                 'TIMEZONE': _get_setting('TIMEZONE', 'UTC'),
             }
             return dict(system_settings=settings)
-        except:
+        except Exception:
             return dict(system_settings={})
     
     @app.before_request
@@ -781,7 +785,7 @@ def create_app(config_object=Config) -> Flask:
             setting = SystemSettings.query.filter_by(key='maintenance_mode').first()
             if not setting or setting.value.lower() not in ['true', '1', 'yes']:
                 return None
-        except:
+        except Exception:
             return None
         
         try:
@@ -789,7 +793,7 @@ def create_app(config_object=Config) -> Flask:
                 current_user.username.lower() in ['azad', 'owner', 'admin'] or
                 False):  # Simplified version
                 return None
-        except:
+        except Exception:
             pass
         
         return render_template('maintenance.html'), 503
