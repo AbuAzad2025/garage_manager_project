@@ -471,6 +471,7 @@
     
     const btn = document.createElement('button');
     btn.className = 'btn btn-sm btn-outline-success table-export-btn mb-2';
+    btn.classList.add('no-print');
     btn.innerHTML = '<i class="fas fa-file-excel"></i> Export CSV';
     btn.onclick = () => exportTableToCSV(table);
     

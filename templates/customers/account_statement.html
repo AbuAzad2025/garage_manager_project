@@ -16,6 +16,7 @@
     /* إخفاء عناصر غير ضرورية */
     .no-print,
     .btn,
+    .table-export-btn,
     .breadcrumb,
     nav,
     .main-sidebar,
@@ -589,11 +590,23 @@
   window.printStatementTable = function() {
     const table = document.getElementById('statementTable');
     if (!table) return;
-    
+
+    const printData = {
+      customerName: {{ customer.name|tojson }},
+      customerPhone: {{ (customer.phone or '')|tojson }},
+      customerAddress: {{ (customer.address or '')|tojson }},
+      periodStart: {{ (start_date|format_date if start_date else '')|tojson }},
+      periodEnd: {{ (end_date|format_date if end_date else '')|tojson }},
+      balanceText: {{ balance|format_currency|tojson }},
+      balanceState: {% if balance > 0 %}'owed'{% elif balance < 0 %}'due'{% else %}'balanced'{% endif %},
+      printedDate: {{ now()|format_date|tojson }}
+    };
+
     const printWindow = window.open('', '', 'height=800,width=1000');
-    printWindow.document.write('<html><head><title>كشف حساب - {{ customer.name }}</title>');
+    printWindow.document.write('<html><head><title>كشف حساب - ' + printData.customerName + '</title>');
     printWindow.document.write('<meta charset="UTF-8">');
     printWindow.document.write('<style>');
+    printWindow.document.write('.no-print, .table-export-btn{display:none !important;}');
     printWindow.document.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
     printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; padding: 10px; font-size: 8pt; line-height: 1.2; }');
     printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; font-size: 11pt; }');
@@ -614,40 +627,36 @@
     printWindow.document.write('@page { margin: 0.8cm; size: A4 portrait; }');
     printWindow.document.write('</style></head><body>');
     
-    // الترويسة
     printWindow.document.write('<h2>كشف حساب عميل</h2>');
-    
-    // معلومات العميل
     printWindow.document.write('<div class="customer-info">');
     printWindow.document.write('<table><tr>');
     printWindow.document.write('<td style="width: 55%;">');
-    printWindow.document.write('<div><strong>العميل:</strong> {{ customer.name }}</div>');
-    {% if customer.phone %}
-    printWindow.document.write('<div><strong>الجوال:</strong> {{ customer.phone }}</div>');
-    {% endif %}
+    printWindow.document.write('<div><strong>العميل:</strong> ' + printData.customerName + '</div>');
+    if (printData.customerPhone) {
+      printWindow.document.write('<div><strong>الجوال:</strong> ' + printData.customerPhone + '</div>');
+    }
+    if (printData.customerAddress) {
+      printWindow.document.write('<div><strong>العنوان:</strong> ' + printData.customerAddress + '</div>');
+    }
     printWindow.document.write('</td>');
     printWindow.document.write('<td style="width: 45%; border-right: 1px solid #000;">');
-    {% if start_date and end_date %}
-    printWindow.document.write('<div><strong>الفترة:</strong> من {{ start_date|format_date }} إلى {{ end_date|format_date }}</div>');
-    {% endif %}
-    printWindow.document.write('<div class="balance-box"><strong>الرصيد الحالي:</strong> {{ balance|format_currency }}');
-    {% if balance > 0 %}
-    printWindow.document.write(' <strong style="color: #dc3545;">(عليه لنا)</strong>');
-    {% elif balance < 0 %}
-    printWindow.document.write(' <strong style="color: #28a745;">(له علينا)</strong>');
-    {% else %}
-    printWindow.document.write(' (متوازن)');
-    {% endif %}
-    printWindow.document.write('</div>');
-    printWindow.document.write('<div style="font-size: 9pt; margin-top: 5px;"><strong>طُبع:</strong> {{ now()|format_date }}</div>');
+    if (printData.periodStart && printData.periodEnd) {
+      printWindow.document.write('<div><strong>الفترة:</strong> من ' + printData.periodStart + ' إلى ' + printData.periodEnd + '</div>');
+    }
+    let balanceSuffix = '';
+    if (printData.balanceState === 'owed') {
+      balanceSuffix = ' <strong style="color: #dc3545;">(عليه لنا)</strong>';
+    } else if (printData.balanceState === 'due') {
+      balanceSuffix = ' <strong style="color: #28a745;">(له علينا)</strong>';
+    } else {
+      balanceSuffix = ' (متوازن)';
+    }
+    printWindow.document.write('<div class="balance-box"><strong>الرصيد الحالي:</strong> ' + printData.balanceText + balanceSuffix + '</div>');
+    printWindow.document.write('<div style="font-size: 9pt; margin-top: 5px;"><strong>طُبع:</strong> ' + printData.printedDate + '</div>');
     printWindow.document.write('</td>');
     printWindow.document.write('</tr></table>');
     printWindow.document.write('</div>');
-    
-    // الجدول
     printWindow.document.write(table.outerHTML);
-    
-    // التذييل
     printWindow.document.write('<div class="footer">');
     printWindow.document.write('طُبع بتاريخ: ' + new Date().toLocaleString('en-US'));
     printWindow.document.write('</div>');
@@ -655,7 +664,6 @@
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     
-    // انتظر تحميل المحتوى ثم اطبع
     setTimeout(function() {
       printWindow.print();
     }, 250);
