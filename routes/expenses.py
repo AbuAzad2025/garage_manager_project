@@ -584,11 +584,8 @@ def types_list():
 def add_type():
     form = ExpenseTypeForm()
     if form.validate_on_submit():
-        t = ExpenseType(
-            name=(form.name.data or "").strip(),
-            description=(form.description.data or None),
-            is_active=bool(getattr(form, "is_active", None) and form.is_active.data),
-        )
+        t = ExpenseType()
+        form.apply_to(t)
         db.session.add(t)
         try:
             db.session.commit()
@@ -606,10 +603,7 @@ def edit_type(type_id):
     t = _get_or_404(ExpenseType, type_id)
     form = ExpenseTypeForm(obj=t)
     if form.validate_on_submit():
-        t.name = (form.name.data or "").strip()
-        t.description = (form.description.data or None)
-        if hasattr(form, "is_active"):
-            t.is_active = bool(form.is_active.data)
+        form.apply_to(t)
         try:
             db.session.commit()
             flash("✅ تم تعديل النوع", "success")

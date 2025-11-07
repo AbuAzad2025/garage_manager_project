@@ -32,6 +32,12 @@
             {% for e in form.description.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
+          <div class="col-12">
+            {{ form.fields_meta.label(class="form-label") }}
+            {{ form.fields_meta(class=("form-control is-invalid" if form.fields_meta.errors else "form-control"), rows="6", placeholder="{}") }}
+            {% for e in form.fields_meta.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
           <div class="col-md-12">
             <div class="form-check form-switch mt-2">
               {{ form.is_active(class=("form-check-input is-invalid" if form.is_active.errors else "form-check-input"), id="is_active") }}

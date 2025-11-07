@@ -2446,8 +2446,19 @@ class ExpenseTypeForm(FlaskForm):
     id = HiddenField(validators=[Optional()])
     name = StrippedStringField('اسم نوع المصروف', validators=[DataRequired(), Length(max=100)])
     description = TextAreaField('وصف اختياري', validators=[Optional(), Length(max=500)])
+    fields_meta = TextAreaField('الإعدادات المتقدمة', validators=[Optional()])
     is_active = BooleanField('مُفعّل', default=True)
     submit = SubmitField('حفظ')
+
+    def __init__(self, *args, **kwargs):
+        obj = kwargs.get('obj')
+        super().__init__(*args, **kwargs)
+        self._parsed_fields_meta = None
+        if not self.fields_meta.data and obj and getattr(obj, 'fields_meta', None):
+            try:
+                self.fields_meta.data = json.dumps(obj.fields_meta, ensure_ascii=False, indent=2)
+            except (TypeError, ValueError):
+                self.fields_meta.data = ''
 
     def validate_name(self, field):
         name = (field.data or "").strip()
@@ -2457,10 +2468,25 @@ class ExpenseTypeForm(FlaskForm):
         if qry.first():
             raise ValidationError("اسم نوع المصروف موجود مسبقًا.")
 
+    def validate_fields_meta(self, field):
+        raw = (field.data or '').strip()
+        if not raw:
+            self._parsed_fields_meta = None
+            field.data = ''
+            return
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError as err:
+            raise ValidationError(f"صيغة JSON غير صحيحة: {err}")
+        if not isinstance(parsed, dict):
+            raise ValidationError("يجب أن يكون المحتوى كائن JSON")
+        self._parsed_fields_meta = parsed
+
     def apply_to(self, obj):
         obj.name = (self.name.data or "").strip()
         obj.description = (self.description.data or "").strip() or None
         obj.is_active = bool(self.is_active.data)
+        obj.fields_meta = self._parsed_fields_meta
         return obj
 
 
@@ -2524,6 +2550,11 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
         t = ExpenseType.query.get(int(self.type_id.data)) if self.type_id.data else None
         n = (t.name if t else '').strip().lower()
         code = (t.code if t else '').strip().upper()
+        meta_kind = ''
+        if t and isinstance(t.fields_meta, dict):
+            meta_kind = str(t.fields_meta.get('kind') or '').strip().upper()
+            if meta_kind in {'SALARY','EMPLOYEE_ADVANCE','RENT','UTILITIES','MAINTENANCE','SHIPMENT','DAMAGED','STORE_USE','MISC'}:
+                return meta_kind
         
         if code == 'SALARY' or any(k in n for k in ['راتب','رواتب','salary']): 
             return 'SALARY'
@@ -2552,42 +2583,75 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
         if not super().validate(extra_validators=extra_validators): return False
 
         kind = self._resolve_kind()
+        etype = ExpenseType.query.get(int(self.type_id.data)) if self.type_id.data else None
+        type_meta = {}
+        required_fields = set()
+        if etype and isinstance(etype.fields_meta, dict):
+            type_meta = etype.fields_meta
+            required_fields = set(type_meta.get('required') or [])
         if self.period_start.data and self.period_end.data and self.period_end.data < self.period_start.data:
             self.period_end.errors.append('نهاية الفترة يجب أن تكون بعد بدايتها')
             return False
 
         if kind == 'SALARY':
-            if not self.employee_id.data:
+            require_employee = type_meta.get('require_employee')
+            if require_employee is None:
+                require_employee = ('employee_id' in required_fields) or not type_meta
+            if require_employee and not self.employee_id.data:
                 self.employee_id.errors.append('اختر الموظف')
                 return False
-            if not self.period_start.data or not self.period_end.data:
+            require_period = type_meta.get('require_period')
+            if require_period is None:
+                require_period = ('period' in required_fields) or not type_meta
+            if require_period and (not self.period_start.data or not self.period_end.data):
                 self.period_end.errors.append('حدد فترة الرواتب')
                 return False
         elif kind == 'EMPLOYEE_ADVANCE':
-            if not self.employee_id.data:
+            require_employee = type_meta.get('require_employee')
+            if require_employee is None:
+                require_employee = ('employee_id' in required_fields) or not type_meta
+            if require_employee and not self.employee_id.data:
                 self.employee_id.errors.append('اختر الموظف المستلم للسلفة')
                 return False
         elif kind == 'RENT':
-            if not self.warehouse_id.data:
+            require_warehouse = type_meta.get('require_warehouse')
+            if require_warehouse is None:
+                require_warehouse = ('warehouse_id' in required_fields) or not type_meta
+            if require_warehouse and not self.warehouse_id.data:
                 self.warehouse_id.errors.append('اختر المستودع المؤجر')
                 return False
         elif kind == 'UTILITIES':
-            if not self.utility_account_id.data:
+            require_utility_account = type_meta.get('require_utility_account')
+            if require_utility_account is None:
+                require_utility_account = ('utility_account_id' in required_fields) or not type_meta
+            if require_utility_account and not self.utility_account_id.data:
                 self.utility_account_id.errors.append('اختر حساب المرفق')
                 return False
-            if not self.period_start.data or not self.period_end.data:
+            require_period = type_meta.get('require_period')
+            if require_period is None:
+                require_period = ('period' in required_fields) or not type_meta
+            if require_period and (not self.period_start.data or not self.period_end.data):
                 self.period_end.errors.append('حدد فترة الفاتورة')
                 return False
         elif kind == 'SHIPMENT':
-            if not self.shipment_id.data:
+            require_shipment = type_meta.get('require_shipment')
+            if require_shipment is None:
+                require_shipment = ('shipment_id' in required_fields) or not type_meta
+            if require_shipment and not self.shipment_id.data:
                 self.shipment_id.errors.append('اختر الشحنة')
                 return False
         elif kind in ('DAMAGED','STORE_USE'):
-            if not self.stock_adjustment_id.data:
+            require_stock = type_meta.get('require_stock_adjustment')
+            if require_stock is None:
+                require_stock = ('stock_adjustment_id' in required_fields) or not type_meta
+            if require_stock and not self.stock_adjustment_id.data:
                 self.stock_adjustment_id.errors.append('اختر تسوية مخزون')
                 return False
         elif kind == 'MISC':
-            if not (self.beneficiary_name.data or self.paid_to.data or self.employee_id.data or self.warehouse_id.data):
+            require_beneficiary = type_meta.get('require_beneficiary')
+            if require_beneficiary is None:
+                require_beneficiary = not type_meta
+            if require_beneficiary and not (self.beneficiary_name.data or self.paid_to.data or self.employee_id.data or self.warehouse_id.data):
                 self.beneficiary_name.errors.append('أدخل اسم الجهة المستفيدة')
                 return False
 
