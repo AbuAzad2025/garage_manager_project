@@ -2,20 +2,20 @@
   
   <ul class="navbar-nav">
     <li class="nav-item">
-      <a class="nav-link" data-widget="pushmenu" href="#" role="button">
+      <a class="nav-link nav-strong" data-widget="pushmenu" href="#" role="button" title="القائمة الجانبية">
         <i class="fas fa-bars"></i>
       </a>
     </li>
     
     <li class="nav-item">
-      <button class="nav-link btn btn-link text-white" onclick="toggleSidebarPosition()" title="نقل القائمة الجانبية يمين/يسار" style="border: none; background: none;">
+      <button class="nav-link btn btn-link text-white nav-strong" onclick="toggleSidebarPosition()" title="تبديل موقع القائمة" style="border: none; background: none;">
         <i class="fas fa-exchange-alt"></i>
       </button>
     </li>
 
     {% if current_user.is_authenticated and shop_is_super_admin %}
     <li class="nav-item">
-      <a class="nav-link" href="{{ url_for('shop.catalog') }}" target="_blank">
+      <a class="nav-link nav-strong" href="{{ url_for('shop.catalog') }}" target="_blank" title="المتجر">
         <i class="fas fa-store"></i>
       </a>
     </li>
@@ -35,7 +35,7 @@
         
         {% if show_ai %}
         <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('ai.assistant') }}" title="المساعد الذكي">
+          <a class="nav-link nav-strong" href="{{ url_for('ai.assistant') }}" title="المساعد الذكي">
             <i class="fas fa-robot"></i>
           </a>
         </li>
@@ -279,6 +279,22 @@
   to {
     text-shadow: 0 0 20px #ffc107, 0 0 30px #ffc107;
   }
+}
+.nav-strong,
+.nav-strong i {
+  color: #0b1120 !important;
+  font-weight: 700 !important;
+}
+.nav-strong i {
+  font-size: 1.2rem;
+  text-shadow: 0 0 4px rgba(255,255,255,0.4);
+}
+.navbar-text {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+.navbar-text i {
+  color: #fbbf24 !important;
 }
 </style>
 

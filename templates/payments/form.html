@@ -174,6 +174,29 @@ form .row:nth-of-type(3) .card-header {
     box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1) !important;
     transform: scale(1.01) !important;
 }
+.select2-container {
+    width: 100% !important;
+}
+.select2-container--default .select2-selection--single {
+    border: 2px solid #e8ecf1 !important;
+    border-radius: 12px !important;
+    padding: 12px 18px !important;
+    min-height: 54px !important;
+    display: flex !important;
+    align-items: center !important;
+    background: #f8f9fa !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    font-weight: 500 !important;
+    font-size: 0.95rem !important;
+    color: #2c3e50 !important;
+    white-space: normal !important;
+    line-height: 1.4 !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+}
 
 /* Split Forms - تصميم كارت أنيق */
 .split-form {
@@ -196,6 +219,27 @@ form .row:nth-of-type(3) .card-header {
     font-weight: 800 !important;
     font-size: 1.05rem !important;
     display: flex !important;
+.split-method-col {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+}
+
+.split-amount-col {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+}
+
+@media (min-width: 768px) {
+    .split-method-col {
+        flex: 0 0 60% !important;
+        max-width: 60% !important;
+    }
+    .split-amount-col {
+        flex: 0 0 40% !important;
+        max-width: 40% !important;
+    }
+}
+
     align-items: center !important;
     gap: 8px !important;
 }
@@ -569,7 +613,7 @@ h2, h3, h4 {
                 {{ form.entity_type.label.text }}
                 <span class="text-danger fw-bold">*</span>
               </label>
-              {{ form.entity_type(class="custom-select") }}
+              {{ form.entity_type(class="custom-select js-enhanced-select") }}
               <small class="form-text text-muted">
                 <i class="fas fa-info-circle"></i> اختر نوع الجهة التي تتعامل معها
               </small>
@@ -587,7 +631,7 @@ h2, h3, h4 {
                 {{ form.direction.label.text }}
                 <span class="text-danger fw-bold">*</span>
               </label>
-              {{ form.direction(class="custom-select") }}
+              {{ form.direction(class="custom-select js-enhanced-select") }}
               <small class="form-text text-muted">
                 <i class="fas fa-info-circle"></i> وارد (قبض منهم) أو صادر (دفع لهم)
               </small>
@@ -605,7 +649,7 @@ h2, h3, h4 {
                 {{ form.status.label.text }}
                 <span class="text-danger fw-bold">*</span>
               </label>
-              {{ form.status(class="custom-select") }}
+              {{ form.status(class="custom-select js-enhanced-select") }}
               <small class="form-text text-muted">
                 <i class="fas fa-info-circle"></i> حالة الدفعة (مكتملة، معلقة، إلخ)
               </small>
@@ -654,7 +698,7 @@ h2, h3, h4 {
                 {{ form.currency.label.text }}
                 <span class="text-danger fw-bold">*</span>
               </label>
-              {{ form.currency(class="custom-select") }}
+              {{ form.currency(class="custom-select js-enhanced-select") }}
               <small class="form-text text-muted">
                 <i class="fas fa-info-circle"></i> عملة الدفع (شيكل، دولار، دينار)
               </small>
@@ -814,19 +858,19 @@ h2, h3, h4 {
             </div>
 
             <div class="row gy-2">
-              <div class="col-md-6">
+              <div class="col-12 col-md-6 split-method-col">
                 <label class="form-label required-field">
                   <i class="fas fa-wallet text-primary"></i>
                   {{ split.method.label.text }}
                   <span class="text-danger fw-bold">*</span>
                 </label>
-                {{ split.method(class="custom-select split-method") }}
+              {{ split.method(class="custom-select split-method js-enhanced-select") }}
                 <small class="form-text text-muted">
                   <i class="fas fa-info-circle"></i> كيف ستدفع هذا الجزء
                 </small>
                 {% for e in split.method.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
               </div>
-              <div class="col-md-6">
+              <div class="col-12 col-md-6 split-amount-col">
                 <label class="form-label required-field">
                   <i class="fas fa-dollar-sign text-success"></i>
                   {{ split.amount.label.text }}
@@ -953,6 +997,32 @@ h2, h3, h4 {
   <script>
     // الفلاتر الذكية للجهات
     let searchTimeout = {};
+    function initEnhancedSelects(root) {
+      if (!window.jQuery || !$.fn || !$.fn.select2) {
+        return;
+      }
+      const context = root || document;
+      const nodes = context.querySelectorAll('select.js-enhanced-select');
+      nodes.forEach(function(node) {
+        if ($(node).hasClass('select2-hidden-accessible')) {
+          return;
+        }
+        const parent = $(node).closest('.card-body');
+      $(node).select2({
+          width: '100%',
+          dropdownAutoWidth: true,
+          dropdownParent: parent.length ? parent : $(node).parent(),
+          minimumResultsForSearch: Infinity
+      });
+      $(node).off('select2:select');
+      if (node.classList.contains('split-method')) {
+        $(node).on('select2:select', function() {
+          updateMethodFields(node);
+        });
+        updateMethodFields(node);
+      }
+      });
+    }
     
     function searchEntities(entityType, searchTerm) {
       console.log(`🔍 بحث عن ${entityType}: "${searchTerm}"`);
@@ -1256,6 +1326,7 @@ h2, h3, h4 {
         updateEntityFields();
         updateDirectionOptions(); // تحديث خيارات الاتجاه أيضاً
         attachSearchListeners(); // ✅ تفعيل البحث الذكي
+        initEnhancedSelects();
         
         // ✅ ملء النموذج من query parameters (للدفع السريع من القوائم)
         const urlParams = new URLSearchParams(window.location.search);
@@ -1352,14 +1423,25 @@ h2, h3, h4 {
         if (details) {
           details.style.display = 'none';
         }
-        
+        template.querySelectorAll('.select2').forEach(function(node) {
+          node.remove();
+        });
+
+        const methodSelectClone = template.querySelector('.split-method');
+        if (methodSelectClone) {
+          methodSelectClone.classList.remove('select2-hidden-accessible');
+          methodSelectClone.removeAttribute('data-select2-id');
+          methodSelectClone.removeAttribute('aria-hidden');
+          methodSelectClone.removeAttribute('tabindex');
+          if (methodSelectClone.hasAttribute('style')) {
+            methodSelectClone.removeAttribute('style');
+          }
+        }
+
         container.appendChild(template);
 
-        // إعادة تهيئة الحقول
-        setTimeout(function() {
-          initPaymentMethodFields();
-          updateSplitSum();
-        }, 100);
+        initPaymentMethodFields(template);
+        updateSplitSum();
       }
       
       // مراقبة زر إضافة دفعة جزئية
@@ -1456,21 +1538,49 @@ h2, h3, h4 {
     });
     
     // دالة لإظهار/إخفاء حقول طرق الدفع حسب الطريقة المختارة
-    function initPaymentMethodFields() {
-      // البحث عن جميع حقول طرق الدفع في الدفعات الجزئية
-      const splitMethodSelects = document.querySelectorAll('.split-method');
-      
+    function initPaymentMethodFields(scope) {
+      const context = scope || document;
+      const splitMethodSelects = context.querySelectorAll('.split-method');
+
       splitMethodSelects.forEach(select => {
-        // إزالة مستمع الحدث القديم إن وجد
+        if (select.nextElementSibling && select.nextElementSibling.classList && select.nextElementSibling.classList.contains('select2')) {
+          select.nextElementSibling.remove();
+        }
+
+        if (window.jQuery && $.fn && $.fn.select2 && $(select).hasClass('select2-hidden-accessible')) {
+          try {
+            $(select).select2('destroy');
+          } catch (err) {}
+        }
+
+        const parent = select.parentNode;
+        if (!parent) {
+          return;
+        }
+
         const newSelect = select.cloneNode(true);
-        select.parentNode.replaceChild(newSelect, select);
-        
+        newSelect.classList.remove('select2-hidden-accessible');
+        newSelect.removeAttribute('data-select2-id');
+        newSelect.removeAttribute('aria-hidden');
+        newSelect.removeAttribute('tabindex');
+        if (newSelect.hasAttribute('style')) {
+          newSelect.removeAttribute('style');
+        }
+
+        parent.replaceChild(newSelect, select);
+
         updateMethodFields(newSelect);
-        
+
         newSelect.addEventListener('change', function() {
           updateMethodFields(this);
         });
       });
+
+      if (scope) {
+        initEnhancedSelects(scope);
+      } else {
+        initEnhancedSelects();
+      }
     }
     
     function updateMethodFields(methodSelect) {

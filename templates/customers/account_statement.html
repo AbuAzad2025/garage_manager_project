@@ -218,7 +218,6 @@
         </div>
         <div>
           <strong>الجوال:</strong> {{ customer.phone or '—' }}
-          {% if customer.email %} | <strong>البريد:</strong> {{ customer.email }}{% endif %}
         </div>
         {% if customer.address %}
         <div style="margin-top: 2px;">
@@ -625,9 +624,6 @@
     printWindow.document.write('<div><strong>العميل:</strong> {{ customer.name }}</div>');
     {% if customer.phone %}
     printWindow.document.write('<div><strong>الجوال:</strong> {{ customer.phone }}</div>');
-    {% endif %}
-    {% if customer.email %}
-    printWindow.document.write('<div><strong>البريد:</strong> {{ customer.email }}</div>');
     {% endif %}
     printWindow.document.write('</td>');
     printWindow.document.write('<td style="width: 45%; border-right: 1px solid #000;">');
