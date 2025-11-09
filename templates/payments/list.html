@@ -26,12 +26,82 @@
 .btn-group-sm .btn {
     font-weight: 600 !important;
 }
+.print-controls { display: flex; gap: .5rem; }
+.screen-only { display: block; }
+.print-only { display: none !important; }
+.print-header-info,
+.print-partner-info,
+.print-footer-info { display: none !important; }
+.print-partner-info .label { font-weight: 600; white-space: nowrap; }
+.print-partner-info .value { font-weight: 500; }
+@media print {
+  @page { size: A4 portrait; margin: 12mm 10mm; }
+  html, body { margin: 0; padding: 0 6mm; font-family: "Cairo", system-ui, Arial, sans-serif; font-size: 6pt; line-height: 1.2; background: white; }
+  .no-print, .screen-only { display: none !important; }
+  .print-only,
+  .print-header-info,
+  .print-partner-info,
+  .print-footer-info { display: block !important; }
+  .print-header-info { border: 1px solid #000; padding: 6px; margin: 8mm 0 4mm; text-align: center; background: #f8f9fa; font-size: 7pt; }
+  .print-header-info h2 { margin: 0 0 2px; font-size: 12pt; }
+  .print-partner-info { border: 1px solid #000; padding: 6px; margin-bottom: 6mm; font-size: 6pt; background: #fff; }
+  .print-partner-info table { width: 100%; border-collapse: collapse; }
+  .print-partner-info td { padding: 2px 4px; border: none; }
+  table.printable-table { width: 100% !important; border-collapse: collapse !important; font-size: 5.5pt !important; table-layout: fixed; word-wrap: break-word; margin: 0 auto !important; }
+  table.printable-table th, table.printable-table td { border: 0.4px solid #454545 !important; padding: 1px 2px !important; word-break: break-word; white-space: normal; }
+  table.printable-table thead th { background: #e0e0e0 !important; font-size: 6pt !important; }
+  #partnerLedgerTable th:nth-child(1), #partnerLedgerTable td:nth-child(1) { width: 10%; }
+  #partnerLedgerTable th:nth-child(2), #partnerLedgerTable td:nth-child(2) { width: 36%; }
+  #partnerLedgerTable th:nth-child(3), #partnerLedgerTable td:nth-child(3) { width: 9%; }
+  #partnerLedgerTable th:nth-child(4), #partnerLedgerTable td:nth-child(4) { width: 11%; }
+  #partnerLedgerTable th:nth-child(5), #partnerLedgerTable td:nth-child(5) { width: 17%; }
+  #partnerLedgerTable th:nth-child(6), #partnerLedgerTable td:nth-child(6) { width: 17%; }
+  #paymentsTable th:nth-child(1), #paymentsTable td:nth-child(1) { width: 4%; }
+  #paymentsTable th:nth-child(2), #paymentsTable td:nth-child(2) { width: 8%; }
+  #paymentsTable th:nth-child(3), #paymentsTable td:nth-child(3) { width: 8%; }
+  #paymentsTable th:nth-child(4), #paymentsTable td:nth-child(4) { width: 6%; }
+  #paymentsTable th:nth-child(5), #paymentsTable td:nth-child(5) { width: 7%; }
+  #paymentsTable th:nth-child(6), #paymentsTable td:nth-child(6) { width: 9%; }
+  #paymentsTable th:nth-child(7), #paymentsTable td:nth-child(7) { width: 9%; }
+  #paymentsTable th:nth-child(8), #paymentsTable td:nth-child(8) { width: 7%; }
+  #paymentsTable th:nth-child(9), #paymentsTable td:nth-child(9) { width: 7%; }
+  #paymentsTable th:nth-child(10), #paymentsTable td:nth-child(10) { width: 15%; }
+  #paymentsTable th:nth-child(11), #paymentsTable td:nth-child(11) { width: 10%; }
+  .printable-table tbody tr:nth-child(even) { background: #fafafa !important; }
+}
 </style>
 {% endblock %}
 
 {% block content %}
     <div class="content-header">
         <div class="container-fluid">
+            <div class="print-header-info">
+                <h2>كشف حساب الشريك</h2>
+                <div class="meta">بتاريخ: {{ now()|format_datetime }}</div>
+            </div>
+            {% if selected_partner %}
+            <div class="print-partner-info">
+                <table>
+                    <tr>
+                        <td class="label">اسم الشريك</td>
+                        <td class="value">{{ selected_partner.name }}</td>
+                        <td class="label">رقم الشريك</td>
+                        <td class="value">{{ selected_partner.id }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">الرصيد الحالي</td>
+                        <td class="value">{{ '%.2f'|format(selected_partner.balance) }} ₪</td>
+                        {% if partner_ledger %}
+                        <td class="label">الفترة</td>
+                        <td class="value">{{ partner_ledger.date_from.strftime('%Y-%m-%d') }} → {{ partner_ledger.date_to.strftime('%Y-%m-%d') }}</td>
+                        {% else %}
+                        <td class="label"></td>
+                        <td class="value"></td>
+                        {% endif %}
+                    </tr>
+                </table>
+            </div>
+            {% endif %}
             <div class="row mb-2">
                 <div class="col-sm-6">
                     <h1 class="m-0">
@@ -53,60 +123,36 @@
             
             <!-- الملخصات المالية -->
             {% if total_incoming is defined and total_outgoing is defined %}
-            <div class="row mb-3 g-3">
-                <div class="col-lg-3 col-md-6">
-                    <div class="card border-0 shadow-sm text-white bg-success h-100">
+            <div class="row g-3 mb-3">
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-white bg-success">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="text-white-50 mb-1">💰 دفعات واردة</h6>
-                                    <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(total_incoming) }} ₪</h3>
-                                    <small class="opacity-75">من العملاء</small>
-                                </div>
-                                <i class="fas fa-arrow-down fa-2x opacity-50"></i>
-                            </div>
+                            <div class="text-white-50 small mb-1">دفعات واردة</div>
+                            <div class="display-6 fw-bold">{{ "{:,.2f}".format(total_incoming) }} ₪</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="card border-0 shadow-sm text-white bg-danger h-100">
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-white bg-danger">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="text-white-50 mb-1">💸 دفعات صادرة</h6>
-                                    <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(total_outgoing) }} ₪</h3>
-                                    <small class="opacity-75">للموردين والشركاء</small>
-                                </div>
-                                <i class="fas fa-arrow-up fa-2x opacity-50"></i>
-                            </div>
+                            <div class="text-white-50 small mb-1">دفعات صادرة</div>
+                            <div class="display-6 fw-bold">{{ "{:,.2f}".format(total_outgoing) }} ₪</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="card border-0 shadow-sm text-white {% if net_total >= 0 %}bg-primary{% else %}bg-warning{% endif %} h-100">
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-white {% if net_total >= 0 %}bg-primary{% else %}bg-warning text-dark{% endif %}">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="text-white-50 mb-1">📊 صافي التدفق</h6>
-                                    <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(net_total) }} ₪</h3>
-                                    <small class="opacity-75">واردة - صادرة</small>
-                                </div>
-                                <i class="fas fa-balance-scale fa-2x opacity-50"></i>
-                            </div>
+                            <div class="text-white-50 small mb-1">صافي التدفق</div>
+                            <div class="display-6 fw-bold">{{ "{:,.2f}".format(net_total) }} ₪</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-lg-3 col-md-6">
-                    <div class="card border-0 shadow-sm text-white bg-info h-100">
+                <div class="col-md-3 col-6">
+                    <div class="card border-0 shadow-sm text-white bg-info">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="text-white-50 mb-1">💳 إجمالي الدفعات</h6>
-                                    <h3 class="mb-0 fw-bold">{{ payments|length if payments else 0 }}</h3>
-                                    <small class="opacity-75">دفعة</small>
-                                </div>
-                                <i class="fas fa-list fa-2x opacity-50"></i>
-                            </div>
+                            <div class="text-white-50 small mb-1">عدد السندات</div>
+                            <div class="display-6 fw-bold">{{ payments|length if payments else 0 }}</div>
                         </div>
                     </div>
                 </div>
@@ -117,6 +163,113 @@
 
     <section class="content">
         <div class="container-fluid">
+{% if selected_partner %}
+  <div class="alert {% if selected_partner.balance >= 0 %}alert-success{% else %}alert-danger{% endif %} shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
+    <div>
+      <strong>الشريك:</strong> {{ selected_partner.name }} (ID: {{ selected_partner.id }})
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <div><strong>الرصيد الحالي:</strong> {{ '%.2f'|format(selected_partner.balance) }} ₪</div>
+      {% if selected_partner.balance_source == 'smart' %}
+        <span class="badge bg-success">احتساب ذكي</span>
+      {% else %}
+        <span class="badge bg-secondary">رصيد مخزن</span>
+      {% endif %}
+      <button type="button" class="btn btn-outline-light btn-sm btn-print-section" data-print-target="partnerLedgerTable" data-print-title="كشف حساب الشريك">طباعة</button>
+    </div>
+  </div>
+  {% if partner_ledger and partner_ledger.entries %}
+  <div class="card shadow-sm mb-4 screen-only" id="partnerLedgerCard">
+    <div class="card-body p-0">
+      <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light no-print">
+        <h5 class="mb-0">كشف حساب الشريك</h5>
+        <button type="button" class="btn btn-outline-primary btn-sm btn-print-section" data-print-target="partnerLedgerPrintTable" data-print-title="كشف حساب الشريك">طباعة الجدول</button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-striped mb-0 table-sm printable-table" id="partnerLedgerTable">
+          <thead class="table-light">
+            <tr>
+              <th style="width:140px">التاريخ</th>
+              <th>البيان</th>
+              <th style="width:120px">النوع</th>
+              <th style="width:130px">المبلغ</th>
+              <th style="width:150px">الرصيد بعد الحركة</th>
+              <th style="width:160px">مرجع</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in partner_ledger.entries %}
+            {% set entry_date = entry.date %}
+            {% if entry_date is not none and entry_date.__class__.__name__ == 'datetime' %}
+              {% set date_text = entry_date.strftime('%Y-%m-%d') %}
+            {% else %}
+              {% set date_text = entry_date if entry_date else '' %}
+            {% endif %}
+            <tr>
+              <td>{{ date_text }}</td>
+              <td>{{ entry.label }}</td>
+              <td>
+                {% if entry.direction == 'credit' %}
+                  <span class="badge bg-success">له</span>
+                {% elif entry.direction == 'debit' %}
+                  <span class="badge bg-danger">عليه</span>
+                {% else %}
+                  <span class="badge bg-secondary">رصيد افتتاحي</span>
+                {% endif %}
+              </td>
+              <td>{{ '%.2f'|format(entry.amount) }} ₪</td>
+              <td>{{ '%.2f'|format(entry.running_balance) }} ₪</td>
+              <td>{{ entry.reference or '-' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="print-only" id="partnerLedgerPrint">
+    {% set totals = namespace(debit=0.0, credit=0.0) %}
+    <table id="partnerLedgerPrintTable" class="printable-table">
+      <thead>
+        <tr>
+          <th>التاريخ</th>
+          <th>البيان</th>
+          <th>مدين</th>
+          <th>دائن</th>
+          <th>الرصيد</th>
+          <th>مرجع</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in partner_ledger.entries %}
+        {% set totals.debit = totals.debit + (entry.debit or 0) %}
+        {% set totals.credit = totals.credit + (entry.credit or 0) %}
+        <tr>
+          <td>{{ entry.date.strftime('%Y-%m-%d') if entry.date and entry.date.__class__.__name__ == 'datetime' else entry.date }}</td>
+          <td>
+            {% if entry.direction == 'credit' %}له{% elif entry.direction == 'debit' %}عليه{% else %}رصيد افتتاحي{% endif %} - {{ entry.label }}
+          </td>
+          <td style="text-align:end;">{{ '%.2f'|format(entry.debit or 0) }}</td>
+          <td style="text-align:end;">{{ '%.2f'|format(entry.credit or 0) }}</td>
+          <td style="text-align:end;">{{ '%.2f'|format(entry.running_balance or 0) }}</td>
+          <td>{{ entry.reference or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr>
+          <th colspan="2">الإجمالي</th>
+          <th style="text-align:end;">{{ '%.2f'|format(totals.debit) }}</th>
+          <th style="text-align:end;">{{ '%.2f'|format(totals.credit) }}</th>
+          <th style="text-align:end;">{{ '%.2f'|format(partner_ledger.closing_balance) }}</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% endif %}
+{% endif %}
+  <div class="screen-only">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <a id="btnAddPayment"
        href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
@@ -223,9 +376,13 @@
       </div>
     </div>
   </div>
-  <div class="card shadow-sm rounded-4">
+  <div class="card shadow-sm rounded-4" id="paymentsCard" {% if not payments %}style="display:none"{% endif %}>
     <div class="card-body p-0">
-      <table id="paymentsTable" class="table table-hover table-bordered align-middle mb-0">
+      <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light no-print">
+        <h5 class="mb-0">سندات الدفع</h5>
+        <button type="button" class="btn btn-outline-primary btn-sm btn-print-section" data-print-target="paymentsTable" data-print-title="سندات الدفع">طباعة الجدول</button>
+      </div>
+      <table id="paymentsTable" class="table table-hover table-bordered align-middle mb-0 table-sm printable-table">
         <thead class="table-dark">
           <tr>
             <th style="width:60px">#</th>

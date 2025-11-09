@@ -4,108 +4,190 @@
 {% block head_extra %}
   {{ super() }}
   <style>
+    .metric-card {
+      border-radius: 14px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      border: none;
+    }
+    .metric-card .metric-value {
+      font-size: 1.9rem;
+      font-weight: 700;
+    }
+    .toolbar-section .form-control {
+      min-width: 220px;
+    }
+    .toolbar-section .btn {
+      min-width: 140px;
+    }
     #partnersTable td .btn {
-      min-width: 75px;   /* كانت 90px */
-      font-size: 0.85rem; /* حجم الخط أصغر */
-      padding: 0.35rem 0.6rem; /* أصغر من قبل */
-      text-align: center;
-      font-weight: 500;
+      min-width: 70px;
+      font-size: 0.82rem;
+      padding: 0.32rem 0.6rem;
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: 4px;
+      font-weight: 600;
     }
     #partnersTable td .btn i {
-      margin-inline-end: 3px;
-      font-size: 0.85em;
+      font-size: 0.8em;
+    }
+    .partner-actions {
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .card.shadow-sm.rounded-4,
+    .card.shadow-sm.rounded-4 .card-body {
+      overflow: visible;
+    }
+    .g-2 {
+      gap: 0.75rem;
+    }
+    .g-3 {
+      gap: 1rem;
+    }
+    .gap-4 {
+      gap: 1.5rem;
+    }
+    .gap-2 {
+      gap: 0.75rem;
+    }
+    .gap-3 {
+      gap: 1rem;
     }
   </style>
 {% endblock %}
 
 {% block content %}
 <div class="container py-5">
-  <!-- تنبيه معلوماتي -->
-  <!-- تنبيه القطع غير المسعّرة -->
-  <div id="unpricedAlert" class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="display: none;">
-    <h5 class="alert-heading"><i class="fas fa-exclamation-triangle ml-2"></i>تنبيه: قطع غير مسعّرة للشركاء</h5>
-    <hr>
-    <p class="mb-2">
-      <strong>هناك <span id="unpricedCount">0</span> قطعة للشركاء غير مسعّرة بشكل كامل.</strong>
-    </p>
-    <p class="mb-2">
-      لإتمام التسويات بشكل صحيح، يجب تسعير هذه القطع (سعر تكلفة + سعر بيع).
-    </p>
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-sm btn-danger" onclick="showUnpricedModal()">
-        <i class="fas fa-tag ml-1"></i> تسعير القطع
+  <div class="mb-4">
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="card metric-card bg-white">
+          <div class="card-body py-3 px-4 d-flex flex-wrap align-items-center justify-content-between gap-4">
+            <div class="d-flex align-items-center gap-3">
+              <div class="text-primary">
+                <i class="fas fa-handshake fa-2x"></i>
+              </div>
+              <div>
+                <div class="text-muted small">عدد الشركاء</div>
+                <div class="metric-value text-dark">{{ partners|length }}</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div class="{{ 'text-success' if summary.total_balance >= 0 else 'text-danger' }}">
+                <i class="fas fa-coins fa-2x"></i>
+              </div>
+              <div>
+                <div class="text-muted small">الرصيد الصافي</div>
+                <div class="metric-value {{ 'text-success' if summary.total_balance > 0 else 'text-danger' if summary.total_balance < 0 else 'text-secondary' }}">
+                  {{ "%.2f"|format(summary.total_balance) }} ₪
+                </div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div class="text-warning">
+                <i class="fas fa-arrow-circle-up fa-2x"></i>
+              </div>
+              <div>
+                <div class="text-muted small">مستحق دفع للشركاء</div>
+                <div class="metric-value text-warning">{{ summary.partners_with_debt }}</div>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+              <div class="text-info">
+                <i class="fas fa-arrow-circle-down fa-2x"></i>
+              </div>
+              <div>
+                <div class="text-muted small">شركاء مدينين لنا</div>
+                <div class="metric-value text-info">{{ summary.partners_with_credit }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card metric-card bg-white">
+          <div class="card-body py-3 px-4 d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small">إجمالي الشركاء</div>
+              <div class="metric-value text-dark">{{ summary.total_partners }}</div>
+            </div>
+            <div class="text-secondary">
+              <i class="fas fa-users-cog fa-2x"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card metric-card bg-white">
+          <div class="card-body py-3 px-4 d-flex justify-content-between align-items-center">
+            <div>
+              <div class="text-muted small">متوسط الرصيد</div>
+              <div class="metric-value text-dark">{{ "%.2f"|format(summary.average_balance) }} ₪</div>
+            </div>
+            <div class="text-secondary">
+              <i class="fas fa-chart-area fa-2x"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-2">
+        <i class="fas fa-exclamation-triangle text-warning"></i>
+        <span>قطع الشركاء غير المسعّرة</span>
+      </div>
+      <button class="btn btn-sm btn-outline-warning" type="button" data-toggle="collapse" data-target="#unpricedCollapse">
+        عرض التفاصيل
       </button>
-      <button type="button" class="btn btn-sm btn-secondary" data-dismiss="alert">
-        <i class="fas fa-times ml-1"></i> تجاهل
-      </button>
     </div>
-  </div>
-
-  <div class="alert alert-info alert-dismissible fade show mb-4" role="alert">
-    <h5 class="alert-heading"><i class="fas fa-info-circle ml-2"></i>كيفية الوصول للتسويات</h5>
-    <hr>
-    <p class="mb-0">
-      <strong>📋 قائمة جميع التسويات:</strong> انقر على زر <span class="badge bg-warning text-dark"><i class="fas fa-file-invoice-dollar"></i> قائمة التسويات</span> في الأعلى
-    </p>
-    <p class="mb-0">
-      <strong>🧮 تسوية ذكية لشريك:</strong> انقر على زر <span class="badge bg-success"><i class="fas fa-calculator"></i> تسوية ذكية</span> في سطر الشريك - تشمل جرد القطع، المبيعات، نصيب الشريك، والدفعات
-    </p>
-    <button type="button" class="close" data-dismiss="alert" aria-label="إغلاق"></button>
-  </div>
-
-  <div class="row mb-4">
-    <div class="col-md-3">
-      <div class="card bg-primary text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">عدد الشركاء</h6><h3 class="mb-0">{{ partners|length }}</h3>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card {% if summary.total_balance > 0 %}bg-success{% elif summary.total_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">الرصيد الصافي</h6><h3 class="mb-0">{{ "%.2f"|format(summary.total_balance) }} ₪</h3>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card bg-warning text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">مستحق دفع للشركاء</h6><h3 class="mb-0">{{ summary.partners_with_debt }}</h3>
-      </div>
-    </div>
-    <div class="col-md-3">
-      <div class="card bg-success text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">شركاء مدينين لنا</h6><h3 class="mb-0">{{ summary.partners_with_credit }}</h3>
+    <div id="unpricedCollapse" class="collapse">
+      <div class="card-body">
+        <div id="unpricedAlert" class="d-none">
+          <p class="mb-2 font-weight-semibold">هناك <span id="unpricedCount">0</span> قطعة تحتاج لإكمال التسعير.</p>
+          <p class="mb-3 text-muted">احرص على تحديد سعر التكلفة وسعر البيع لكل قطعة لضمان دقة التسويات.</p>
+          <button type="button" class="btn btn-sm btn-danger" onclick="showUnpricedModal()">
+            <i class="fas fa-tag ml-1"></i> تسعير القطع
+          </button>
+        </div>
+        <div id="unpricedEmpty" class="text-muted">لا توجد تنبيهات حالياً.</div>
       </div>
     </div>
   </div>
 
-  <!-- ملخصات إضافية -->
-  <div class="row mb-4">
-    <div class="col-md-6">
-      <div class="card bg-warning text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">عدد الشركاء</h6>
-        <h3 class="mb-0">{{ summary.total_partners }}</h3>
+  <div class="toolbar-section mb-3">
+    <div class="row g-2 align-items-center">
+      <div class="col-lg-4 col-md-6">
+        <input id="partnerSearch" type="text" class="form-control" placeholder="بحث عن شريك...">
       </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card bg-secondary text-white p-3 mb-3 rounded-4 shadow-sm">
-        <h6 class="mb-1">متوسط الرصيد</h6>
-        <h3 class="mb-0">{{ "%.2f"|format(summary.average_balance) }} ₪</h3>
+      <div class="col-lg-4 col-md-6">
+        <div class="input-group">
+          <div class="input-group-prepend">
+            <span class="input-group-text"><i class="fas fa-filter"></i></span>
+          </div>
+          <select class="custom-select" id="balanceFilter">
+            <option value="all">جميع الحالات</option>
+            <option value="positive">له رصيد</option>
+            <option value="negative">عليه رصيد</option>
+            <option value="zero">رصيد متوازن</option>
+          </select>
+        </div>
       </div>
-    </div>
-  </div>
-
-  <div class="d-flex justify-content-between mb-3">
-    <input id="partnerSearch" type="text" class="form-control w-25" placeholder="بحث سريع...">
-    <div class="btn-group">
-      <a href="{{ url_for('partner_settlements_bp.list') }}" class="btn btn-warning">
-        <i class="fas fa-file-invoice-dollar ml-1"></i> قائمة التسويات
-      </a>
-      {% if current_user.has_permission('manage_vendors') %}
-        <a href="{{ url_for('vendors_bp.partners_create') }}" class="btn btn-action-add">
-          <i class="fas fa-plus ml-1"></i> شريك جديد
+      <div class="col-lg-4 col-md-12 d-flex justify-content-lg-end gap-2">
+        <a href="{{ url_for('partner_settlements_bp.list') }}" class="btn btn-warning text-white font-weight-bold">
+          <i class="fas fa-file-invoice-dollar ml-1"></i> قائمة التسويات
         </a>
-      {% endif %}
+        {% if current_user.has_permission('manage_vendors') %}
+          <a href="{{ url_for('vendors_bp.partners_create') }}" class="btn btn-action-add">
+            <i class="fas fa-plus ml-1"></i> شريك جديد
+          </a>
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -118,72 +200,73 @@
             <th>الاسم</th>
             <th>الهاتف</th>
             <th>الرصيد</th>
-            <th style="width:480px">عمليات</th>
+            <th style="width:520px">عمليات</th>
           </tr>
         </thead>
         <tbody>
           {% for p in partners %}
+          {% set balance = (p.current_balance if p is not none and p.current_balance is defined and p.current_balance is not none else (p.balance_in_ils or 0)) %}
           <tr>
             <td>{{ loop.index }}</td>
             <td class="partner-name">{{ p.name }}</td>
             <td class="partner-phone">{{ p.phone_number or '—' }}</td>
             <td>
-              <span class="badge {% if (p.balance_in_ils or 0) < 0 %}bg-danger{% elif (p.balance_in_ils or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
-                {{ '%.2f'|format(p.balance_in_ils or 0) }} ₪
+              <span class="badge {% if balance < 0 %}bg-danger{% elif balance == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+                {{ '%.2f'|format(balance) }} ₪
               </span>
-            </td>
-            <td class="d-flex flex-wrap gap-1">
-              <a href="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=p.id) }}"
-                 class="btn btn-sm btn-success d-flex align-items-center"
-                 title="التسوية الذكية الشاملة - جرد، مبيعات، نصيب، دفعات">
-                <i class="fas fa-calculator"></i>
-                <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
-              </a>
-              <a href="{{ url_for('payments.create_payment') }}?entity_type=PARTNER&entity_id={{ p.id }}&entity_name={{ p.name|urlencode }}"
-                 class="btn btn-sm btn-primary d-flex align-items-center" title="إضافة دفعة">
-                <i class="fas fa-money-bill-wave"></i>
-                <span class="d-none d-lg-inline ms-1">دفع</span>
-              </a>
-              <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ p.id }}"
-                 class="btn btn-sm btn-warning d-flex align-items-center" title="كشف حساب مبسط">
-                <i class="fas fa-file-invoice-dollar"></i>
-                <span class="d-none d-lg-inline ms-1">كشف حساب</span>
-              </a>
-              <a href="{{ url_for('reports_bp.partner_detail_report', partner_id=p.id) }}"
-                 class="btn btn-sm btn-info d-flex align-items-center" title="تقرير تفصيلي شامل">
-                <i class="fas fa-chart-line"></i>
-                <span class="d-none d-lg-inline ms-1">تقرير مفصل</span>
-              </a>
-              {% if current_user.has_permission('manage_vendors') %}
-                <a href="{{ url_for('vendors_bp.partners_edit', id=p.id) }}"
-                   class="btn btn-sm btn-secondary">
-                  <i class="fas fa-edit"></i> تعديل
-                </a>
-                {% if p.is_archived %}
-                <button type="button" class="btn btn-sm btn-success" onclick="restorePartner({{ p.id }})">
-                  <i class="fas fa-undo"></i> استعادة
-                </button>
-                {% else %}
-                <button type="button" class="btn btn-sm btn-warning" onclick="archivePartner({{ p.id }})">
-                  <i class="fas fa-archive"></i> أرشفة
-                </button>
-                {% endif %}
-                <form method="post"
-                      action="{{ url_for('vendors_bp.partners_delete', id=p.id) }}"
-                      class="d-inline"
-                      onsubmit="return confirm('حذف الشريك؟');">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="btn btn-sm btn-danger">
-                    <i class="fas fa-trash"></i> حذف عادي
-                  </button>
-                </form>
-                <a href="{{ url_for('hard_delete_bp.delete_partner', partner_id=p.id) }}"
-                   class="btn btn-sm btn-outline-danger"
-                   title="حذف قوي"
-                   onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
-                  <i class="fas fa-bomb"></i> حذف قوي
-                </a>
+              {% if p.current_balance_source is defined and p.current_balance_source == 'smart' %}
+                <small class="text-muted d-block">ذكّي</small>
               {% endif %}
+            </td>
+            <td>
+              <div class="d-flex partner-actions">
+                <a href="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=p.id) }}"
+                   class="btn btn-sm btn-success" title="التسوية الذكية الشاملة">
+                  <i class="fas fa-calculator"></i><span class="d-none d-xl-inline">تسوية</span>
+                </a>
+                <a href="{{ url_for('payments.create_payment') }}?entity_type=PARTNER&entity_id={{ p.id }}&entity_name={{ p.name|urlencode }}"
+                   class="btn btn-sm btn-primary" title="إضافة دفعة">
+                  <i class="fas fa-money-bill-wave"></i><span class="d-none d-xl-inline">دفع</span>
+                </a>
+                <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ p.id }}"
+                   class="btn btn-sm btn-warning text-white" title="كشف الحساب المالي">
+                  <i class="fas fa-file-invoice-dollar"></i><span class="d-none d-xl-inline">كشف حساب</span>
+                </a>
+                <a href="{{ url_for('reports_bp.partner_detail_report', partner_id=p.id) }}"
+                   class="btn btn-sm btn-info text-white" title="تقرير تفصيلي شامل">
+                  <i class="fas fa-chart-line"></i><span class="d-none d-xl-inline">تقرير</span>
+                </a>
+                {% if current_user.has_permission('manage_vendors') %}
+                  <a href="{{ url_for('vendors_bp.partners_edit', id=p.id) }}"
+                     class="btn btn-sm btn-secondary" title="تعديل بيانات الشريك">
+                    <i class="fas fa-edit"></i><span class="d-none d-xl-inline">تعديل</span>
+                  </a>
+                  {% if p.is_archived %}
+                    <button type="button" class="btn btn-sm btn-success" onclick="restorePartner({{ p.id }})" title="استعادة الشريك">
+                      <i class="fas fa-undo"></i><span class="d-none d-xl-inline">استعادة</span>
+                    </button>
+                  {% else %}
+                    <button type="button" class="btn btn-sm btn-outline-warning" onclick="archivePartner({{ p.id }})" title="أرشفة الشريك">
+                      <i class="fas fa-archive"></i><span class="d-none d-xl-inline">أرشفة</span>
+                    </button>
+                  {% endif %}
+                  <form method="post"
+                        action="{{ url_for('vendors_bp.partners_delete', id=p.id) }}"
+                        onsubmit="return confirm('حذف الشريك؟');"
+                        class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف عادي">
+                      <i class="fas fa-trash"></i><span class="d-none d-xl-inline">حذف</span>
+                    </button>
+                  </form>
+                  <a href="{{ url_for('hard_delete_bp.delete_partner', partner_id=p.id) }}"
+                     class="btn btn-sm btn-danger"
+                     onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')"
+                     title="حذف قوي - يحذف جميع البيانات المرتبطة">
+                    <i class="fas fa-bomb"></i><span class="d-none d-xl-inline">حذف قوي</span>
+                  </a>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% else %}
@@ -278,16 +361,25 @@
   fetch('/partners/unpriced-items')
     .then(res => res.json())
     .then(data => {
+      const alertBox = document.getElementById('unpricedAlert');
+      const emptyBox = document.getElementById('unpricedEmpty');
       if (data.success && data.count > 0) {
         document.getElementById('unpricedCount').textContent = data.count;
-        document.getElementById('unpricedAlert').style.display = 'block';
-        
-        // حفظ البيانات للاستخدام في Modal
+        alertBox.classList.remove('d-none');
+        if (emptyBox) {
+          emptyBox.classList.add('d-none');
+        }
         window.unpricedItems = data.items;
+      } else {
+        if (alertBox) {
+          alertBox.classList.add('d-none');
+        }
+        if (emptyBox) {
+          emptyBox.classList.remove('d-none');
+        }
       }
     })
-    .catch(err =>);
-});
+    .catch(() => {});
 </script>
 
 <script>

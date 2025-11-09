@@ -120,6 +120,7 @@
     if (!$el || !endpoint) return;
     if ($el.data('prefetched')) return;
     $el.data('prefetched', true);
+    var initial = $el.val();
     fetch(endpoint + (endpoint.indexOf('?') >= 0 ? '&' : '?') + 'q=&limit=20', {
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
       credentials: 'same-origin'
@@ -136,7 +137,17 @@
           $el.append(opt);
         }
       });
-      $el.trigger('change.select2');
+      var hasValue = false;
+      if (Array.isArray(initial)) {
+        hasValue = initial.some(function (v) { return v != null && String(v).trim() !== ''; });
+      } else if (initial != null) {
+        hasValue = String(initial).trim() !== '';
+      }
+      if (hasValue) {
+        $el.trigger('change.select2');
+      } else {
+        $el.val(null).trigger('change.select2');
+      }
     })
     .catch(function () {});
   }

@@ -141,6 +141,7 @@
   <th>التاريخ</th>
   <th>العميل/المورد</th>
   <th>النوع</th>
+  <th>البائع</th>
   <th class="text-end">الإجمالي</th>
   <th class="text-end">المدفوع</th>
   <th class="text-end">المتبقي</th>
@@ -177,6 +178,15 @@
     <span class="badge bg-info">إشعار دائن</span>
     {% else %}
     <span class="badge bg-primary">فاتورة</span>
+    {% endif %}
+  </td>
+  <td>
+    {% if inv.sale and inv.sale.seller_employee %}
+      {{ inv.sale.seller_employee.name }}
+    {% elif inv.sale and inv.sale.seller %}
+      {{ inv.sale.seller.username }}
+    {% else %}
+      <span class="text-muted">-</span>
     {% endif %}
   </td>
   <td class="text-end">{{ "{:,.2f}".format(inv.computed_total) }} ₪</td>
@@ -217,13 +227,13 @@
 {% endfor %}
 {% if not invoices %}
 <tr>
-  <td colspan="11" class="text-center text-muted">لا توجد بيانات</td>
+  <td colspan="12" class="text-center text-muted">لا توجد بيانات</td>
 </tr>
 {% endif %}
 </tbody>
 <tfoot>
 <tr class="table-success fw-bold">
-  <td colspan="5" class="text-center">الإجماليات</td>
+  <td colspan="6" class="text-center">الإجماليات</td>
   <td class="text-end">{{ "{:,.2f}".format(summary.total_amount) }} ₪</td>
   <td class="text-end">{{ "{:,.2f}".format(summary.total_paid) }} ₪</td>
   <td class="text-end">{{ "{:,.2f}".format(summary.balance_due) }} ₪</td>

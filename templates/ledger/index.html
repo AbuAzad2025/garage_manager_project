@@ -1426,6 +1426,9 @@ function updateLedgerTable(data, totals) {
             } else if (entry.entity_type === 'جهة') {
                 badgeColor = 'secondary';
                 icon = 'fa-building';
+            } else if (entry.entity_type === 'مصروف') {
+                badgeColor = 'danger';
+                icon = 'fa-wallet';
             }
             entityBadge = `<span class="badge bg-${badgeColor}"><i class="fas ${icon} ml-1"></i>${entry.entity_name}</span>`;
         } else {

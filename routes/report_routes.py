@@ -17,7 +17,7 @@ import inspect as pyinspect
 from models import (
     Customer, Supplier, Partner, Product, Warehouse, StockLevel, Expense,
     OnlinePreOrder, OnlinePayment, OnlineCart, Sale, SaleStatus, ServiceRequest, ServiceStatus, InvoiceStatus, Invoice, Payment,
-    Shipment, PaymentDirection, PaymentStatus, PaymentSplit, PreOrder, ServicePart, ServiceTask
+    Shipment, PaymentDirection, PaymentStatus, PaymentSplit, PreOrder, ServicePart, ServiceTask, Employee
 )
 reports_bp = Blueprint('reports_bp', __name__, url_prefix='/reports')
 
@@ -105,6 +105,7 @@ FIELD_LABELS: Dict[str, str] = {
     "sale_date": "اليوم",
     "customer_id": "العميل",
     "seller_id": "المندوب",
+    "seller_employee_id": "الموظف البائع",
     "preorder_id": "طلب مسبق",
     "status": "الحالة",
     "payment_status": "حالة الدفع",
@@ -394,7 +395,9 @@ def invoices_report():
         joinedload(Invoice.customer),
         joinedload(Invoice.supplier),
         joinedload(Invoice.partner),
-        joinedload(Invoice.lines)
+        joinedload(Invoice.lines),
+        joinedload(Invoice.sale).joinedload(Sale.seller_employee),
+        joinedload(Invoice.sale).joinedload(Sale.seller),
     )
     
     if sd:
@@ -1106,7 +1109,9 @@ def sales_advanced_report():
     
     query = Sale.query.options(
         joinedload(Sale.customer),
-        joinedload(Sale.lines)
+        joinedload(Sale.lines),
+        joinedload(Sale.seller_employee),
+        joinedload(Sale.seller),
     )
     
     if sd:
@@ -1122,10 +1127,18 @@ def sales_advanced_report():
         except Exception:
             pass
     
+    employee_id = request.args.get("employee_id")
+
     if status_filter:
         query = query.filter(Sale.status == status_filter)
     else:
         query = query.filter(Sale.status == SaleStatus.CONFIRMED)
+
+    if employee_id:
+        try:
+            query = query.filter(Sale.seller_employee_id == int(employee_id))
+        except Exception:
+            pass
     
     sales = query.order_by(Sale.sale_date.desc()).all()
     
@@ -1169,6 +1182,7 @@ def sales_advanced_report():
     ], key=lambda x: x['revenue'], reverse=True)[:5]
     
     all_customers = Customer.query.order_by(Customer.name).all()
+    employees = Employee.query.order_by(Employee.name).all()
     
     return render_template(
         "reports/sales.html",
@@ -1177,6 +1191,8 @@ def sales_advanced_report():
         daily_sales=daily_sales,
         top_products=top_products,
         all_customers=all_customers,
+        employees=employees,
+        selected_employee_id=int(employee_id) if employee_id else None,
         show_charts=True,
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS
@@ -1694,7 +1710,7 @@ def supplier_detail_report(supplier_id):
     # الصيانة للمورد (كعميل)
     services = []
     if supplier.customer_id:
-        from models import ServiceRequest, ServicePart, ServiceTask
+        from models import ServiceRequest, ServiceTask
         services_query = ServiceRequest.query.options(
             joinedload(ServiceRequest.parts),
             joinedload(ServiceRequest.tasks)
@@ -1871,7 +1887,7 @@ def partner_detail_report(partner_id):
     # الصيانة للشريك (كعميل)
     services = []
     if partner.customer_id:
-        from models import ServiceRequest, ServicePart, ServiceTask
+        from models import ServiceRequest, ServiceTask
         services_query = ServiceRequest.query.options(
             joinedload(ServiceRequest.parts),
             joinedload(ServiceRequest.tasks)

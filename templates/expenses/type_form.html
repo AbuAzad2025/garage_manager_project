@@ -32,11 +32,19 @@
             {% for e in form.description.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
+          <div class="col-md-6">
+            {{ form.gl_account_code.label(class="form-label") }}
+            {{ form.gl_account_code(class=("form-select is-invalid" if form.gl_account_code.errors else "form-select")) }}
+            {% for e in form.gl_account_code.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          {% if form.show_fields_meta %}
           <div class="col-12">
             {{ form.fields_meta.label(class="form-label") }}
             {{ form.fields_meta(class=("form-control is-invalid" if form.fields_meta.errors else "form-control"), rows="6", placeholder="{}") }}
             {% for e in form.fields_meta.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
+          {% endif %}
 
           <div class="col-md-12">
             <div class="form-check form-switch mt-2">

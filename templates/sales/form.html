@@ -128,9 +128,9 @@
               </div>
 
               <div class="form-group col-span-4">
-                <label for="seller_id"><i class="fas fa-user-tie mr-1"></i> البائع <span class="text-muted">(اختياري)</span></label>
-                {{ form.seller_id(class="form-control select2 ajax-select", id="seller_id",
-                  **{'data-endpoint': url_for('api.users'),'data-placeholder': 'اختر البائع','data-allow-clear': 1}) }}
+                <label for="seller_employee_id"><i class="fas fa-user-tie mr-1"></i> البائع (موظف)</label>
+                {{ form.seller_employee_id(class="form-control select2 ajax-select", id="seller_employee_id",
+                  **{'data-endpoint': url_for('api.search_employees'),'data-placeholder': 'اختر الموظف المسؤول','data-allow-clear': 1}) }}
               </div>
 
               <div class="form-group col-span-4">
@@ -220,6 +220,12 @@
                         <i class="fas fa-tag mr-1"></i>السعر <span class="required">*</span>
                       </label>
                       {{ line.unit_price(class="form-control price-input", min="0", step="0.01", required=True, placeholder="0.00") }}
+                    </div>
+                    <div class="form-group mb-0">
+                      <label for="{{ line.discount_rate.id }}">
+                        <i class="fas fa-percentage mr-1"></i>الخصم %
+                      </label>
+                      {{ line.discount_rate(class="form-control discount-input", min="0", max="100", step="0.01", placeholder="0") }}
                     </div>
                     <div class="form-group mb-0">
                       <label for="{{ line.line_receiver.id }}">

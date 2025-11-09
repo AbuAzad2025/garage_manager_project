@@ -10,7 +10,8 @@ from models import (
     Sale, Expense, Payment, ServiceRequest, 
     Customer, Supplier, Partner,
     Product, StockLevel, GLBatch, GLEntry, Account,
-    Invoice, PreOrder, Shipment, Employee
+    Invoice, PreOrder, Shipment, Employee,
+    PaymentEntityType
 )
 
 csrf = CSRFProtect()
@@ -574,6 +575,28 @@ def get_ledger_data():
                     entity_id=None
                 )
                 entity_name, entity_type, _, _ = extract_entity_from_batch(temp_batch)
+                if payment.entity_type:
+                    et_raw = (payment.entity_type or '').upper()
+                    try:
+                        entity_enum = PaymentEntityType(et_raw)
+                    except Exception:
+                        entity_enum = None
+                    if entity_enum == PaymentEntityType.EXPENSE:
+                        if payment.customer_id:
+                            customer = db.session.get(Customer, payment.customer_id)
+                            if customer:
+                                entity_name = customer.name
+                                entity_type = 'عميل'
+                        elif payment.supplier_id:
+                            supplier = db.session.get(Supplier, payment.supplier_id)
+                            if supplier:
+                                entity_name = supplier.name
+                                entity_type = 'مورد'
+                        elif payment.partner_id:
+                            partner = db.session.get(Partner, payment.partner_id)
+                            if partner:
+                                entity_name = partner.name
+                                entity_type = 'شريك'
                 
                 # ✅ بناء الوصف مع تفاصيل الشيك
                 method_value = getattr(payment, 'method', 'cash')
@@ -581,7 +604,26 @@ def get_ledger_data():
                     method_value = method_value.value
                 method_raw = str(method_value).lower()
                 
-                description_parts = [f"دفعة - {entity_name}"]
+                description_parts = []
+                if payment.entity_type and payment.entity_type.upper() == "EXPENSE":
+                    extra_parts = []
+                    if payment.reference:
+                        extra_parts.append(payment.reference)
+                    if getattr(payment, "notes", ""):
+                        extra_parts.append(payment.notes)
+                    if payment.expense_id:
+                        expense = db.session.get(Expense, payment.expense_id)
+                        if expense:
+                            expense_type = getattr(expense.type, "name", "") if getattr(expense, "type", None) else ""
+                            if expense_type:
+                                extra_parts.append(f"نوع المصروف: {expense_type}")
+                            elif expense.description:
+                                extra_parts.append(expense.description)
+                    extra_text = " | ".join([p for p in extra_parts if p])
+                    if extra_text:
+                        description_parts.append(f"مصروف: {extra_text}")
+                else:
+                    description_parts.append(f"دفعة - {entity_name}")
                 
                 # ✅ إضافة تفاصيل الشيك
                 if method_raw == 'cheque':
@@ -622,6 +664,8 @@ def get_ledger_data():
                 
                 if payment.reference:
                     description_parts.append(f"- {payment.reference}")
+                if getattr(payment, "notes", ""):
+                    description_parts.append(f"- {payment.notes}")
                 
                 description = " ".join(description_parts)
                 

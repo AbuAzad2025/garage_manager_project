@@ -44,6 +44,7 @@ from forms import PaymentForm
 from models import (
     Customer,
     Expense,
+    ExpenseType,
     Invoice,
     Partner,
     Payment,
@@ -62,6 +63,7 @@ from models import (
     SupplierLoanSettlement,
 )
 import utils
+from routes.partner_settlements import _calculate_smart_partner_balance
 from utils import D, q0, archive_record, restore_record
 try:
     from acl import super_only
@@ -77,6 +79,8 @@ except Exception:
         return _w
 # Blueprint definition
 payments_bp = Blueprint('payments', __name__, url_prefix='/payments')
+
+SMART_PARTNER_BALANCE_START = datetime(2024, 1, 1)
 
 _FULL_LOAD_OPTIONS = (
     joinedload(Payment.customer),
@@ -403,6 +407,16 @@ def index():
         filters.append(Payment.payment_date >= datetime.combine(sd, time.min))
     if ed:
         filters.append(Payment.payment_date <= datetime.combine(ed, time.max))
+    partner_obj = None
+    selected_partner = None
+    partner_ledger = None
+    if entity_type == "PARTNER" and entity_id:
+        partner_obj = db.session.get(Partner, entity_id)
+        selected_partner = _get_partner_balance_details(partner_obj)
+        ledger_from = datetime.combine(sd, time.min) if sd else None
+        ledger_to = datetime.combine(ed, time.max) if ed else None
+        if partner_obj:
+            partner_ledger = _build_partner_ledger(partner_obj, selected_partner, ledger_from, ledger_to)
     if entity_id and entity_type:
         et = entity_type.lower()
         if et == "customer":
@@ -493,7 +507,9 @@ def index():
                 "total_items": pagination.total,
                 "currency": ensure_currency(currency_param),
                 "totals_by_currency": totals_by_currency,
-                "totals": totals_by_currency[ensure_currency(currency_param)]
+                "totals": totals_by_currency[ensure_currency(currency_param)],
+                "selected_partner": selected_partner,
+                "partner_ledger": partner_ledger,
             })
         return render_template(
             "payments/list.html",
@@ -504,7 +520,9 @@ def index():
             total_outgoing=int(total_outgoing_d),
             net_total=int(net_total_d),
             grand_total=int(grand_total_d),
-            totals_by_currency=totals_by_currency
+            totals_by_currency=totals_by_currency,
+            selected_partner=selected_partner,
+            partner_ledger=partner_ledger,
         )
     rows = db.session.query(
         Payment.currency.label("ccy"),
@@ -554,8 +572,10 @@ def index():
                 "net_total": net_total_ils,
                 "grand_total": grand_total_ils,
                 "page_sum": page_sum,
-                "page_sum_ils": page_sum_ils
-            }
+                "page_sum_ils": page_sum_ils,
+            },
+            "selected_partner": selected_partner,
+            "partner_ledger": partner_ledger,
         })
     return render_template(
         "payments/list.html",
@@ -566,7 +586,9 @@ def index():
         total_outgoing=total_outgoing_ils,
         net_total=net_total_ils,
         grand_total=grand_total_ils,
-        totals_by_currency=totals_by_currency
+        totals_by_currency=totals_by_currency,
+        selected_partner=selected_partner,
+        partner_ledger=partner_ledger,
     )
 
 @payments_bp.route("/create", methods=["GET", "POST"], endpoint="create_payment")
@@ -632,12 +654,21 @@ def create_payment():
             elif et == "PARTNER" and eid:
                 p = db.session.get(Partner, int(eid))
                 if p:
-                    balance = int(q0(p.balance_in_ils or 0))
-                    entity_info = {"type": "partner", "name": p.name, "balance": balance, "currency": getattr(p, "currency", "ILS")}
+                    details = _get_partner_balance_details(p)
+                    balance_val = details["balance"] if details else float(p.balance_in_ils or 0)
+                    balance = int(q0(balance_val))
+                    currency_val = (details or {}).get("currency", getattr(p, "currency", "ILS"))
+                    entity_info = {
+                        "type": "partner",
+                        "name": p.name,
+                        "balance": balance,
+                        "currency": currency_val,
+                        "balance_source": (details or {}).get("balance_source")
+                    }
                     if pre_amount is None and balance > 0:
                         pre_amount = balance
                     if not preset_currency:
-                        form.currency.data = getattr(p, "currency", "ILS")
+                        form.currency.data = currency_val
                     if hasattr(form, 'partner_search'):
                         form.partner_search.data = p.name
             elif et == "SALE" and eid:
@@ -791,7 +822,20 @@ def create_payment():
         try:
             etype = (form.entity_type.data or "").upper()
             field_name = getattr(form, "_entity_field_map", {}).get(etype)
-            target_id = getattr(form, field_name).data if field_name and hasattr(form, field_name) else None
+            def _parse_optional_id(raw):
+                if raw is None:
+                    return None
+                if isinstance(raw, str):
+                    raw = raw.strip()
+                    if not raw:
+                        return None
+                    return int(raw) if raw.isdigit() else None
+                try:
+                    return int(raw)
+                except (TypeError, ValueError):
+                    return None
+
+            target_id = _parse_optional_id(getattr(form, field_name).data if field_name and hasattr(form, field_name) else None)
             # ✅ متفرقات وأخرى لا يحتاجون target_id
             if etype and field_name and not target_id and etype not in ("MISCELLANEOUS", "OTHER", "EXPENSE"):
                 msg = "نوع الجهة محدد بدون رقم مرجع."
@@ -864,25 +908,25 @@ def create_payment():
                 related_customer_id = target_id
                 c = db.session.get(Customer, target_id) if target_id else None
                 person_name = getattr(c, "name", None)
-            elif etype == "SALE":
+            elif etype == "SALE" and target_id:
                 s = db.session.get(Sale, target_id)
                 related_customer_id = getattr(s, "customer_id", None) if s else None
                 if related_customer_id:
                     c = db.session.get(Customer, related_customer_id)
                     person_name = getattr(c, "name", None)
-            elif etype == "INVOICE":
+            elif etype == "INVOICE" and target_id:
                 inv = db.session.get(Invoice, target_id)
                 related_customer_id = getattr(inv, "customer_id", None) if inv else None
                 if related_customer_id:
                     c = db.session.get(Customer, related_customer_id)
                     person_name = getattr(c, "name", None)
-            elif etype == "SERVICE":
+            elif etype == "SERVICE" and target_id:
                 svc = db.session.get(ServiceRequest, target_id)
                 related_customer_id = getattr(svc, "customer_id", None) if svc else None
                 if related_customer_id:
                     c = db.session.get(Customer, related_customer_id)
                     person_name = getattr(c, "name", None)
-            elif etype == "PREORDER":
+            elif etype == "PREORDER" and target_id:
                 po = db.session.get(PreOrder, target_id)
                 related_customer_id = getattr(po, "customer_id", None) if po else None
                 if related_customer_id:
@@ -896,14 +940,14 @@ def create_payment():
                 related_partner_id = target_id
                 p = db.session.get(Partner, target_id) if target_id else None
                 person_name = getattr(p, "name", None)
-            elif etype == "LOAN":
+            elif etype == "LOAN" and target_id:
                 from models import SupplierLoanSettlement
                 loan_settlement = db.session.get(SupplierLoanSettlement, target_id)
                 related_supplier_id = getattr(loan_settlement, "supplier_id", None) if loan_settlement else None
                 if related_supplier_id:
                     s = db.session.get(Supplier, related_supplier_id)
                     person_name = getattr(s, "name", None)
-            elif etype == "EXPENSE":
+            elif etype == "EXPENSE" and target_id:
                 from models import Expense
                 expense = db.session.get(Expense, target_id)
                 if expense:
@@ -917,7 +961,7 @@ def create_payment():
                         person_name = getattr(p, "name", None)
                     elif expense.payee_name:
                         person_name = expense.payee_name
-            elif etype == "SHIPMENT":
+            elif etype == "SHIPMENT" and target_id:
                 shp = db.session.get(Shipment, target_id)
                 related_supplier_id = getattr(shp, "supplier_id", None) if shp else None
                 related_partner_id = getattr(shp, "partner_id", None) if shp else None
@@ -947,6 +991,17 @@ def create_payment():
                 final_customer_id = related_customer_id
                 final_supplier_id = related_supplier_id
                 final_partner_id = related_partner_id
+
+            if etype == "EXPENSE" and not target_id and not final_customer_id:
+                fallback_customer = _parse_optional_id(getattr(form, 'customer_id').data if hasattr(form, 'customer_id') else None)
+                if fallback_customer:
+                    final_customer_id = fallback_customer
+                    try:
+                        cust_obj = db.session.get(Customer, fallback_customer)
+                        if cust_obj:
+                            person_name = getattr(cust_obj, 'name', person_name)
+                    except Exception:
+                        pass
             
             payment = Payment(
                 entity_type=etype,
@@ -1531,6 +1586,32 @@ def _sum_splits_decimal(splits=None, parsed_splits=None) -> Decimal:
     return q0(total)
 
 
+def _get_partner_balance_details(partner: Partner | None) -> dict | None:
+    """احسب رصيد الشريك الحالي (ذكي إن أمكن) لتوحيد العرض في الواجهات."""
+    if not partner:
+        return None
+    smart_balance = None
+    try:
+        balance_data = _calculate_smart_partner_balance(
+            partner.id,
+            SMART_PARTNER_BALANCE_START,
+            datetime.utcnow()
+        )
+        if balance_data.get("success"):
+            smart_balance = float(balance_data.get("balance", {}).get("amount", 0) or 0)
+    except Exception:
+        smart_balance = None
+    stored_balance = float(partner.balance_in_ils or 0)
+    balance = smart_balance if smart_balance is not None else stored_balance
+    return {
+        "id": partner.id,
+        "name": partner.name,
+        "balance": balance,
+        "balance_source": "smart" if smart_balance is not None else "stored",
+        "currency": partner.currency or "ILS",
+    }
+
+
 
 
 @payments_bp.route("/api/entities/<entity_type>", methods=["GET"], endpoint="get_entities")
@@ -1660,6 +1741,47 @@ def get_entities(entity_type):
                     "total_amount": float(i.total_amount or 0),
                     "display": f"{i.invoice_number} - {i.customer.name if i.customer else 'غير محدد'}"
                 } for i in entities]
+            })
+        
+        elif entity_type == "EXPENSE":
+            query = Expense.query
+            if search:
+                query = query.filter(
+                    or_(
+                        Expense.description.ilike(f"%{search}%"),
+                        func.coalesce(Expense.tax_invoice_number, '').ilike(f"%{search}%")
+                    )
+                )
+            entities = query.order_by(Expense.date.desc()).limit(limit).all()
+            return jsonify({
+                "success": True,
+                "results": [{
+                    "id": e.id,
+                    "name": e.description or f"مصروف #{e.id}",
+                    "reference": e.tax_invoice_number,
+                    "amount": float(e.amount or 0),
+                    "display": f"{e.description or 'مصروف'} - {e.tax_invoice_number}" if e.tax_invoice_number else (e.description or f"مصروف #{e.id}")
+                } for e in entities]
+            })
+        
+        elif entity_type == "EXPENSE_TYPE":
+            query = ExpenseType.query.filter_by(is_active=True)
+            if search:
+                query = query.filter(
+                    or_(
+                        ExpenseType.name.ilike(f"%{search}%"),
+                        func.coalesce(ExpenseType.code, '').ilike(f"%{search}%")
+                    )
+                )
+            entities = query.order_by(ExpenseType.name).limit(limit).all()
+            return jsonify({
+                "success": True,
+                "results": [{
+                    "id": et.id,
+                    "name": et.name,
+                    "code": et.code,
+                    "display": f"{et.name} ({et.code})" if et.code else et.name
+                } for et in entities]
             })
             
         else:
@@ -1865,17 +1987,32 @@ def search_entities():
             expenses = Expense.query.filter(
                 or_(
                     Expense.description.ilike(f"%{query}%"),
-                    Expense.reference.ilike(f"%{query}%")
+                    Expense.tax_invoice_number.ilike(f"%{query}%")
                 )
             ).limit(10).all()
             
             return jsonify([{
                 "id": e.id,
                 "description": e.description,
-                "reference": e.reference,
+                "reference": e.tax_invoice_number,
                 "amount": float(e.amount or 0),
-                "display": f"{e.description} - {e.reference}" if e.reference else e.description
+                "display": f"{e.description} - {e.tax_invoice_number}" if e.tax_invoice_number else (e.description or f"مصروف #{e.id}")
             } for e in expenses])
+        
+        elif entity_type == "expense_type":
+            types = ExpenseType.query.filter(
+                or_(
+                    ExpenseType.name.ilike(f"%{query}%"),
+                    func.coalesce(ExpenseType.code, '').ilike(f"%{query}%")
+                )
+            ).limit(10).all()
+            
+            return jsonify([{
+                "id": et.id,
+                "name": et.name,
+                "code": et.code,
+                "display": f"{et.name} ({et.code})" if et.code else et.name
+            } for et in types])
         
         else:
             return jsonify([])
@@ -2203,3 +2340,317 @@ def restore_payment(payment_id):
         db.session.rollback()
         flash(f'خطأ في استعادة الدفعة: {str(e)}', 'error')
         return redirect(url_for('payments.index'))
+
+
+class LedgerEntry(dict):
+    """بنية موحدة لحركة الشريك."""
+
+    __slots__ = ()
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        date: datetime | None,
+        label: str,
+        amount: float,
+        direction: str,
+        category: str,
+        reference: str | None = None,
+        details: dict | None = None,
+    ) -> "LedgerEntry":
+        return cls(
+            {
+                "date": date,
+                "label": label,
+                "amount": float(amount or 0),
+                "direction": direction,
+                "category": category,
+                "reference": reference,
+                "details": details or {},
+            }
+        )
+
+
+def _collect_partner_rights(partner: Partner, date_from: datetime, date_to: datetime) -> list:
+    from routes.partner_settlements import (
+        _get_partner_sales_share,
+        _get_partner_preorders_share,
+        _get_partner_inventory,
+        _get_partner_preorders_prepaid,
+        _get_partner_payments_received,
+    )
+
+    entries: list[dict] = []
+
+    sales_share = _get_partner_sales_share(partner.id, date_from, date_to)
+    for item in sales_share.get("items", []):
+        amount = float(item.get("partner_share_ils") or item.get("partner_share") or 0)
+        if not amount:
+            continue
+        entries.append(
+            LedgerEntry.create(
+                date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
+                label=f"نصيب من {item.get('type', 'معاملة')}\u200f",
+                amount=amount,
+                direction="credit",
+                category="rights_sales",
+                reference=item.get("reference_number"),
+                details=item,
+            )
+        )
+
+    preorders_share = _get_partner_preorders_share(partner.id, date_from, date_to)
+    for item in preorders_share.get("items", []):
+        amount = float(item.get("share_amount_ils") or item.get("share_amount") or 0)
+        if not amount:
+            continue
+        entries.append(
+            LedgerEntry.create(
+                date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
+                label="نصيب من حجز مسبق",
+                amount=amount,
+                direction="credit",
+                category="rights_preorders",
+                reference=item.get("preorder_number"),
+                details=item,
+            )
+        )
+
+    inventory_share = _get_partner_inventory(partner.id, date_from, date_to)
+    for item in inventory_share.get("items", []):
+        amount = float(item.get("partner_share") or 0)
+        if not amount:
+            continue
+        entries.append(
+            LedgerEntry.create(
+                date=date_to,
+                label=f"نصيب مخزون - {item.get('product_name')}",
+                amount=amount,
+                direction="credit",
+                category="rights_inventory",
+                reference=None,
+                details=item,
+            )
+        )
+
+    preorder_payments = _get_partner_preorders_prepaid(partner.id, partner, date_from, date_to)
+    for item in preorder_payments.get("items", []):
+        amount = float(item.get("amount_ils") or item.get("amount") or 0)
+        if not amount:
+            continue
+        entries.append(
+            LedgerEntry.create(
+                date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
+                label="دفعة حجز مسبق واردة",
+                amount=amount,
+                direction="credit",
+                category="payments_in",
+                reference=item.get("preorder_number"),
+                details=item,
+            )
+        )
+
+    partner_payments = _get_partner_payments_received(partner.id, partner, date_from, date_to)
+    for item in partner_payments.get("items", []):
+        amount = float(item.get("amount_ils") or item.get("amount") or 0)
+        if not amount:
+            continue
+        entries.append(
+            LedgerEntry.create(
+                date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
+                label="دفعة واردة من الشريك",
+                amount=amount,
+                direction="credit",
+                category="payments_in",
+                reference=item.get("payment_number"),
+                details=item,
+            )
+        )
+
+    return entries
+
+
+def _collect_partner_obligations(partner: Partner, date_from: datetime, date_to: datetime) -> list:
+    from routes.partner_settlements import (
+        _get_partner_sales_as_customer,
+        _get_partner_service_fees,
+        _get_partner_damaged_items,
+        _get_partner_expenses,
+        _get_payments_to_partner,
+    )
+    from models import Expense
+    from sqlalchemy import or_, and_
+
+    entries: list[dict] = []
+
+    sales_to_partner = _get_partner_sales_as_customer(partner.id, partner, date_from, date_to)
+    for item in sales_to_partner.get("items", []):
+        amount = float(item.get("amount_ils") or item.get("amount") or 0)
+        if not amount:
+            continue
+        entries.append(
+            LedgerEntry.create(
+                date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
+                label="مبيعات للشريك كعميل",
+                amount=amount,
+                direction="debit",
+                category="obligations_sales",
+                reference=item.get("reference"),
+                details=item,
+            )
+        )
+
+    service_fees = _get_partner_service_fees(partner.id, partner, date_from, date_to)
+    for item in service_fees.get("items", []):
+        amount = float(item.get("amount_ils") or item.get("amount") or 0)
+        if not amount:
+            continue
+        entries.append(
+            LedgerEntry.create(
+                date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
+                label="رسوم صيانة على الشريك",
+                amount=amount,
+                direction="debit",
+                category="obligations_service",
+                reference=item.get("reference"),
+                details=item,
+            )
+        )
+
+    damaged_items = _get_partner_damaged_items(partner.id, date_from, date_to)
+    for item in damaged_items.get("items", []):
+        amount = float(item.get("amount_ils") or item.get("amount") or 0)
+        if not amount:
+            continue
+        entries.append(
+            LedgerEntry.create(
+                date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
+                label="قطع تالفة محمولة على الشريك",
+                amount=amount,
+                direction="debit",
+                category="obligations_damaged",
+                reference=item.get("reference"),
+                details=item,
+            )
+        )
+
+    expenses_q = db.session.query(Expense).filter(
+        or_(
+            Expense.partner_id == partner.id,
+            and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id),
+        ),
+        Expense.date >= date_from,
+        Expense.date <= date_to,
+    ).all()
+    for expense in expenses_q:
+        amount = float(expense.amount or 0)
+        if not amount:
+            continue
+        amount_ils = amount
+        currency = expense.currency or "ILS"
+        try:
+            amount_ils = float(_convert_to_ils(Decimal(str(amount)), currency, expense.date or datetime.utcnow()))
+        except Exception:
+            amount_ils = amount
+        entries.append(
+            LedgerEntry.create(
+                date=expense.date or datetime.utcnow(),
+                label=expense.description or "مصروف على الشريك",
+                amount=amount_ils,
+                direction="debit",
+                category="obligations_expenses",
+                reference=f"EXP-{expense.id}",
+                details={
+                    "expense_id": expense.id,
+                    "description": expense.description,
+                    "currency": currency,
+                    "original_amount": amount,
+                },
+            )
+        )
+
+    payments_out = _get_payments_to_partner(partner.id, partner, date_from, date_to)
+    for item in payments_out.get("items", []):
+        amount = float(item.get("amount_ils") or item.get("amount") or 0)
+        if not amount:
+            continue
+        entries.append(
+            LedgerEntry.create(
+                date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
+                label="دفعة صادرة للشريك",
+                amount=amount,
+                direction="debit",
+                category="payments_out",
+                reference=item.get("payment_number"),
+                details=item,
+            )
+        )
+
+    return entries
+
+
+def _build_partner_ledger(
+    partner: Partner,
+    balance_details: dict | None,
+    date_from: datetime | None,
+    date_to: datetime | None,
+) -> dict:
+    df = date_from or SMART_PARTNER_BALANCE_START
+    dt = date_to or datetime.utcnow()
+    entries: list[dict] = []
+
+    opening_amount = 0.0
+    if balance_details and balance_details.get("balance_data"):
+        opening_amount = float(balance_details["balance_data"].get("opening_balance", {}).get("amount", 0) or 0)
+    else:
+        opening_amount = float(partner.opening_balance or 0)
+
+    entries.append(
+        LedgerEntry.create(
+            date=df,
+            label="الرصيد الافتتاحي",
+            amount=opening_amount,
+            direction="opening",
+            category="opening_balance",
+            reference=None,
+        )
+    )
+    entries[0]["running_balance"] = opening_amount
+    entries[0]["debit"] = 0.0
+    entries[0]["credit"] = 0.0
+
+    entries.extend(_collect_partner_rights(partner, df, dt))
+    entries.extend(_collect_partner_obligations(partner, df, dt))
+
+    def _parse_date(d):
+        if isinstance(d, datetime):
+            return d
+        if not d:
+            return dt
+        try:
+            return datetime.strptime(d, "%Y-%m-%d")
+        except Exception:
+            return dt
+
+    entries[1:] = sorted(entries[1:], key=lambda e: _parse_date(e.get("date")))
+
+    running = opening_amount
+    for entry in entries[1:]:
+        amt = entry.get("amount", 0)
+        entry["debit"] = 0.0
+        entry["credit"] = 0.0
+        if entry.get("direction") == "credit":
+            entry["credit"] = amt
+            running += amt
+        elif entry.get("direction") == "debit":
+            entry["debit"] = amt
+            running -= amt
+        entry["running_balance"] = running
+
+    return {
+        "entries": entries,
+        "closing_balance": running,
+        "date_from": df,
+        "date_to": dt,
+    }

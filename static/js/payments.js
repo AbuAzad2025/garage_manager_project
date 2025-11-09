@@ -36,10 +36,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const filtersRow = document.querySelector('.row.mb-4.g-2.align-items-end') || document.querySelector('.row.mb-4');
     if (!filtersRow || document.getElementById('btnExportCsv')) return;
     const wrap = document.createElement('div');
-    wrap.className = 'col-auto d-flex gap-2';
-    wrap.innerHTML = '<button id="btnPrint" class="btn btn-outline-secondary"><i class="fas fa-print me-1"></i> طباعة كشف</button><button id="btnExportCsv" class="btn btn-outline-success"><i class="fas fa-file-csv me-1"></i> تصدير CSV</button>';
+    wrap.className = 'col-auto d-flex gap-2 no-print';
+    wrap.innerHTML = '<button id="btnExportCsv" class="btn btn-outline-success"><i class="fas fa-file-csv me-1"></i> تصدير CSV</button>';
     filtersRow.appendChild(wrap);
-    document.getElementById('btnPrint').addEventListener('click', printStatement);
     document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
   }
   injectStatementButtons();
@@ -294,18 +293,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (elNet) elNet.textContent = fmtAmount(safe.net_total || 0);
     if (elAll) elAll.textContent = fmtAmount(safe.grand_total || 0);
   }
-  function printStatement() {
-    try {
-      const table = document.getElementById('paymentsTable');
-      const htmlTable = table.outerHTML;
-      const title = 'كشف حساب - ' + (ctx.entity_type || '') + ' #' + (ctx.entity_id || '');
-      const w = window.open('', 'stmt');
-      w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title + '</title><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"><style>body{padding:24px}h3{margin-bottom:16px}table{font-size:12px}</style></head><body><h3>' + title + '</h3>' + htmlTable + '<script>window.onload=function(){window.print();}<\/script></body></html>');
-      w.document.close();
-    } catch (e) {
-      alert('تعذر الطباعة الآن.');
-    }
-  }
   function exportCsv() {
     try {
       const headers = Array.from(document.querySelectorAll('#paymentsTable thead th')).map(function (th) { return th.textContent.trim(); }).slice(0, 8);
@@ -334,6 +321,24 @@ document.addEventListener('DOMContentLoaded', function() {
   updateUrlQuery();
   loadPayments();
   window.addEventListener('popstate', function () { syncFiltersFromUrl(); loadPayments(1); });
+  document.querySelectorAll('.btn-print-section').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const targetId = btn.getAttribute('data-print-target');
+      const title = btn.getAttribute('data-print-title') || document.title;
+      const el = targetId ? document.getElementById(targetId) : null;
+      if (!el) return;
+      try {
+        const header = document.querySelector('.print-header-info')?.outerHTML || '';
+        const info = document.querySelector('.print-partner-info')?.outerHTML || '';
+        const css = '@page{size:A4 portrait;margin:12mm 10mm;}html,body{margin:0;padding:0 6mm;font-family:"Cairo",system-ui,Arial,sans-serif;font-size:6pt;line-height:1.2;background:white;}table{width:100%;border-collapse:collapse;font-size:5.5pt;table-layout:fixed;word-wrap:break-word;}th,td{border:0.4px solid #333;padding:1px 2px;word-break:break-word;}thead th{background:#e0e0e0;font-size:6pt;}tbody tr:nth-child(even){background:#f7f7f7;}#partnerLedgerTable th:nth-child(1),#partnerLedgerTable td:nth-child(1){width:10%;}#partnerLedgerTable th:nth-child(2),#partnerLedgerTable td:nth-child(2){width:36%;}#partnerLedgerTable th:nth-child(3),#partnerLedgerTable td:nth-child(3){width:9%;}#partnerLedgerTable th:nth-child(4),#partnerLedgerTable td:nth-child(4){width:11%;}#partnerLedgerTable th:nth-child(5),#partnerLedgerTable td:nth-child(5){width:17%;}#partnerLedgerTable th:nth-child(6),#partnerLedgerTable td:nth-child(6){width:17%;}#paymentsTable th:nth-child(1),#paymentsTable td:nth-child(1){width:4%;}#paymentsTable th:nth-child(2),#paymentsTable td:nth-child(2){width:8%;}#paymentsTable th:nth-child(3),#paymentsTable td:nth-child(3){width:8%;}#paymentsTable th:nth-child(4),#paymentsTable td:nth-child(4){width:6%;}#paymentsTable th:nth-child(5),#paymentsTable td:nth-child(5){width:7%;}#paymentsTable th:nth-child(6),#paymentsTable td:nth-child(6){width:9%;}#paymentsTable th:nth-child(7),#paymentsTable td:nth-child(7){width:9%;}#paymentsTable th:nth-child(8),#paymentsTable td:nth-child(8){width:7%;}#paymentsTable th:nth-child(9),#paymentsTable td:nth-child(9){width:7%;}#paymentsTable th:nth-child(10),#paymentsTable td:nth-child(10){width:15%;}#paymentsTable th:nth-child(11),#paymentsTable td:nth-child(11){width:10%;}';
+        const w = window.open('', 'print');
+        w.document.write('<html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>' + title + '</title><style>' + css + '</style></head><body>' + header + info + '<h3 style="font-size:7pt;margin:3px 0;">' + title + '</h3>' + el.outerHTML + '<script>window.onload=function(){window.print();}<' + '/script></body></html>');
+        w.document.close();
+      } catch (e) {
+        alert('تعذر الطباعة الآن.');
+      }
+    });
+  });
   
 });
 

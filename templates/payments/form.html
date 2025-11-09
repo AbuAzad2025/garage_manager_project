@@ -1066,10 +1066,17 @@ h2, h3, h4 {
       }, 300);
     }
     
+    function getActiveSearchField(entityType) {
+      const candidates = Array.from(document.querySelectorAll(`input[name="${entityType.toLowerCase()}_search"]`));
+      if (!candidates.length) return null;
+      const visible = candidates.find(el => el.offsetParent !== null);
+      return visible || candidates[0];
+    }
+    
     function showEntityResults(entityType, entities) {
       console.log(`📋 showEntityResults: ${entityType}, ${entities.length} نتيجة`);
       
-      const searchField = document.querySelector(`input[name="${entityType.toLowerCase()}_search"]`);
+      const searchField = getActiveSearchField(entityType);
       if (!searchField) {
         console.error(`❌ لم يتم العثور على searchField: ${entityType.toLowerCase()}_search`);
         return;
@@ -1087,21 +1094,26 @@ h2, h3, h4 {
       
       // إنشاء قائمة النتائج - تصميم عصري
       const resultsDiv = document.createElement('div');
-      resultsDiv.className = 'search-results list-group';
+      resultsDiv.className = 'search-results entity-search-results list-group';
       resultsDiv.id = `${entityType.toLowerCase()}_results`;
-      // لا نضع inline styles - نستخدم CSS classes فقط
       console.log(`🎨 تم إنشاء resultsDiv بـ class: ${resultsDiv.className}`);
       
       entities.forEach(entity => {
         const item = document.createElement('div');
         item.className = 'list-group-item list-group-item-action';
+        const primaryLabel = entity.display || entity.name || entity.description || entity.reference || entity.id || '';
+        const badges = [];
+        if (entity.code && entity.code !== primaryLabel) {
+          badges.push(`<span class="badge bg-secondary me-1">${entity.code}</span>`);
+        }
+        if (entity.reference && entity.reference !== primaryLabel) {
+          badges.push(`<small class="text-muted d-block"><i class="fas fa-hashtag ml-1"></i>${entity.reference}</small>`);
+        }
         item.innerHTML = `
           <div class="d-flex justify-content-between align-items-center">
             <div>
-              <div class="fw-bold text-primary">
-                <i class="fas fa-user-circle ml-1"></i>
-                ${entity.name || entity.display}
-              </div>
+              <div class="fw-bold text-primary">${primaryLabel}</div>
+              ${badges.join('')}
               ${entity.phone ? `<small class="text-muted"><i class="fas fa-phone ml-1"></i>${entity.phone}</small>` : ''}
               ${entity.email ? `<small class="text-muted d-block"><i class="fas fa-envelope ml-1"></i>${entity.email}</small>` : ''}
               ${entity.balance !== undefined ? `<small class="badge bg-info mt-1">الرصيد: ${parseFloat(entity.balance).toFixed(0)}</small>` : ''}
@@ -1126,17 +1138,13 @@ h2, h3, h4 {
       console.log(`🔍 entityContainer: ${entityContainer ? 'موجود' : 'مفقود'}`);
       
       if (entityContainer && inputGroup) {
-        // جعل entityContainer relative positioning
-        entityContainer.style.position = 'relative';
-        entityContainer.style.overflow = 'visible';
-        entityContainer.style.zIndex = '10';
-        
-        // إضافة القائمة بعد input-group (ليس داخلها!)
-        if (inputGroup.nextSibling) {
-          entityContainer.insertBefore(resultsDiv, inputGroup.nextSibling);
-        } else {
-          entityContainer.appendChild(resultsDiv);
-        }
+        const parent = inputGroup.parentNode || entityContainer;
+        parent.style.position = parent.style.position || 'relative';
+        const width = inputGroup.offsetWidth;
+        resultsDiv.style.width = `${width}px`;
+        resultsDiv.style.left = `${inputGroup.offsetLeft}px`;
+        resultsDiv.style.top = `${inputGroup.offsetTop + inputGroup.offsetHeight + 5}px`;
+        inputGroup.insertAdjacentElement('afterend', resultsDiv);
         
         console.log(`✅ تم إضافة القائمة للـ DOM (بعد input-group)`);
         console.log(`📊 resultsDiv في DOM: ${document.getElementById(resultsDiv.id) ? 'نعم ✅' : 'لا ❌'}`);
@@ -1155,28 +1163,37 @@ h2, h3, h4 {
     }
     
     function selectEntity(entityType, entity) {
-      const searchField = document.querySelector(`input[name="${entityType.toLowerCase()}_search"]`);
-      const hiddenField = document.querySelector(`input[name="${entityType.toLowerCase()}_id"]`);
+      const searchField = getActiveSearchField(entityType);
+      const hiddenFieldCandidates = Array.from(document.querySelectorAll(`input[name="${entityType.toLowerCase()}_id"]`));
+      const hiddenField = hiddenFieldCandidates[0] || null;
       const entityIdField = document.querySelector(`input[name="entity_id"]`);
       
       if (searchField && hiddenField) {
         searchField.value = entity.name || entity.display;
         hiddenField.value = entity.id;
         
-        // تحديث entity_id أيضاً
-        if (entityIdField) {
-          entityIdField.value = entity.id;
-        }
-        
         // إخفاء النتائج
         hideEntityResults(entityType);
         
-        // تحديث النموذج
-        updateEntityFields();
+        const currentMainType = (document.querySelector('select[name="entity_type"]')?.value || '').toUpperCase();
+        const normalizedEntityType = entityType.toUpperCase();
+        const shouldUpdateEntity = normalizedEntityType === currentMainType;
+        
+        if (shouldUpdateEntity && entityIdField) {
+          entityIdField.value = entity.id;
+        }
+        
+        if (normalizedEntityType === 'EXPENSE_TYPE') {
+          return;
+        }
+        
+        if (shouldUpdateEntity) {
+          updateEntityFields();
+        }
         
         // جلب الجهة المرتبطة (العميل/المورد) للفواتير والصيانة والشحنات
-        if (['SALE', 'INVOICE', 'PREORDER', 'SERVICE', 'SHIPMENT'].includes(entityType.toUpperCase())) {
-          fetchRelatedParty(entityType, entity.id);
+        if (['SALE', 'INVOICE', 'PREORDER', 'SERVICE', 'SHIPMENT'].includes(normalizedEntityType)) {
+          fetchRelatedParty(normalizedEntityType, entity.id);
         }
       }
     }
@@ -1189,7 +1206,7 @@ h2, h3, h4 {
           if (data && data.success) {
             // ملء حقل العميل المرتبط
             if (data.customer_id && data.customer_name) {
-              const customerSearchField = document.getElementById('customer_search');
+              const customerSearchField = getActiveSearchField('CUSTOMER');
               const customerIdField = document.getElementById('customer_id');
               if (customerSearchField) customerSearchField.value = data.customer_name;
               if (customerIdField) customerIdField.value = data.customer_id;
@@ -1197,7 +1214,7 @@ h2, h3, h4 {
             
             // ملء حقل المورد المرتبط
             if (data.supplier_id && data.supplier_name) {
-              const supplierSearchField = document.getElementById('supplier_search');
+              const supplierSearchField = getActiveSearchField('SUPPLIER');
               const supplierIdField = document.getElementById('supplier_id');
               if (supplierSearchField) supplierSearchField.value = data.supplier_name;
               if (supplierIdField) supplierIdField.value = data.supplier_id;
@@ -1225,60 +1242,72 @@ h2, h3, h4 {
       // إخفاء جميع الحقول أولاً
       const allContainers = entityFieldsContainer.querySelectorAll('.entity-field-container');
 
+      let activeContainer = null;
       allContainers.forEach(container => {
-        container.style.display = 'none';
-
+        const isMatch = (container.getAttribute('data-entity-type') || '').toUpperCase() === selectedType;
+        container.style.display = isMatch ? 'block' : 'none';
+        if (isMatch) activeContainer = container;
       });
       
       // إظهار الحقول المناسبة
       const targetContainer = entityFieldsContainer.querySelector(`[data-entity-type="${selectedType.toLowerCase()}"]`);
       if (targetContainer) {
         targetContainer.style.display = 'block';
+        activeContainer = targetContainer;
       }
       
-      // ✅ تفعيل البحث الذكي للحقول الجديدة
-      setTimeout(function() {
-        attachSearchListeners();
-      }, 100);
+      document.querySelectorAll('.entity-search-results').forEach(el => el.remove());
+      attachSearchListeners(activeContainer || entityFieldsContainer);
     }
     
     // ✅ دالة ربط event listeners للبحث الذكي
-    function attachSearchListeners() {
-      const searchFields = document.querySelectorAll('input[name$="_search"]');
+    function attachSearchListeners(scope) {
+      const root = scope || document;
+      const searchFields = root.querySelectorAll('input[name$="_search"]');
       searchFields.forEach(field => {
-        // إزالة المستمعين القدامى عن طريق استنساخ العنصر
-        const newField = field.cloneNode(true);
-        field.parentNode.replaceChild(newField, field);
+        if (field.dataset.bound === '1') return;
+        field.dataset.bound = '1';
         
-        // إضافة مستمع للبحث
-        newField.addEventListener('input', function() {
-          const entityType = newField.name.replace('_search', '').toUpperCase();
-          searchEntities(entityType, this.value);
-        });
+        const resolveEntityType = () => {
+          const explicit = field.getAttribute('data-entity');
+          if (explicit) return explicit.toUpperCase();
+          return field.name.replace('_search', '').toUpperCase();
+        };
         
-        // إضافة مستمع للتركيز (لإعادة عرض النتائج)
-        newField.addEventListener('focus', function() {
+        field.addEventListener('input', function() {
+          const entityType = resolveEntityType();
           const val = this.value.trim();
-          if (val.length >= 2) {
-            const entityType = newField.name.replace('_search', '').toUpperCase();
+          if (!val) {
+            hideEntityResults(entityType);
+            return;
+          }
+          searchEntities(entityType, val);
+        }, { passive: true });
+        
+        field.addEventListener('focus', function() {
+          const entityType = resolveEntityType();
+          const val = this.value.trim();
+          if (val.length >= 1) {
             searchEntities(entityType, val);
           }
         });
         
-        console.log(`✅ تم تفعيل البحث الذكي لـ: ${newField.name}`);
+        field.addEventListener('blur', function() {
+          const entityType = resolveEntityType();
+          setTimeout(() => hideEntityResults(entityType), 150);
+        });
+        
+        console.log(`✅ تم تفعيل البحث الذكي لـ: ${field.name}`);
       });
       
       // ✅ إضافة listeners لأزرار السهم
-      const dropdownBtns = document.querySelectorAll('.dropdown-toggle-btn');
+      const dropdownBtns = root.querySelectorAll('.dropdown-toggle-btn');
       dropdownBtns.forEach(btn => {
+        if (btn.dataset.bound === '1') return;
+        btn.dataset.bound = '1';
         const entityType = btn.getAttribute('data-entity');
         if (entityType) {
-          // إزالة listener القديم
-          const newBtn = btn.cloneNode(true);
-          btn.parentNode.replaceChild(newBtn, btn);
-          
-          // إضافة listener جديد
-          newBtn.addEventListener('click', function() {
+          btn.addEventListener('click', function() {
             console.log(`🔽 السهم: عرض كل ${entityType}`);
             loadAllEntities(entityType.toUpperCase());
           });
@@ -1312,21 +1341,29 @@ h2, h3, h4 {
     
     // تهيئة الحقول عند تحميل الصفحة
     document.addEventListener('DOMContentLoaded', function() {
+      const bindEntityTypeSelect = (selectEl) => {
+        if (!selectEl) return;
+        const handler = () => {
+          updateEntityFields();
+          updateDirectionOptions();
+        };
+        selectEl.addEventListener('change', handler, { passive: true });
+        if (typeof window !== 'undefined' && window.jQuery) {
+          window.jQuery(selectEl).off('select2:select.entityType').on('select2:select.entityType', handler);
+        }
+      };
+      
       // إضافة مستمع لتغيير نوع الجهة
       const entityTypeSelect = document.querySelector('select[name="entity_type"]');
-      if (entityTypeSelect) {
-        entityTypeSelect.addEventListener('change', function() {
-          updateEntityFields();
-          // تحديث خيارات الاتجاه حسب نوع الجهة
-          updateDirectionOptions();
-        });
-        
+      bindEntityTypeSelect(entityTypeSelect);
+      
       // تحديث الحقول عند التحميل الأولي
       setTimeout(function() {
         updateEntityFields();
         updateDirectionOptions(); // تحديث خيارات الاتجاه أيضاً
         attachSearchListeners(); // ✅ تفعيل البحث الذكي
         initEnhancedSelects();
+        bindEntityTypeSelect(document.querySelector('select[name="entity_type"]'));
         
         // ✅ ملء النموذج من query parameters (للدفع السريع من القوائم)
         const urlParams = new URLSearchParams(window.location.search);
@@ -1360,7 +1397,6 @@ h2, h3, h4 {
           }, 200);
         }
       }, 100);
-      }
       
       // إضافة مستمع لتغيير الاتجاه
       const directionSelect = document.querySelector('select[name="direction"]');
@@ -1708,13 +1744,18 @@ h2, h3, h4 {
         
         // اسم الجهة
         let entityName = 'غير محدد';
-        if (entityType === 'CUSTOMER') entityName = document.getElementById('customer_search')?.value || 'عميل';
-        else if (entityType === 'SUPPLIER') entityName = document.getElementById('supplier_search')?.value || 'مورد';
-        else if (entityType === 'PARTNER') entityName = document.getElementById('partner_search')?.value || 'شريك';
-        else if (entityType === 'MISCELLANEOUS') entityName = 'متفرقات';
-        else if (entityType === 'OTHER') entityName = 'أخرى';
-        else if (entityType === 'EXPENSE') entityName = 'مصروف';
-        else entityName = entityType;
+        const activeEntityField = getActiveSearchField(entityType);
+        if (activeEntityField) {
+          entityName = activeEntityField.value || entityName;
+        } else if (entityType === 'MISCELLANEOUS') {
+          entityName = 'متفرقات';
+        } else if (entityType === 'OTHER') {
+          entityName = 'أخرى';
+        } else if (entityType === 'EXPENSE') {
+          entityName = 'مصروف';
+        } else if (entityType) {
+          entityName = entityType;
+        }
         
         // ✅ رسالة تأكيد بسيطة
         const message = `هل أنت متأكد من حفظ هذه الدفعة؟\n\n` +

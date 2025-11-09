@@ -25,6 +25,9 @@
     .btn-create:focus{outline:0;box-shadow:0 0 0 .2rem rgba(255,193,7,.35)}
     /* تحسين تباين أزرار الفلاتر */
     .btn-filter{padding:.45rem .9rem;border-radius:.55rem}
+    .sales-summary-card h3{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .sales-summary-card .card-title{color:rgba(0,0,0,.85);font-size:1.05rem;font-weight:700}
+    .sales-summary-card small{font-size:0.95rem;font-weight:600;color:rgba(0,0,0,.7)}
     .table thead th{white-space:nowrap}
   </style>
 {% endblock %}
@@ -35,7 +38,7 @@
     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
       <h3 class="mb-0"><i class="fas fa-file-invoice mr-2"></i> فواتير المبيعات</h3>
       <div>
-        <a href="{{ url_for('returns.list_returns') }}" class="btn btn-danger ml-2" title="عرض المرتجعات">
+        <a href="{{ url_for('returns.list_returns') }}" class="btn btn-danger ml-2" title="عرض المرتجعات" data-no-confirm="true" data-no-danger="true">
           <i class="fas fa-undo-alt"></i> المرتجعات
         </a>
         <a href="{{ url_for('sales_bp.create_sale') }}" class="btn btn-create" title="إنشاء فاتورة جديدة">
@@ -49,11 +52,11 @@
       {% if summary %}
       <div class="row g-3 mb-4">
         <div class="col-lg-3 col-md-6">
-          <div class="card border-0 shadow-sm bg-primary text-white">
+          <div class="card border-0 shadow-sm bg-primary text-white sales-summary-card">
             <div class="card-body">
               <div class="d-flex justify-content-between">
                 <div>
-                  <h6 class="card-title text-white-50 mb-1">إجمالي المبيعات</h6>
+                  <h6 class="card-title mb-1">إجمالي المبيعات</h6>
                   <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_sales) }} ₪</h3>
                   <small class="opacity-75">{{ summary.sales_count }} فاتورة</small>
                 </div>
@@ -66,11 +69,11 @@
         </div>
         
         <div class="col-lg-3 col-md-6">
-          <div class="card border-0 shadow-sm bg-success text-white">
+          <div class="card border-0 shadow-sm bg-success text-white sales-summary-card">
             <div class="card-body">
               <div class="d-flex justify-content-between">
                 <div>
-                  <h6 class="card-title text-white-50 mb-1">المدفوع</h6>
+                  <h6 class="card-title mb-1">المدفوع</h6>
                   <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_paid) }} ₪</h3>
                   <small class="opacity-75">{{ "{:.1f}".format((summary.total_paid / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
                 </div>
@@ -83,11 +86,11 @@
         </div>
         
         <div class="col-lg-3 col-md-6">
-          <div class="card border-0 shadow-sm bg-warning text-white">
+          <div class="card border-0 shadow-sm bg-warning text-white sales-summary-card">
             <div class="card-body">
               <div class="d-flex justify-content-between">
                 <div>
-                  <h6 class="card-title text-white-50 mb-1">المستحق</h6>
+                  <h6 class="card-title mb-1">المستحق</h6>
                   <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_pending) }} ₪</h3>
                   <small class="opacity-75">{{ "{:.1f}".format((summary.total_pending / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
                 </div>
@@ -100,11 +103,11 @@
         </div>
         
         <div class="col-lg-3 col-md-6">
-          <div class="card border-0 shadow-sm bg-info text-white">
+          <div class="card border-0 shadow-sm bg-info text-white sales-summary-card">
             <div class="card-body">
               <div class="d-flex justify-content-between">
                 <div>
-                  <h6 class="card-title text-white-50 mb-1">متوسط الفاتورة</h6>
+                  <h6 class="card-title mb-1">متوسط الفاتورة</h6>
                   <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.average_sale) }} ₪</h3>
                   <small class="opacity-75">لكل فاتورة</small>
                 </div>
@@ -198,8 +201,8 @@
                   <a href="{{ url_for('sales_bp.edit_sale', id=sale.id) }}" class="btn btn-action-edit btn-action-sm" title="تعديل">
                     <i class="fas fa-edit"></i>
                   </a>
-                  <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" class="btn btn-action-print btn-action-sm" title="طباعة">
-                    <i class="fas fa-print"></i>
+                  <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" class="btn btn-action-print btn-action-sm" title="فاتورة ضريبية" target="_blank">
+                    <i class="fas fa-file-invoice-dollar"></i>
                   </a>
                   {% if sale.is_archived %}
                   <button type="button" class="btn btn-action-restore btn-action-sm" title="استعادة" onclick="restoreSale({{ sale.id }})">

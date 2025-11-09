@@ -1118,6 +1118,7 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
     
     all_sales = []
     total_ils = Decimal('0.00')
+    total_discount_ils = Decimal('0.00')
     
     # ═══════════════════════════════════════════════════════════
     # 1. مبيعات قطع الصيانة (ServicePart)
@@ -1127,13 +1128,17 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
         ServiceRequest.id.label("service_id"),
         ServiceRequest.service_number,
         ServiceRequest.received_at.label("date"),
+        ServiceRequest.currency,
+        ServiceRequest.discount_total.label("service_discount_total"),
+        ServiceRequest.parts_total.label("service_parts_total"),
+        ServiceRequest.labor_total.label("service_labor_total"),
         Customer.name.label("customer_name"),
         Product.name.label("product_name"),
         Product.sku,
         ServicePart.quantity,
         ServicePart.unit_price,
-        ServicePart.share_percentage,
-        ServiceRequest.currency
+        ServicePart.discount,
+        ServicePart.share_percentage
     ).join(
         ServicePart, ServicePart.service_id == ServiceRequest.id
     ).join(
@@ -1147,19 +1152,49 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
         ServiceRequest.status == ServiceStatus.COMPLETED.value
     ).all()
     
+    service_discount_info = {}
     for item in service_sales:
-        total_amount = Decimal(str(item.quantity)) * Decimal(str(item.unit_price))
+        sr_id = item.service_id
+        if sr_id not in service_discount_info:
+            parts_total = Decimal(str(item.service_parts_total or 0))
+            labor_total = Decimal(str(item.service_labor_total or 0))
+            discount_total = Decimal(str(item.service_discount_total or 0))
+            total_before_discount = parts_total + labor_total
+            parts_discount_share = Decimal("0")
+            if total_before_discount > 0 and discount_total > 0:
+                parts_discount_share = (parts_total / total_before_discount) * discount_total
+            service_discount_info[sr_id] = {
+                "parts_total": parts_total,
+                "parts_discount": parts_discount_share
+            }
+        parts_total = service_discount_info[sr_id]["parts_total"]
+        parts_discount_share = service_discount_info[sr_id]["parts_discount"]
+        gross_amount = Decimal(str(item.quantity)) * Decimal(str(item.unit_price))
+        line_discount = Decimal(str(item.discount or 0))
+        net_amount = gross_amount - line_discount
+        if net_amount < 0:
+            net_amount = Decimal("0")
+        allocated_service_discount = Decimal("0")
+        if parts_total > 0 and parts_discount_share > 0:
+            allocated_service_discount = (net_amount / parts_total) * parts_discount_share
+        net_after_discount = net_amount - allocated_service_discount
+        if net_after_discount < 0:
+            net_after_discount = Decimal("0")
         share_pct = Decimal(str(item.share_percentage or 0))
-        partner_share = total_amount * share_pct / Decimal("100")
-        
-        # تحويل إلى شيكل
+        partner_share = net_after_discount * share_pct / Decimal("100")
         try:
             partner_share_ils = _convert_to_ils(partner_share, item.currency, item.date)
         except Exception:
             partner_share_ils = partner_share
-        
+        total_discount = line_discount + allocated_service_discount
+        if total_discount < 0:
+            total_discount = Decimal("0")
+        try:
+            discount_amount_ils = _convert_to_ils(total_discount, item.currency, item.date)
+        except Exception:
+            discount_amount_ils = total_discount
         total_ils += partner_share_ils
-        
+        total_discount_ils += discount_amount_ils
         all_sales.append({
             "type": "صيانة",
             "reference_number": item.service_number,
@@ -1169,9 +1204,11 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
             "sku": item.sku,
             "quantity": item.quantity,
             "unit_price": float(item.unit_price),
-            "total_amount": float(total_amount),
+            "total_amount": float(net_after_discount),
             "share_percentage": float(share_pct),
             "partner_share": float(partner_share),
+            "discount_amount": float(total_discount),
+            "discount_amount_ils": float(discount_amount_ils),
             "currency": item.currency,
             "partner_share_ils": float(partner_share_ils)
         })
@@ -1185,11 +1222,13 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
         Sale.id.label("sale_id"),
         Sale.sale_number,
         Sale.sale_date,
+        Sale.discount_total.label("sale_discount_total"),
         Customer.name.label("customer_name"),
         Product.name.label("product_name"),
         Product.sku,
         SaleLine.quantity,
         SaleLine.unit_price,
+        SaleLine.discount_rate,
         ProductPartner.share_percent.label("share_pct"),
         Sale.currency
     ).join(
@@ -1213,11 +1252,13 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
         Sale.id.label("sale_id"),
         Sale.sale_number,
         Sale.sale_date,
+        Sale.discount_total.label("sale_discount_total"),
         Customer.name.label("customer_name"),
         Product.name.label("product_name"),
         Product.sku,
         SaleLine.quantity,
         SaleLine.unit_price,
+        SaleLine.discount_rate,
         WarehousePartnerShare.share_percentage.label("share_pct"),
         Sale.currency
     ).join(
@@ -1238,6 +1279,25 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
     
     # دمج النتائج
     all_regular_sales = list(regular_sales_pp) + list(regular_sales_wps)
+    sale_ids = {item.sale_id for item in all_regular_sales}
+    sale_net_totals = {}
+    if sale_ids:
+        net_rows = db.session.query(
+            SaleLine.sale_id,
+            func.coalesce(
+                func.sum(
+                    (SaleLine.quantity * SaleLine.unit_price)
+                    * (1 - (func.coalesce(SaleLine.discount_rate, 0) / 100.0))
+                ),
+                0.0,
+            ),
+        ).filter(
+            SaleLine.sale_id.in_(sale_ids)
+        ).group_by(
+            SaleLine.sale_id
+        ).all()
+        for sale_id, net_value in net_rows:
+            sale_net_totals[sale_id] = Decimal(str(net_value or 0))
     
     # تتبع المبيعات المضافة لتجنب التكرار
     added_sales = set()
@@ -1249,18 +1309,37 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
             continue
         added_sales.add(sale_line_key)
         
-        total_amount = Decimal(str(item.quantity)) * Decimal(str(item.unit_price))
+        line_gross = Decimal(str(item.quantity)) * Decimal(str(item.unit_price))
+        line_discount_rate = Decimal(str(item.discount_rate or 0))
+        net_amount = line_gross * (Decimal("1") - (line_discount_rate / Decimal("100")))
+        if net_amount < 0:
+            net_amount = Decimal("0")
+        sale_discount_total = Decimal(str(item.sale_discount_total or 0))
+        total_sale_net = sale_net_totals.get(item.sale_id, Decimal("0"))
+        allocated_sale_discount = Decimal("0")
+        if total_sale_net > 0 and sale_discount_total > 0:
+            allocated_sale_discount = (net_amount / total_sale_net) * sale_discount_total
+        net_after_discount = net_amount - allocated_sale_discount
+        if net_after_discount < 0:
+            net_after_discount = Decimal("0")
         share_pct = Decimal(str(item.share_pct or 0))
-        partner_share = total_amount * share_pct / Decimal("100")
-        
-        # تحويل إلى شيكل
+        partner_share = net_after_discount * share_pct / Decimal("100")
         try:
             partner_share_ils = _convert_to_ils(partner_share, item.currency, item.sale_date)
         except Exception:
             partner_share_ils = partner_share
-        
+        line_discount_value = line_gross - net_amount
+        if line_discount_value < 0:
+            line_discount_value = Decimal("0")
+        total_discount = line_discount_value + allocated_sale_discount
+        if total_discount < 0:
+            total_discount = Decimal("0")
+        try:
+            discount_amount_ils = _convert_to_ils(total_discount, item.currency, item.sale_date)
+        except Exception:
+            discount_amount_ils = total_discount
         total_ils += partner_share_ils
-        
+        total_discount_ils += discount_amount_ils
         all_sales.append({
             "type": "بيع عادي",
             "reference_number": item.sale_number,
@@ -1270,9 +1349,11 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
             "sku": item.sku,
             "quantity": item.quantity,
             "unit_price": float(item.unit_price),
-            "total_amount": float(total_amount),
+            "total_amount": float(net_after_discount),
             "share_percentage": float(share_pct),
             "partner_share": float(partner_share),
+            "discount_amount": float(total_discount),
+            "discount_amount_ils": float(discount_amount_ils),
             "currency": item.currency,
             "partner_share_ils": float(partner_share_ils)
         })
@@ -1281,7 +1362,8 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
         "items": all_sales,
         "count": len(all_sales),
         "total_share": float(total_ils),
-        "total_share_ils": float(total_ils)
+        "total_share_ils": float(total_ils),
+        "total_discount_ils": float(total_discount_ils)
     }
 
 

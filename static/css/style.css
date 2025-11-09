@@ -506,6 +506,109 @@ body {
   font-weight: 500;
 }
 
+.form-control-sm,
+.form-select.form-control-sm {
+  font-size: 1rem;
+  padding: 0.55rem 0.9rem;
+  min-height: 42px;
+  height: auto;
+}
+
+select.form-control-sm,
+select.form-select {
+  line-height: 1.6;
+}
+
+select.form-control,
+select.form-select,
+.custom-select {
+  white-space: normal;
+}
+
+.form-group select.form-control {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  min-height: 48px;
+  line-height: 1.6;
+}
+
+.checks-form select.form-control {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  min-height: 48px;
+  line-height: 1.6;
+}
+.returns-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.returns-filters .form-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 220px;
+  margin-bottom: 0;
+}
+
+.returns-filters .form-group label {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.returns-filters .form-group label + .filter-control,
+.returns-filters .form-group label + .form-control {
+  flex: 1 1 auto;
+}
+
+.returns-filters .search-group {
+  flex: 2 1 260px;
+}
+
+.filter-control {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  font-weight: 600;
+  padding-right: 1.2rem;
+  padding-left: 1.2rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  min-height: 48px;
+  line-height: 1.6;
+}
+
+.returns-filters .form-control {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.form-inline .form-control:not([type="checkbox"]):not([type="radio"]),
+.form-inline .form-select,
+.form-inline .custom-select {
+  min-width: 14rem;
+}
+
+@media (max-width: 576px) {
+  .returns-filters {
+    gap: 0.5rem;
+  }
+  .returns-filters .form-group,
+  .returns-filters .search-group {
+    flex: 1 1 100%;
+  }
+  .filter-control {
+    padding-right: 1rem;
+    padding-left: 1rem;
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+    min-height: 46px;
+  }
+}
+
 .form-control:focus, .form-select:focus {
   border-color: #667eea;
   box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);

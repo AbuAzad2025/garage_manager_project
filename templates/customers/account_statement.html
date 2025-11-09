@@ -260,6 +260,11 @@
     <a class="btn btn-outline-secondary" href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}">
       <i class="fas fa-arrow-right ms-1"></i> رجوع
     </a>
+    {% if not pdf_export %}
+    <a class="btn btn-outline-primary" href="{{ url_for('customers_bp.account_statement', customer_id=customer.id, format='pdf') }}" target="_blank">
+      <i class="fas fa-file-pdf ms-1"></i> تصدير PDF
+    </a>
+    {% endif %}
   </div>
 
   <!-- 👤 بطاقة معلومات العميل -->
@@ -570,23 +575,25 @@
 
 {% block scripts %}
 {{ super() }}
+{% if not pdf_export %}
 <script>
-  // DataTables إذا كان الجدول كبير
   {% if ledger_entries|length > 10 %}
-  $('#statementTable').DataTable({
-    language: {
-      url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
-    },
-    pageLength: 25,
-    order: [[0, 'desc']],
-    dom: 'frtip',
-    searching: true,
-    paging: true,
-    info: true
-  });
+  try {
+    $('#statementTable').DataTable({
+      language: {
+        url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
+      },
+      pageLength: 25,
+      order: [[0, 'desc']],
+      dom: 'frtip',
+      searching: true,
+      paging: true,
+      info: true
+    });
+  } catch (err) {
+    console.warn('DataTables initialization skipped:', err);
+  }
   {% endif %}
-  
-  // دالة طباعة كشف الحساب
   window.printStatementTable = function() {
     const table = document.getElementById('statementTable');
     if (!table) return;
@@ -669,4 +676,5 @@
     }, 250);
   }
 </script>
+{% endif %}
 {% endblock %}

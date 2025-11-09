@@ -35,12 +35,13 @@
   .num{font-variant-numeric:tabular-nums;text-align:end}
 
   /* توزيع نسبي 100% لتفادي الانكماش */
-  col.col-item{ width: 40%; }
+  col.col-item{ width: 32%; }
   col.col-qty { width: 10%; }
-  col.col-unit{ width: 15%; }
-  col.col-sum { width: 15%; }
-  col.col-receiver{ width: 10%; }
-  col.col-notes { width: 10%; }
+  col.col-unit{ width: 14%; }
+  col.col-disc{ width: 14%; }
+  col.col-sum { width: 14%; }
+  col.col-receiver{ width: 8%; }
+  col.col-notes { width: 8%; }
 
   .kv th{width:38mm;background:#f8f9fa;color:#555;font-weight:700;white-space:nowrap}
 
@@ -83,13 +84,14 @@
     <table class="kv">
       <tr><th>اسم العميل</th><td>{{ sale.customer.name  if sale.customer else '—' }}</td></tr>
       <tr><th>هاتف العميل</th><td>{{ sale.customer.phone if sale.customer else '—' }}</td></tr>
+      <tr><th>البائع</th><td>{% if sale.seller_employee %}{{ sale.seller_employee.name }}{% elif sale.seller %}{{ sale.seller.username }}{% else %}—{% endif %}</td></tr>
     </table>
   </div>
 
   <div class="box">
     <table>
       <colgroup>
-        <col class="col-item"><col class="col-qty"><col class="col-unit">
+        <col class="col-item"><col class="col-qty"><col class="col-unit"><col class="col-disc">
         <col class="col-sum"><col class="col-receiver"><col class="col-notes">
       </colgroup>
       <thead>
@@ -97,6 +99,7 @@
           <th>الصنف</th>
           <th>الكمية</th>
           <th>سعر الوحدة</th>
+          <th>الخصم</th>
           <th>الإجمالي</th>
           <th>المستلم</th>
           <th>ملاحظات</th>
@@ -109,6 +112,10 @@
             <td class="wrap">{{ ln.product.name if ln.product else '—' }}</td>
             <td class="num">{{ ln.quantity }}</td>
             <td class="num">{{ money_fmt(ln.unit_price) }} {{ sale.currency }}</td>
+            <td class="num">
+              {{ money_fmt(item.discount_amount) }} {{ sale.currency }}
+              <div style="font-size:8px">{{ item.discount_rate_display }}%</div>
+            </td>
             <td class="num">{{ money_fmt(item.line_total) }} {{ sale.currency }}</td>
             <td style="font-size:8px">{{ ln.line_receiver or '—' }}</td>
             <td class="wrap" style="font-size:8px">{{ ln.note or '—' }}</td>
@@ -116,7 +123,7 @@
         {% endfor %}
       </tbody>
       <tfoot>
-        <tr><td colspan="5" style="text-align:end"><strong>الإجمالي النهائي:</strong></td><td class="num"><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td></tr>
+        <tr><td colspan="6" style="text-align:end"><strong>الإجمالي النهائي:</strong></td><td class="num"><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td></tr>
       </tfoot>
     </table>
   </div>
@@ -132,7 +139,7 @@
   {% endif %}
 
   <div class="sign-row">
-    <div class="sign">توقيع البائع<br><br>{{ sale.seller.username if sale.seller else '________' }}</div>
+    <div class="sign">توقيع البائع<br><br>{{ sale.seller_employee.name if sale.seller_employee else (sale.seller.username if sale.seller else '________') }}</div>
     <div class="sign">توقيع العميل<br><br>__________</div>
   </div>
 

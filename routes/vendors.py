@@ -760,7 +760,12 @@ def partners_list():
         q = q.filter(or_(Partner.name.ilike(term), Partner.phone_number.ilike(term), Partner.identity_number.ilike(term)))
     partners = q.order_by(Partner.name).all()
     
-    # ✅ حساب الملخصات الإجمالية لجميع الشركاء - موحد من balance_in_ils
+    # ✅ حساب الرصيد الحقيقي باستخدام التسوية الذكية لكل شريك
+    from routes.partner_settlements import _calculate_smart_partner_balance
+    smart_start = datetime(2024, 1, 1)
+    smart_end = datetime.utcnow()
+    
+    # ✅ حساب الملخصات الإجمالية لجميع الشركاء - بناءً على الرصيد الذكي
     total_balance = 0.0
     total_debit = 0.0
     total_credit = 0.0
@@ -768,7 +773,18 @@ def partners_list():
     partners_with_credit = 0
     
     for partner in partners:
-        balance = float(partner.balance_in_ils or 0)
+        smart_balance = None
+        try:
+            balance_data = _calculate_smart_partner_balance(partner.id, smart_start, smart_end)
+            if balance_data.get("success"):
+                smart_balance = float(balance_data.get("balance", {}).get("amount", 0) or 0)
+        except Exception:
+            smart_balance = None
+        
+        balance = smart_balance if smart_balance is not None else float(partner.balance_in_ils or 0)
+        partner.current_balance = balance
+        partner.current_balance_source = "smart" if smart_balance is not None else "stored"
+        
         total_balance += balance
         
         if balance > 0:

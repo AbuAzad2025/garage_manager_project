@@ -15,22 +15,22 @@
       <h3 class="card-title"><i class="fas fa-user-plus ml-1"></i> إضافة عميل جديد</h3>
     </div>
     <div class="card-body">
-      <div class="d-flex justify-content-end mb-3 gap-3">
-        <div class="custom-control custom-switch">
-          {{ form.is_online(class="custom-control-input") }}
-          <label class="custom-control-label" for="{{ form.is_online.id }}"><i class="fas fa-globe text-info"></i> عميل أونلاين</label>
-        </div>
-        <div class="custom-control custom-switch">
-          {{ form.is_active(class="custom-control-input") }}
-          <label class="custom-control-label" for="{{ form.is_active.id }}"><i class="fas fa-toggle-on text-success"></i> نشط</label>
-        </div>
-      </div>
       {% if form.errors %}
         <div class="alert alert-danger">يرجى تصحيح الحقول المظللة أدناه.</div>
       {% endif %}
       <form id="customer-create-form" method="post" action="{{ url_for('customers_bp.create_customer') }}" novalidate data-ajax="0">
         {{ form.hidden_tag() }}
         <input type="hidden" name="return_to" value="{{ return_to or request.args.get('return_to','') }}">
+        <div class="d-flex justify-content-end mb-3 gap-3">
+          <div class="custom-control custom-switch">
+            {{ form.is_online(class="custom-control-input") }}
+            <label class="custom-control-label" for="{{ form.is_online.id }}"><i class="fas fa-globe text-info"></i> عميل أونلاين</label>
+          </div>
+          <div class="custom-control custom-switch">
+            {{ form.is_active(class="custom-control-input") }}
+            <label class="custom-control-label" for="{{ form.is_active.id }}"><i class="fas fa-toggle-on text-success"></i> نشط</label>
+          </div>
+        </div>
         <div class="form-row">
           <div class="form-group col-md-6">
             <label for="{{ form.name.id }}"><i class="fas fa-user"></i> اسم العميل <span class="text-danger">*</span></label>

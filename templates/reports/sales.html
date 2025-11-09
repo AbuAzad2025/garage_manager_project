@@ -105,6 +105,15 @@
     <option value="CANCELLED" {% if request.args.get('status') == 'CANCELLED' %}selected{% endif %}>ملغي</option>
   </select>
 </div>
+<div class="col-md-3">
+  <label class="form-label"><i class="fas fa-user-tie"></i> البائع (الموظف)</label>
+  <select name="employee_id" class="form-select">
+    <option value="">جميع الموظفين</option>
+    {% for emp in employees %}
+    <option value="{{ emp.id }}" {% if selected_employee_id and selected_employee_id == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+    {% endfor %}
+  </select>
+</div>
 <div class="col-md-12">
   <button type="submit" class="btn btn-primary">
     <i class="fas fa-sync-alt"></i> تحديث
@@ -133,7 +142,7 @@
   <th class="text-center">عدد الأصناف</th>
   <th class="text-end">الإجمالي</th>
   <th class="text-center">الحالة</th>
-  <th class="text-center">المستخدم</th>
+  <th class="text-center">البائع</th>
   <th class="text-center no-print">إجراءات</th>
 </tr>
 </thead>
@@ -175,10 +184,12 @@
     {% endif %}
   </td>
   <td class="text-center">
-    {% if sale.created_by %}
-    <small>{{ sale.created_by }}</small>
+    {% if sale.seller_employee %}
+      <small>{{ sale.seller_employee.name }}</small>
+    {% elif sale.seller %}
+      <small>{{ sale.seller.username }}</small>
     {% else %}
-    <span class="text-muted">-</span>
+      <span class="text-muted">-</span>
     {% endif %}
   </td>
   <td class="text-center no-print">
@@ -237,17 +248,30 @@
 
 {% block scripts %}
 {{ super() }}
+<script type="application/json" id="daily-sales-data">{{ daily_sales|tojson|safe }}</script>
+<script type="application/json" id="top-products-data">{{ top_products|tojson|safe }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const dailyCtx = document.getElementById('dailySalesChart');
   if (dailyCtx && typeof Chart !== 'undefined') {
+    let dailyData = [];
+    try {
+      const dailyEl = document.getElementById('daily-sales-data');
+      if (dailyEl) {
+        dailyData = JSON.parse(dailyEl.textContent || '[]');
+      }
+    } catch (e) {
+      dailyData = [];
+    }
+    const dailyLabels = dailyData.map(d => d.date);
+    const dailyValues = dailyData.map(d => d.total);
     new Chart(dailyCtx, {
       type: 'line',
       data: {
-        labels: [{% for d in daily_sales %}'{{ d.date }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        labels: dailyLabels,
         datasets: [{
           label: 'المبيعات',
-          data: [{% for d in daily_sales %}{{ d.total }}{% if not loop.last %},{% endif %}{% endfor %}],
+          data: dailyValues,
           borderColor: '#007bff',
           backgroundColor: 'rgba(0, 123, 255, 0.1)',
           fill: true
@@ -266,13 +290,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const topProductsCtx = document.getElementById('topProductsChart');
   if (topProductsCtx && typeof Chart !== 'undefined') {
+    let topProducts = [];
+    try {
+      const topEl = document.getElementById('top-products-data');
+      if (topEl) {
+        topProducts = JSON.parse(topEl.textContent || '[]');
+      }
+    } catch (e) {
+      topProducts = [];
+    }
+    const productLabels = topProducts.map(p => p.name);
+    const productQuantities = topProducts.map(p => p.quantity);
     new Chart(topProductsCtx, {
       type: 'bar',
       data: {
-        labels: [{% for p in top_products %}'{{ p.name }}'{% if not loop.last %},{% endif %}{% endfor %}],
+        labels: productLabels,
         datasets: [{
           label: 'الكمية المباعة',
-          data: [{% for p in top_products %}{{ p.quantity }}{% if not loop.last %},{% endif %}{% endfor %}],
+          data: productQuantities,
           backgroundColor: '#28a745'
         }]
       },

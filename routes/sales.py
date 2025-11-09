@@ -49,7 +49,12 @@ def _get_or_404(model, ident, options: Optional[Iterable[Any]] = None):
 
 def _format_sale(s: Sale) -> None:
     s.customer_name = s.customer.name if s.customer else "-"
-    s.seller_name = s.seller.username if s.seller else "-"
+    if getattr(s, "seller_employee", None):
+        s.seller_name = s.seller_employee.name or "-"
+    elif getattr(s, "seller", None):
+        s.seller_name = getattr(s.seller, "username", None) or getattr(s.seller, "name", None) or "-"
+    else:
+        s.seller_name = "-"
     s.date = s.sale_date
     s.date_iso = s.sale_date.strftime("%Y-%m-%d") if s.sale_date else "-"
     s.total_fmt = f"{float(getattr(s, 'total_amount', 0) or 0):,.2f}"
@@ -64,6 +69,7 @@ def sale_to_dict(s: Sale) -> Dict[str, Any]:
         "sale_number": s.sale_number,
         "customer_id": s.customer_id,
         "seller_id": s.seller_id,
+        "seller_employee_id": s.seller_employee_id,
         "sale_date": s.sale_date.strftime("%Y-%m-%d") if s.sale_date else None,
         "status": s.status,
         "currency": s.currency,
@@ -404,7 +410,7 @@ def list_sales():
     )
     q = (Sale.query
          .filter(Sale.is_archived == False)
-         .options(joinedload(Sale.customer), joinedload(Sale.seller))
+        .options(joinedload(Sale.customer), joinedload(Sale.seller), joinedload(Sale.seller_employee))
          .outerjoin(subtotals, subtotals.c.sale_id == Sale.id)
          .outerjoin(Customer))
     st = f.get("status", "all").upper()
@@ -586,7 +592,8 @@ def create_sale():
             sale = Sale(
                 sale_number=None,
                 customer_id=form.customer_id.data,
-                seller_id=form.seller_id.data,
+                seller_id=current_user.id if current_user and current_user.is_authenticated else None,
+                seller_employee_id=form.seller_employee_id.data,
                 sale_date=form.sale_date.data or datetime.utcnow(),
                 status=target_status,  # دائماً CONFIRMED
                 payment_status="PENDING",  # دائماً PENDING عند الإنشاء
@@ -645,7 +652,7 @@ def create_sale():
 # @permission_required("manage_sales")  # Commented out - function not available
 def sale_detail(id: int):
     sale = _get_or_404(Sale, id, options=[
-        joinedload(Sale.customer), joinedload(Sale.seller),
+        joinedload(Sale.customer), joinedload(Sale.seller), joinedload(Sale.seller_employee),
         joinedload(Sale.lines).joinedload(SaleLine.product),
         joinedload(Sale.lines).joinedload(SaleLine.warehouse),
         joinedload(Sale.payments),
@@ -753,7 +760,7 @@ def edit_sale(id: int):
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
             sale.customer_id = form.customer_id.data
-            sale.seller_id = form.seller_id.data
+            sale.seller_employee_id = form.seller_employee_id.data
             sale.sale_date = form.sale_date.data or sale.sale_date
             sale.status = target_status or sale.status
             sale.currency = (form.currency.data or sale.currency or "ILS").upper()
@@ -799,6 +806,8 @@ def quick_sell():
         price = float(price_raw) if price_raw not in (None, "",) else 0.0
         customer_id = int(request.form.get("customer_id") or 0)
         seller_id = int(request.form.get("seller_id") or (current_user.id or 0))
+        seller_employee_id_raw = request.form.get("seller_employee_id")
+        seller_employee_id = int(seller_employee_id_raw) if seller_employee_id_raw and seller_employee_id_raw.isdigit() else None
         status = (request.form.get("status") or "DRAFT").upper()
         if not (pid and qty > 0 and customer_id and seller_id):
             flash("بيانات غير مكتملة للبيع السريع.", "danger")
@@ -818,6 +827,7 @@ def quick_sell():
             sale_number=None,
             customer_id=customer_id,
             seller_id=seller_id,
+            seller_employee_id=seller_employee_id,
             sale_date=datetime.utcnow(),
             status=status,
             currency="ILS"
@@ -917,19 +927,28 @@ def change_status(id: int, status: str):
 # @permission_required("manage_sales")  # Commented out - function not available
 def generate_invoice(id: int):
     sale = _get_or_404(Sale, id, options=[
-        joinedload(Sale.customer), joinedload(Sale.seller),
+        joinedload(Sale.customer), joinedload(Sale.seller), joinedload(Sale.seller_employee),
         joinedload(Sale.lines).joinedload(SaleLine.product),
         joinedload(Sale.lines).joinedload(SaleLine.warehouse),
     ])
     lines = []
     subtotal = Decimal("0.00")
     for ln in sale.lines:
+        qty_dec = D(getattr(ln, "quantity", 0))
+        unit_dec = D(getattr(ln, "unit_price", 0))
+        rate_dec = D(getattr(ln, "discount_rate", 0))
+        gross_total = (qty_dec * unit_dec).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        discount_amount = (gross_total * rate_dec / D(100)).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
         base_total = line_total_decimal(ln.quantity, ln.unit_price, ln.discount_rate)
         tr = D(getattr(ln, "tax_rate", 0))
         tax_amount = (base_total * tr / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
         line_total = (base_total + tax_amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
         lines.append({
             "obj": ln,
+            "gross_total": gross_total,
+            "discount_rate": rate_dec,
+            "discount_rate_display": f"{float(rate_dec or 0):.2f}",
+            "discount_amount": discount_amount,
             "base_total": base_total,
             "tax_amount": tax_amount,
             "line_total": line_total,

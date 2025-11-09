@@ -1472,6 +1472,12 @@ def add_product(id):
     partners_forms = [ProductPartnerShareForm()] if is_partner else []
     exchange_vendors_forms = [ExchangeVendorForm()] if is_exchange else []
 
+    if request.method == "GET":
+        try:
+            product_form.vehicle_type_id.process(None, None)
+        except Exception:
+            product_form.vehicle_type_id.data = None
+
     if not stock_form.warehouse_id.data:
         try:
             stock_form.warehouse_id.process(None, warehouse.id)

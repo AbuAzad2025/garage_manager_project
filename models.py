@@ -4992,6 +4992,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
 
     customer_id = db.Column(db.Integer, db.ForeignKey("customers.id"), nullable=False, index=True)
     seller_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    seller_employee_id = db.Column(db.Integer, db.ForeignKey("employees.id", ondelete="SET NULL"), nullable=True, index=True)
     preorder_id = db.Column(db.Integer, db.ForeignKey("preorders.id"), index=True)
 
     tax_rate = db.Column(db.Numeric(5, 2), default=0, nullable=False)
@@ -5037,6 +5038,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
     customer = db.relationship("Customer", back_populates="sales")
     cost_center = db.relationship("CostCenter", backref=db.backref("sales", lazy="dynamic"))
     seller = db.relationship("User", back_populates="sales", foreign_keys=[seller_id])
+    seller_employee = db.relationship("Employee", foreign_keys=[seller_employee_id])
     cancelled_by_user = db.relationship("User", back_populates="cancelled_sales", foreign_keys=[cancelled_by])
     archived_by_user = db.relationship("User", foreign_keys=[archived_by])
     preorder = db.relationship("PreOrder", back_populates="sale")

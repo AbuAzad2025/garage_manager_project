@@ -113,8 +113,10 @@
             {{ product_form.vehicle_type_id(
                  class_="form-control select2",
                  id="vehicle_type_id",
-                 placeholder="اختر نوع المركبة",
-                 **{'data-url': url_for('api.search_equipment_types')}
+                 **{
+                   'data-url': url_for('api.search_equipment_types'),
+                   'data-placeholder': 'بلا'
+                 }
                ) }}
             <button type="button" class="btn btn-outline-primary" id="btn-add-vehicle-type" data-toggle="modal" data-target="#equipmentTypeModal">+</button>
           </div>

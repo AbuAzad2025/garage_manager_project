@@ -13,7 +13,7 @@
       </div>
       <div class="col-sm-6">
         <div class="float-left">
-          <a href="{{ url_for('returns.create_return') }}" class="btn btn-primary">
+          <a href="{{ url_for('returns.create_return') }}" class="btn btn-primary" data-no-confirm="true">
             <i class="fas fa-plus"></i> مرتجع جديد
           </a>
         </div>
@@ -28,10 +28,10 @@
     <!-- Filters -->
     <div class="card">
       <div class="card-body">
-        <form method="GET" class="form-inline">
-          <div class="form-group mr-3">
+        <form method="GET" class="form-inline returns-filters">
+          <div class="form-group">
             <label class="mr-2">الحالة:</label>
-            <select name="status" class="form-control">
+            <select name="status" class="form-control filter-control">
               <option value="">الكل</option>
               <option value="DRAFT" {% if current_status == 'DRAFT' %}selected{% endif %}>مسودة</option>
               <option value="CONFIRMED" {% if current_status == 'CONFIRMED' %}selected{% endif %}>مؤكد</option>
@@ -39,9 +39,9 @@
             </select>
           </div>
           
-          <div class="form-group mr-3">
+          <div class="form-group">
             <label class="mr-2">العميل:</label>
-            <select name="customer_id" class="form-control">
+            <select name="customer_id" class="form-control filter-control">
               <option value="0">الكل</option>
               {% for customer in customers %}
               <option value="{{ customer.id }}" {% if customer.id == current_customer %}selected{% endif %}>
@@ -51,7 +51,7 @@
             </select>
           </div>
           
-          <div class="form-group mr-3">
+          <div class="form-group search-group">
             <input type="text" name="search" class="form-control" placeholder="بحث..." 
                    value="{{ search_term }}">
           </div>

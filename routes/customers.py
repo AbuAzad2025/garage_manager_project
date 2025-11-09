@@ -910,7 +910,8 @@ def account_statement(customer_id):
     if opening_balance != 0 and c.currency != "ILS":
         try:
             from models import convert_amount
-            opening_balance = convert_amount(opening_balance, c.currency, "ILS", df or c.created_at)
+            ref_date = start_date or c.created_at
+            opening_balance = convert_amount(opening_balance, c.currency, "ILS", ref_date)
         except Exception:
             pass
     
@@ -988,22 +989,33 @@ def account_statement(customer_id):
                 pass
         total_payments_calc += amt
     
-    return render_template(
-        "customers/account_statement.html",
-        customer=c,
-        ledger_entries=entries,
-        total_invoices=total_invoices_calc,
-        total_sales=total_sales_calc,
-        total_services=sum(D(service_grand_total(srv)) for srv in services),
-        total_preorders=total_preorders_calc,
-        total_online_preorders=D(0),
-        total_payments=total_payments_calc,
-        total_debit=total_debit,
-        total_credit=total_credit,
-        balance=balance,
-        start_date=start_date,
-        end_date=end_date,
-    )
+    context = {
+        "customer": c,
+        "ledger_entries": entries,
+        "total_invoices": total_invoices_calc,
+        "total_sales": total_sales_calc,
+        "total_services": sum(D(service_grand_total(srv)) for srv in services),
+        "total_preorders": total_preorders_calc,
+        "total_online_preorders": D(0),
+        "total_payments": total_payments_calc,
+        "total_debit": total_debit,
+        "total_credit": total_credit,
+        "balance": balance,
+        "start_date": start_date,
+        "end_date": end_date,
+    }
+    if request.args.get("format") == "pdf":
+        try:
+            from weasyprint import HTML
+            html_output = render_template("customers/account_statement.html", pdf_export=True, **context)
+            pdf_bytes = HTML(string=html_output, base_url=request.url_root).write_pdf()
+            filename = f"account_statement_{c.id}.pdf"
+            headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
+            return Response(pdf_bytes, mimetype="application/pdf", headers=headers)
+        except Exception as exc:
+            current_app.logger.error("account_statement_pdf_error: %s", exc)
+            flash("تعذر إنشاء ملف PDF، حاول لاحقاً.", "danger")
+    return render_template("customers/account_statement.html", pdf_export=False, **context)
 
 @customers_bp.route("/advanced_filter", methods=["GET"], endpoint="advanced_filter")
 @login_required

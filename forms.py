@@ -1507,6 +1507,7 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
     partner_search  = StringField('البحث عن الشريك', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث بالاسم أو البريد...", "onkeyup": "searchEntities('PARTNER', this.value)"}); partner_id  = HiddenField()
     shipment_search = StringField('البحث عن الشحنة', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم الشحنة...", "onkeyup": "searchEntities('SHIPMENT', this.value)"}); shipment_id = HiddenField()
     expense_search  = StringField('البحث عن المصروف', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث بالوصف...", "onkeyup": "searchEntities('EXPENSE', this.value)"}); expense_id  = HiddenField()
+    expense_type_search = StringField('البحث عن نوع المصروف', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث بنوع المصروف...", "onkeyup": "searchEntities('EXPENSE_TYPE', this.value)"}); expense_type_id = HiddenField()
     loan_settlement_search = StringField('البحث عن التسوية', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم التسوية...", "onkeyup": "searchEntities('LOAN', this.value)"}); loan_settlement_id = HiddenField()
     sale_search     = StringField('البحث عن البيع', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم البيع أو اسم العميل...", "onkeyup": "searchEntities('SALE', this.value)"}); sale_id     = HiddenField()
     invoice_search  = StringField('البحث عن الفاتورة', validators=[Optional(), Length(max=100)], render_kw={"placeholder": "ابحث برقم الفاتورة أو اسم العميل...", "onkeyup": "searchEntities('INVOICE', this.value)"}); invoice_id  = HiddenField()
@@ -1693,7 +1694,9 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
             except Exception:
                 pass
 
-        if not rid_val:
+        allow_missing_reference = (et == 'EXPENSE')
+
+        if not rid_val and not allow_missing_reference:
             if et == 'CUSTOMER':
                 self.customer_search.errors.append('❌ يجب اختيار العميل لهذه الدفعة.')
             else:
@@ -1701,15 +1704,21 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
             return False
 
         filled = [k for k, v in ids.items() if self._nz(v)]
-        if len(filled) > 1:
-            for k in filled:
+        relevant_keys = filled if not allow_missing_reference else [k for k in filled if k not in {'customer_id'}]
+        if len(relevant_keys) > 1:
+            for k in relevant_keys:
                 if k != fn:
                     getattr(self, k).errors.append('❌ لا يمكن تحديد أكثر من مرجع.')
             return False
 
-        self.entity_id.data = str(rid_val)
-        for k in ids.keys():
-            setattr(getattr(self, k), 'data', str(rid_val) if k == fn else '')
+        if rid_val:
+            self.entity_id.data = str(rid_val)
+            for k in ids.keys():
+                setattr(getattr(self, k), 'data', str(rid_val) if k == fn else '')
+        else:
+            self.entity_id.data = ''
+            if hasattr(self, fn):
+                getattr(self, fn).data = ''
 
         vdir = (self.direction.data or '').upper()
         try:
@@ -2446,6 +2455,7 @@ class ExpenseTypeForm(FlaskForm):
     id = HiddenField(validators=[Optional()])
     name = StrippedStringField('اسم نوع المصروف', validators=[DataRequired(), Length(max=100)])
     description = TextAreaField('وصف اختياري', validators=[Optional(), Length(max=500)])
+    gl_account_code = SelectField('حساب دفتر الأستاذ', validators=[Optional()], choices=[], validate_choice=False)
     fields_meta = TextAreaField('الإعدادات المتقدمة', validators=[Optional()])
     is_active = BooleanField('مُفعّل', default=True)
     submit = SubmitField('حفظ')
@@ -2454,11 +2464,27 @@ class ExpenseTypeForm(FlaskForm):
         obj = kwargs.get('obj')
         super().__init__(*args, **kwargs)
         self._parsed_fields_meta = None
+        try:
+            from flask_login import current_user
+        except Exception:
+            current_user = None
+        username = str(getattr(current_user, 'username', '')).upper()
+        role_name = str(getattr(getattr(current_user, 'role', None), 'name', '') or '').upper()
+        is_owner = bool(getattr(current_user, 'is_system_account', False) or username == '__OWNER__' or role_name == 'OWNER')
+        self.show_fields_meta = is_owner
+        accounts = Account.query.filter_by(is_active=True).order_by(Account.code).all()
+        self.gl_account_code.choices = [('', '— اختر حساب —')] + [(acc.code, f"{acc.code} — {acc.name}") for acc in accounts]
+        preset = None
         if not self.fields_meta.data and obj and getattr(obj, 'fields_meta', None):
             try:
                 self.fields_meta.data = json.dumps(obj.fields_meta, ensure_ascii=False, indent=2)
             except (TypeError, ValueError):
                 self.fields_meta.data = ''
+        if obj and getattr(obj, 'fields_meta', None):
+            meta = obj.fields_meta if isinstance(obj.fields_meta, dict) else {}
+            preset = str(meta.get('gl_account_code') or '').strip()
+        if preset:
+            self.gl_account_code.data = preset
 
     def validate_name(self, field):
         name = (field.data or "").strip()
@@ -2480,13 +2506,23 @@ class ExpenseTypeForm(FlaskForm):
             raise ValidationError(f"صيغة JSON غير صحيحة: {err}")
         if not isinstance(parsed, dict):
             raise ValidationError("يجب أن يكون المحتوى كائن JSON")
+        override = str(parsed.get('gl_account_code') or '').strip()
+        if override:
+            self.gl_account_code.data = override
         self._parsed_fields_meta = parsed
 
     def apply_to(self, obj):
         obj.name = (self.name.data or "").strip()
         obj.description = (self.description.data or "").strip() or None
         obj.is_active = bool(self.is_active.data)
-        obj.fields_meta = self._parsed_fields_meta
+        meta = self._parsed_fields_meta if isinstance(self._parsed_fields_meta, dict) else {}
+        if not meta:
+            meta = {}
+        if not str(meta.get('gl_account_code') or '').strip():
+            chosen = str(self.gl_account_code.data or '').strip()
+            if chosen:
+                meta['gl_account_code'] = chosen
+        obj.fields_meta = meta or None
         return obj
 
 
@@ -2549,7 +2585,7 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
     def _resolve_kind(self):
         t = ExpenseType.query.get(int(self.type_id.data)) if self.type_id.data else None
         n = (t.name if t else '').strip().lower()
-        code = (t.code if t else '').strip().upper()
+        code = str(getattr(t, 'code', '') or '').strip().upper()
         meta_kind = ''
         if t and isinstance(t.fields_meta, dict):
             meta_kind = str(t.fields_meta.get('kind') or '').strip().upper()
@@ -3207,7 +3243,7 @@ class SaleForm(FlaskForm):
                     formats=['%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M'], validators=[Optional()],
                     render_kw={'type':'datetime-local', 'step':'60'})
     customer_id = AjaxSelectField('العميل', endpoint='api.search_customers', get_label='name', coerce=int, validators=[DataRequired()])
-    seller_id   = AjaxSelectField('البائع',  endpoint='api.search_users',     get_label='username', coerce=int, validators=[DataRequired()])
+    seller_employee_id = AjaxSelectField('البائع', endpoint='api.search_employees', get_label='name', coerce=int, validators=[DataRequired()])
 
     currency     = CurrencySelectField('عملة', validators=[DataRequired()])
     tax_rate     = PercentField('ضريبة %', validators=[Optional()])
@@ -3237,7 +3273,7 @@ class SaleForm(FlaskForm):
         sale.sale_number = (self.sale_number.data or '').strip() or sale.sale_number
         sale.sale_date   = self.sale_date.data or sale.sale_date
         sale.customer_id = int(self.customer_id.data) if self.customer_id.data else None
-        sale.seller_id   = int(self.seller_id.data) if self.seller_id.data else None
+        sale.seller_employee_id = int(self.seller_employee_id.data) if self.seller_employee_id.data else None
         sale.preorder_id = int(self.preorder_id.data) if self.preorder_id.data else None
         sale.currency     = (self.currency.data or 'ILS').upper()
         sale.tax_rate     = self.tax_rate.data or 0
@@ -3536,7 +3572,7 @@ class ProductForm(FlaskForm):
     unit = StrippedStringField('الوحدة', validators=[Optional(), Length(max=50)])
     min_qty = IntegerField('الحد الأدنى', validators=[Optional(), NumberRange(min=0)])
     reorder_point = IntegerField('نقطة إعادة الطلب', validators=[Optional(), NumberRange(min=0)])
-    condition = SelectField('الحالة', choices=[(ProductCondition.NEW.value, 'جديد'), (ProductCondition.USED.value, 'مستعمل'), (ProductCondition.REFURBISHED.value, 'مجدّد')], validators=[DataRequired()])
+    condition = SelectField('الحالة', choices=[(ProductCondition.NEW.value, 'جديد'), (ProductCondition.USED.value, 'مستعمل'), (ProductCondition.REFURBISHED.value, 'مجدّد')], validators=[DataRequired()], default=ProductCondition.USED.value)
     origin_country = StrippedStringField('بلد المنشأ', validators=[Optional(), Length(max=50)])
     warranty_period = IntegerField('مدة الضمان', validators=[Optional(), NumberRange(min=0)])
     weight = DecimalField('الوزن', places=2, validators=[Optional(), NumberRange(min=0)])
@@ -3547,7 +3583,7 @@ class ProductForm(FlaskForm):
     is_active   = BooleanField('نشط', default=True)
     is_digital  = BooleanField('منتج رقمي', default=False)
     is_exchange = BooleanField('قابل للتبادل', default=False)
-    vehicle_type_id = AjaxSelectField('نوع المركبة', endpoint='api.search_equipment_types', get_label='name', validators=[Optional()], coerce=int)
+    vehicle_type_id = AjaxSelectField('نوع المركبة', endpoint='api.search_equipment_types', get_label='name', validators=[Optional()], allow_blank=True, coerce=int, render_kw={'data-placeholder': 'بلا'})
     category_id = AjaxSelectField('الفئة', endpoint='api.search_categories', get_label='name', coerce=int, validators=[DataRequired(message="يجب اختيار فئة للمنتج")], render_kw={'required': True})
     category_name = StrippedStringField('اسم الفئة (نصي)', validators=[Optional(), Length(max=100)])
     supplier_id = AjaxSelectField('المورد الرئيسي', endpoint='api.search_suppliers', get_label='name', validators=[Optional()], coerce=int)

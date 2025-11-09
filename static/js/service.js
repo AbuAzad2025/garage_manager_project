@@ -128,6 +128,11 @@
       Swal.fire({ icon: 'question', title: 'إكمال الصيانة؟', text: 'سيتم احتساب المدة الفعلية وإقفال الاستهلاك.', showCancelButton: true, confirmButtonText: 'أكمل' })
       .then(function (r) { if (r.isConfirmed) smartPost(url); });
     });
+    $(document).on('click', '#addReturnBtn, .btn-new-return', function () {
+      var url = $(this).data('url') || $(this).attr('href');
+      if (!url) return;
+      window.location.href = url;
+    });
   }
 
   function initSelect2Ajax($el, url) {

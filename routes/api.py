@@ -702,6 +702,7 @@ def sale_to_dict(s: Sale) -> Dict[str, Any]:
         "sale_number": s.sale_number,
         "customer_id": s.customer_id,
         "seller_id": s.seller_id,
+        "seller_employee_id": getattr(s, "seller_employee_id", None),
         "sale_date": s.sale_date.isoformat() if getattr(s, "sale_date", None) else None,
         "status": s.status,
         "currency": s.currency,
@@ -2462,6 +2463,7 @@ def create_sale_api():
     status = (d.get("status") or "DRAFT").upper()
     customer_id = _req(_as_int(d.get("customer_id")), "customer_id", errors)
     seller_id = _as_int(d.get("seller_id")) or getattr(current_user, "id", None)
+    seller_employee_id = _as_int(d.get("seller_employee_id"))
     if errors:
         return _err("validation_error", "Invalid input", 422, errors)
 
@@ -2469,6 +2471,7 @@ def create_sale_api():
         sale_number=None,
         customer_id=customer_id,
         seller_id=seller_id,
+        seller_employee_id=seller_employee_id,
         sale_date=d.get("sale_date") or datetime.utcnow(),
         status=status,
         currency=(d.get("currency") or "ILS").upper(),
@@ -2541,6 +2544,9 @@ def update_sale_api(id: int):
         s.customer_id = data.get("customer_id")
     if "seller_id" in data:
         s.seller_id = data.get("seller_id")
+    if "seller_employee_id" in data:
+        value = _as_int(data.get("seller_employee_id"))
+        s.seller_employee_id = value
     if "sale_date" in data:
         s.sale_date = data.get("sale_date") or s.sale_date
     if "currency" in data:
@@ -2699,6 +2705,8 @@ def quick_sell_api():
     wid = int(wid) if str(wid or "").isdigit() else None
     customer_id = int(d.get("customer_id") or 0)
     seller_id = int(d.get("seller_id") or (getattr(current_user, "id", 0) or 0))
+    seller_employee_id = d.get("seller_employee_id")
+    seller_employee_id = int(seller_employee_id) if str(seller_employee_id or "").isdigit() else None
     status = (d.get("status") or "DRAFT").upper()
     if not (pid and qty > 0 and customer_id and seller_id):
         return jsonify({"success": False, "error": "invalid"}), 400
@@ -2712,6 +2720,7 @@ def quick_sell_api():
         sale_number=None,
         customer_id=customer_id,
         seller_id=seller_id,
+        seller_employee_id=seller_employee_id,
         sale_date=datetime.utcnow(),
         status=status,
         currency=(d.get("currency") or "ILS").upper(),
