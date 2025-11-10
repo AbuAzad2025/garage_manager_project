@@ -139,7 +139,13 @@ document.addEventListener('DOMContentLoaded', function() {
     // ✅ لا نحسب pageSum هنا - الباكند يرسلها في data.totals.page_sum
     list.forEach(function (p) {
       const splitsHtml = (p.splits || []).map(function (s) {
-        return '<span class="badge bg-secondary me-1">' + String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount) + ' ' + (p.currency || '') + '</span>';
+        const splitCurrency = (s.currency || p.currency || '').toUpperCase();
+        const convertedCurrency = (p.currency || '').toUpperCase();
+        let text = String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount) + ' ' + splitCurrency;
+        if (splitCurrency && convertedCurrency && splitCurrency !== convertedCurrency && s.converted_amount != null) {
+          text += '<span class="text-light text-opacity-75 ms-1">≈ ' + fmtAmount(s.converted_amount) + ' ' + convertedCurrency + '</span>';
+        }
+        return '<span class="badge bg-secondary me-1 text-light">' + text + '</span>';
       }).join(' ');
       const dateOnly = (p.payment_date || '').split('T')[0] || '';
       const actions =

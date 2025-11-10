@@ -542,12 +542,16 @@ def list_sales():
         'sales_by_status': sales_by_status
     }
     
+    query_args = request.args.to_dict()
+    query_args.pop("page", None)
+
     return render_template("sales/list.html", sales=sales, pagination=pag,
                            warehouses=Warehouse.query.order_by(Warehouse.name).all(),
                            customers=Customer.query.order_by(Customer.name).limit(100).all(),
                            sellers=User.query.filter_by(is_active=True).order_by(User.username).all(),
                            status_map=STATUS_MAP,
-                           summary=summary)
+                           summary=summary,
+                           query_args=query_args)
 
 def _resolve_unit_price(product_id: int, warehouse_id: Optional[int]) -> float:
     prod = db.session.get(Product, product_id)

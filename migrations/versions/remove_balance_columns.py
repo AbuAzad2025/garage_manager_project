@@ -16,17 +16,18 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('suppliers', schema=None) as batch_op:
-        batch_op.drop_column('balance')
-    
-    with op.batch_alter_table('partners', schema=None) as batch_op:
-        batch_op.drop_column('balance')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+
+    supplier_cols = {col['name'] for col in inspector.get_columns('suppliers')}
+    if 'balance' in supplier_cols:
+        op.drop_column('suppliers', 'balance')
+
+    partner_cols = {col['name'] for col in inspector.get_columns('partners')}
+    if 'balance' in partner_cols:
+        op.drop_column('partners', 'balance')
 
 
 def downgrade():
-    with op.batch_alter_table('suppliers', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('balance', sa.Numeric(precision=12, scale=2), nullable=False, server_default=sa.text('0')))
-    
-    with op.batch_alter_table('partners', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('balance', sa.Numeric(precision=12, scale=2), nullable=False, server_default=sa.text('0')))
+    pass
 

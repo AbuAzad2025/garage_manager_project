@@ -7120,10 +7120,41 @@ class PaymentSplit(db.Model):
     method = Column(sa_str_enum(PaymentMethod, name="split_payment_method"), nullable=False, index=True)
     amount = Column(Numeric(12, 2), nullable=False)
     details = Column(db.JSON, default=dict, nullable=False)
+    currency = Column(String(10), nullable=False, default="ILS")
+    converted_amount = Column(Numeric(12, 2), nullable=False, default=D("0.00"))
+    converted_currency = Column(String(10), nullable=False, default="ILS")
+    fx_rate_used = Column(Numeric(10, 6))
+    fx_rate_source = Column(String(20))
+    fx_rate_timestamp = Column(DateTime)
+    fx_base_currency = Column(String(10))
+    fx_quote_currency = Column(String(10))
 
     payment = relationship("Payment", back_populates="splits")
 
     __table_args__ = (CheckConstraint("amount > 0", name="chk_split_amount_positive"),)
+
+    @validates("currency")
+    def _v_split_currency(self, _, value):
+        return ensure_currency(value or "ILS")
+
+    @validates("converted_currency")
+    def _v_split_converted_currency(self, _, value):
+        return ensure_currency(value or "ILS")
+
+    @validates("fx_base_currency", "fx_quote_currency")
+    def _v_split_fx_currencies(self, key, value):
+        if not value:
+            return None
+        return ensure_currency(value)
+
+    @validates("converted_amount")
+    def _v_split_converted_amount(self, _, value):
+        if value is None:
+            return D("0.00")
+        v = q(value)
+        if v < 0:
+            raise ValueError("converted_amount must be non-negative")
+        return v
 
     def clean_details(self):
         if not isinstance(self.details, dict):
@@ -7158,6 +7189,14 @@ class PaymentSplit(db.Model):
             "payment_id": self.payment_id,
             "method": getattr(self.method, "value", self.method),
             "amount": float(q(self.amount)),
+            "currency": self.currency,
+            "converted_amount": float(q(self.converted_amount)),
+            "converted_currency": self.converted_currency,
+            "fx_rate_used": float(self.fx_rate_used) if self.fx_rate_used is not None else None,
+            "fx_rate_source": self.fx_rate_source,
+            "fx_rate_timestamp": self.fx_rate_timestamp.isoformat() if self.fx_rate_timestamp else None,
+            "fx_base_currency": self.fx_base_currency,
+            "fx_quote_currency": self.fx_quote_currency,
             "details": self.details,
             "label": self.label(),
         }

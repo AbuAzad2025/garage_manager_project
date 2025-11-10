@@ -8,7 +8,7 @@ import re
 import uuid
 from io import BytesIO
 from datetime import date, datetime, time
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from flask import (
     Response,
@@ -61,6 +61,7 @@ from models import (
     Shipment,
     Supplier,
     SupplierLoanSettlement,
+    get_fx_rate_with_fallback,
 )
 import utils
 from routes.partner_settlements import _calculate_smart_partner_balance
@@ -244,6 +245,11 @@ def _serialize_split(s):
         "amount": int(q0(getattr(s, "amount", 0) or 0)),
         "method": (getattr(getattr(s, "method", None), "value", getattr(s, "method", "")) or ""),
         "details": (getattr(s, "details", None) or None),
+        "currency": getattr(s, "currency", None),
+        "converted_amount": float(q0(getattr(s, "converted_amount", 0) or 0)),
+        "converted_currency": getattr(s, "converted_currency", None),
+        "fx_rate_used": float(getattr(s, "fx_rate_used", 0) or 0) if getattr(s, "fx_rate_used", None) is not None else None,
+        "fx_rate_source": getattr(s, "fx_rate_source", None),
     }
 
 def _serialize_payment_min(p, *, full=False):
@@ -617,7 +623,7 @@ def create_payment():
             pre_amount = None
         preset_direction = _norm_dir(request.args.get("direction"))
         preset_method = request.args.get("method")
-        preset_currency = request.args.get("currency")
+        preset_currency = "ILS"
         preset_ref = (request.args.get("reference") or "").strip() or None
         preset_notes = (request.args.get("notes") or "").strip()
         if et:
@@ -806,6 +812,7 @@ def create_payment():
             form.status.data = PaymentStatus.COMPLETED.value
     if request.method == "POST":
         # ✅ تم إلغاء Request Token validation - الاعتماد على CSRF + Idempotency فقط
+        form.currency.data = "ILS"
         raw_dir = request.form.get("direction")
         if raw_dir:
             form.direction.data = _norm_dir(raw_dir)
@@ -836,39 +843,20 @@ def create_payment():
                     return None
 
             target_id = _parse_optional_id(getattr(form, field_name).data if field_name and hasattr(form, field_name) else None)
-            # ✅ متفرقات وأخرى لا يحتاجون target_id
             if etype and field_name and not target_id and etype not in ("MISCELLANEOUS", "OTHER", "EXPENSE"):
                 msg = "نوع الجهة محدد بدون رقم مرجع."
                 if _wants_json():
                     return jsonify(status="error", message=msg), 400
                 flash(msg, "danger")
                 return render_template("payments/form.html", form=form, entity_info=None)
-            parsed_splits = []
-            for entry in getattr(form, "splits", []).entries:
-                sm = entry.form
-                amt_dec = q0(getattr(sm, "amount").data or 0)
-                if amt_dec <= 0:
-                    continue
-                m_raw = (getattr(sm, "method").data or "")
-                m_str = str(m_raw).strip().lower()
-                details = {}
-                for fld in ("check_number", "check_bank", "check_due_date", "card_number", "card_holder", "card_expiry", "bank_transfer_ref"):
-                    if hasattr(sm, fld):
-                        val = getattr(sm, fld).data
-                        if val in (None, "", []):
-                            continue
-                        if fld == "check_due_date":
-                            if isinstance(val, (datetime, date)):
-                                val = val.isoformat()
-                            details[fld] = val
-                        elif fld == "card_number":
-                            num = "".join(ch for ch in str(val) if ch.isdigit())
-                            if num:
-                                details["card_last4"] = num[-4:]
-                        else:
-                            details[fld] = val
-                details = _clean_details(details)
-                parsed_splits.append(PaymentSplit(method=_coerce_method(m_str).value, amount=q0(amt_dec), details=details))
+            target_currency = "ILS"
+            split_entries = getattr(form, "splits", []).entries
+            parsed_splits, sum_converted, has_split_error = _parse_split_forms(split_entries, target_currency)
+            if has_split_error:
+                if _wants_json():
+                    return jsonify(status="error", errors=form.errors), 400
+                flash("أدخل سعر الصرف للدفعات متعددة العملات.", "danger")
+                return render_template("payments/form.html", form=form, entity_info=None)
             tgt_total_dec = q0(D(request.form.get("total_amount") or form.total_amount.data or 0))
             if tgt_total_dec <= 0:
                 msg = "❌ المبلغ الكلي يجب أن يكون أكبر من صفر."
@@ -876,18 +864,13 @@ def create_payment():
                     return jsonify(status="error", message=msg), 400
                 flash(msg, "danger")
                 return render_template("payments/form.html", form=form, entity_info=None)
-            # حساب المبلغ الفعلي: إما مجموع الدفعات الجزئية أو المبلغ الكلي
-            actual_amount = tgt_total_dec
-            if parsed_splits:
-                sum_splits = _sum_splits_decimal(parsed_splits=parsed_splits)
-                actual_amount = sum_splits  # ✅ المبلغ الفعلي المدفوع
-                # السماح بمجموع أكبر أو أقل من المطلوب - سيُحدث الرصيد تلقائياً
-                if sum_splits != tgt_total_dec:
-                    diff = sum_splits - tgt_total_dec
-                    if diff > 0:
-                        flash(f"⚠️ تحذير: مجموع الدفعات الجزئية ({int(sum_splits)}) أكبر من المطلوب ({int(tgt_total_dec)}) بمقدار {int(diff)}. سيُحدث الرصيد بالمبلغ المدفوع الفعلي.", "warning")
-                    else:
-                        flash(f"⚠️ تحذير: مجموع الدفعات الجزئية ({int(sum_splits)}) أقل من المطلوب ({int(tgt_total_dec)}) بمقدار {int(abs(diff))}. سيُحدث الرصيد بالمبلغ المدفوع الفعلي.", "warning")
+            actual_amount = sum_converted if sum_converted > 0 else tgt_total_dec
+            if parsed_splits and sum_converted != tgt_total_dec:
+                diff = sum_converted - tgt_total_dec
+                if diff > 0:
+                    flash(f"⚠️ تحذير: مجموع الدفعات بعد التحويل ({float(sum_converted):.2f}) أكبر من المطلوب ({float(tgt_total_dec):.2f}) بمقدار {float(diff):.2f}. سيُحدّث الرصيد بالمبلغ الفعلي.", "warning")
+                else:
+                    flash(f"⚠️ تحذير: مجموع الدفعات بعد التحويل ({float(sum_converted):.2f}) أقل من المطلوب ({float(tgt_total_dec):.2f}) بمقدار {abs(float(diff)):.2f}. سيُحدّث الرصيد بالمبلغ الفعلي.", "warning")
             direction_val = _norm_dir(form.direction.data or request.form.get("direction"))
             if etype == "EXPENSE":
                 direction_val = "OUT"
@@ -1019,7 +1002,7 @@ def create_payment():
                 status=form.status.data or PaymentStatus.COMPLETED.value,
                 payment_date=form.payment_date.data,
                 total_amount=q0(actual_amount),  # ✅ المبلغ الفعلي المدفوع (مجموع الدفعات الجزئية)
-                currency=ensure_currency(form.currency.data),
+                currency="ILS",
                 method=getattr(method_val, "value", method_val),
                 reference=ref_text or None,
                 receipt_number=(_fd(getattr(form, "receipt_number", None)) or None),
@@ -1237,25 +1220,12 @@ def create_expense_payment(exp_id):
     if hasattr(form, "_entity_field_map") and "EXPENSE" in form._entity_field_map:
         getattr(form, form._entity_field_map["EXPENSE"]).data = exp.id
     entity_info = {"type": "expense","number": f"EXP-{exp.id}","date": exp.date.strftime("%Y-%m-%d") if getattr(exp, "date", None) else "","description": exp.description or "","amount": int(q0(D(getattr(exp, "amount", 0) or 0))),"currency": getattr(exp, "currency", "ILS")}
-    def _clean_details_local(d):
-        if not d:
-            return None
-        out = {}
-        DateT = type(datetime.utcnow().date())
-        for k, v in d.items():
-            if v in (None, "", []):
-                continue
-            if isinstance(v, (datetime, DateT)):
-                out[k] = v.isoformat()
-            else:
-                out[k] = v
-        return out or None
     if request.method == "GET":
         form.payment_date.data = datetime.utcnow()
         form.total_amount.data = int(q0(D(getattr(exp, "amount", 0) or 0)))
         form.reference.data = f"دفع مصروف {exp.description or ''}".strip()
         form.direction.data = "OUT"
-        form.currency.data = ensure_currency((getattr(exp, "currency", "ILS") or "ILS"))
+        form.currency.data = "ILS"
         if not form.status.data:
             form.status.data = PaymentStatus.COMPLETED.value
         return render_template("payments/form.html", form=form, entity_info=entity_info)
@@ -1263,37 +1233,20 @@ def create_expense_payment(exp_id):
     if raw_dir:
         form.direction.data = _norm_dir(raw_dir)
     form.direction.data = "OUT"
+    form.currency.data = "ILS"
     if not form.validate_on_submit():
         if _wants_json():
             return jsonify(status="error", errors=form.errors), 400
         return render_template("payments/form.html", form=form, entity_info=entity_info)
     try:
-        parsed_splits = []
-        for entry in getattr(form, "splits", []).entries:
-            sm = entry.form
-            amt_dec = q0(getattr(sm, "amount").data or 0)
-            if amt_dec <= 0:
-                continue
-            m_raw = getattr(sm, "method").data or ""
-            m_str = str(m_raw).strip().lower()
-            details = {}
-            for fld in ("check_number", "check_bank", "check_due_date", "card_number", "card_holder", "card_expiry", "bank_transfer_ref"):
-                if hasattr(sm, fld):
-                    val = getattr(sm, fld).data
-                    if val in (None, "", []):
-                        continue
-                    if fld == "check_due_date":
-                        if isinstance(val, (datetime, date)):
-                            val = val.isoformat()
-                        details[fld] = val
-                    elif fld == "card_number":
-                        num = "".join(ch for ch in str(val) if ch.isdigit())
-                        if num:
-                            details["card_last4"] = num[-4:]
-                    else:
-                        details[fld] = val
-            details = _clean_details_local(details)
-            parsed_splits.append(PaymentSplit(method=_coerce_method(m_str).value, amount=q0(amt_dec), details=details))
+        target_currency = "ILS"
+        split_entries = getattr(form, "splits", []).entries
+        parsed_splits, sum_converted, has_split_error = _parse_split_forms(split_entries, target_currency)
+        if has_split_error:
+            if _wants_json():
+                return jsonify(status="error", errors=form.errors), 400
+            flash("أدخل سعر الصرف للدفعات متعددة العملات.", "danger")
+            return render_template("payments/form.html", form=form, entity_info=entity_info)
         tgt_total_dec = q0(D(request.form.get("total_amount") or form.total_amount.data or 0))
         if tgt_total_dec <= 0:
             msg = "❌ المبلغ الكلي يجب أن يكون أكبر من صفر."
@@ -1301,15 +1254,13 @@ def create_expense_payment(exp_id):
                 return jsonify(status="error", message=msg), 400
             flash(msg, "danger")
             return render_template("payments/form.html", form=form, entity_info=entity_info)
-        sum_splits = _sum_splits_decimal(parsed_splits)
-        # السماح بمجموع مختلف - سيُحدث الرصيد حسب المدفوع الفعلي
-        actual_amount_expense = sum_splits if sum_splits > 0 else tgt_total_dec
-        if sum_splits != tgt_total_dec:
-            diff = sum_splits - tgt_total_dec
+        actual_amount_expense = sum_converted if sum_converted > 0 else tgt_total_dec
+        if parsed_splits and sum_converted != tgt_total_dec:
+            diff = sum_converted - tgt_total_dec
             if diff > 0:
-                flash(f"⚠️ تحذير: مجموع الدفعات ({int(sum_splits)}) أكبر من المطلوب ({int(tgt_total_dec)}) بمقدار {int(diff)}. سيُحدث الرصيد بالمبلغ المدفوع الفعلي.", "warning")
+                flash(f"⚠️ تحذير: مجموع الدفعات بعد التحويل ({float(sum_converted):.2f}) أكبر من المطلوب ({float(tgt_total_dec):.2f}) بمقدار {float(diff):.2f}. سيُحدّث الرصيد بالمبلغ الفعلي.", "warning")
             else:
-                flash(f"⚠️ تحذير: مجموع الدفعات ({int(sum_splits)}) أقل من المطلوب ({int(tgt_total_dec)}) بمقدار {int(abs(diff))}. سيُحدث الرصيد بالمبلغ المدفوع الفعلي.", "warning")
+                flash(f"⚠️ تحذير: مجموع الدفعات بعد التحويل ({float(sum_converted):.2f}) أقل من المطلوب ({float(tgt_total_dec):.2f}) بمقدار {abs(float(diff)):.2f}. سيُحدّث الرصيد بالمبلغ الفعلي.", "warning")
         method_val = parsed_splits[0].method if parsed_splits else _coerce_method(getattr(form, "method", None).data or "cash").value
         notes_raw = (getattr(form, "note", None).data if hasattr(form, "note") else None) or (getattr(form, "notes", None).data if hasattr(form, "notes") else None) or ""
         payment = Payment(
@@ -1318,7 +1269,7 @@ def create_expense_payment(exp_id):
             supplier_id=getattr(exp, "supplier_id", None),
             partner_id=getattr(exp, "partner_id", None),
             total_amount=q0(actual_amount_expense),
-            currency=ensure_currency(form.currency.data or getattr(exp, "currency", "ILS")),
+            currency="ILS",
             method=getattr(method_val, "value", method_val),
             direction=_dir_to_db("OUT"),
             status=form.status.data or PaymentStatus.COMPLETED.value,
@@ -1585,6 +1536,78 @@ def _sum_splits_decimal(splits=None, parsed_splits=None) -> Decimal:
         total += q0(getattr(s, "amount", 0))
     return q0(total)
 
+def _parse_split_forms(split_entries, target_currency: str):
+    parsed = []
+    total_converted = Decimal("0")
+    has_error = False
+    target_currency = ensure_currency(target_currency or "ILS")
+    fx_precision = Decimal("0.000001")
+    for entry in (split_entries or []):
+        split_form = entry.form
+        amt_dec = q0(getattr(split_form, "amount").data or 0)
+        if amt_dec <= 0:
+            continue
+        method_raw = getattr(split_form, "method").data or ""
+        method_value = str(method_raw).strip().lower()
+        details = {}
+        for fld in ("check_number", "check_bank", "check_due_date", "card_number", "card_holder", "card_expiry", "bank_transfer_ref", "online_gateway", "online_ref"):
+            if hasattr(split_form, fld):
+                val = getattr(split_form, fld).data
+                if val in (None, "", []):
+                    continue
+                if fld == "check_due_date" and isinstance(val, (datetime, date)):
+                    details[fld] = val.isoformat()
+                elif fld == "card_number":
+                    num = "".join(ch for ch in str(val) if ch.isdigit())
+                    if num:
+                        details["card_last4"] = num[-4:]
+                else:
+                    details[fld] = val
+        details = _clean_details(details)
+        split_currency = ensure_currency(getattr(split_form, "currency").data or target_currency)
+        fx_rate_value = getattr(split_form, "fx_rate").data
+        rate_used = Decimal("1")
+        rate_source = "same"
+        converted_amount = q0(amt_dec)
+        if split_currency != target_currency:
+            if fx_rate_value:
+                rate_used = Decimal(str(fx_rate_value)).quantize(fx_precision, rounding=ROUND_HALF_UP)
+                if rate_used <= 0:
+                    split_form.fx_rate.errors.append("أدخل سعر صرف أكبر من صفر.")
+                    has_error = True
+                    continue
+                rate_source = "manual"
+            else:
+                try:
+                    rate_info = get_fx_rate_with_fallback(split_currency, target_currency)
+                except Exception:
+                    rate_info = {"success": False, "rate": 0}
+                rate_val = Decimal(str(rate_info.get("rate", 0) or 0))
+                if rate_val <= 0 or not rate_info.get("success"):
+                    split_form.fx_rate.errors.append(f"لا يوجد سعر صرف بين {split_currency} و {target_currency}. أدخل السعر يدوياً.")
+                    has_error = True
+                    continue
+                rate_used = rate_val.quantize(fx_precision, rounding=ROUND_HALF_UP)
+                rate_source = rate_info.get("source") or "auto"
+            converted_amount = q0(amt_dec * rate_used)
+        parsed.append(
+            PaymentSplit(
+                method=_coerce_method(method_value).value,
+                amount=amt_dec,
+                details=details,
+                currency=split_currency,
+                converted_amount=converted_amount,
+                converted_currency=target_currency,
+                fx_rate_used=rate_used,
+                fx_rate_source=rate_source,
+                fx_rate_timestamp=datetime.utcnow(),
+                fx_base_currency=split_currency,
+                fx_quote_currency=target_currency,
+            )
+        )
+        total_converted += converted_amount
+    return parsed, q0(total_converted), has_error
+
 
 def _get_partner_balance_details(partner: Partner | None) -> dict | None:
     """احسب رصيد الشريك الحالي (ذكي إن أمكن) لتوحيد العرض في الواجهات."""
@@ -1612,6 +1635,42 @@ def _get_partner_balance_details(partner: Partner | None) -> dict | None:
     }
 
 
+
+
+@payments_bp.route("/api/fx-rate", methods=["GET"], endpoint="fx_rate_lookup")
+@login_required
+def fx_rate_lookup():
+    base = ensure_currency(request.args.get("base") or "ILS")
+    quote = ensure_currency(request.args.get("quote") or "ILS")
+    if base == quote:
+        return jsonify(success=True, rate=1.0, source="same", base=base, quote=quote)
+    try:
+        rate_info = get_fx_rate_with_fallback(base, quote)
+    except Exception as e:
+        return jsonify(success=False, rate=0, base=base, quote=quote, message=str(e)), 500
+    rate = float(rate_info.get("rate", 0) or 0)
+    success_flag = bool(rate_info.get("success"))
+    source = rate_info.get("source")
+    if rate <= 0 or not success_flag:
+        try:
+            inverse_info = get_fx_rate_with_fallback(quote, base)
+        except Exception:
+            inverse_info = None
+        inv_rate = float(inverse_info.get("rate", 0) or 0) if inverse_info else 0
+        inv_success = bool(inverse_info.get("success")) if inverse_info else False
+        if inv_rate > 0 and inv_success:
+            rate = 1.0 / inv_rate
+            success_flag = True
+            source = (inverse_info.get("source") or "") + "_inverse"
+        else:
+            return jsonify(success=False, rate=0, base=base, quote=quote, message="سعر الصرف غير متوفر"), 404
+    return jsonify(
+        success=success_flag,
+        rate=rate,
+        source=source,
+        base=base,
+        quote=quote,
+    )
 
 
 @payments_bp.route("/api/entities/<entity_type>", methods=["GET"], endpoint="get_entities")

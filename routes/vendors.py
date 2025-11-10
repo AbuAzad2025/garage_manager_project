@@ -487,23 +487,54 @@ def suppliers_statement(supplier_id: int):
         is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED']
         is_pending = payment_status == 'PENDING'
         
-        # استخراج طريقة الدفع
+        method_map = {
+            'cash': 'نقداً',
+            'card': 'بطاقة',
+            'cheque': 'شيك',
+            'bank': 'تحويل بنكي',
+            'online': 'إلكتروني',
+        }
         method_value = getattr(pmt, 'method', 'cash')
         if hasattr(method_value, 'value'):
             method_value = method_value.value
         method_raw = str(method_value).lower()
         
-        method_arabic = {
-            'cash': 'نقداً',
-            'card': 'بطاقة',
-            'cheque': 'شيك',
-            'bank': 'تحويل بنكي',
-            'online': 'إلكتروني'
-        }.get(method_raw, method_raw)
+        split_details = []
+        splits = list(getattr(pmt, 'splits', []) or [])
+        if splits:
+            unique_methods = set()
+            for split in sorted(splits, key=lambda s: getattr(s, "id", 0)):
+                split_method_val = getattr(split, "method", None)
+                if hasattr(split_method_val, "value"):
+                    split_method_val = split_method_val.value
+                split_method_raw = str(split_method_val or "").lower()
+                if not split_method_raw:
+                    split_method_raw = method_raw or "cash"
+                unique_methods.add(split_method_raw)
+                split_currency = (getattr(split, "currency", None) or getattr(pmt, "currency", "ILS") or "ILS").upper()
+                converted_currency = (getattr(split, "converted_currency", None) or getattr(pmt, "currency", "ILS") or "ILS").upper()
+                split_details.append({
+                    "method": method_map.get(split_method_raw, split_method_raw),
+                    "method_raw": split_method_raw,
+                    "amount": D(getattr(split, "amount", 0) or 0),
+                    "currency": split_currency,
+                    "fx_rate": getattr(split, "fx_rate_used", None),
+                    "fx_rate_source": getattr(split, "fx_rate_source", None),
+                    "converted_amount": D(getattr(split, "converted_amount", 0) or 0),
+                    "converted_currency": converted_currency,
+                })
+            if unique_methods:
+                if len(unique_methods) == 1:
+                    method_raw = next(iter(unique_methods))
+                else:
+                    method_raw = "mixed"
+        
+        method_arabic = method_map.get(method_raw, "طرق متعددة" if method_raw == "mixed" else method_raw)
+        method_display = "طرق متعددة" if method_raw == "mixed" else method_arabic
         
         # تفاصيل الدفعة
         payment_details = {
-            'method': method_arabic,
+            'method': method_display,
             'method_raw': method_raw,
             'check_number': getattr(pmt, 'check_number', None) if method_raw == 'cheque' else None,
             'check_bank': getattr(pmt, 'check_bank', None),
@@ -511,7 +542,8 @@ def suppliers_statement(supplier_id: int):
             'receiver_name': getattr(pmt, 'receiver_name', None) or '',
             'status': payment_status,
             'is_bounced': is_bounced,
-            'is_pending': is_pending
+            'is_pending': is_pending,
+            'splits': split_details,
         }
         
         # البيان
@@ -971,23 +1003,54 @@ def partners_statement(partner_id: int):
         is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED']
         is_pending = payment_status == 'PENDING'
         
-        # استخراج طريقة الدفع
+        method_map = {
+            'cash': 'نقداً',
+            'card': 'بطاقة',
+            'cheque': 'شيك',
+            'bank': 'تحويل بنكي',
+            'online': 'إلكتروني',
+        }
         method_value = getattr(p, 'method', 'cash')
         if hasattr(method_value, 'value'):
             method_value = method_value.value
         method_raw = str(method_value).lower()
         
-        method_arabic = {
-            'cash': 'نقداً',
-            'card': 'بطاقة',
-            'cheque': 'شيك',
-            'bank': 'تحويل بنكي',
-            'online': 'إلكتروني'
-        }.get(method_raw, method_raw)
+        split_details = []
+        splits = list(getattr(p, 'splits', []) or [])
+        if splits:
+            unique_methods = set()
+            for split in sorted(splits, key=lambda s: getattr(s, "id", 0)):
+                split_method_val = getattr(split, "method", None)
+                if hasattr(split_method_val, "value"):
+                    split_method_val = split_method_val.value
+                split_method_raw = str(split_method_val or "").lower()
+                if not split_method_raw:
+                    split_method_raw = method_raw or "cash"
+                unique_methods.add(split_method_raw)
+                split_currency = (getattr(split, "currency", None) or getattr(p, "currency", "ILS") or "ILS").upper()
+                converted_currency = (getattr(split, "converted_currency", None) or getattr(p, "currency", "ILS") or "ILS").upper()
+                split_details.append({
+                    "method": method_map.get(split_method_raw, split_method_raw),
+                    "method_raw": split_method_raw,
+                    "amount": D(getattr(split, "amount", 0) or 0),
+                    "currency": split_currency,
+                    "fx_rate": getattr(split, "fx_rate_used", None),
+                    "fx_rate_source": getattr(split, "fx_rate_source", None),
+                    "converted_amount": D(getattr(split, "converted_amount", 0) or 0),
+                    "converted_currency": converted_currency,
+                })
+            if unique_methods:
+                if len(unique_methods) == 1:
+                    method_raw = next(iter(unique_methods))
+                else:
+                    method_raw = "mixed"
+        
+        method_arabic = method_map.get(method_raw, "طرق متعددة" if method_raw == "mixed" else method_raw)
+        method_display = "طرق متعددة" if method_raw == "mixed" else method_arabic
         
         # تفاصيل الدفعة
         payment_details = {
-            'method': method_arabic,
+            'method': method_display,
             'method_raw': method_raw,
             'check_number': getattr(p, 'check_number', None) if method_raw == 'cheque' else None,
             'check_bank': getattr(p, 'check_bank', None),
@@ -995,7 +1058,8 @@ def partners_statement(partner_id: int):
             'receiver_name': getattr(p, 'receiver_name', None) or '',
             'status': payment_status,
             'is_bounced': is_bounced,
-            'is_pending': is_pending
+            'is_pending': is_pending,
+            'splits': split_details,
         }
         
         # البيان

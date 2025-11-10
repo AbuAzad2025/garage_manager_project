@@ -376,7 +376,8 @@ def view_request(rid):
 # @permission_required('manage_service')  # Commented out - function not available
 def view_receipt(rid):
     service=_get_or_404(ServiceRequest, rid, options=[joinedload(ServiceRequest.customer), joinedload(ServiceRequest.parts).joinedload(ServicePart.part), joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse), joinedload(ServiceRequest.tasks)])
-    return render_template('service/receipt.html', service=service)
+    variant = 'simple' if (request.args.get('simple') or '').strip().lower() in ('1','true','yes') else 'pro'
+    return render_template('service/receipt.html', service=service, variant=variant)
 
 @service_bp.route('/<int:rid>/receipt/download', methods=['GET'])
 @login_required

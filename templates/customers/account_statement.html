@@ -515,6 +515,45 @@
               </td>
             </tr>
             
+            {% if (e.type in ['PAYMENT','CHECK_BOUNCED','CHECK_PENDING']) and e.get('payment_details') and e.payment_details.get('splits') %}
+            <tr class="payment-splits-row">
+              <td colspan="6" class="p-0">
+                <div class="payment-split-details" style="background-color:#f9fbff; padding:10px; margin:5px;">
+                  <table class="table table-sm table-bordered mb-0" style="font-size:0.85em; border:1px solid #dee2e6;">
+                    <thead style="background-color:#e9ecef;">
+                      <tr>
+                        <th style="width:25%; text-align:start;">الطريقة</th>
+                        <th style="width:18%; text-align:end;">المبلغ</th>
+                        <th style="width:12%; text-align:center;">العملة</th>
+                        <th style="width:18%; text-align:end;">المبلغ المحوّل</th>
+                        <th style="width:12%; text-align:center;">عملة الأساس</th>
+                        <th style="width:15%; text-align:center;">سعر الصرف</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for split in e.payment_details.splits %}
+                      <tr>
+                        <td style="text-align:start;">{{ split.method }}</td>
+                        <td style="text-align:end;">{{ split.amount|format_currency }}</td>
+                        <td style="text-align:center;">{{ split.currency }}</td>
+                        <td style="text-align:end;">{{ split.converted_amount|format_currency }}</td>
+                        <td style="text-align:center;">{{ split.converted_currency }}</td>
+                        <td style="text-align:center;">
+                          {% if split.fx_rate %}
+                            {{ "%.6f"|format(split.fx_rate) }}
+                          {% else %}
+                            —
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </td>
+            </tr>
+            {% endif %}
+            
             {# عرض البنود المباعة تحت كل عملية بيع #}
             {% if e.type == 'SALE' and e.get('items') %}
             <tr class="sale-items-row">

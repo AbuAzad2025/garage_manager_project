@@ -6,8 +6,13 @@
 <tr id="split-{{ s.id }}">
   <td>{{ loop.index }}.</td>
 
-  <td class="amount-cell" data-amount="{{ '%.0f'|format(s.amount or 0) }}">
-    {{ '%.0f'|format(s.amount or 0) }} {{ payment.currency or '' }}
+{% set base_currency = (s.currency or payment.currency or '') %}
+{% set main_currency = payment.currency or '' %}
+<td class="amount-cell" data-amount="{{ '%.2f'|format(s.converted_amount or s.amount or 0) }}">
+  {{ '%.2f'|format(s.amount or 0) }} {{ base_currency }}
+  {% if base_currency and main_currency and base_currency.upper() != main_currency.upper() %}
+    <div class="text-muted small">≈ {{ '%.2f'|format(s.converted_amount or 0) }} {{ main_currency }}</div>
+  {% endif %}
   </td>
 
   <td>{{ m|upper }}</td>

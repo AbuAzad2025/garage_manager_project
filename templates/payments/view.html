@@ -168,7 +168,14 @@
                   <br><small class="text-muted">{{ split.reference }}</small>
                 {% endif %}
               </div>
-              <span class="fw-bold">{{ "%.2f"|format(split.amount) }} {{ payment.currency }}</span>
+              <div class="text-end">
+          {% set base_currency = split.currency or payment.currency %}
+          {% set main_currency = payment.currency %}
+          <span class="fw-bold">{{ "%.2f"|format(split.amount or 0) }} {{ base_currency }}</span>
+          {% if base_currency and main_currency and base_currency.upper() != main_currency.upper() %}
+            <div class="text-muted small">≈ {{ "%.2f"|format(split.converted_amount or 0) }} {{ main_currency }}</div>
+          {% endif %}
+              </div>
             </div>
           {% endfor %}
         </div>

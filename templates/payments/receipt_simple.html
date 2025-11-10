@@ -54,19 +54,17 @@
 {% set _curr   = payment.currency or '' %}
 
 <div id="receipt">
-  <!-- رأس بسيط جداً -->
   <div class="simple-header">
-    <h2>المهندس الفلسطيني للمعدات الثقيلة</h2>
-    <p class="subtitle">وصل دفع</p>
+    <h2>وصل دفع</h2>
+    <p class="subtitle">تفاصيل العملية</p>
   </div>
 
-  <!-- معلومات الوصل -->
   <div class="info-row">
     <div><strong>رقم الوصل:</strong> {{ _receipt_no }}</div>
     <div><strong>التاريخ:</strong> {{ payment.payment_date and payment.payment_date.strftime('%Y-%m-%d %H:%M') or '—' }}</div>
   </div>
 
-  <!-- تفاصيل الدفع -->
+
   <table class="kv">
     <tr><th>المبلغ الكلي</th><td class="num"><strong>{{ '%.0f'|format(payment.total_amount or 0) }} {{ _curr }}</strong></td></tr>
     <tr><th>طريقة الدفع</th><td>{{ _method or '—' }}</td></tr>
@@ -80,7 +78,7 @@
     <tr><th>ملاحظات</th><td>{{ payment.notes or '—' }}</td></tr>
   </table>
 
-  <!-- معلومات فاتورة البيع إن وجدت -->
+
   {% if sale_info %}
   <table class="kv">
     {% set s_curr = sale_info.currency or '' %}
@@ -93,7 +91,7 @@
   </table>
   {% endif %}
 
-  <!-- تفاصيل الدفعات الجزئية -->
+
   {% if payment.splits %}
   <table>
     <colgroup>
@@ -111,9 +109,15 @@
       {% for s in payment.splits %}
         {% set m = ((s.method.value if s.method and s.method.value else s.method) or '')|lower %}
         {% set d = s.details if s.details is mapping else {} %}
+        {% set split_curr = (s.currency or _curr) %}
         <tr>
           <td class="text-center">{{ loop.index }}</td>
-          <td class="num">{{ '%.0f'|format(s.amount or 0) }} {{ _curr }}</td>
+          <td class="num">
+            {{ '%.0f'|format(s.amount or 0) }} {{ split_curr }}
+            {% if split_curr and _curr and split_curr.upper() != _curr.upper() %}
+              <div class="text-muted small">≈ {{ '%.0f'|format(s.converted_amount or 0) }} {{ _curr }}</div>
+            {% endif %}
+          </td>
           <td class="text-center">{{ (m or '—')|upper }}</td>
           <td class="wrap">
             {% if m in ['cheque','check'] %}
@@ -136,20 +140,19 @@
     <tfoot>
       <tr>
         <th colspan="1" class="text-end">المجموع</th>
-        <th class="num">{{ '%.0f'|format((payment.splits | map(attribute='amount') | sum) or 0) }} {{ _curr }}</th>
+        <th class="num">{{ '%.0f'|format((payment.splits | map(attribute='converted_amount') | sum) or payment.total_amount or 0) }} {{ _curr }}</th>
         <th colspan="2"></th>
       </tr>
     </tfoot>
   </table>
   {% endif %}
 
-  <!-- التوقيعات -->
+
   <div class="sign-row">
     <div class="sign">توقيع المستلم</div>
     <div class="sign">توقيع المسؤول</div>
   </div>
 
-  <!-- أزرار الطباعة -->
   <div class="text-center mt-3 no-print" style="padding:8px 0">
     <button class="btn btn-dark btn-sm" onclick="window.print()">🖨️ طباعة</button>
     <a class="btn btn-info btn-sm" href="{{ url_for('payments.payment_receipt', payment_id=payment.id) }}">🎨 النسخة الملونة</a>

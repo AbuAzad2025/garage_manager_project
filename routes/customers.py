@@ -821,19 +821,53 @@ def account_statement(customer_id):
         is_pending = payment_status == 'PENDING'
         
         # توليد البيان للدفعة - محسّن وواضح
-        # استخراج القيمة من enum إذا كان enum
+        method_map = {
+            'cash': 'نقداً',
+            'card': 'بطاقة',
+            'cheque': 'شيك',
+            'bank': 'تحويل بنكي',
+            'online': 'إلكتروني',
+        }
         method_value = getattr(p, 'method', 'cash')
         if hasattr(method_value, 'value'):
             method_value = method_value.value
         method_raw = str(method_value).lower()
         
-        method_arabic = {
-            'cash': 'نقداً',
-            'card': 'بطاقة',
-            'cheque': 'شيك',
-            'bank': 'تحويل بنكي',
-            'online': 'إلكتروني'
-        }.get(method_raw, method_raw)
+        split_details = []
+        splits = list(getattr(p, 'splits', []) or [])
+        if splits:
+            unique_methods = set()
+            for split in sorted(splits, key=lambda s: getattr(s, "id", 0)):
+                split_method_val = getattr(split, "method", None)
+                if hasattr(split_method_val, "value"):
+                    split_method_val = split_method_val.value
+                split_method_raw = str(split_method_val or "").lower()
+                if not split_method_raw:
+                    split_method_raw = method_raw or "cash"
+                unique_methods.add(split_method_raw)
+                split_currency = (getattr(split, "currency", None) or getattr(p, "currency", "ILS") or "ILS").upper()
+                converted_currency = (getattr(split, "converted_currency", None) or getattr(p, "currency", "ILS") or "ILS").upper()
+                split_details.append({
+                    "method": method_map.get(split_method_raw, split_method_raw),
+                    "method_raw": split_method_raw,
+                    "amount": D(getattr(split, "amount", 0) or 0),
+                    "currency": split_currency,
+                    "fx_rate": getattr(split, "fx_rate_used", None),
+                    "fx_rate_source": getattr(split, "fx_rate_source", None),
+                    "converted_amount": D(getattr(split, "converted_amount", 0) or 0),
+                    "converted_currency": converted_currency,
+                })
+            if unique_methods:
+                if len(unique_methods) == 1:
+                    method_raw = next(iter(unique_methods))
+                else:
+                    method_raw = "mixed"
+
+        method_arabic = method_map.get(method_raw, method_raw if method_raw != "mixed" else "طرق متعددة")
+        if method_raw == "mixed":
+            method_display = "طرق متعددة"
+        else:
+            method_display = method_arabic
         
         amount = float(getattr(p, 'total_amount', 0) or 0)
         receiver_name = getattr(p, 'receiver_name', None) or ''
@@ -845,7 +879,7 @@ def account_statement(customer_id):
         notes = getattr(p, 'notes', '') or ''
         
         payment_details = {
-            'method': method_arabic,  # ✅ طريقة الدفع بالعربي
+            'method': method_display,  # ✅ طريقة الدفع بالعربي أو متعدد
             'method_raw': method_raw,  # القيمة الأصلية للمقارنة في القالب
             'check_number': check_number,
             'check_bank': getattr(p, 'check_bank', None),
@@ -856,7 +890,8 @@ def account_statement(customer_id):
             'receiver_name': receiver_name,
             'status': payment_status,
             'is_bounced': is_bounced,
-            'is_pending': is_pending
+            'is_pending': is_pending,
+            'splits': split_details,
         }
         
         # البيان (سيتم بناؤه ديناميكياً في القالب)

@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, jsonify, current_app, fla
 from flask_login import current_user, login_required
 from datetime import datetime, timedelta
 from sqlalchemy import and_, or_, desc, func
+from sqlalchemy.orm import joinedload
 from extensions import db
 try:
     from extensions import limiter
@@ -379,12 +380,12 @@ def get_checks():
         current_app.logger.info(f"🔍 get_checks API - بدء الجلب من جميع المصادر...")
         
         if not source_filter or source_filter in ['all', 'payment']:
-            payment_checks = Payment.query.filter(
+            payment_checks = Payment.query.options(joinedload(Payment.splits)).filter(
                 Payment.method == PaymentMethod.CHEQUE.value
             )
             
             from models import PaymentSplit
-            payment_with_splits = db.session.query(Payment).join(
+            payment_with_splits = db.session.query(Payment).options(joinedload(Payment.splits)).join(
                 PaymentSplit, Payment.id == PaymentSplit.payment_id
             ).filter(
                 PaymentSplit.method == PaymentMethod.CHEQUE.value
@@ -435,6 +436,21 @@ def get_checks():
             
             for payment in payment_checks.all():
                 if not payment.check_due_date:
+                    continue
+                
+                relevant_splits = [
+                    split for split in (payment.splits or [])
+                    if (getattr(split.method, "value", split.method) == PaymentMethod.CHEQUE.value)
+                ]
+                if relevant_splits:
+                    continue
+                
+                split_checks = [
+                    split for split in (payment.splits or [])
+                    if (getattr(split.method, "value", split.method) == PaymentMethod.CHEQUE.value)
+                ]
+                if split_checks:
+                    # سيتم التعامل مع الشيكات الجزئية لاحقاً
                     continue
                 
                 due_date = payment.check_due_date.date() if isinstance(payment.check_due_date, datetime) else payment.check_due_date
@@ -533,11 +549,165 @@ def get_checks():
             
             current_app.logger.info(f"📊 Payments بدون splits: {len(checks)} شيك حتى الآن")
             
-            # payment_splits = PaymentSplit.query.filter(
-            #     PaymentSplit.method == PaymentMethod.CHEQUE
-            # ).all()
+            processed_split_count = 0
+            for payment in payment_with_splits.all():
+                relevant_splits = [
+                    split for split in (payment.splits or [])
+                    if (getattr(split.method, "value", split.method) == PaymentMethod.CHEQUE.value)
+                ]
+                if not relevant_splits:
+                    continue
+                
+                base_direction = getattr(payment, "direction", PaymentDirection.IN.value)
+                direction_value = base_direction.value if hasattr(base_direction, "value") else str(base_direction)
+                is_incoming = direction_value == PaymentDirection.IN.value
+                
+                payment_status = getattr(payment, 'status', PaymentStatus.PENDING.value)
+                if hasattr(payment_status, "value"):
+                    payment_status = payment_status.value
+                
+                if payment_status == PaymentStatus.COMPLETED.value:
+                    check_status = 'CASHED'
+                    status_ar = 'تم الصرف'
+                    badge_color = 'success'
+                elif payment_status == PaymentStatus.FAILED.value:
+                    notes_lower = (payment.notes or '').lower()
+                    if 'مرتجع' in notes_lower or 'returned' in notes_lower:
+                        check_status = 'RETURNED'
+                        status_ar = 'مرتجع'
+                        badge_color = 'warning'
+                    else:
+                        check_status = 'BOUNCED'
+                        status_ar = 'مرفوض'
+                        badge_color = 'danger'
+                elif payment_status == PaymentStatus.CANCELLED.value:
+                    check_status = 'CANCELLED'
+                    status_ar = 'ملغي'
+                    badge_color = 'secondary'
+                else:
+                    check_status = 'PENDING'
+                    status_ar = 'معلق'
+                    badge_color = 'info'
+                
+                entity_name = ''
+                entity_link = ''
+                entity_type = ''
+                if payment.customer:
+                    entity_name = payment.customer.name
+                    entity_link = f'/customers/{payment.customer.id}'
+                    entity_type = 'عميل'
+                elif payment.supplier:
+                    entity_name = payment.supplier.name
+                    entity_link = f'/vendors/{payment.supplier.id}'
+                    entity_type = 'مورد'
+                elif payment.partner:
+                    entity_name = payment.partner.name
+                    entity_link = f'/partners/{payment.partner.id}'
+                    entity_type = 'شريك'
+                
+                for split in relevant_splits:
+                    details = getattr(split, "details", {}) or {}
+                    if isinstance(details, str):
+                        try:
+                            details = json.loads(details)
+                        except Exception:
+                            details = {}
+                    check_number = details.get("check_number") or getattr(payment, "check_number", "")
+                    check_bank = details.get("check_bank") or getattr(payment, "check_bank", "")
+                    detail_due_raw = details.get("check_due_date") or details.get("due_date")
+                    due_date = None
+                    if detail_due_raw:
+                        try:
+                            due_date = datetime.fromisoformat(detail_due_raw).date()
+                        except Exception:
+                            try:
+                                due_date = datetime.strptime(detail_due_raw, "%Y-%m-%d").date()
+                            except Exception:
+                                due_date = None
+                    if not due_date and payment.check_due_date:
+                        due_date = payment.check_due_date.date() if isinstance(payment.check_due_date, datetime) else payment.check_due_date
+                    if not due_date:
+                        fallback_dt = None
+                        if payment.check_due_date:
+                            fallback_dt = payment.check_due_date
+                        elif payment.payment_date:
+                            fallback_dt = payment.payment_date
+                        if isinstance(fallback_dt, datetime):
+                            due_date = fallback_dt.date()
+                        elif hasattr(fallback_dt, "date"):
+                            due_date = fallback_dt.date()
+                    if not due_date:
+                        due_date = today
+                    
+                    days_until_due = (due_date - today).days
+                    if payment_status == PaymentStatus.PENDING.value:
+                        if days_until_due < 0:
+                            check_status = 'OVERDUE'
+                            status_ar = 'متأخر'
+                            badge_color = 'danger'
+                        elif days_until_due <= 7:
+                            check_status = 'due_soon'
+                            status_ar = 'قريب الاستحقاق'
+                            badge_color = 'warning'
+                        else:
+                            check_status = 'PENDING'
+                            status_ar = 'معلق'
+                            badge_color = 'info'
+                    
+                    split_currency = (getattr(split, "currency", None) or getattr(payment, "currency", "ILS") or "ILS").upper()
+                    converted_currency = (getattr(split, "converted_currency", None) or getattr(payment, "currency", "ILS") or "ILS").upper()
+                    amount = float(getattr(split, "amount", 0) or 0)
+                    converted_amount = getattr(split, "converted_amount", None)
+                    if converted_amount is not None:
+                        converted_amount = float(converted_amount or 0)
+                    fx_rate_used = getattr(split, "fx_rate_used", None)
+                    fx_rate_source = getattr(split, "fx_rate_source", None)
+                    fx_rate_timestamp = getattr(split, "fx_rate_timestamp", None)
+                    
+                    split_key = f"payment-split-{payment.id}-{getattr(split, 'id', '0')}"
+                    if split_key in check_ids:
+                        continue
+                    check_ids.add(split_key)
+                    
+                    checks.append({
+                        'id': getattr(split, 'id', 0),
+                        'payment_id': payment.id,
+                        'type': 'payment_split',
+                        'source': 'دفعة جزئية',
+                        'source_badge': 'info',
+                        'check_number': check_number or '',
+                        'check_bank': check_bank or '',
+                        'check_due_date': due_date.strftime('%Y-%m-%d'),
+                        'due_date_formatted': due_date.strftime('%d/%m/%Y'),
+                        'amount': amount,
+                        'currency': split_currency,
+                        'converted_amount': converted_amount,
+                        'converted_currency': converted_currency,
+                        'fx_rate_issue': float(fx_rate_used) if fx_rate_used else None,
+                        'fx_rate_issue_source': fx_rate_source,
+                        'fx_rate_issue_timestamp': fx_rate_timestamp.strftime('%Y-%m-%d %H:%M') if isinstance(fx_rate_timestamp, datetime) else None,
+                        'direction': 'وارد' if is_incoming else 'صادر',
+                        'direction_en': 'in' if is_incoming else 'out',
+                        'is_incoming': is_incoming,
+                        'status': check_status,
+                        'status_ar': status_ar,
+                        'badge_color': badge_color,
+                        'days_until_due': days_until_due,
+                        'entity_name': entity_name,
+                        'entity_type': entity_type,
+                        'entity_link': entity_link,
+                        'drawer_name': entity_name if not is_incoming else 'شركتنا',
+                        'payee_name': 'شركتنا' if not is_incoming else entity_name,
+                        'description': f"جزء من سند {'من' if is_incoming else 'إلى'} {entity_name}" + (f" ({entity_type})" if entity_type else ''),
+                        'purpose': 'دفعة جزئية',
+                        'notes': payment.notes or '',
+                        'created_at': payment.payment_date.strftime('%Y-%m-%d %H:%M') if payment.payment_date else '',
+                        'receipt_number': payment.receipt_number or '',
+                        'reference': payment.receipt_number or ''
+                    })
+                    processed_split_count += 1
             
-            current_app.logger.info(f"📊 تم تخطي PaymentSplits - سيتم جلبها من Check table")
+            current_app.logger.info(f"📊 تم تضمين {processed_split_count} شيكات من الدفعات الجزئية")
         
         if not source_filter or source_filter in ['all', 'expense']:
             expense_checks = Expense.query.filter(

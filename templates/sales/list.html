@@ -252,13 +252,13 @@
         <ul class="pagination justify-content-center">
           {% if pagination.has_prev %}
             <li class="page-item">
-              <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=pagination.prev_num, **request.args) }}">السابق</a>
+              <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=pagination.prev_num, **query_args) }}">السابق</a>
             </li>
           {% endif %}
           {% for num in pagination.iter_pages() %}
             {% if num %}
               <li class="page-item {% if num == pagination.page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=num, **request.args) }}">{{ num }}</a>
+                <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=num, **query_args) }}">{{ num }}</a>
               </li>
             {% else %}
               <li class="page-item disabled"><span class="page-link">…</span></li>
@@ -266,7 +266,7 @@
           {% endfor %}
           {% if pagination.has_next %}
             <li class="page-item">
-              <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=pagination.next_num, **request.args) }}">التالي</a>
+              <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=pagination.next_num, **query_args) }}">التالي</a>
             </li>
           {% endif %}
         </ul>

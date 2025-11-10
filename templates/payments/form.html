@@ -698,9 +698,12 @@ h2, h3, h4 {
                 {{ form.currency.label.text }}
                 <span class="text-danger fw-bold">*</span>
               </label>
-              {{ form.currency(class="custom-select js-enhanced-select") }}
+              {{ form.currency(class="d-none") }}
+              <div class="form-control bg-light fw-bold text-center py-2">
+                شيكل إسرائيلي (ثابت)
+              </div>
               <small class="form-text text-muted">
-                <i class="fas fa-info-circle"></i> عملة الدفع (شيكل، دولار، دينار)
+                <i class="fas fa-info-circle"></i> العملة الأساسية للسند ثابتة على الشيكل، وسيتم تحويل الدفعات الجزئية إليها.
               </small>
               {% for e in form.currency.errors %}
                 <div class="text-danger small mt-1">{{ e }}</div>
@@ -884,6 +887,35 @@ h2, h3, h4 {
               </div>
             </div>
 
+            <div class="row gy-2 mt-2">
+              <div class="col-12 col-md-4">
+                <label class="form-label required-field">
+                  <i class="fas fa-coins text-warning"></i>
+                  {{ split.currency.label.text }}
+                  <span class="text-danger fw-bold">*</span>
+                </label>
+                {{ split.currency(class="custom-select split-currency js-enhanced-select") }}
+                <small class="form-text text-muted">
+                  <i class="fas fa-info-circle"></i> عملة هذا الجزء
+                </small>
+                {% for e in split.currency.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label">
+                  <i class="fas fa-exchange-alt text-secondary"></i>
+                  {{ split.fx_rate.label.text }}
+                </label>
+                {{ split.fx_rate(class="form-control split-fx-rate", step="0.000001", min="0.000001", placeholder="1.000000") }}
+                <small class="form-text text-muted">
+                  <i class="fas fa-info-circle"></i> سعر التحويل إلى العملة الرئيسية
+                </small>
+                {% for e in split.fx_rate.errors %}<div class="text-danger small mt-1">{{ e }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-4 d-flex align-items-end">
+                <div class="form-text w-100 split-conversion-info"></div>
+              </div>
+            </div>
+
             {% set _detail_fields = [
               'check_number','check_bank','check_due_date',
               'bank_transfer_ref',
@@ -1020,6 +1052,11 @@ h2, h3, h4 {
           updateMethodFields(node);
         });
         updateMethodFields(node);
+      } else if (node.classList.contains('split-currency')) {
+        $(node).on('select2:select', function() {
+          handleSplitCurrencyChange(node);
+        });
+        handleSplitCurrencyChange(node);
       }
       });
     }
@@ -1406,6 +1443,14 @@ h2, h3, h4 {
       
       // تهيئة حقول طرق الدفع الديناميكية
       initPaymentMethodFields();
+      initSplitCurrencyFields();
+      const paymentCurrencySelect = document.querySelector('select[name="currency"]');
+      if (paymentCurrencySelect) {
+        paymentCurrencySelect.addEventListener('change', function() {
+          initSplitCurrencyFields();
+          updateSplitSum();
+        });
+      }
       
       // دالة إضافة دفعة جزئية
       function addSplitRow() {
@@ -1472,11 +1517,47 @@ h2, h3, h4 {
           if (methodSelectClone.hasAttribute('style')) {
             methodSelectClone.removeAttribute('style');
           }
+          methodSelectClone.querySelectorAll('option').forEach(function(opt) {
+            opt.removeAttribute('data-select2-id');
+            opt.removeAttribute('aria-selected');
+            opt.removeAttribute('selected');
+          });
+        }
+
+        const currencySelectClone = template.querySelector('.split-currency');
+        if (currencySelectClone) {
+          currencySelectClone.classList.remove('select2-hidden-accessible');
+          currencySelectClone.removeAttribute('data-select2-id');
+          currencySelectClone.removeAttribute('aria-hidden');
+          currencySelectClone.removeAttribute('tabindex');
+          if (currencySelectClone.hasAttribute('style')) {
+            currencySelectClone.removeAttribute('style');
+          }
+          currencySelectClone.dataset.fxInit = '0';
+          currencySelectClone.value = '';
+          currencySelectClone.querySelectorAll('option').forEach(function(opt) {
+            opt.removeAttribute('data-select2-id');
+            opt.removeAttribute('aria-selected');
+            opt.removeAttribute('selected');
+          });
+        }
+
+        const fxInputClone = template.querySelector('.split-fx-rate');
+        if (fxInputClone) {
+          fxInputClone.value = '';
+          fxInputClone.readOnly = false;
+          fxInputClone.dataset.fxInit = '0';
+        }
+
+        const infoClone = template.querySelector('.split-conversion-info');
+        if (infoClone) {
+          infoClone.innerHTML = '';
         }
 
         container.appendChild(template);
 
         initPaymentMethodFields(template);
+        initSplitCurrencyFields(template);
         updateSplitSum();
       }
       
@@ -1526,35 +1607,9 @@ h2, h3, h4 {
         }
       }
       
-      // دالة حساب مجموع الدفعات الجزئية
-      function updateSplitSum() {
-        let sum = 0;
-        document.querySelectorAll('.split-form input[name*="amount"]').forEach(function(input) {
-          const val = parseFloat(input.value) || 0;
-          sum += val;
-        });
-        
-        const splitSumEl = document.getElementById('splitSum');
-        if (splitSumEl) {
-          const totalAmount = parseFloat(document.getElementById('total_amount')?.value) || 0;
-          const diff = totalAmount - sum;
-          
-          if (Math.abs(diff) < 0.01) {
-            splitSumEl.innerHTML = '<i class="fas fa-check-circle text-success"></i> مجموع الدفعات الجزئية: <strong>' + sum.toFixed(2) + '</strong> (مطابق)';
-            splitSumEl.className = 'form-text text-success';
-          } else if (diff > 0) {
-            splitSumEl.innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> مجموع الدفعات: <strong>' + sum.toFixed(2) + '</strong> | المتبقي: <strong>' + diff.toFixed(2) + '</strong>';
-            splitSumEl.className = 'form-text text-warning';
-          } else {
-            splitSumEl.innerHTML = '<i class="fas fa-times-circle text-danger"></i> مجموع الدفعات: <strong>' + sum.toFixed(2) + '</strong> | الزيادة: <strong>' + Math.abs(diff).toFixed(2) + '</strong>';
-            splitSumEl.className = 'form-text text-danger';
-          }
-        }
-      }
-      
       // مراقبة التغييرات في مبالغ الدفعات الجزئية
       document.addEventListener('input', function(e) {
-        if (e.target.name && e.target.name.includes('amount')) {
+        if ((e.target.name && e.target.name.includes('amount')) || (e.target.classList && e.target.classList.contains('split-fx-rate'))) {
           updateSplitSum();
         }
       });
@@ -1619,6 +1674,169 @@ h2, h3, h4 {
       }
     }
     
+function getPaymentCurrencyValue() {
+  const select = document.querySelector('select[name="currency"]');
+  const value = select && select.value ? select.value : 'ILS';
+  return value.toUpperCase();
+}
+
+function fetchSplitFxRate(base, quote) {
+  const params = new URLSearchParams({ base, quote });
+  return fetch(`/payments/api/fx-rate?${params.toString()}`, { headers: { Accept: 'application/json' } })
+    .then(function(res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    });
+}
+
+function handleSplitCurrencyChange(select) {
+  const splitForm = select.closest('.split-form');
+  if (!splitForm) {
+    setTimeout(updateSplitSum, 0);
+    updateSplitSum();
+    return;
+  }
+  const fxInput = splitForm.querySelector('.split-fx-rate');
+  if (!fxInput) {
+    setTimeout(updateSplitSum, 0);
+    updateSplitSum();
+    return;
+  }
+  const infoNode = splitForm.querySelector('.split-conversion-info');
+  const base = (select.value || '').toUpperCase();
+  const quote = getPaymentCurrencyValue();
+  if (!base) {
+    fxInput.value = '';
+    fxInput.readOnly = false;
+    if (infoNode) infoNode.innerHTML = '';
+    setTimeout(updateSplitSum, 0);
+    updateSplitSum();
+    return;
+  }
+  if (base === quote) {
+    fxInput.value = '1.000000';
+    fxInput.readOnly = true;
+    if (infoNode) infoNode.innerHTML = '';
+    setTimeout(updateSplitSum, 0);
+    updateSplitSum();
+    return;
+  }
+  fxInput.readOnly = false;
+  fxInput.value = '';
+  if (infoNode) infoNode.innerHTML = '';
+  setTimeout(updateSplitSum, 0);
+  updateSplitSum();
+  fetchSplitFxRate(base, quote)
+    .then(function(payload) {
+      const rate = parseFloat(payload && payload.rate ? payload.rate : 0);
+      const isSuccessful = payload && payload.success === true;
+      if (isSuccessful && rate > 0) {
+        fxInput.value = rate.toFixed(6);
+        setTimeout(updateSplitSum, 0);
+        updateSplitSum();
+        return;
+      }
+      throw new Error('missing');
+    })
+    .catch(function() {
+      let manual = null;
+      while (manual === null) {
+        const response = window.prompt(`أدخل سعر الصرف من ${base} إلى ${quote}`);
+        if (response === null) {
+          fxInput.value = '';
+          if (infoNode) infoNode.innerHTML = '';
+          setTimeout(updateSplitSum, 0);
+          updateSplitSum();
+          return;
+        }
+        const val = parseFloat(response);
+        if (val > 0) {
+          manual = val;
+        }
+      }
+      fxInput.value = manual.toFixed(6);
+      setTimeout(updateSplitSum, 0);
+      updateSplitSum();
+    });
+}
+
+function initSplitCurrencyFields(scope) {
+  const context = scope || document;
+  const selects = context.querySelectorAll('.split-currency');
+  selects.forEach(function(select) {
+    select.dataset.fxInit = select.dataset.fxInit || '0';
+    const fire = function() {
+      handleSplitCurrencyChange(select);
+    };
+    if (select.dataset.fxInit !== '1') {
+      select.dataset.fxInit = '1';
+      select.addEventListener('change', fire);
+    }
+    fire();
+  });
+  const fxInputs = context.querySelectorAll('.split-fx-rate');
+  fxInputs.forEach(function(input) {
+    input.dataset.fxInit = input.dataset.fxInit || '0';
+    if (input.dataset.fxInit !== '1') {
+      input.dataset.fxInit = '1';
+      input.addEventListener('input', function() {
+        updateSplitSum();
+      });
+      setTimeout(updateSplitSum, 0);
+      updateSplitSum();
+    }
+  });
+}
+
+function updateSplitSum() {
+  const paymentCurrency = getPaymentCurrencyValue();
+  const totalField = document.getElementById('total_amount') || document.querySelector('input[name="total_amount"]');
+  let sumConverted = 0;
+  let hasMissingRate = false;
+  document.querySelectorAll('.split-form').forEach(function(split) {
+    const amountInput = split.querySelector('input[name*="-amount"]');
+    const fxInput = split.querySelector('.split-fx-rate');
+    const currencySelect = split.querySelector('.split-currency');
+    const infoNode = split.querySelector('.split-conversion-info');
+    const amount = parseFloat(amountInput && amountInput.value ? amountInput.value : '0') || 0;
+    const fxRate = parseFloat(fxInput && fxInput.value ? fxInput.value : '0') || 0;
+    const baseCurrency = currencySelect && currencySelect.value ? currencySelect.value.toUpperCase() : paymentCurrency;
+    let converted = 0;
+    if (amount > 0) {
+      if (baseCurrency === paymentCurrency) {
+        converted = amount;
+      } else if (fxRate > 0) {
+        converted = amount * fxRate;
+      } else {
+        hasMissingRate = true;
+      }
+    }
+    if (infoNode) {
+      if (amount > 0 && baseCurrency !== paymentCurrency && fxRate > 0) {
+        infoNode.innerHTML = `<i class="fas fa-equals text-primary"></i> ${amount.toFixed(2)} ${baseCurrency} ≈ ${converted.toFixed(2)} ${paymentCurrency}`;
+      } else if (amount > 0 && baseCurrency === paymentCurrency) {
+        infoNode.innerHTML = `<i class="fas fa-equals text-primary"></i> ${amount.toFixed(2)} ${paymentCurrency}`;
+      } else {
+        infoNode.innerHTML = '';
+      }
+    }
+    sumConverted += converted;
+  });
+  if (totalField) {
+    totalField.value = sumConverted.toFixed(2);
+  }
+  const splitSumEl = document.getElementById('splitSum');
+  if (splitSumEl) {
+    if (hasMissingRate) {
+      splitSumEl.innerHTML = '<i class="fas fa-exclamation-triangle text-danger"></i> أدخل سعر الصرف لكل دفعة بعملة مختلفة.';
+      splitSumEl.className = 'form-text text-danger';
+    } else {
+      splitSumEl.innerHTML = `<i class="fas fa-check-circle text-success"></i> مجموع الدفعات بعد التحويل: <strong>${sumConverted.toFixed(2)}</strong> ${paymentCurrency}`;
+      splitSumEl.className = 'form-text text-success';
+    }
+  }
+}
+
     function updateMethodFields(methodSelect) {
       const splitForm = methodSelect.closest('.split-form');
       if (!splitForm) return;

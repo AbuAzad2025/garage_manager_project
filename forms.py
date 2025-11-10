@@ -77,6 +77,7 @@ from models import (
     Invoice,
     InvoiceSource,
     InvoiceStatus,
+    ensure_currency,
     normalize_barcode,
     SaleStatus,
     PaymentProgress,
@@ -1372,6 +1373,8 @@ class SplitEntryForm(PaymentDetailsMixin, FlaskForm):
                          ],
                          validators=[Optional()], default='')
     amount = MoneyField('المبلغ', validators=[Optional(), NumberRange(min=0)], default=Decimal('0.00'))
+    currency = CurrencySelectField('العملة', validators=[DataRequired()])
+    fx_rate = DecimalField('سعر الصرف', places=6, validators=[Optional(), NumberRange(min=Decimal('0.000001'))])
     check_number   = StringField(validators=[Optional(), Length(max=100)])
     check_bank     = StringField(validators=[Optional(), Length(max=100)])
     check_due_date = DateField(format='%Y-%m-%d', validators=[Optional()])
@@ -1565,6 +1568,12 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
         super().__init__(*args, **kwargs)
         utils.prepare_payment_form_choices(self)
 
+        fixed_currency = "ILS"
+        fixed_label = dict(CURRENCY_CHOICES).get(fixed_currency, fixed_currency)
+        self.currency.choices = [(fixed_currency, fixed_label)]
+        self.currency.data = fixed_currency
+        available_split_currency_choices = currency_choices(include_blank=True)
+
         if not self.splits.entries:
             self.splits.append_entry()
 
@@ -1572,6 +1581,17 @@ class PaymentForm(PaymentDetailsMixin, FlaskForm):
             for entry in self.splits:
                 entry.form.method.choices = self.method.choices
                 entry.form.method.validate_choice = False
+                if hasattr(entry.form, "currency"):
+                    entry.form.currency.choices = available_split_currency_choices
+                    entry.form.currency.validate_choice = False
+                    if not entry.form.currency.data:
+                        entry.form.currency.data = ensure_currency(self.currency.data or "ILS")
+                if hasattr(entry.form, "fx_rate"):
+                    split_obj = getattr(entry, "object_data", None)
+                    if not entry.form.fx_rate.data and split_obj is not None and hasattr(split_obj, "fx_rate_used") and split_obj.fx_rate_used is not None:
+                        entry.form.fx_rate.data = Decimal(str(split_obj.fx_rate_used))
+                    if entry.form.currency.data == ensure_currency(self.currency.data or "ILS"):
+                        entry.form.fx_rate.data = Decimal("1")
         except Exception:
             pass
 

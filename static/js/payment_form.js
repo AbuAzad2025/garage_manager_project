@@ -198,7 +198,13 @@ document.addEventListener('DOMContentLoaded', function () {
       currencies[curr] += toNumber(p.total_amount);
       
       const splitsHtml = (p.splits || []).map(function (s) {
-        return '<span class="badge bg-secondary me-1">' + String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount) + ' ' + (p.currency || '') + '</span>';
+        const baseCurrency = (s.currency || p.currency || '').toUpperCase();
+        const convertedCurrency = (s.converted_currency || p.currency || '').toUpperCase();
+        let text = String((s.method || '')).toUpperCase() + ': ' + fmtAmount(s.amount) + ' ' + baseCurrency;
+        if (baseCurrency && convertedCurrency && baseCurrency !== convertedCurrency && s.converted_amount != null) {
+          text += ' (≈ ' + fmtAmount(s.converted_amount) + ' ' + convertedCurrency + ')';
+        }
+        return '<span class="badge bg-secondary me-1">' + text + '</span>';
       }).join(' ');
       const dateOnly = (p.payment_date || '').split('T')[0] || '';
       const tr = document.createElement('tr');

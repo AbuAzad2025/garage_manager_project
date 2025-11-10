@@ -16,142 +16,156 @@ depends_on = None
 
 
 def upgrade():
-    op.create_table('workflow_definitions',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('workflow_code', sa.String(length=50), nullable=False),
-    sa.Column('workflow_name', sa.String(length=200), nullable=False),
-    sa.Column('workflow_name_ar', sa.String(length=200), nullable=True),
-    sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('workflow_type', sa.String(length=20), nullable=False),
-    sa.Column('entity_type', sa.String(length=20), nullable=False),
-    sa.Column('steps_definition', sa.JSON(), nullable=False),
-    sa.Column('auto_start', sa.Boolean(), nullable=False),
-    sa.Column('auto_start_condition', sa.JSON(), nullable=True),
-    sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('version', sa.Integer(), nullable=False),
-    sa.Column('timeout_hours', sa.Integer(), nullable=True),
-    sa.Column('escalation_rules', sa.JSON(), nullable=True),
-    sa.Column('created_by', sa.Integer(), nullable=True),
-    sa.Column('updated_by', sa.Integer(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['updated_by'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('workflow_code')
-    )
-    op.create_index('ix_workflow_def_entity_active', 'workflow_definitions', ['entity_type', 'is_active'], unique=False)
-    op.create_index(op.f('ix_workflow_definitions_created_by'), 'workflow_definitions', ['created_by'], unique=False)
-    op.create_index(op.f('ix_workflow_definitions_entity_type'), 'workflow_definitions', ['entity_type'], unique=False)
-    op.create_index(op.f('ix_workflow_definitions_is_active'), 'workflow_definitions', ['is_active'], unique=False)
-    op.create_index(op.f('ix_workflow_definitions_updated_by'), 'workflow_definitions', ['updated_by'], unique=False)
-    op.create_index(op.f('ix_workflow_definitions_workflow_code'), 'workflow_definitions', ['workflow_code'], unique=False)
-    op.create_index(op.f('ix_workflow_definitions_workflow_type'), 'workflow_definitions', ['workflow_type'], unique=False)
-    
-    op.create_table('workflow_instances',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('workflow_definition_id', sa.Integer(), nullable=False),
-    sa.Column('instance_code', sa.String(length=50), nullable=False),
-    sa.Column('entity_type', sa.String(length=50), nullable=False),
-    sa.Column('entity_id', sa.Integer(), nullable=False),
-    sa.Column('status', sa.String(length=20), nullable=False),
-    sa.Column('current_step', sa.Integer(), nullable=False),
-    sa.Column('total_steps', sa.Integer(), nullable=False),
-    sa.Column('started_by', sa.Integer(), nullable=False),
-    sa.Column('started_at', sa.DateTime(), nullable=False),
-    sa.Column('completed_at', sa.DateTime(), nullable=True),
-    sa.Column('completed_by', sa.Integer(), nullable=True),
-    sa.Column('cancelled_at', sa.DateTime(), nullable=True),
-    sa.Column('cancelled_by', sa.Integer(), nullable=True),
-    sa.Column('cancellation_reason', sa.Text(), nullable=True),
-    sa.Column('due_date', sa.DateTime(), nullable=True),
-    sa.Column('context_data', sa.JSON(), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['cancelled_by'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['completed_by'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['started_by'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['workflow_definition_id'], ['workflow_definitions.id'], ondelete='RESTRICT'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('instance_code')
-    )
-    op.create_index('ix_workflow_inst_entity', 'workflow_instances', ['entity_type', 'entity_id'], unique=False)
-    op.create_index('ix_workflow_inst_status_date', 'workflow_instances', ['status', 'started_at'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_cancelled_at'), 'workflow_instances', ['cancelled_at'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_cancelled_by'), 'workflow_instances', ['cancelled_by'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_completed_at'), 'workflow_instances', ['completed_at'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_completed_by'), 'workflow_instances', ['completed_by'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_due_date'), 'workflow_instances', ['due_date'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_entity_id'), 'workflow_instances', ['entity_id'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_entity_type'), 'workflow_instances', ['entity_type'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_instance_code'), 'workflow_instances', ['instance_code'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_started_at'), 'workflow_instances', ['started_at'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_started_by'), 'workflow_instances', ['started_by'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_status'), 'workflow_instances', ['status'], unique=False)
-    op.create_index(op.f('ix_workflow_instances_workflow_definition_id'), 'workflow_instances', ['workflow_definition_id'], unique=False)
-    
-    op.create_table('workflow_actions',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('workflow_instance_id', sa.Integer(), nullable=False),
-    sa.Column('step_number', sa.Integer(), nullable=False),
-    sa.Column('step_name', sa.String(length=200), nullable=False),
-    sa.Column('action_type', sa.String(length=20), nullable=False),
-    sa.Column('actor_id', sa.Integer(), nullable=False),
-    sa.Column('action_date', sa.DateTime(), nullable=False),
-    sa.Column('decision', sa.String(length=50), nullable=True),
-    sa.Column('comments', sa.Text(), nullable=True),
-    sa.Column('attachments', sa.JSON(), nullable=True),
-    sa.Column('delegated_to', sa.Integer(), nullable=True),
-    sa.Column('delegated_at', sa.DateTime(), nullable=True),
-    sa.Column('duration_hours', sa.Numeric(precision=8, scale=2), nullable=True),
-    sa.Column('created_at', sa.DateTime(), nullable=True),
-    sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['actor_id'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['delegated_to'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['workflow_instance_id'], ['workflow_instances.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_index('ix_workflow_action_actor_date', 'workflow_actions', ['actor_id', 'action_date'], unique=False)
-    op.create_index('ix_workflow_action_instance_step', 'workflow_actions', ['workflow_instance_id', 'step_number'], unique=False)
-    op.create_index(op.f('ix_workflow_actions_action_date'), 'workflow_actions', ['action_date'], unique=False)
-    op.create_index(op.f('ix_workflow_actions_action_type'), 'workflow_actions', ['action_type'], unique=False)
-    op.create_index(op.f('ix_workflow_actions_actor_id'), 'workflow_actions', ['actor_id'], unique=False)
-    op.create_index(op.f('ix_workflow_actions_delegated_to'), 'workflow_actions', ['delegated_to'], unique=False)
-    op.create_index(op.f('ix_workflow_actions_workflow_instance_id'), 'workflow_actions', ['workflow_instance_id'], unique=False)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_tables = inspector.get_table_names()
+
+    def _create_if_missing(name, creator):
+        if name not in existing_tables:
+            creator()
+
+    _create_if_missing('workflow_definitions', lambda: op.create_table(
+        'workflow_definitions',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('workflow_code', sa.String(length=50), nullable=False),
+        sa.Column('workflow_name', sa.String(length=200), nullable=False),
+        sa.Column('workflow_name_ar', sa.String(length=200), nullable=True),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('workflow_type', sa.String(length=20), nullable=False),
+        sa.Column('entity_type', sa.String(length=20), nullable=False),
+        sa.Column('steps_definition', sa.JSON(), nullable=False),
+        sa.Column('auto_start', sa.Boolean(), nullable=False),
+        sa.Column('auto_start_condition', sa.JSON(), nullable=True),
+        sa.Column('is_active', sa.Boolean(), nullable=False),
+        sa.Column('version', sa.Integer(), nullable=False),
+        sa.Column('timeout_hours', sa.Integer(), nullable=True),
+        sa.Column('escalation_rules', sa.JSON(), nullable=True),
+        sa.Column('created_by', sa.Integer(), nullable=True),
+        sa.Column('updated_by', sa.Integer(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('updated_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['created_by'], ['users.id']),
+        sa.ForeignKeyConstraint(['updated_by'], ['users.id']),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('workflow_code')
+    ))
+
+    _create_if_missing('workflow_instances', lambda: op.create_table(
+        'workflow_instances',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('workflow_id', sa.Integer(), nullable=False),
+        sa.Column('entity_id', sa.Integer(), nullable=False),
+        sa.Column('entity_reference', sa.String(length=100), nullable=True),
+        sa.Column('status', sa.String(length=20), nullable=False),
+        sa.Column('current_step', sa.String(length=50), nullable=True),
+        sa.Column('assignees', sa.JSON(), nullable=True),
+        sa.Column('started_by', sa.Integer(), nullable=True),
+        sa.Column('started_at', sa.DateTime(), nullable=True),
+        sa.Column('completed_at', sa.DateTime(), nullable=True),
+        sa.Column('cancelled_at', sa.DateTime(), nullable=True),
+        sa.Column('due_at', sa.DateTime(), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('updated_at', sa.DateTime(), nullable=True),
+        sa.Column('archived_at', sa.DateTime(), nullable=True),
+        sa.Column('archived_by', sa.Integer(), nullable=True),
+        sa.ForeignKeyConstraint(['archived_by'], ['users.id']),
+        sa.ForeignKeyConstraint(['started_by'], ['users.id']),
+        sa.ForeignKeyConstraint(['workflow_id'], ['workflow_definitions.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    ))
+
+    _create_if_missing('workflow_steps', lambda: op.create_table(
+        'workflow_steps',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('workflow_id', sa.Integer(), nullable=False),
+        sa.Column('step_code', sa.String(length=50), nullable=False),
+        sa.Column('step_name', sa.String(length=200), nullable=False),
+        sa.Column('step_name_ar', sa.String(length=200), nullable=True),
+        sa.Column('sequencer', sa.Integer(), nullable=False),
+        sa.Column('step_type', sa.String(length=20), nullable=False),
+        sa.Column('assignee_type', sa.String(length=20), nullable=False),
+        sa.Column('assignee_roles', sa.JSON(), nullable=True),
+        sa.Column('assignee_users', sa.JSON(), nullable=True),
+        sa.Column('approval_rules', sa.JSON(), nullable=True),
+        sa.Column('sla_hours', sa.Integer(), nullable=True),
+        sa.Column('escalation_to', sa.JSON(), nullable=True),
+        sa.Column('is_auto_assign', sa.Boolean(), nullable=False),
+        sa.Column('auto_assign_condition', sa.JSON(), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('updated_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['workflow_id'], ['workflow_definitions.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('workflow_id', 'step_code')
+    ))
+
+    _create_if_missing('workflow_step_instances', lambda: op.create_table(
+        'workflow_step_instances',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('instance_id', sa.Integer(), nullable=False),
+        sa.Column('step_id', sa.Integer(), nullable=False),
+        sa.Column('status', sa.String(length=20), nullable=False),
+        sa.Column('assignees', sa.JSON(), nullable=True),
+        sa.Column('started_at', sa.DateTime(), nullable=True),
+        sa.Column('completed_at', sa.DateTime(), nullable=True),
+        sa.Column('due_at', sa.DateTime(), nullable=True),
+        sa.Column('decision', sa.String(length=20), nullable=True),
+        sa.Column('decision_by', sa.Integer(), nullable=True),
+        sa.Column('decision_at', sa.DateTime(), nullable=True),
+        sa.Column('notes', sa.Text(), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('updated_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['decision_by'], ['users.id']),
+        sa.ForeignKeyConstraint(['instance_id'], ['workflow_instances.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['step_id'], ['workflow_steps.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    ))
+
+    _create_if_missing('workflow_transitions', lambda: op.create_table(
+        'workflow_transitions',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('workflow_id', sa.Integer(), nullable=False),
+        sa.Column('from_step_id', sa.Integer(), nullable=True),
+        sa.Column('to_step_id', sa.Integer(), nullable=True),
+        sa.Column('trigger', sa.String(length=50), nullable=False),
+        sa.Column('condition', sa.JSON(), nullable=True),
+        sa.Column('auto_transition', sa.Boolean(), nullable=False),
+        sa.Column('auto_condition', sa.JSON(), nullable=True),
+        sa.Column('metadata', sa.JSON(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('updated_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['from_step_id'], ['workflow_steps.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['to_step_id'], ['workflow_steps.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['workflow_id'], ['workflow_definitions.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    ))
+
+    _create_if_missing('workflow_notifications', lambda: op.create_table(
+        'workflow_notifications',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('workflow_id', sa.Integer(), nullable=False),
+        sa.Column('step_id', sa.Integer(), nullable=True),
+        sa.Column('notification_type', sa.String(length=20), nullable=False),
+        sa.Column('recipients', sa.JSON(), nullable=False),
+        sa.Column('subject', sa.String(length=200), nullable=False),
+        sa.Column('subject_ar', sa.String(length=200), nullable=True),
+        sa.Column('message_template', sa.Text(), nullable=False),
+        sa.Column('message_template_ar', sa.Text(), nullable=True),
+        sa.Column('channel', sa.String(length=20), nullable=False),
+        sa.Column('send_condition', sa.JSON(), nullable=True),
+        sa.Column('delay_minutes', sa.Integer(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), nullable=True),
+        sa.Column('updated_at', sa.DateTime(), nullable=True),
+        sa.ForeignKeyConstraint(['step_id'], ['workflow_steps.id'], ondelete='SET NULL'),
+        sa.ForeignKeyConstraint(['workflow_id'], ['workflow_definitions.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    ))
+
+    return
 
 
 def downgrade():
-    op.drop_index(op.f('ix_workflow_actions_workflow_instance_id'), table_name='workflow_actions')
-    op.drop_index(op.f('ix_workflow_actions_delegated_to'), table_name='workflow_actions')
-    op.drop_index(op.f('ix_workflow_actions_actor_id'), table_name='workflow_actions')
-    op.drop_index(op.f('ix_workflow_actions_action_type'), table_name='workflow_actions')
-    op.drop_index(op.f('ix_workflow_actions_action_date'), table_name='workflow_actions')
-    op.drop_index('ix_workflow_action_instance_step', table_name='workflow_actions')
-    op.drop_index('ix_workflow_action_actor_date', table_name='workflow_actions')
-    op.drop_table('workflow_actions')
-    
-    op.drop_index(op.f('ix_workflow_instances_workflow_definition_id'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_status'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_started_by'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_started_at'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_instance_code'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_entity_type'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_entity_id'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_due_date'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_completed_by'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_completed_at'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_cancelled_by'), table_name='workflow_instances')
-    op.drop_index(op.f('ix_workflow_instances_cancelled_at'), table_name='workflow_instances')
-    op.drop_index('ix_workflow_inst_status_date', table_name='workflow_instances')
-    op.drop_index('ix_workflow_inst_entity', table_name='workflow_instances')
-    op.drop_table('workflow_instances')
-    
-    op.drop_index(op.f('ix_workflow_definitions_workflow_type'), table_name='workflow_definitions')
-    op.drop_index(op.f('ix_workflow_definitions_workflow_code'), table_name='workflow_definitions')
-    op.drop_index(op.f('ix_workflow_definitions_updated_by'), table_name='workflow_definitions')
-    op.drop_index(op.f('ix_workflow_definitions_is_active'), table_name='workflow_definitions')
-    op.drop_index(op.f('ix_workflow_definitions_entity_type'), table_name='workflow_definitions')
-    op.drop_index(op.f('ix_workflow_definitions_created_by'), table_name='workflow_definitions')
-    op.drop_index('ix_workflow_def_entity_active', table_name='workflow_definitions')
-    op.drop_table('workflow_definitions')
+    pass
 
