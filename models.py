@@ -6677,7 +6677,21 @@ class Payment(db.Model, TimestampMixin):
         if self.shipment: return f"شحنة #{self.shipment.shipment_number or self.shipment.id}"
         if self.service: return f"طلب صيانة #{self.service.service_number or self.service.id}"
         if self.preorder: return f"طلب مسبق #{self.preorder.reference or self.preorder.id}"
-        if self.expense: return f"مصروف #{self.expense.id}"
+        if self.expense:
+            parts = []
+            expense_type_name = getattr(getattr(self.expense, "type", None), "name", None)
+            if expense_type_name:
+                parts.append(expense_type_name)
+            payee = self.expense.paid_to or self.expense.payee_name or self.expense.beneficiary_name
+            if payee:
+                parts.append(payee)
+            desc = self.expense.description
+            if desc and desc not in parts:
+                parts.append(desc)
+            details = " - ".join([str(p).strip() for p in parts if p])
+            if not details:
+                details = f"#{self.expense.id}"
+            return f"مصروف: {details}"
         if self.loan_settlement: return f"تسوية قرض #{self.loan_settlement.id}"
         return "غير مرتبط"
 
@@ -8660,7 +8674,7 @@ def _recalc_service_request_totals(sr: "ServiceRequest"):
 _ALLOWED_SERVICE_TRANSITIONS = {
     "PENDING": {"IN_PROGRESS", "CANCELLED"},
     "IN_PROGRESS": {"COMPLETED", "CANCELLED"},
-    "COMPLETED": set(),
+    "COMPLETED": {"IN_PROGRESS"},
     "CANCELLED": set(),
 }
 
@@ -10099,6 +10113,123 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     online_gateway = db.Column(db.String(50))
     online_ref = db.Column(db.String(100))
     
+    telecom_phone_number = db.Column(db.String(30))
+    telecom_service_type = db.Column(db.String(20))
+    insurance_company_name = db.Column(db.String(200))
+    insurance_company_address = db.Column(db.String(200))
+    insurance_company_phone = db.Column(db.String(30))
+    marketing_company_name = db.Column(db.String(200))
+    marketing_company_address = db.Column(db.String(200))
+    marketing_coverage_details = db.Column(db.String(200))
+    bank_fee_bank_name = db.Column(db.String(200))
+    bank_fee_notes = db.Column(db.Text)
+    gov_fee_entity_name = db.Column(db.String(200))
+    gov_fee_entity_address = db.Column(db.String(200))
+    gov_fee_notes = db.Column(db.Text)
+    port_fee_port_name = db.Column(db.String(200))
+    port_fee_notes = db.Column(db.Text)
+    travel_destination = db.Column(db.String(200))
+    travel_reason = db.Column(db.String(200))
+    travel_notes = db.Column(db.Text)
+    shipping_company_name = db.Column(db.String(200))
+    shipping_notes = db.Column(db.Text)
+    maintenance_provider_name = db.Column(db.String(200))
+    maintenance_provider_address = db.Column(db.String(200))
+    maintenance_notes = db.Column(db.Text)
+    rent_property_address = db.Column(db.String(200))
+    rent_property_notes = db.Column(db.Text)
+    tech_provider_name = db.Column(db.String(200))
+    tech_provider_phone = db.Column(db.String(30))
+    tech_provider_address = db.Column(db.String(200))
+    tech_subscription_id = db.Column(db.String(100))
+    storage_property_address = db.Column(db.String(200))
+    storage_expected_days = db.Column(db.Integer)
+    storage_start_date = db.Column(db.Date)
+    storage_notes = db.Column(db.Text)
+    customs_arrival_date = db.Column(db.Date)
+    customs_departure_date = db.Column(db.Date)
+    customs_origin = db.Column(db.String(200))
+    customs_port_name = db.Column(db.String(200))
+    customs_notes = db.Column(db.Text)
+    training_company_name = db.Column(db.String(200))
+    training_location = db.Column(db.String(200))
+    training_duration_days = db.Column(db.Integer)
+    training_participants_count = db.Column(db.Integer)
+    training_notes = db.Column(db.Text)
+    training_participants_names = db.Column(db.Text)
+    training_topics = db.Column(db.Text)
+    entertainment_duration_days = db.Column(db.Integer)
+    entertainment_notes = db.Column(db.Text)
+    bank_fee_reference = db.Column(db.String(100))
+    bank_fee_contact_name = db.Column(db.String(200))
+    bank_fee_contact_phone = db.Column(db.String(30))
+    gov_fee_reference = db.Column(db.String(100))
+    port_fee_reference = db.Column(db.String(100))
+    port_fee_agent_name = db.Column(db.String(200))
+    port_fee_agent_phone = db.Column(db.String(30))
+    salary_notes = db.Column(db.Text)
+    salary_reference = db.Column(db.String(100))
+    travel_duration_days = db.Column(db.Integer)
+    travel_start_date = db.Column(db.Date)
+    travel_companions = db.Column(db.Text)
+    travel_cost_center = db.Column(db.String(100))
+    employee_advance_period = db.Column(db.String(100))
+    employee_advance_reason = db.Column(db.String(200))
+    employee_advance_notes = db.Column(db.Text)
+    shipping_date = db.Column(db.Date)
+    shipping_reference = db.Column(db.String(100))
+    shipping_mode = db.Column(db.String(50))
+    shipping_tracking_number = db.Column(db.String(100))
+    maintenance_details = db.Column(db.Text)
+    maintenance_completion_date = db.Column(db.Date)
+    maintenance_technician_name = db.Column(db.String(200))
+    import_tax_reference = db.Column(db.String(100))
+    import_tax_notes = db.Column(db.Text)
+    hospitality_type = db.Column(db.String(20))
+    hospitality_notes = db.Column(db.Text)
+    hospitality_attendees = db.Column(db.Text)
+    hospitality_location = db.Column(db.String(200))
+    telecom_notes = db.Column(db.Text)
+    office_supplier_name = db.Column(db.String(200))
+    office_notes = db.Column(db.Text)
+    office_items_list = db.Column(db.Text)
+    office_purchase_reference = db.Column(db.String(100))
+    home_relation_to_company = db.Column(db.String(100))
+    home_address = db.Column(db.String(200))
+    home_owner_name = db.Column(db.String(200))
+    home_notes = db.Column(db.Text)
+    home_cost_share = db.Column(db.Numeric(12, 2))
+    partner_expense_reason = db.Column(db.String(200))
+    partner_expense_notes = db.Column(db.Text)
+    partner_expense_reference = db.Column(db.String(100))
+    supplier_expense_reason = db.Column(db.String(200))
+    supplier_expense_notes = db.Column(db.Text)
+    supplier_expense_reference = db.Column(db.String(100))
+    handling_notes = db.Column(db.Text)
+    handling_quantity = db.Column(db.Numeric(12, 2))
+    handling_unit = db.Column(db.String(50))
+    handling_reference = db.Column(db.String(100))
+    fuel_vehicle_number = db.Column(db.String(50))
+    fuel_driver_name = db.Column(db.String(100))
+    fuel_usage_type = db.Column(db.String(20))
+    fuel_volume = db.Column(db.Numeric(12, 3))
+    fuel_notes = db.Column(db.Text)
+    fuel_station_name = db.Column(db.String(200))
+    fuel_odometer_start = db.Column(db.Integer)
+    fuel_odometer_end = db.Column(db.Integer)
+    transport_beneficiary_name = db.Column(db.String(200))
+    transport_reason = db.Column(db.String(200))
+    transport_usage_type = db.Column(db.String(20))
+    transport_notes = db.Column(db.Text)
+    transport_route_details = db.Column(db.Text)
+    insurance_policy_number = db.Column(db.String(100))
+    insurance_notes = db.Column(db.Text)
+    legal_company_name = db.Column(db.String(200))
+    legal_company_address = db.Column(db.String(200))
+    legal_case_notes = db.Column(db.Text)
+    legal_case_number = db.Column(db.String(100))
+    legal_case_type = db.Column(db.String(100))
+    
     # حقول الأرشيف
     is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     archived_at = db.Column(db.DateTime, index=True)
@@ -10178,10 +10309,109 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
         "card_expiry",
         "online_gateway",
         "online_ref",
+        "telecom_phone_number",
+        "telecom_service_type",
+        "insurance_company_name",
+        "insurance_company_address",
+        "insurance_company_phone",
+        "marketing_company_name",
+        "marketing_company_address",
+        "marketing_coverage_details",
+        "bank_fee_bank_name",
+        "bank_fee_notes",
+        "gov_fee_entity_name",
+        "gov_fee_entity_address",
+        "gov_fee_notes",
+        "port_fee_port_name",
+        "port_fee_notes",
+        "travel_destination",
+        "travel_reason",
+        "travel_notes",
+        "shipping_company_name",
+        "shipping_notes",
+        "maintenance_provider_name",
+        "maintenance_provider_address",
+        "maintenance_notes",
+        "rent_property_address",
+        "rent_property_notes",
+        "tech_provider_name",
+        "tech_provider_phone",
+        "tech_provider_address",
+        "tech_subscription_id",
+        "storage_property_address",
+        "storage_notes",
+        "customs_origin",
+        "customs_port_name",
+        "customs_notes",
+        "training_company_name",
+        "training_location",
+        "training_notes",
+        "training_participants_names",
+        "training_topics",
+        "entertainment_notes",
+        "bank_fee_reference",
+        "bank_fee_contact_name",
+        "bank_fee_contact_phone",
+        "gov_fee_reference",
+        "port_fee_reference",
+        "port_fee_agent_name",
+        "port_fee_agent_phone",
+        "salary_notes",
+        "salary_reference",
+        "travel_companions",
+        "travel_cost_center",
+        "employee_advance_period",
+        "employee_advance_reason",
+        "employee_advance_notes",
+        "shipping_reference",
+        "shipping_mode",
+        "shipping_tracking_number",
+        "maintenance_details",
         "tax_invoice_number",
         "description",
         "payment_details",
         "notes",
+        "import_tax_reference",
+        "import_tax_notes",
+        "hospitality_type",
+        "hospitality_notes",
+        "hospitality_attendees",
+        "hospitality_location",
+        "telecom_notes",
+        "office_supplier_name",
+        "office_notes",
+        "office_items_list",
+        "office_purchase_reference",
+        "home_relation_to_company",
+        "home_address",
+        "home_owner_name",
+        "home_notes",
+        "partner_expense_reason",
+        "partner_expense_notes",
+        "partner_expense_reference",
+        "supplier_expense_reason",
+        "supplier_expense_notes",
+        "supplier_expense_reference",
+        "handling_notes",
+        "handling_unit",
+        "handling_reference",
+        "fuel_vehicle_number",
+        "fuel_driver_name",
+        "fuel_usage_type",
+        "fuel_notes",
+        "fuel_station_name",
+        "transport_beneficiary_name",
+        "transport_reason",
+        "transport_usage_type",
+        "transport_notes",
+        "transport_route_details",
+        "insurance_policy_number",
+        "insurance_notes",
+        "legal_company_name",
+        "legal_company_address",
+        "legal_case_notes",
+        "legal_case_number",
+        "legal_case_type",
     )
     def _v_strip(self, _, v):
         if v is None:
@@ -10206,7 +10436,9 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
         ).all()
         total = Decimal('0.00')
         expense_currency = self.currency or "ILS"
+        has_payments = False
         for p in payments:
+            has_payments = True
             amt = Decimal(str(p.total_amount or 0))
             if p.currency == expense_currency:
                 total += amt
@@ -10215,6 +10447,12 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
                     total += convert_amount(amt, p.currency, expense_currency, p.payment_date)
                 except Exception:
                     pass
+        if not has_payments:
+            try:
+                amount_value = Decimal(str(self.amount or 0))
+            except Exception:
+                amount_value = Decimal('0.00')
+            total = amount_value
         return float(total)
 
     @total_paid.expression
@@ -10244,34 +10482,80 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             )
             .scalar_subquery()
         )
-        return cls.amount - paid_subq
+        payment_count_subq = (
+            select(func.count(Payment.id))
+            .where(
+                (Payment.expense_id == cls.id)
+                & (Payment.status == PaymentStatus.COMPLETED.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
+            )
+            .scalar_subquery()
+        )
+        return case((payment_count_subq == 0, 0), else_=cls.amount - paid_subq)
 
     @hybrid_property
     def is_paid(self):
         return self.balance <= 0
 
+    @is_paid.expression
+    def is_paid(cls):
+        paid_subq = (
+            select(func.coalesce(func.sum(Payment.total_amount), 0))
+            .where(
+                (Payment.expense_id == cls.id)
+                & (Payment.status == PaymentStatus.COMPLETED.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
+            )
+            .scalar_subquery()
+        )
+        payment_count_subq = (
+            select(func.count(Payment.id))
+            .where(
+                (Payment.expense_id == cls.id)
+                & (Payment.status == PaymentStatus.COMPLETED.value)
+                & (Payment.direction == PaymentDirection.OUT.value)
+            )
+            .scalar_subquery()
+        )
+        balance_expr = case((payment_count_subq == 0, 0), else_=cls.amount - paid_subq)
+        return balance_expr <= 0
+
     def to_dict(self):
+        def _iso(v):
+            return v.isoformat() if v else None
+        def _num(v):
+            return float(v) if v is not None else None
         return {
             "id": self.id,
-            "date": self.date.isoformat() if self.date else None,
+            "created_at": _iso(getattr(self, "created_at", None)),
+            "updated_at": _iso(getattr(self, "updated_at", None)),
+            "date": _iso(self.date),
             "amount": float(self.amount or 0),
             "currency": self.currency,
+            "fx_rate_used": _num(self.fx_rate_used),
+            "fx_rate_source": self.fx_rate_source,
+            "fx_rate_timestamp": _iso(self.fx_rate_timestamp),
+            "fx_base_currency": self.fx_base_currency,
+            "fx_quote_currency": self.fx_quote_currency,
             "type_id": self.type_id,
             "branch_id": self.branch_id,
             "site_id": self.site_id,
             "employee_id": self.employee_id,
             "warehouse_id": self.warehouse_id,
             "partner_id": self.partner_id,
+            "supplier_id": self.supplier_id,
             "shipment_id": self.shipment_id,
             "utility_account_id": self.utility_account_id,
             "stock_adjustment_id": self.stock_adjustment_id,
+            "cost_center_id": self.cost_center_id,
             "payee_type": self.payee_type,
             "payee_entity_id": self.payee_entity_id,
             "payee_name": self.payee_name,
             "beneficiary_name": self.beneficiary_name,
-            "period_start": self.period_start.isoformat() if self.period_start else None,
-            "period_end": self.period_end.isoformat() if self.period_end else None,
             "paid_to": self.paid_to,
+            "disbursed_by": self.disbursed_by,
+            "period_start": _iso(self.period_start),
+            "period_end": _iso(self.period_end),
             "payment_method": self.payment_method,
             "payment_details": self.payment_details,
             "description": self.description,
@@ -10279,16 +10563,140 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             "tax_invoice_number": self.tax_invoice_number,
             "check_number": self.check_number,
             "check_bank": self.check_bank,
-            "check_due_date": self.check_due_date.isoformat() if self.check_due_date else None,
+            "check_due_date": _iso(self.check_due_date),
+            "check_payee": self.check_payee,
             "bank_transfer_ref": self.bank_transfer_ref,
+            "bank_name": self.bank_name,
+            "account_number": self.account_number,
+            "account_holder": self.account_holder,
             "card_number": self.card_number,
             "card_holder": self.card_holder,
             "card_expiry": self.card_expiry,
             "online_gateway": self.online_gateway,
             "online_ref": self.online_ref,
-            "total_paid": self.total_paid,
-            "balance": self.balance,
+            "telecom_phone_number": self.telecom_phone_number,
+            "telecom_service_type": self.telecom_service_type,
+            "telecom_notes": self.telecom_notes,
+            "insurance_company_name": self.insurance_company_name,
+            "insurance_company_address": self.insurance_company_address,
+            "insurance_company_phone": self.insurance_company_phone,
+            "insurance_policy_number": self.insurance_policy_number,
+            "insurance_notes": self.insurance_notes,
+            "marketing_company_name": self.marketing_company_name,
+            "marketing_company_address": self.marketing_company_address,
+            "marketing_coverage_details": self.marketing_coverage_details,
+            "bank_fee_bank_name": self.bank_fee_bank_name,
+            "bank_fee_notes": self.bank_fee_notes,
+            "bank_fee_reference": self.bank_fee_reference,
+            "bank_fee_contact_name": self.bank_fee_contact_name,
+            "bank_fee_contact_phone": self.bank_fee_contact_phone,
+            "gov_fee_entity_name": self.gov_fee_entity_name,
+            "gov_fee_entity_address": self.gov_fee_entity_address,
+            "gov_fee_notes": self.gov_fee_notes,
+            "gov_fee_reference": self.gov_fee_reference,
+            "port_fee_port_name": self.port_fee_port_name,
+            "port_fee_notes": self.port_fee_notes,
+            "port_fee_reference": self.port_fee_reference,
+            "port_fee_agent_name": self.port_fee_agent_name,
+            "port_fee_agent_phone": self.port_fee_agent_phone,
+            "travel_destination": self.travel_destination,
+            "travel_reason": self.travel_reason,
+            "travel_notes": self.travel_notes,
+            "travel_duration_days": self.travel_duration_days,
+            "travel_start_date": _iso(self.travel_start_date),
+            "travel_companions": self.travel_companions,
+            "travel_cost_center": self.travel_cost_center,
+            "shipping_company_name": self.shipping_company_name,
+            "shipping_notes": self.shipping_notes,
+            "shipping_date": _iso(self.shipping_date),
+            "shipping_reference": self.shipping_reference,
+            "shipping_mode": self.shipping_mode,
+            "shipping_tracking_number": self.shipping_tracking_number,
+            "maintenance_provider_name": self.maintenance_provider_name,
+            "maintenance_provider_address": self.maintenance_provider_address,
+            "maintenance_notes": self.maintenance_notes,
+            "maintenance_details": self.maintenance_details,
+            "maintenance_completion_date": _iso(self.maintenance_completion_date),
+            "maintenance_technician_name": self.maintenance_technician_name,
+            "rent_property_address": self.rent_property_address,
+            "rent_property_notes": self.rent_property_notes,
+            "tech_provider_name": self.tech_provider_name,
+            "tech_provider_phone": self.tech_provider_phone,
+            "tech_provider_address": self.tech_provider_address,
+            "tech_subscription_id": self.tech_subscription_id,
+            "storage_property_address": self.storage_property_address,
+            "storage_expected_days": self.storage_expected_days,
+            "storage_start_date": _iso(self.storage_start_date),
+            "storage_notes": self.storage_notes,
+            "customs_arrival_date": _iso(self.customs_arrival_date),
+            "customs_departure_date": _iso(self.customs_departure_date),
+            "customs_origin": self.customs_origin,
+            "customs_port_name": self.customs_port_name,
+            "customs_notes": self.customs_notes,
+            "training_company_name": self.training_company_name,
+            "training_location": self.training_location,
+            "training_duration_days": self.training_duration_days,
+            "training_participants_count": self.training_participants_count,
+            "training_notes": self.training_notes,
+            "training_participants_names": self.training_participants_names,
+            "training_topics": self.training_topics,
+            "entertainment_duration_days": self.entertainment_duration_days,
+            "entertainment_notes": self.entertainment_notes,
+            "salary_notes": self.salary_notes,
+            "salary_reference": self.salary_reference,
+            "employee_advance_period": self.employee_advance_period,
+            "employee_advance_reason": self.employee_advance_reason,
+            "employee_advance_notes": self.employee_advance_notes,
+            "hospitality_type": self.hospitality_type,
+            "hospitality_notes": self.hospitality_notes,
+            "hospitality_attendees": self.hospitality_attendees,
+            "hospitality_location": self.hospitality_location,
+            "office_supplier_name": self.office_supplier_name,
+            "office_notes": self.office_notes,
+            "office_items_list": self.office_items_list,
+            "office_purchase_reference": self.office_purchase_reference,
+            "home_relation_to_company": self.home_relation_to_company,
+            "home_address": self.home_address,
+            "home_owner_name": self.home_owner_name,
+            "home_notes": self.home_notes,
+            "home_cost_share": _num(self.home_cost_share),
+            "partner_expense_reason": self.partner_expense_reason,
+            "partner_expense_notes": self.partner_expense_notes,
+            "partner_expense_reference": self.partner_expense_reference,
+            "supplier_expense_reason": self.supplier_expense_reason,
+            "supplier_expense_notes": self.supplier_expense_notes,
+            "supplier_expense_reference": self.supplier_expense_reference,
+            "handling_notes": self.handling_notes,
+            "handling_quantity": _num(self.handling_quantity),
+            "handling_unit": self.handling_unit,
+            "handling_reference": self.handling_reference,
+            "fuel_vehicle_number": self.fuel_vehicle_number,
+            "fuel_driver_name": self.fuel_driver_name,
+            "fuel_usage_type": self.fuel_usage_type,
+            "fuel_volume": _num(self.fuel_volume),
+            "fuel_notes": self.fuel_notes,
+            "fuel_station_name": self.fuel_station_name,
+            "fuel_odometer_start": self.fuel_odometer_start,
+            "fuel_odometer_end": self.fuel_odometer_end,
+            "transport_beneficiary_name": self.transport_beneficiary_name,
+            "transport_reason": self.transport_reason,
+            "transport_usage_type": self.transport_usage_type,
+            "transport_notes": self.transport_notes,
+            "transport_route_details": self.transport_route_details,
+            "import_tax_reference": self.import_tax_reference,
+            "import_tax_notes": self.import_tax_notes,
+            "legal_company_name": self.legal_company_name,
+            "legal_company_address": self.legal_company_address,
+            "legal_case_notes": self.legal_case_notes,
+            "legal_case_number": self.legal_case_number,
+            "legal_case_type": self.legal_case_type,
+            "total_paid": _num(self.total_paid),
+            "balance": _num(self.balance),
             "is_paid": self.is_paid,
+            "is_archived": self.is_archived,
+            "archived_at": _iso(self.archived_at),
+            "archived_by": self.archived_by,
+            "archive_reason": self.archive_reason,
         }
 
 
@@ -11512,6 +11920,7 @@ class CheckStatus(str, enum.Enum):
     BOUNCED = "BOUNCED"
     RESUBMITTED = "RESUBMITTED"
     CANCELLED = "CANCELLED"
+    ARCHIVED = "ARCHIVED"
     OVERDUE = "OVERDUE"
     
     @property
@@ -11523,6 +11932,7 @@ class CheckStatus(str, enum.Enum):
             "BOUNCED": "مرفوض",
             "RESUBMITTED": "أعيد للبنك",
             "CANCELLED": "ملغي",
+            "ARCHIVED": "مؤرشف",
             "OVERDUE": "متأخر"
         }[self.value]
 

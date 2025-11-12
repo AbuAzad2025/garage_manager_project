@@ -2,7 +2,7 @@
 from flask import Blueprint, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from extensions import db
-from models import Archive, Shipment, Check
+from models import Archive, Shipment, Check, CheckStatus
 
 archive_routes_bp = Blueprint('archive_routes', __name__)
 
@@ -51,6 +51,10 @@ def archive_check(check_id):
         check.archived_at = datetime.utcnow()
         check.archived_by = current_user.id
         check.archive_reason = reason
+        try:
+            check.status = CheckStatus.ARCHIVED
+        except Exception:
+            check.status = CheckStatus.ARCHIVED.value
         db.session.commit()
         flash(f'تم أرشفة الشيك رقم {check.id} بنجاح', 'success')
         return redirect(url_for('checks.index'))

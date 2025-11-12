@@ -9,6 +9,7 @@ import uuid
 from io import BytesIO
 from datetime import date, datetime, time
 from decimal import Decimal, ROUND_HALF_UP
+import math
 
 from flask import (
     Response,
@@ -366,9 +367,13 @@ def index():
     if not getattr(current_user, "is_authenticated", False):
         return redirect(url_for("auth.login", next=request.full_path))
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 20, type=int)
-    if per_page > 100:
-        per_page = 100
+    per_page = min(request.args.get("per_page", 20, type=int), 100)
+    print_mode = request.args.get("print") == "1"
+    scope_param = request.args.get("scope")
+    print_scope = scope_param or ("page" if print_mode else "all")
+    range_start = request.args.get("range_start", type=int)
+    range_end = request.args.get("range_end", type=int)
+    target_page = request.args.get("page_number", type=int)
     entity_type = (request.args.get("entity_type") or request.args.get("entity") or "").strip().upper()
     status = (request.args.get("status") or "").strip()
     direction = (request.args.get("direction") or "").strip()
@@ -451,10 +456,53 @@ def index():
     if reference_like:
         filters.append(Payment.reference.ilike(f"%{reference_like}%"))
     base_q = Payment.query.filter(Payment.is_archived == False).filter(*filters)
-    pagination = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    ordered_query = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc())
+    
+    all_payments = ordered_query.all()
+    total_filtered = len(all_payments)
+    total_pages = math.ceil(total_filtered / per_page) if total_filtered else 1
+
+    range_start_value = max(1, range_start or 1)
+    range_end_value = range_end or (total_filtered if total_filtered else 1)
+    if range_end_value < range_start_value:
+        range_end_value = range_start_value
+    target_page_value = target_page or 1
+    if target_page_value < 1:
+        target_page_value = 1
+    if target_page_value > total_pages:
+        target_page_value = total_pages if total_pages else 1
+
+    if print_mode:
+        if print_scope == "all":
+            payments_list = list(all_payments)
+            row_offset = 0
+        elif print_scope == "range":
+            start_idx = range_start_value - 1
+            end_idx = min(total_filtered, range_end_value)
+            payments_list = all_payments[start_idx:end_idx]
+            row_offset = start_idx
+        else:
+            row_offset = (target_page_value - 1) * per_page
+            start_idx = row_offset
+            end_idx = start_idx + per_page
+            payments_list = all_payments[start_idx:end_idx]
+        pag = None
+    else:
+        pag = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
+        payments_list = list(pag.items)
+        row_offset = (pag.page - 1) * pag.per_page if pag else 0
+    for s in payments_list:
+        try:
+            _ = s.entity_label()
+        except Exception:
+            pass
+    payments_render = payments_list
+    query_args = request.args.to_dict()
+    for key in ["page", "print", "scope", "range_start", "range_end", "page_number"]:
+        query_args.pop(key, None)
     
     # حساب الملخصات بالشيكل - فلترة الدفعات غير المؤرشفة
-    payments_for_summary = Payment.query.filter(Payment.is_archived == False).filter(*filters).all()
+    payments_for_summary = all_payments
     total_incoming_ils = 0.0
     total_outgoing_ils = 0.0
     grand_total_ils = 0.0
@@ -479,57 +527,6 @@ def index():
     
     net_total_ils = total_incoming_ils - total_outgoing_ils
     
-    if currency_param:
-        payments_curr = Payment.query.filter(Payment.is_archived == False).filter(*filters).all()
-        total_incoming_d = Decimal('0.00')
-        total_outgoing_d = Decimal('0.00')
-        grand_total_d = Decimal('0.00')
-        
-        for p in payments_curr:
-            if p.currency != currency_param:
-                continue
-            amt = Decimal(str(p.total_amount or 0))
-            grand_total_d += amt
-            if p.direction == PaymentDirection.IN.value and p.status == PaymentStatus.COMPLETED.value:
-                total_incoming_d += amt
-            elif p.direction == PaymentDirection.OUT.value and p.status == PaymentStatus.COMPLETED.value:
-                total_outgoing_d += amt
-        
-        net_total_d = total_incoming_d - total_outgoing_d
-        totals_by_currency = {
-            ensure_currency(currency_param): {
-                "total_incoming": int(total_incoming_d),
-                "total_outgoing": int(total_outgoing_d),
-                "net_total": int(net_total_d),
-                "grand_total": int(grand_total_d),
-                "total_paid": int(total_incoming_d),
-            }
-        }
-        if _wants_json():
-            return jsonify({
-                "payments": [_serialize_payment(p, full=False) for p in pagination.items],
-                "total_pages": pagination.pages,
-                "current_page": pagination.page,
-                "total_items": pagination.total,
-                "currency": ensure_currency(currency_param),
-                "totals_by_currency": totals_by_currency,
-                "totals": totals_by_currency[ensure_currency(currency_param)],
-                "selected_partner": selected_partner,
-                "partner_ledger": partner_ledger,
-            })
-        return render_template(
-            "payments/list.html",
-            payments=pagination.items,
-            pagination=pagination,
-            total_paid=int(total_incoming_d),
-            total_incoming=int(total_incoming_d),
-            total_outgoing=int(total_outgoing_d),
-            net_total=int(net_total_d),
-            grand_total=int(grand_total_d),
-            totals_by_currency=totals_by_currency,
-            selected_partner=selected_partner,
-            partner_ledger=partner_ledger,
-        )
     rows = db.session.query(
         Payment.currency.label("ccy"),
         func.coalesce(func.sum(case((and_(Payment.direction == PaymentDirection.IN.value, Payment.status == PaymentStatus.COMPLETED.value), Payment.total_amount), else_=0)), 0).label("total_incoming"),
@@ -552,7 +549,7 @@ def index():
         # حساب مجموع الصفحة الحالية (page sum) في الباكند
         page_sum = 0.0
         page_sum_ils = 0.0
-        for p in pagination.items:
+        for p in payments_for_summary:
             page_sum += float(p.total_amount or 0)
             # تحويل للشيكل
             if p.currency == 'ILS':
@@ -566,10 +563,10 @@ def index():
                     pass
         
         return jsonify({
-            "payments": [_serialize_payment(p, full=False) for p in pagination.items],
-            "total_pages": pagination.pages,
-            "current_page": pagination.page,
-            "total_items": pagination.total,
+            "payments": [_serialize_payment(p, full=False) for p in payments_for_summary],
+            "total_pages": math.ceil(len(payments_for_summary) / per_page),
+            "current_page": page,
+            "total_items": len(payments_for_summary),
             "currency": None,
             "totals_by_currency": totals_by_currency,
             "totals": {
@@ -585,8 +582,7 @@ def index():
         })
     return render_template(
         "payments/list.html",
-        payments=pagination.items,
-        pagination=pagination,
+        payments=payments_render,
         total_paid=total_incoming_ils,
         total_incoming=total_incoming_ils,
         total_outgoing=total_outgoing_ils,
@@ -595,6 +591,20 @@ def index():
         totals_by_currency=totals_by_currency,
         selected_partner=selected_partner,
         partner_ledger=partner_ledger,
+        print_mode=print_mode,
+        print_scope=print_scope,
+        range_start=range_start_value,
+        range_end=range_end_value,
+        target_page=target_page_value,
+        total_filtered=total_filtered,
+        total_pages=total_pages if total_pages else 1,
+        per_page=per_page,
+        row_offset=row_offset,
+        generated_at=datetime.utcnow(),
+        pdf_export=False,
+        show_actions=not print_mode,
+        pagination=pag,
+        query_args=query_args,
     )
 
 @payments_bp.route("/create", methods=["GET", "POST"], endpoint="create_payment")

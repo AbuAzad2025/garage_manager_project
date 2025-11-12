@@ -1,181 +1,302 @@
-{% extends 'base.html' %}
+{% extends 'base_print.html' if print_mode else 'base.html' %}
 {% block title %}سندات الدفع{% if supplier %} — {{ supplier.name }}{% endif %}{% endblock %}
 
 {% block head_extra %}
-<style>
-/* تحسين تباين الألوان */
-.table thead th {
-    background-color: #343a40 !important;
-    color: white !important;
-    font-weight: 600 !important;
-    border-color: #454d55 !important;
-}
-
-.table tbody td {
-    color: #343a40 !important;
-    font-weight: 500 !important;
-    vertical-align: middle !important;
-}
-
-.badge {
-    padding: 6px 12px !important;
-    font-weight: 600 !important;
-    font-size: 0.85rem !important;
-}
-
-.btn-group-sm .btn {
-    font-weight: 600 !important;
-}
-.print-controls { display: flex; gap: .5rem; }
-.screen-only { display: block; }
-.print-only { display: none !important; }
-.print-header-info,
-.print-partner-info,
-.print-footer-info { display: none !important; }
-.print-partner-info .label { font-weight: 600; white-space: nowrap; }
-.print-partner-info .value { font-weight: 500; }
-@media print {
-  @page { size: A4 portrait; margin: 12mm 10mm; }
-  html, body { margin: 0; padding: 0 6mm; font-family: "Cairo", system-ui, Arial, sans-serif; font-size: 6pt; line-height: 1.2; background: white; }
-  .no-print, .screen-only { display: none !important; }
-  .print-only,
-  .print-header-info,
-  .print-partner-info,
-  .print-footer-info { display: block !important; }
-  .print-header-info { border: 1px solid #000; padding: 6px; margin: 8mm 0 4mm; text-align: center; background: #f8f9fa; font-size: 7pt; }
-  .print-header-info h2 { margin: 0 0 2px; font-size: 12pt; }
-  .print-partner-info { border: 1px solid #000; padding: 6px; margin-bottom: 6mm; font-size: 6pt; background: #fff; }
-  .print-partner-info table { width: 100%; border-collapse: collapse; }
-  .print-partner-info td { padding: 2px 4px; border: none; }
-  table.printable-table { width: 100% !important; border-collapse: collapse !important; font-size: 5.5pt !important; table-layout: fixed; word-wrap: break-word; margin: 0 auto !important; }
-  table.printable-table th, table.printable-table td { border: 0.4px solid #454545 !important; padding: 1px 2px !important; word-break: break-word; white-space: normal; }
-  table.printable-table thead th { background: #e0e0e0 !important; font-size: 6pt !important; }
-  #partnerLedgerTable th:nth-child(1), #partnerLedgerTable td:nth-child(1) { width: 10%; }
-  #partnerLedgerTable th:nth-child(2), #partnerLedgerTable td:nth-child(2) { width: 36%; }
-  #partnerLedgerTable th:nth-child(3), #partnerLedgerTable td:nth-child(3) { width: 9%; }
-  #partnerLedgerTable th:nth-child(4), #partnerLedgerTable td:nth-child(4) { width: 11%; }
-  #partnerLedgerTable th:nth-child(5), #partnerLedgerTable td:nth-child(5) { width: 17%; }
-  #partnerLedgerTable th:nth-child(6), #partnerLedgerTable td:nth-child(6) { width: 17%; }
-  #paymentsTable th:nth-child(1), #paymentsTable td:nth-child(1) { width: 4%; }
-  #paymentsTable th:nth-child(2), #paymentsTable td:nth-child(2) { width: 8%; }
-  #paymentsTable th:nth-child(3), #paymentsTable td:nth-child(3) { width: 8%; }
-  #paymentsTable th:nth-child(4), #paymentsTable td:nth-child(4) { width: 6%; }
-  #paymentsTable th:nth-child(5), #paymentsTable td:nth-child(5) { width: 7%; }
-  #paymentsTable th:nth-child(6), #paymentsTable td:nth-child(6) { width: 9%; }
-  #paymentsTable th:nth-child(7), #paymentsTable td:nth-child(7) { width: 9%; }
-  #paymentsTable th:nth-child(8), #paymentsTable td:nth-child(8) { width: 7%; }
-  #paymentsTable th:nth-child(9), #paymentsTable td:nth-child(9) { width: 7%; }
-  #paymentsTable th:nth-child(10), #paymentsTable td:nth-child(10) { width: 15%; }
-  #paymentsTable th:nth-child(11), #paymentsTable td:nth-child(11) { width: 10%; }
-  .printable-table tbody tr:nth-child(even) { background: #fafafa !important; }
-}
-</style>
+  {% if print_mode %}
+  <style>
+  @page { size: A4 portrait; margin: 4mm 4mm 6mm 4mm; }
+  html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",sans-serif; font-size:11px; margin:0; padding:0; width:100%; }
+  .print-sheet { width:100%; margin:0; padding:4mm 2mm; box-sizing:border-box; }
+  .print-header { text-align:center; margin:0 0 6mm 0; }
+  .print-header h1 { margin:0; font-size:18pt; font-weight:700; }
+  .print-subtitle { margin:4px 0 0 0; font-size:11px; }
+  .print-meta { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:6mm; font-size:11px; }
+  .print-meta-item { border:1px solid #b5b5b5; padding:4px 8px; min-width:55mm; }
+  .print-meta-label { display:block; font-weight:600; margin-bottom:2px; }
+  .print-meta-value { direction:ltr; unicode-bidi:embed; }
+  .print-controls { text-align:left; margin-bottom:6mm; }
+  .print-table-wrapper { width:100%; overflow:visible; direction:rtl; }
+  .print-table { width:100%; margin:0; border-collapse:collapse; table-layout:auto; }
+  .print-table thead { background:#f3f3f3; }
+  .print-table th, .print-table td { border:1px solid #c4c4c4; padding:4px 5px; text-align:center; font-size:11px; line-height:1.35; word-break:break-word; }
+  .print-table td:nth-child(3) { text-align:right; }
+  .print-table td:nth-child(6) { text-align:right; font-weight:600; }
+  .print-table tfoot td { font-weight:600; text-align:right; }
+  .print-summary { margin-top:12px; display:flex; gap:12px; flex-wrap:wrap; font-size:11px; }
+  .print-summary-item { min-width:45mm; }
+  .print-summary-item .label { font-weight:600; display:inline-block; margin-left:4px; }
+  .print-summary-item .value { direction:ltr; unicode-bidi:embed; }
+  .print-trigger { padding:4px 10px; border:1px solid #555; background:#f2f2f2; cursor:pointer; font-size:11px; }
+  .print-trigger:hover { background:#e0e0e0; }
+  @media print { .print-controls { display:none; } }
+  </style>
+  {% else %}
+  <style>
+  .table thead th { background-color:#343a40!important; color:white!important; font-weight:600!important; border-color:#454d55!important; }
+  .table tbody td { color:#343a40!important; font-weight:500!important; vertical-align:middle!important; }
+  .badge { padding:6px 12px!important; font-weight:600!important; font-size:0.85rem!important; }
+  .btn-group-sm .btn { font-weight:600!important; }
+  .print-controls { display:flex; gap:.5rem; }
+  .screen-only { display:block; }
+  .print-only { display:none!important; }
+  .summary-cards .card { border:1px solid #e2e6ea; border-radius:0.85rem; background:#ffffff; height:100%; }
+  .summary-card-body { padding:1.25rem; display:flex; flex-direction:column; gap:0.6rem; }
+  .summary-card-label { font-size:0.95rem; font-weight:600; color:#6c757d; }
+  .summary-card-value { font-size:1.9rem; font-weight:700; color:#212529; letter-spacing:-0.02em; }
+  .summary-card-value small { display:block; font-size:0.9rem; font-weight:600; color:#6c757d; margin-top:0.35rem; }
+  </style>
+  {% endif %}
 {% endblock %}
 
 {% block content %}
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="print-header-info">
-                <h2>كشف حساب الشريك</h2>
-                <div class="meta">بتاريخ: {{ now()|format_datetime }}</div>
-            </div>
-            {% if selected_partner %}
-            <div class="print-partner-info">
-                <table>
-                    <tr>
-                        <td class="label">اسم الشريك</td>
-                        <td class="value">{{ selected_partner.name }}</td>
-                        <td class="label">رقم الشريك</td>
-                        <td class="value">{{ selected_partner.id }}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">الرصيد الحالي</td>
-                        <td class="value">{{ '%.2f'|format(selected_partner.balance) }} ₪</td>
-                        {% if partner_ledger %}
-                        <td class="label">الفترة</td>
-                        <td class="value">{{ partner_ledger.date_from.strftime('%Y-%m-%d') }} → {{ partner_ledger.date_to.strftime('%Y-%m-%d') }}</td>
-                        {% else %}
-                        <td class="label"></td>
-                        <td class="value"></td>
-                        {% endif %}
-                    </tr>
-                </table>
-            </div>
-            {% endif %}
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">
-                        <i class="fas fa-money-check-alt"></i>
-                        {% if supplier %}
-                            سندات دفع المورد: <span class="text-primary">{{ supplier.name }}</span>
-                        {% else %}
-                            جميع سندات الدفع
-                        {% endif %}
-                    </h1>
-                </div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
-                        <li class="breadcrumb-item active">الدفعات</li>
-                    </ol>
-                </div>
-            </div>
-            
-            <!-- الملخصات المالية -->
-            {% if total_incoming is defined and total_outgoing is defined %}
-            <div class="row g-3 mb-3">
-                <div class="col-md-3 col-6">
-                    <div class="card border-0 shadow-sm text-white bg-success">
-                        <div class="card-body">
-                            <div class="text-white-50 small mb-1">دفعات واردة</div>
-                            <div class="display-6 fw-bold">{{ "{:,.2f}".format(total_incoming) }} ₪</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="card border-0 shadow-sm text-white bg-danger">
-                        <div class="card-body">
-                            <div class="text-white-50 small mb-1">دفعات صادرة</div>
-                            <div class="display-6 fw-bold">{{ "{:,.2f}".format(total_outgoing) }} ₪</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="card border-0 shadow-sm text-white {% if net_total >= 0 %}bg-primary{% else %}bg-warning text-dark{% endif %}">
-                        <div class="card-body">
-                            <div class="text-white-50 small mb-1">صافي التدفق</div>
-                            <div class="display-6 fw-bold">{{ "{:,.2f}".format(net_total) }} ₪</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="card border-0 shadow-sm text-white bg-info">
-                        <div class="card-body">
-                            <div class="text-white-50 small mb-1">عدد السندات</div>
-                            <div class="display-6 fw-bold">{{ payments|length if payments else 0 }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
-        </div>
+  {% if print_mode %}
+  {% set dir_labels = {'IN': 'وارد', 'OUT': 'صادر'} %}
+  {% set method_labels = {
+    'cash':'نقداً','cheque':'شيك','bank':'تحويل بنكي','card':'بطاقة','online':'إلكتروني','mobile':'محفظة'
+  } %}
+  <div class="print-sheet">
+    <div class="print-header">
+      <h1>سندات الدفع</h1>
+      <p class="print-subtitle">تاريخ الطباعة: {{ generated_at.strftime("%Y-%m-%d %H:%M") }}</p>
     </div>
+    <div class="print-meta">
+      <div class="print-meta-item">
+        <span class="print-meta-label">عدد السندات</span>
+        <span class="print-meta-value">{{ payments|length }}</span>
+      </div>
+      <div class="print-meta-item">
+        <span class="print-meta-label">الوارد</span>
+        <span class="print-meta-value">{{ "{:.2f}".format(total_incoming|default(0)) }} ₪</span>
+      </div>
+      <div class="print-meta-item">
+        <span class="print-meta-label">الصادر</span>
+        <span class="print-meta-value">{{ "{:.2f}".format(total_outgoing|default(0)) }} ₪</span>
+      </div>
+      <div class="print-meta-item">
+        <span class="print-meta-label">الصافي</span>
+        <span class="print-meta-value">{{ "{:.2f}".format(net_total|default(0)) }} ₪</span>
+      </div>
+    </div>
+    {% if selected_partner %}
+    <div class="print-meta">
+      <div class="print-meta-item">
+        <span class="print-meta-label">الشريك</span>
+        <span class="print-meta-value">{{ selected_partner.name }}</span>
+      </div>
+      <div class="print-meta-item">
+        <span class="print-meta-label">الرصيد الحالي</span>
+        <span class="print-meta-value">{{ '%.2f'|format(selected_partner.balance) }} ₪</span>
+      </div>
+    </div>
+    {% endif %}
+    {% if not pdf_export %}
+    <div class="print-controls">
+      <button type="button" class="print-trigger" onclick="window.print()">طباعة</button>
+    </div>
+    {% endif %}
+    <div class="print-table-wrapper">
+      <table class="print-table">
+        <colgroup>
+          <col style="width:6%">
+          <col style="width:18%">
+          <col style="width:30%">
+          <col style="width:10%">
+          <col style="width:12%">
+          <col style="width:16%">
+          <col style="width:8%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>التاريخ</th>
+            <th>الجهة</th>
+            <th>الاتجاه</th>
+            <th>طريقة الدفع</th>
+            <th>المبلغ</th>
+            <th>المرجع</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for payment in payments %}
+          <tr>
+            <td>{{ loop.index0 + row_offset + 1 }}</td>
+            <td>{{ payment.payment_date.strftime('%Y-%m-%d') if payment.payment_date else '-' }}</td>
+            <td>{{ payment.entity_label() }}</td>
+            <td>{{ dir_labels.get(payment.direction, payment.direction) }}</td>
+            <td>{{ method_labels.get(payment.method, payment.method) }}</td>
+            <td>{{ "{:.2f}".format(payment.total_amount or 0) }} {{ payment.currency or 'ILS' }}</td>
+            <td>{{ payment.reference or payment.notes or '-' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="5">إجمالي الوارد</td>
+            <td>{{ "{:.2f}".format(total_incoming|default(0)) }} ₪</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td colspan="5">إجمالي الصادر</td>
+            <td>{{ "{:.2f}".format(total_outgoing|default(0)) }} ₪</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td colspan="5">صافي التدفق</td>
+            <td>{{ "{:.2f}".format(net_total|default(0)) }} ₪</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="print-summary">
+      <div class="print-summary-item"><span class="label">عدد السندات:</span><span class="value">{{ payments|length }}</span></div>
+      <div class="print-summary-item"><span class="label">إجمالي الدفعات:</span><span class="value">{{ "{:.2f}".format(grand_total|default(0)) }} ₪</span></div>
+    </div>
+  </div>
+  {% else %}
+  <div class="content-header">
+      <div class="container-fluid">
+          <div class="row mb-2">
+              <div class="col-sm-6">
+                  <h1 class="m-0">
+                      <i class="fas fa-money-check-alt"></i>
+                      {% if supplier %}
+                          سندات دفع المورد: <span class="text-primary">{{ supplier.name }}</span>
+                      {% else %}
+                          جميع سندات الدفع
+                      {% endif %}
+                  </h1>
+              </div>
+              <div class="col-sm-6 d-flex justify-content-end align-items-center gap-2">
+                  <ol class="breadcrumb float-sm-right mb-0">
+                      <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                      <li class="breadcrumb-item active">الدفعات</li>
+                  </ol>
+                  <button type="button" class="btn btn-light ml-2" data-toggle="modal" data-target="#printPaymentsModal"><i class="fas fa-print mr-1"></i> طباعة</button>
+              </div>
+          </div>
+          {% if total_incoming is defined and total_outgoing is defined %}
+          <div class="row g-3 mb-3 summary-cards">
+              <div class="col-md-3 col-6">
+                  <div class="card shadow-sm">
+                      <div class="summary-card-body">
+                          <div class="summary-card-label text-success">دفعات واردة</div>
+                          <div class="summary-card-value text-success">{{ "{:,.2f}".format(total_incoming) }} ₪</div>
+                      </div>
+                  </div>
+              </div>
+              <div class="col-md-3 col-6">
+                  <div class="card shadow-sm">
+                      <div class="summary-card-body">
+                          <div class="summary-card-label text-danger">دفعات صادرة</div>
+                          <div class="summary-card-value text-danger">{{ "{:,.2f}".format(total_outgoing) }} ₪</div>
+                      </div>
+                  </div>
+              </div>
+              <div class="col-md-3 col-6">
+                  <div class="card shadow-sm">
+                      <div class="summary-card-body">
+                          <div class="summary-card-label {% if net_total >= 0 %}text-primary{% else %}text-warning{% endif %}">صافي التدفق</div>
+                          <div class="summary-card-value {% if net_total >= 0 %}text-primary{% else %}text-warning{% endif %}">{{ "{:,.2f}".format(net_total) }} ₪</div>
+                          <small class="text-muted">الوارد − الصادر</small>
+                      </div>
+                  </div>
+              </div>
+              <div class="col-md-3 col-6">
+                  <div class="card shadow-sm">
+                      <div class="summary-card-body">
+                          <div class="summary-card-label text-info">إجمالي الدفعات</div>
+                          <div class="summary-card-value text-info">{{ "{:,.2f}".format(grand_total) }} ₪<small>{{ payments|length if payments else 0 }} سند</small></div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+          {% endif %}
+          <div class="card mb-4 screen-only">
+            <div class="card-body">
+              <div class="row mb-4 g-2 align-items-end">
+                <div class="col-md-2 col-sm-4">
+                  <label for="filterEntity" class="form-label">الجهة</label>
+                  <select id="filterEntity" class="form-control">
+                    <option value="">الكل</option>
+                    <option value="CUSTOMER">عميل</option>
+                    <option value="SUPPLIER">مورد</option>
+                    <option value="PARTNER">شريك</option>
+                    <option value="SALE">مبيعة</option>
+                    <option value="INVOICE">فاتورة</option>
+                    <option value="SERVICE">صيانة</option>
+                    <option value="EXPENSE">مصروف</option>
+                    <option value="LOAN">قرض</option>
+                    <option value="PREORDER">طلب مسبق</option>
+                    <option value="SHIPMENT">شحنة</option>
+                  </select>
+                </div>
+                <div class="col-md-2 col-sm-4">
+                  <label for="filterStatus" class="form-label">الحالة</label>
+                  <select id="filterStatus" class="form-control">
+                    <option value="">الكل</option>
+                    <option value="COMPLETED">مكتملة</option>
+                    <option value="PENDING">قيد الانتظار</option>
+                    <option value="FAILED">فاشلة</option>
+                    <option value="REFUNDED">مُرجعة</option>
+                  </select>
+                </div>
+                <div class="col-md-2 col-sm-4">
+                  <label for="filterDirection" class="form-label">الاتجاه</label>
+                  <select id="filterDirection" class="form-control">
+                    <option value="">الكل</option>
+                    <option value="INCOMING">وارد</option>
+                    <option value="OUTGOING">صادر</option>
+                  </select>
+                </div>
+                <div class="col-md-2 col-sm-4">
+                  <label for="filterMethod" class="form-label">الطريقة</label>
+                  <select id="filterMethod" class="form-control">
+                    <option value="">الكل</option>
+                    <option value="cash">نقداً</option>
+                    <option value="cheque">شيك</option>
+                    <option value="bank">تحويل بنكي</option>
+                    <option value="card">بطاقة</option>
+                    <option value="online">إلكتروني</option>
+                    <option value="mobile">محفظة</option>
+                  </select>
+                </div>
+                <div class="col-md-2 col-sm-4">
+                  <label for="filterCurrency" class="form-label">العملة</label>
+                  <input type="text" id="filterCurrency" class="form-control" placeholder="مثال: ILS" value="{{ request.args.get('currency','') }}">
+                </div>
+                <div class="col-md-2 col-sm-4">
+                  <label for="startDate" class="form-label">من تاريخ</label>
+                  <input type="date" id="startDate" class="form-control" value="{{ request.args.get('start_date') or request.args.get('start','') }}">
+                </div>
+                <div class="col-md-2 col-sm-4">
+                  <label for="endDate" class="form-label">إلى تاريخ</label>
+                  <input type="date" id="endDate" class="form-control" value="{{ request.args.get('end_date') or request.args.get('end','') }}">
+                </div>
+                <div class="col-md-2 col-sm-4 ml-auto">
+                  <label class="form-label d-block">&nbsp;</label>
+                  <a id="btnAddPayment" href="{{ url_for('payments.create_payment') }}" class="btn btn-primary btn-block">إضافة دفعة</a>
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
+  </div>
 
-    <section class="content">
-        <div class="container-fluid">
-{% if selected_partner %}
+  <section class="content">
+      <div class="container-fluid">
+          {% if selected_partner %}
   <div class="alert {% if selected_partner.balance >= 0 %}alert-success{% else %}alert-danger{% endif %} shadow-sm d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2">
     <div>
       <strong>الشريك:</strong> {{ selected_partner.name }} (ID: {{ selected_partner.id }})
     </div>
-    <div class="d-flex align-items-center gap-2">
+      <div class="d-flex align-items-center gap-2">
       <div><strong>الرصيد الحالي:</strong> {{ '%.2f'|format(selected_partner.balance) }} ₪</div>
       {% if selected_partner.balance_source == 'smart' %}
         <span class="badge bg-success">احتساب ذكي</span>
       {% else %}
         <span class="badge bg-secondary">رصيد مخزن</span>
       {% endif %}
-      <button type="button" class="btn btn-outline-light btn-sm btn-print-section" data-print-target="partnerLedgerTable" data-print-title="كشف حساب الشريك">طباعة</button>
     </div>
   </div>
   {% if partner_ledger and partner_ledger.entries %}
@@ -183,7 +304,6 @@
     <div class="card-body p-0">
       <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light no-print">
         <h5 class="mb-0">كشف حساب الشريك</h5>
-        <button type="button" class="btn btn-outline-primary btn-sm btn-print-section" data-print-target="partnerLedgerPrintTable" data-print-title="كشف حساب الشريك">طباعة الجدول</button>
       </div>
       <div class="table-responsive">
         <table class="table table-striped mb-0 table-sm printable-table" id="partnerLedgerTable">
@@ -218,7 +338,7 @@
                 {% endif %}
               </td>
               <td>{{ '%.2f'|format(entry.amount) }} ₪</td>
-              <td>{{ '%.2f'|format(entry.running_balance) }} ₪</td>
+              <td>{{ '%.2f'|format(entry.balance_after) }} ₪</td>
               <td>{{ entry.reference or '-' }}</td>
             </tr>
             {% endfor %}
@@ -227,160 +347,13 @@
       </div>
     </div>
   </div>
-  <div class="print-only" id="partnerLedgerPrint">
-    {% set totals = namespace(debit=0.0, credit=0.0) %}
-    <table id="partnerLedgerPrintTable" class="printable-table">
-      <thead>
-        <tr>
-          <th>التاريخ</th>
-          <th>البيان</th>
-          <th>مدين</th>
-          <th>دائن</th>
-          <th>الرصيد</th>
-          <th>مرجع</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for entry in partner_ledger.entries %}
-        {% set totals.debit = totals.debit + (entry.debit or 0) %}
-        {% set totals.credit = totals.credit + (entry.credit or 0) %}
-        <tr>
-          <td>{{ entry.date.strftime('%Y-%m-%d') if entry.date and entry.date.__class__.__name__ == 'datetime' else entry.date }}</td>
-          <td>
-            {% if entry.direction == 'credit' %}له{% elif entry.direction == 'debit' %}عليه{% else %}رصيد افتتاحي{% endif %} - {{ entry.label }}
-          </td>
-          <td style="text-align:end;">{{ '%.2f'|format(entry.debit or 0) }}</td>
-          <td style="text-align:end;">{{ '%.2f'|format(entry.credit or 0) }}</td>
-          <td style="text-align:end;">{{ '%.2f'|format(entry.running_balance or 0) }}</td>
-          <td>{{ entry.reference or '' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-      <tfoot>
-        <tr>
-          <th colspan="2">الإجمالي</th>
-          <th style="text-align:end;">{{ '%.2f'|format(totals.debit) }}</th>
-          <th style="text-align:end;">{{ '%.2f'|format(totals.credit) }}</th>
-          <th style="text-align:end;">{{ '%.2f'|format(partner_ledger.closing_balance) }}</th>
-          <th></th>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
   {% endif %}
-{% endif %}
-  <div class="screen-only">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <a id="btnAddPayment"
-       href="{% if supplier %}{{ url_for('payments.create_payment', entity_type='SUPPLIER', entity_id=supplier.id) }}{% else %}{{ url_for('payments.create_payment') }}{% endif %}"
-       class="btn btn-success btn-lg">
-      <i class="fas fa-plus-circle"></i> إنشاء سند دفع جديد
-    </a>
-  </div>
-  {% if total_paid is not none %}
-    <div class="alert alert-info">إجمالي المدفوع: {{ '%.0f'|format(total_paid) }}</div>
   {% endif %}
-  {% if supplier %}
-    <input type="hidden" id="prefilter_entity_type" value="SUPPLIER">
-    <input type="hidden" id="prefilter_entity_id" value="{{ supplier.id }}">
-  {% endif %}
-  <div class="row mb-4 g-2 align-items-end">
-    <div class="col-auto">
-      <label for="filterEntity" class="form-label">الكيان</label>
-      <select id="filterEntity" class="custom-select">
-        <option value="">الكل</option>
-        <option value="CUSTOMER">عميل</option>
-        <option value="SUPPLIER">مورد</option>
-        <option value="PARTNER">شريك</option>
-        <option value="SALE">بيع</option>
-        <option value="INVOICE">فاتورة</option>
-        <option value="SERVICE">صيانة</option>
-        <option value="EXPENSE">نفقة/مصروف</option>
-        <option value="LOAN">تسوية قرض</option>
-        <option value="PREORDER">حجز مسبق (قطع غيار)</option>
-        <option value="PREORDER_SHOP">حجز مسبق (متجر)</option>
-        <option value="SHIPMENT">شحنة</option>
-        <option value="PURCHASE">مشتريات</option>
-      </select>
-    </div>
-    <div class="col-auto">
-      <label for="filterStatus" class="form-label">الحالة</label>
-      <select id="filterStatus" class="custom-select">
-        <option value="">الكل</option>
-        <option value="COMPLETED">مكتملة</option>
-        <option value="PENDING">قيد الانتظار</option>
-        <option value="FAILED">فاشلة</option>
-        <option value="REFUNDED">مُرجعة</option>
-      </select>
-    </div>
-    <div class="col-auto">
-      <label for="filterDirection" class="form-label">الاتجاه</label>
-      <select id="filterDirection" class="custom-select">
-        <option value="">الكل</option>
-        <option value="INCOMING">وارد</option>
-        <option value="OUTGOING">صادر</option>
-      </select>
-    </div>
-    <div class="col-auto">
-      <label for="filterMethod" class="form-label">الطريقة</label>
-      <select id="filterMethod" class="custom-select">
-        <option value="">الكل</option>
-        <option value="cash">نقداً</option>
-        <option value="cheque">شيك</option>
-        <option value="bank">تحويل بنكي</option>
-        <option value="card">بطاقة</option>
-        <option value="online">إلكتروني</option>
-        <option value="mobile">محفظة/موبايل</option>
-      </select>
-    </div>
-    <div class="col-auto">
-      <label for="startDate" class="form-label">من تاريخ</label>
-      <input type="date" id="startDate" class="form-control">
-    </div>
-    <div class="col-auto">
-      <label for="endDate" class="form-label">إلى تاريخ</label>
-      <input type="date" id="endDate" class="form-control">
-    </div>
-  </div>
-  <div class="row g-3 mb-3">
-    <div class="col-sm-6 col-lg-3">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted small mb-1">الوارد المكتمل</div>
-          <div id="totalIncoming" class="fs-5 fw-bold">0</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted small mb-1">الصادر المكتمل</div>
-          <div id="totalOutgoing" class="fs-5 fw-bold">0</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted small mb-1">الصافي</div>
-          <div id="netTotal" class="fs-5 fw-bold">0</div>
-        </div>
-      </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted small mb-1">الإجمالي الكلي</div>
-          <div id="grandTotal" class="fs-5 fw-bold">0</div>
-        </div>
-      </div>
-    </div>
-  </div>
+
   <div class="card shadow-sm rounded-4" id="paymentsCard" {% if not payments %}style="display:none"{% endif %}>
     <div class="card-body p-0">
       <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light no-print">
         <h5 class="mb-0">سندات الدفع</h5>
-        <button type="button" class="btn btn-outline-primary btn-sm btn-print-section" data-print-target="paymentsTable" data-print-title="سندات الدفع">طباعة الجدول</button>
       </div>
       <table id="paymentsTable" class="table table-hover table-bordered align-middle mb-0 table-sm printable-table">
         <thead class="table-dark">
@@ -406,13 +379,79 @@
     </div>
   </div>
 
+      </div>
+  </section>
+</div>
+
+<div class="modal fade" id="printPaymentsModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">طباعة سندات الدفع</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      <form id="print-payments-form" method="get" action="{{ url_for('payments.index') }}" target="_blank">
+        <div class="modal-body">
+          <input type="hidden" name="print" value="1">
+          {% for key, value in query_args.items() %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endfor %}
+          <div class="form-group">
+            <label class="d-block font-weight-bold mb-2">نطاق الطباعة</label>
+            <div class="custom-control custom-radio mb-2">
+              <input class="custom-control-input" type="radio" name="scope" id="print-payments-all" value="all" {% if print_scope == 'all' %}checked{% endif %}>
+              <label class="custom-control-label" for="print-payments-all">كل القائمة ({{ total_filtered }} سند)</label>
+            </div>
+            <div class="custom-control custom-radio mb-2">
+              <input class="custom-control-input" type="radio" name="scope" id="print-payments-range" value="range" {% if print_scope == 'range' %}checked{% endif %}>
+              <label class="custom-control-label" for="print-payments-range">تحديد أرقام الصفوف</label>
+            </div>
+            <div class="custom-control custom-radio">
+              <input class="custom-control-input" type="radio" name="scope" id="print-payments-page" value="page" {% if print_scope == 'page' %}checked{% endif %}>
+              <label class="custom-control-label" for="print-payments-page">حسب رقم الصفحة</label>
+            </div>
+          </div>
+          <div class="form-row" id="print-payments-range-fields">
+            <div class="form-group col">
+              <label>من رقم</label>
+              <input type="number" class="form-control" name="range_start" min="1" max="{{ total_filtered if total_filtered else 1 }}" value="{{ range_start }}" {% if print_scope != 'range' %}disabled{% endif %}>
+            </div>
+            <div class="form-group col">
+              <label>إلى رقم</label>
+              <input type="number" class="form-control" name="range_end" min="1" max="{{ total_filtered if total_filtered else 1 }}" value="{{ range_end }}" {% if print_scope != 'range' %}disabled{% endif %}>
+            </div>
+          </div>
+          <div class="form-group" id="print-payments-page-fields">
+            <label>رقم الصفحة (1 - {{ total_pages if total_pages else 1 }})</label>
+            <input type="number" class="form-control" name="page_number" min="1" max="{{ total_pages if total_pages else 1 }}" value="{{ target_page }}" {% if print_scope != 'page' %}disabled{% endif %}>
+          </div>
         </div>
-    </section>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">عرض للطباعة</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <input type="hidden" id="csrf_token" value="{{ csrf_token() }}">
-<div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}">{% endblock %}
+<input type="hidden" id="prefilter_entity_type" value="{{ request.args.get('entity_type','') }}">
+<input type="hidden" id="prefilter_entity_id" value="{{ request.args.get('entity_id','') }}">
+<div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
+  {% endif %}
+{% endblock %}
+
 {% block scripts %}
+  {% if print_mode %}
+    {% if not pdf_export %}
+    <script>
+      document.addEventListener('DOMContentLoaded', function(){ window.print(); });
+    </script>
+    {% endif %}
+  {% else %}
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
   <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
   <script>
@@ -437,6 +476,21 @@
           btn.href = u.toString();
         }
       }
+
+      var form = document.getElementById('print-payments-form');
+      if (!form) return;
+      var scopeInputs = form.querySelectorAll('input[name="scope"]');
+      var rangeInputs = form.querySelectorAll('#print-payments-range-fields input');
+      var pageInputs = form.querySelectorAll('#print-payments-page-fields input');
+      var toggleFields = function(){
+        var selected = form.querySelector('input[name="scope"]:checked');
+        var scope = selected ? selected.value : 'all';
+        rangeInputs.forEach(function(inp){ inp.disabled = scope !== 'range'; if(scope !== 'range') inp.value = inp.getAttribute('value'); });
+        pageInputs.forEach(function(inp){ inp.disabled = scope !== 'page'; if(scope !== 'page') inp.value = inp.getAttribute('value'); });
+      };
+      scopeInputs.forEach(function(inp){ inp.addEventListener('change', toggleFields); });
+      toggleFields();
     });
   </script>
+  {% endif %}
 {% endblock %}

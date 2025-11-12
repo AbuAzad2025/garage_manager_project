@@ -36,57 +36,66 @@
       window.expenseTypeMeta = {{ types_meta|tojson|safe }};
       window._types = {{ _types|tojson|safe }};
     </script>
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mb-3 section-card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-info-circle ml-1 text-primary"></i>البيانات العامة الموحدة</h5>
+      </div>
       <div class="card-body">
     <div class="row g-3">
-          
-          <!-- البيانات الأساسية (إجبارية) -->
           <div class="col-md-3">
             {{ form.date.label(class="form-label fw-bold text-danger") }}
             {{ form.date(type="date", class="form-control", id="date", required=true) }}
-            <small class="text-muted">تاريخ المصروف</small>
+            <small class="text-muted">تاريخ تسجيل المصروف</small>
               {% for e in form.date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
-
           <div class="col-md-3">
             {{ form.type_id.label(class="form-label fw-bold text-danger") }}
             {{ form.type_id(class="custom-select", id="type_id", required=true) }}
             <small class="text-muted">نوع المصروف</small>
             {% for e in form.type_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
-
           <div class="col-md-3">
             {{ form.amount.label(class="form-label fw-bold text-danger") }}
             {{ form.amount(class="form-control", step="0.01", id="amount", required=true, placeholder="0.00") }}
             <small class="text-muted">المبلغ المدفوع</small>
               {% for e in form.amount.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
-
           <div class="col-md-3">
             {{ form.currency.label(class="form-label fw-bold text-danger") }}
             {{ form.currency(class="custom-select", id="currency", required=true) }}
             <small class="text-muted">العملة</small>
               {% for e in form.currency.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
-
-          <!-- الجهة المرتبطة (ديناميكية حسب النوع) -->
-          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-link ml-1"></i>الجهة المرتبطة (حسب النوع)</h6></div>
-
-          <div class="col-md-3">
+          <div class="col-md-4">
             {{ form.branch_id.label(class="form-label fw-bold text-danger") }}
             {{ form.branch_id(class="custom-select", id="branch_id", required=true) }}
-            <small class="text-muted">فرع الشركة (إلزامي)</small>
+            <small class="text-muted">فرع الشركة المرتبط بالمصروف</small>
             {% for e in form.branch_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
-
-          <div class="col-md-3">
+          <div class="col-md-4">
             {{ form.site_id.label(class="form-label") }}
             {{ form.site_id(class="custom-select", id="site_id") }}
-            <small class="text-muted">موقع داخل الفرع (اختياري)</small>
+            <small class="text-muted">الموقع داخل الفرع (اختياري)</small>
             {% for e in form.site_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
+          <div class="col-md-4">
+            {{ form.disbursed_by.label(class="form-label fw-bold text-danger") }}
+            {{ form.disbursed_by(class="form-control", id="disbursed_by", placeholder="من سلم المال؟") }}
+            <small class="text-muted">اسم الشخص الذي سلّم المال</small>
+            {% for e in form.disbursed_by.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+        </div>
+      </div>
+          </div>
 
-          <div id="employee-field" class="col-md-6">
+    <div id="typeRequiredSection" class="card shadow-sm mb-3 section-card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-asterisk ml-1 text-danger"></i>حقول مطلوبة حسب نوع المصروف</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3 small">يتم إظهار الحقول اللازمة تلقائياً بعد اختيار نوع المصروف. أي حقل لا يظهر يعتبر غير مطلوب لهذه العملية.</p>
+        <div id="typeRequiredRow" class="row g-3">
+          <div id="employee-field" class="col-md-4 type-field" data-field-key="employee_id">
             {{ form.employee_id.label(class="form-label fw-bold") }}
             {{ form.employee_id(class="custom-select ajax", id="employee_id", **{
               'data-url': url_for('api.search_employees'),
@@ -96,8 +105,8 @@
             {% for e in form.employee_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
 
-          <div id="period-fields" class="col-md-6">
-            <label class="form-label fw-bold">الفترة</label>
+          <div id="period-fields" class="col-md-4 type-field" data-field-key="period">
+            <label class="form-label fw-bold">الفترة المغطاة</label>
             <div class="row g-2">
               <div class="col-6">
                 {{ form.period_start(type="date", class="form-control form-control-sm", id="period_start", placeholder="من") }}
@@ -106,34 +115,165 @@
                 {{ form.period_end(type="date", class="form-control form-control-sm", id="period_end", placeholder="إلى") }}
               </div>
             </div>
-            <small class="text-muted">للرواتب والمرافق والاشتراكات</small>
+            <small class="text-muted">للإيجار، الرواتب، المرافق والاشتراكات</small>
           </div>
 
-          <div id="utility-field" class="col-md-4">
-            {{ form.utility_account_id.label(class="form-label") }}
-            {{ form.utility_account_id(class="custom-select custom-select-sm ajax", id="utility_account_id", **{
-              'data-url': url_for('api.search_utility_accounts'),
-              'data-current': form.utility_account_id.data or ''
-            }) }}
-            <small class="text-muted">للمرافق (كهرباء/ماء/اتصالات)</small>
+          <div id="telecom-phone-field" class="col-md-4 type-field" data-field-key="telecom_phone_number">
+            {{ form.telecom_phone_number.label(class="form-label") }}
+            {{ form.telecom_phone_number(class="form-control form-control-sm", id="telecom_phone_number", placeholder="مثال: 0599123456") }}
+            <small class="text-muted">رقم الموبايل أو الهاتف المرتبط بالفاتورة</small>
+            {% for e in form.telecom_phone_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
-          <div id="warehouse-field" class="col-md-4">
+          <div id="telecom-service-field" class="col-md-4 type-field" data-field-key="telecom_service_type">
+            {{ form.telecom_service_type.label(class="form-label") }}
+            {{ form.telecom_service_type(class="custom-select custom-select-sm", id="telecom_service_type") }}
+            <small class="text-muted">حدد نوع الخدمة (إنترنت أو مكالمات)</small>
+            {% for e in form.telecom_service_type.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="insurance-company-name-field" class="col-md-4 type-field" data-field-key="insurance_company_name">
+            {{ form.insurance_company_name.label(class="form-label") }}
+            {{ form.insurance_company_name(class="form-control form-control-sm", id="insurance_company_name", placeholder="اسم شركة التأمين") }}
+            {% for e in form.insurance_company_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="insurance-company-address-field" class="col-md-4 type-field" data-field-key="insurance_company_address">
+            {{ form.insurance_company_address.label(class="form-label") }}
+            {{ form.insurance_company_address(class="form-control form-control-sm", id="insurance_company_address", placeholder="عنوان شركة التأمين") }}
+            {% for e in form.insurance_company_address.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="marketing-company-name-field" class="col-md-4 type-field" data-field-key="marketing_company_name">
+            {{ form.marketing_company_name.label(class="form-label") }}
+            {{ form.marketing_company_name(class="form-control form-control-sm", id="marketing_company_name", placeholder="اسم شركة الإعلانات") }}
+            {% for e in form.marketing_company_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="marketing-company-address-field" class="col-md-4 type-field" data-field-key="marketing_company_address">
+            {{ form.marketing_company_address.label(class="form-label") }}
+            {{ form.marketing_company_address(class="form-control form-control-sm", id="marketing_company_address", placeholder="عنوان شركة الإعلانات") }}
+            {% for e in form.marketing_company_address.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="marketing-coverage-field" class="col-md-4 type-field" data-field-key="marketing_coverage_details">
+            {{ form.marketing_coverage_details.label(class="form-label") }}
+            {{ form.marketing_coverage_details(class="form-control form-control-sm", id="marketing_coverage_details", placeholder="مدة التغطية") }}
+            {% for e in form.marketing_coverage_details.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="bank-fee-bank-field" class="col-md-4 type-field" data-field-key="bank_fee_bank_name">
+            {{ form.bank_fee_bank_name.label(class="form-label") }}
+            {{ form.bank_fee_bank_name(class="form-control form-control-sm", id="bank_fee_bank_name", placeholder="اسم البنك للرسوم") }}
+            {% for e in form.bank_fee_bank_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="gov-fee-entity-name-field" class="col-md-4 type-field" data-field-key="gov_fee_entity_name">
+            {{ form.gov_fee_entity_name.label(class="form-label") }}
+            {{ form.gov_fee_entity_name(class="form-control form-control-sm", id="gov_fee_entity_name", placeholder="اسم الجهة الحكومية") }}
+            {% for e in form.gov_fee_entity_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="gov-fee-entity-address-field" class="col-md-4 type-field" data-field-key="gov_fee_entity_address">
+            {{ form.gov_fee_entity_address.label(class="form-label") }}
+            {{ form.gov_fee_entity_address(class="form-control form-control-sm", id="gov_fee_entity_address", placeholder="عنوان الجهة الحكومية") }}
+            {% for e in form.gov_fee_entity_address.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="port-fee-port-name-field" class="col-md-4 type-field" data-field-key="port_fee_port_name">
+            {{ form.port_fee_port_name.label(class="form-label") }}
+            {{ form.port_fee_port_name(class="form-control form-control-sm", id="port_fee_port_name", placeholder="اسم الميناء") }}
+            {% for e in form.port_fee_port_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="travel-destination-field" class="col-md-4 type-field" data-field-key="travel_destination">
+            {{ form.travel_destination.label(class="form-label") }}
+            {{ form.travel_destination(class="form-control form-control-sm", id="travel_destination", placeholder="الوجهة") }}
+            {% for e in form.travel_destination.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="travel-reason-field" class="col-md-4 type-field" data-field-key="travel_reason">
+            {{ form.travel_reason.label(class="form-label") }}
+            {{ form.travel_reason(class="form-control form-control-sm", id="travel_reason", placeholder="سبب السفر") }}
+            {% for e in form.travel_reason.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="shipping-company-field" class="col-md-4 type-field" data-field-key="shipping_company_name">
+            {{ form.shipping_company_name.label(class="form-label") }}
+            {{ form.shipping_company_name(class="form-control form-control-sm", id="shipping_company_name", placeholder="اسم شركة الشحن") }}
+            {% for e in form.shipping_company_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="maintenance-provider-name-field" class="col-md-4 type-field" data-field-key="maintenance_provider_name">
+            {{ form.maintenance_provider_name.label(class="form-label") }}
+            {{ form.maintenance_provider_name(class="form-control form-control-sm", id="maintenance_provider_name", placeholder="اسم جهة الصيانة") }}
+            {% for e in form.maintenance_provider_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="maintenance-provider-address-field" class="col-md-4 type-field" data-field-key="maintenance_provider_address">
+            {{ form.maintenance_provider_address.label(class="form-label") }}
+            {{ form.maintenance_provider_address(class="form-control form-control-sm", id="maintenance_provider_address", placeholder="عنوان جهة الصيانة") }}
+            {% for e in form.maintenance_provider_address.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="warehouse-field" class="col-md-4 type-field" data-field-key="warehouse_id">
             {{ form.warehouse_id.label(class="form-label") }}
             {{ form.warehouse_id(class="custom-select custom-select-sm ajax", id="warehouse_id", **{
               'data-url': url_for('api.search_warehouses'),
               'data-current': form.warehouse_id.data or ''
             }) }}
-            <small class="text-muted">للإيجار/الصيانة</small>
+            <small class="text-muted">مطلوب للإيجار والصيانة إن وجد</small>
           </div>
 
-          <div id="shipment-field" class="col-md-4">
+          <div id="shipment-field" class="col-md-4 type-field" data-field-key="shipment_id">
             {{ form.shipment_id.label(class="form-label") }}
             {{ form.shipment_id(class="custom-select custom-select-sm", id="shipment_id") }}
-            <small class="text-muted">للشحنات</small>
+            <small class="text-muted">للمصاريف المرتبطة بشحنات</small>
           </div>
 
-          <div id="partner-field" class="col-md-4">
+          <div id="stock-field" class="col-md-4 type-field" data-field-key="stock_adjustment_id">
+            {{ form.stock_adjustment_id.label(class="form-label") }}
+            {{ form.stock_adjustment_id(class="custom-select custom-select-sm", id="stock_adjustment_id") }}
+            <small class="text-muted">للتالف وتعديلات المخزون</small>
+          </div>
+
+          <div id="advance-fields" class="col-12 type-field" data-field-key="advance" style="display:none;">
+            <div class="row g-3">
+              <div class="col-md-4">
+                {{ form.installments_count.label(class="form-label") }}
+                {{ form.installments_count(class="form-control form-control-sm", id="installments_count", placeholder="1") }}
+                <small class="text-muted">عدد الأقساط للسلفة</small>
+              </div>
+              <div class="col-md-4">
+                <div class="form-check mt-4">
+                  {{ form.create_deduction(class="form-check-input", id="create_deduction") }}
+                  <label class="form-check-label" for="create_deduction">{{ form.create_deduction.label.text }}</label>
+                  <small class="form-text text-muted d-block">خصم تلقائي من الراتب</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="typeOptionalSection" class="card shadow-sm mb-3 section-card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-layer-group ml-1 text-secondary"></i>حقول اختيارية حسب نوع المصروف</h5>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-3 small">الحقول التالية تظهر فقط للأنواع التي يمكن ربطها بها، ويمكن تركها فارغة إذا لم تكن مطلوبة.</p>
+        <div id="typeOptionalRow" class="row g-3">
+          <div id="utility-field" class="col-md-4 type-field" data-field-key="utility_account_id">
+            {{ form.utility_account_id.label(class="form-label") }}
+            {{ form.utility_account_id(class="custom-select custom-select-sm ajax", id="utility_account_id", **{
+              'data-url': url_for('api.search_utility_accounts'),
+              'data-current': form.utility_account_id.data or ''
+            }) }}
+            <small class="text-muted">ربط اختياري مع حساب المرفق</small>
+          </div>
+
+          <div id="partner-field" class="col-md-4 type-field" data-field-key="partner_id">
             {{ form.partner_id.label(class="form-label") }}
             <div class="input-group input-group-sm">
               {{ form.partner_id(class="custom-select custom-select-sm ajax", id="partner_id", **{
@@ -146,10 +286,10 @@
                 </a>
               </div>
             </div>
-            <small class="text-muted">لمصروفات الشريك</small>
+            <small class="text-muted">لمصاريف الشركاء</small>
           </div>
 
-          <div id="supplier-field" class="col-md-4">
+          <div id="supplier-field" class="col-md-4 type-field" data-field-key="supplier_id">
             {{ form.supplier_id.label(class="form-label") }}
             <div class="input-group input-group-sm">
               {{ form.supplier_id(class="custom-select custom-select-sm ajax", id="supplier_id", **{
@@ -162,60 +302,632 @@
                 </a>
               </div>
             </div>
-            <small class="text-muted">لمصروفات المورد</small>
+            <small class="text-muted">لمصاريف الموردين</small>
           </div>
 
-          <div id="beneficiary-field" class="col-md-4">
+          <div id="beneficiary-field" class="col-md-4 type-field" data-field-key="beneficiary_name">
             {{ form.beneficiary_name.label(class="form-label") }}
             {{ form.beneficiary_name(class="form-control form-control-sm", id="beneficiary_name", placeholder="اسم المستفيد") }}
             <small class="text-muted">للأنواع الأخرى</small>
             </div>
 
-          <div id="stock-field" class="col-md-4">
-            {{ form.stock_adjustment_id.label(class="form-label") }}
-            {{ form.stock_adjustment_id(class="custom-select custom-select-sm", id="stock_adjustment_id") }}
-            <small class="text-muted">لتسويات المخزون</small>
+          <div id="insurance-company-phone-field" class="col-md-4 type-field" data-field-key="insurance_company_phone">
+            {{ form.insurance_company_phone.label(class="form-label") }}
+            {{ form.insurance_company_phone(class="form-control form-control-sm", id="insurance_company_phone", placeholder="هاتف شركة التأمين") }}
+            {% for e in form.insurance_company_phone.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
 
-          <!-- حقول خاصة بالسلف (تظهر فقط لنوع سلفة موظف) -->
-          <div id="advance-fields" class="col-12" style="display:none;">
-            <div class="row g-2">
-              <div class="col-md-4">
-                {{ form.installments_count.label(class="form-label") }}
-                {{ form.installments_count(class="form-control form-control-sm", id="installments_count", placeholder="1") }}
-                <small class="text-muted">عدد الأقساط الشهرية لسداد السلفة</small>
+          <div id="bank-fee-notes-field" class="col-md-12 type-field" data-field-key="bank_fee_notes">
+            {{ form.bank_fee_notes.label(class="form-label") }}
+            {{ form.bank_fee_notes(class="form-control", rows=2, id="bank_fee_notes", placeholder="ملاحظات الرسوم البنكية") }}
+            {% for e in form.bank_fee_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="gov-fee-notes-field" class="col-md-12 type-field" data-field-key="gov_fee_notes">
+            {{ form.gov_fee_notes.label(class="form-label") }}
+            {{ form.gov_fee_notes(class="form-control", rows=2, id="gov_fee_notes", placeholder="ملاحظات الرسوم الحكومية") }}
+            {% for e in form.gov_fee_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="port-fee-notes-field" class="col-md-12 type-field" data-field-key="port_fee_notes">
+            {{ form.port_fee_notes.label(class="form-label") }}
+            {{ form.port_fee_notes(class="form-control", rows=2, id="port_fee_notes", placeholder="ملاحظات رسوم الميناء") }}
+            {% for e in form.port_fee_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="travel-notes-field" class="col-md-12 type-field" data-field-key="travel_notes">
+            {{ form.travel_notes.label(class="form-label") }}
+            {{ form.travel_notes(class="form-control", rows=2, id="travel_notes", placeholder="ملاحظات السفر") }}
+            {% for e in form.travel_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="shipping-notes-field" class="col-md-12 type-field" data-field-key="shipping_notes">
+            {{ form.shipping_notes.label(class="form-label") }}
+            {{ form.shipping_notes(class="form-control", rows=2, id="shipping_notes", placeholder="ملاحظات الشحن") }}
+            {% for e in form.shipping_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
               </div>
-              <div class="col-md-4">
-                <div class="form-check mt-4">
-                  {{ form.create_deduction(class="form-check-input", id="create_deduction") }}
-                  <label class="form-check-label" for="create_deduction">
-                    {{ form.create_deduction.label.text }}
-                  </label>
-                  <small class="form-text text-muted d-block">خصم تلقائي من الراتب الشهري</small>
-                </div>
+
+          <div id="maintenance-notes-field" class="col-md-12 type-field" data-field-key="maintenance_notes">
+            {{ form.maintenance_notes.label(class="form-label") }}
+            {{ form.maintenance_notes(class="form-control", rows=2, id="maintenance_notes", placeholder="ملاحظات الصيانة") }}
+            {% for e in form.maintenance_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="rent-property-address-field" class="col-md-4 type-field" data-field-key="rent_property_address">
+            {{ form.rent_property_address.label(class="form-label") }}
+            {{ form.rent_property_address(class="form-control form-control-sm", id="rent_property_address") }}
+            {% for e in form.rent_property_address.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="rent-property-notes-field" class="col-md-12 type-field" data-field-key="rent_property_notes">
+            {{ form.rent_property_notes.label(class="form-label") }}
+            {{ form.rent_property_notes(class="form-control", rows=2, id="rent_property_notes") }}
+            {% for e in form.rent_property_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="tech-provider-name-field" class="col-md-4 type-field" data-field-key="tech_provider_name">
+            {{ form.tech_provider_name.label(class="form-label") }}
+            {{ form.tech_provider_name(class="form-control form-control-sm", id="tech_provider_name") }}
+            {% for e in form.tech_provider_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="tech-provider-phone-field" class="col-md-4 type-field" data-field-key="tech_provider_phone">
+            {{ form.tech_provider_phone.label(class="form-label") }}
+            {{ form.tech_provider_phone(class="form-control form-control-sm", id="tech_provider_phone") }}
+            {% for e in form.tech_provider_phone.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="tech-provider-address-field" class="col-md-4 type-field" data-field-key="tech_provider_address">
+            {{ form.tech_provider_address.label(class="form-label") }}
+            {{ form.tech_provider_address(class="form-control form-control-sm", id="tech_provider_address") }}
+            {% for e in form.tech_provider_address.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="tech-subscription-id-field" class="col-md-4 type-field" data-field-key="tech_subscription_id">
+            {{ form.tech_subscription_id.label(class="form-label") }}
+            {{ form.tech_subscription_id(class="form-control form-control-sm", id="tech_subscription_id") }}
+            {% for e in form.tech_subscription_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="storage-property-address-field" class="col-md-4 type-field" data-field-key="storage_property_address">
+            {{ form.storage_property_address.label(class="form-label") }}
+            {{ form.storage_property_address(class="form-control form-control-sm", id="storage_property_address") }}
+            {% for e in form.storage_property_address.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="storage-expected-days-field" class="col-md-4 type-field" data-field-key="storage_expected_days">
+            {{ form.storage_expected_days.label(class="form-label") }}
+            {{ form.storage_expected_days(class="form-control form-control-sm", id="storage_expected_days") }}
+            {% for e in form.storage_expected_days.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="storage-start-date-field" class="col-md-4 type-field" data-field-key="storage_start_date">
+            {{ form.storage_start_date.label(class="form-label") }}
+            {{ form.storage_start_date(type="date", class="form-control form-control-sm", id="storage_start_date") }}
+            {% for e in form.storage_start_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="storage-notes-field" class="col-md-12 type-field" data-field-key="storage_notes">
+            {{ form.storage_notes.label(class="form-label") }}
+            {{ form.storage_notes(class="form-control", rows=2, id="storage_notes") }}
+            {% for e in form.storage_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="customs-arrival-date-field" class="col-md-4 type-field" data-field-key="customs_arrival_date">
+            {{ form.customs_arrival_date.label(class="form-label") }}
+            {{ form.customs_arrival_date(type="date", class="form-control form-control-sm", id="customs_arrival_date") }}
+            {% for e in form.customs_arrival_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="customs-departure-date-field" class="col-md-4 type-field" data-field-key="customs_departure_date">
+            {{ form.customs_departure_date.label(class="form-label") }}
+            {{ form.customs_departure_date(type="date", class="form-control form-control-sm", id="customs_departure_date") }}
+            {% for e in form.customs_departure_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="customs-origin-field" class="col-md-4 type-field" data-field-key="customs_origin">
+            {{ form.customs_origin.label(class="form-label") }}
+            {{ form.customs_origin(class="form-control form-control-sm", id="customs_origin") }}
+            {% for e in form.customs_origin.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="customs-port-name-field" class="col-md-4 type-field" data-field-key="customs_port_name">
+            {{ form.customs_port_name.label(class="form-label") }}
+            {{ form.customs_port_name(class="form-control form-control-sm", id="customs_port_name") }}
+            {% for e in form.customs_port_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="customs-notes-field" class="col-md-12 type-field" data-field-key="customs_notes">
+            {{ form.customs_notes.label(class="form-label") }}
+            {{ form.customs_notes(class="form-control", rows=2, id="customs_notes") }}
+            {% for e in form.customs_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="training-company-name-field" class="col-md-4 type-field" data-field-key="training_company_name">
+            {{ form.training_company_name.label(class="form-label") }}
+            {{ form.training_company_name(class="form-control form-control-sm", id="training_company_name") }}
+            {% for e in form.training_company_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="training-location-field" class="col-md-4 type-field" data-field-key="training_location">
+            {{ form.training_location.label(class="form-label") }}
+            {{ form.training_location(class="form-control form-control-sm", id="training_location") }}
+            {% for e in form.training_location.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="training-duration-days-field" class="col-md-4 type-field" data-field-key="training_duration_days">
+            {{ form.training_duration_days.label(class="form-label") }}
+            {{ form.training_duration_days(class="form-control form-control-sm", id="training_duration_days") }}
+            {% for e in form.training_duration_days.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="training-participants-count-field" class="col-md-4 type-field" data-field-key="training_participants_count">
+            {{ form.training_participants_count.label(class="form-label") }}
+            {{ form.training_participants_count(class="form-control form-control-sm", id="training_participants_count") }}
+            {% for e in form.training_participants_count.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="training-notes-field" class="col-md-12 type-field" data-field-key="training_notes">
+            {{ form.training_notes.label(class="form-label") }}
+            {{ form.training_notes(class="form-control", rows=2, id="training_notes") }}
+            {% for e in form.training_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="training-participants-names-field" class="col-md-12 type-field" data-field-key="training_participants_names">
+            {{ form.training_participants_names.label(class="form-label") }}
+            {{ form.training_participants_names(class="form-control", rows=2, id="training_participants_names") }}
+            {% for e in form.training_participants_names.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="training-topics-field" class="col-md-12 type-field" data-field-key="training_topics">
+            {{ form.training_topics.label(class="form-label") }}
+            {{ form.training_topics(class="form-control", rows=2, id="training_topics") }}
+            {% for e in form.training_topics.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="entertainment-duration-field" class="col-md-4 type-field" data-field-key="entertainment_duration_days">
+            {{ form.entertainment_duration_days.label(class="form-label") }}
+            {{ form.entertainment_duration_days(class="form-control form-control-sm", id="entertainment_duration_days") }}
+            {% for e in form.entertainment_duration_days.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="entertainment-notes-field" class="col-md-12 type-field" data-field-key="entertainment_notes">
+            {{ form.entertainment_notes.label(class="form-label") }}
+            {{ form.entertainment_notes(class="form-control", rows=2, id="entertainment_notes") }}
+            {% for e in form.entertainment_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="bank-fee-reference-field" class="col-md-4 type-field" data-field-key="bank_fee_reference">
+            {{ form.bank_fee_reference.label(class="form-label") }}
+            {{ form.bank_fee_reference(class="form-control form-control-sm", id="bank_fee_reference") }}
+            {% for e in form.bank_fee_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="bank-fee-contact-name-field" class="col-md-4 type-field" data-field-key="bank_fee_contact_name">
+            {{ form.bank_fee_contact_name.label(class="form-label") }}
+            {{ form.bank_fee_contact_name(class="form-control form-control-sm", id="bank_fee_contact_name") }}
+            {% for e in form.bank_fee_contact_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="bank-fee-contact-phone-field" class="col-md-4 type-field" data-field-key="bank_fee_contact_phone">
+            {{ form.bank_fee_contact_phone.label(class="form-label") }}
+            {{ form.bank_fee_contact_phone(class="form-control form-control-sm", id="bank_fee_contact_phone") }}
+            {% for e in form.bank_fee_contact_phone.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="gov-fee-reference-field" class="col-md-4 type-field" data-field-key="gov_fee_reference">
+            {{ form.gov_fee_reference.label(class="form-label") }}
+            {{ form.gov_fee_reference(class="form-control form-control-sm", id="gov_fee_reference") }}
+            {% for e in form.gov_fee_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="port-fee-reference-field" class="col-md-4 type-field" data-field-key="port_fee_reference">
+            {{ form.port_fee_reference.label(class="form-label") }}
+            {{ form.port_fee_reference(class="form-control form-control-sm", id="port_fee_reference") }}
+            {% for e in form.port_fee_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="port-fee-agent-name-field" class="col-md-4 type-field" data-field-key="port_fee_agent_name">
+            {{ form.port_fee_agent_name.label(class="form-label") }}
+            {{ form.port_fee_agent_name(class="form-control form-control-sm", id="port_fee_agent_name") }}
+            {% for e in form.port_fee_agent_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="port-fee-agent-phone-field" class="col-md-4 type-field" data-field-key="port_fee_agent_phone">
+            {{ form.port_fee_agent_phone.label(class="form-label") }}
+            {{ form.port_fee_agent_phone(class="form-control form-control-sm", id="port_fee_agent_phone") }}
+            {% for e in form.port_fee_agent_phone.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="salary-notes-field" class="col-md-12 type-field" data-field-key="salary_notes">
+            {{ form.salary_notes.label(class="form-label") }}
+            {{ form.salary_notes(class="form-control", rows=2, id="salary_notes") }}
+            {% for e in form.salary_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="salary-reference-field" class="col-md-4 type-field" data-field-key="salary_reference">
+            {{ form.salary_reference.label(class="form-label") }}
+            {{ form.salary_reference(class="form-control form-control-sm", id="salary_reference") }}
+            {% for e in form.salary_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="travel-duration-field" class="col-md-4 type-field" data-field-key="travel_duration_days">
+            {{ form.travel_duration_days.label(class="form-label") }}
+            {{ form.travel_duration_days(class="form-control form-control-sm", id="travel_duration_days") }}
+            {% for e in form.travel_duration_days.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="travel-start-date-field" class="col-md-4 type-field" data-field-key="travel_start_date">
+            {{ form.travel_start_date.label(class="form-label") }}
+            {{ form.travel_start_date(type="date", class="form-control form-control-sm", id="travel_start_date") }}
+            {% for e in form.travel_start_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="travel-companions-field" class="col-md-12 type-field" data-field-key="travel_companions">
+            {{ form.travel_companions.label(class="form-label") }}
+            {{ form.travel_companions(class="form-control", rows=2, id="travel_companions") }}
+            {% for e in form.travel_companions.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="travel-cost-center-field" class="col-md-4 type-field" data-field-key="travel_cost_center">
+            {{ form.travel_cost_center.label(class="form-label") }}
+            {{ form.travel_cost_center(class="form-control form-control-sm", id="travel_cost_center") }}
+            {% for e in form.travel_cost_center.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="employee-advance-period-field" class="col-md-4 type-field" data-field-key="employee_advance_period">
+            {{ form.employee_advance_period.label(class="form-label") }}
+            {{ form.employee_advance_period(class="form-control form-control-sm", id="employee_advance_period") }}
+            {% for e in form.employee_advance_period.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="employee-advance-reason-field" class="col-md-4 type-field" data-field-key="employee_advance_reason">
+            {{ form.employee_advance_reason.label(class="form-label") }}
+            {{ form.employee_advance_reason(class="form-control form-control-sm", id="employee_advance_reason") }}
+            {% for e in form.employee_advance_reason.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="employee-advance-notes-field" class="col-md-12 type-field" data-field-key="employee_advance_notes">
+            {{ form.employee_advance_notes.label(class="form-label") }}
+            {{ form.employee_advance_notes(class="form-control", rows=2, id="employee_advance_notes") }}
+            {% for e in form.employee_advance_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="shipping-date-field" class="col-md-4 type-field" data-field-key="shipping_date">
+            {{ form.shipping_date.label(class="form-label") }}
+            {{ form.shipping_date(type="date", class="form-control form-control-sm", id="shipping_date") }}
+            {% for e in form.shipping_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="shipping-reference-field" class="col-md-4 type-field" data-field-key="shipping_reference">
+            {{ form.shipping_reference.label(class="form-label") }}
+            {{ form.shipping_reference(class="form-control form-control-sm", id="shipping_reference") }}
+            {% for e in form.shipping_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="shipping-mode-field" class="col-md-4 type-field" data-field-key="shipping_mode">
+            {{ form.shipping_mode.label(class="form-label") }}
+            {{ form.shipping_mode(class="form-control form-control-sm", id="shipping_mode") }}
+            {% for e in form.shipping_mode.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="shipping-tracking-number-field" class="col-md-4 type-field" data-field-key="shipping_tracking_number">
+            {{ form.shipping_tracking_number.label(class="form-label") }}
+            {{ form.shipping_tracking_number(class="form-control form-control-sm", id="shipping_tracking_number") }}
+            {% for e in form.shipping_tracking_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="maintenance-details-field" class="col-md-12 type-field" data-field-key="maintenance_details">
+            {{ form.maintenance_details.label(class="form-label") }}
+            {{ form.maintenance_details(class="form-control", rows=2, id="maintenance_details") }}
+            {% for e in form.maintenance_details.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="maintenance-completion-date-field" class="col-md-4 type-field" data-field-key="maintenance_completion_date">
+            {{ form.maintenance_completion_date.label(class="form-label") }}
+            {{ form.maintenance_completion_date(type="date", class="form-control form-control-sm", id="maintenance_completion_date") }}
+            {% for e in form.maintenance_completion_date.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="maintenance-technician-name-field" class="col-md-4 type-field" data-field-key="maintenance_technician_name">
+            {{ form.maintenance_technician_name.label(class="form-label") }}
+            {{ form.maintenance_technician_name(class="form-control form-control-sm", id="maintenance_technician_name") }}
+            {% for e in form.maintenance_technician_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="import-tax-reference-field" class="col-md-4 type-field" data-field-key="import_tax_reference">
+            {{ form.import_tax_reference.label(class="form-label") }}
+            {{ form.import_tax_reference(class="form-control form-control-sm", id="import_tax_reference") }}
+            {% for e in form.import_tax_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="import-tax-notes-field" class="col-md-12 type-field" data-field-key="import_tax_notes">
+            {{ form.import_tax_notes.label(class="form-label") }}
+            {{ form.import_tax_notes(class="form-control", rows=2, id="import_tax_notes") }}
+            {% for e in form.import_tax_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="hospitality-type-field" class="col-md-4 type-field" data-field-key="hospitality_type">
+            {{ form.hospitality_type.label(class="form-label") }}
+            {{ form.hospitality_type(class="custom-select custom-select-sm", id="hospitality_type") }}
+            {% for e in form.hospitality_type.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="hospitality-notes-field" class="col-md-12 type-field" data-field-key="hospitality_notes">
+            {{ form.hospitality_notes.label(class="form-label") }}
+            {{ form.hospitality_notes(class="form-control", rows=2, id="hospitality_notes") }}
+            {% for e in form.hospitality_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="hospitality-attendees-field" class="col-md-12 type-field" data-field-key="hospitality_attendees">
+            {{ form.hospitality_attendees.label(class="form-label") }}
+            {{ form.hospitality_attendees(class="form-control", rows=2, id="hospitality_attendees") }}
+            {% for e in form.hospitality_attendees.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="hospitality-location-field" class="col-md-4 type-field" data-field-key="hospitality_location">
+            {{ form.hospitality_location.label(class="form-label") }}
+            {{ form.hospitality_location(class="form-control form-control-sm", id="hospitality_location") }}
+            {% for e in form.hospitality_location.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="telecom-notes-field" class="col-md-12 type-field" data-field-key="telecom_notes">
+            {{ form.telecom_notes.label(class="form-label") }}
+            {{ form.telecom_notes(class="form-control", rows=2, id="telecom_notes") }}
+            {% for e in form.telecom_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="office-supplier-name-field" class="col-md-4 type-field" data-field-key="office_supplier_name">
+            {{ form.office_supplier_name.label(class="form-label") }}
+            {{ form.office_supplier_name(class="form-control form-control-sm", id="office_supplier_name") }}
+            {% for e in form.office_supplier_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="office-notes-field" class="col-md-12 type-field" data-field-key="office_notes">
+            {{ form.office_notes.label(class="form-label") }}
+            {{ form.office_notes(class="form-control", rows=2, id="office_notes") }}
+            {% for e in form.office_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="office-items-list-field" class="col-md-12 type-field" data-field-key="office_items_list">
+            {{ form.office_items_list.label(class="form-label") }}
+            {{ form.office_items_list(class="form-control", rows=2, id="office_items_list") }}
+            {% for e in form.office_items_list.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="office-purchase-reference-field" class="col-md-4 type-field" data-field-key="office_purchase_reference">
+            {{ form.office_purchase_reference.label(class="form-label") }}
+            {{ form.office_purchase_reference(class="form-control form-control-sm", id="office_purchase_reference") }}
+            {% for e in form.office_purchase_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="home-relation-field" class="col-md-4 type-field" data-field-key="home_relation_to_company">
+            {{ form.home_relation_to_company.label(class="form-label") }}
+            {{ form.home_relation_to_company(class="form-control form-control-sm", id="home_relation_to_company") }}
+            {% for e in form.home_relation_to_company.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="home-address-field" class="col-md-4 type-field" data-field-key="home_address">
+            {{ form.home_address.label(class="form-label") }}
+            {{ form.home_address(class="form-control form-control-sm", id="home_address") }}
+            {% for e in form.home_address.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="home-owner-name-field" class="col-md-4 type-field" data-field-key="home_owner_name">
+            {{ form.home_owner_name.label(class="form-label") }}
+            {{ form.home_owner_name(class="form-control form-control-sm", id="home_owner_name") }}
+            {% for e in form.home_owner_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+  <div id="home-notes-field" class="col-md-12 type-field" data-field-key="home_notes">
+            {{ form.home_notes.label(class="form-label") }}
+            {{ form.home_notes(class="form-control", rows=2, id="home_notes") }}
+            {% for e in form.home_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="home-cost-share-field" class="col-md-4 type-field" data-field-key="home_cost_share">
+            {{ form.home_cost_share.label(class="form-label") }}
+            {{ form.home_cost_share(class="form-control form-control-sm", id="home_cost_share") }}
+            {% for e in form.home_cost_share.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="partner-expense-reason-field" class="col-md-4 type-field" data-field-key="partner_expense_reason">
+            {{ form.partner_expense_reason.label(class="form-label") }}
+            {{ form.partner_expense_reason(class="form-control form-control-sm", id="partner_expense_reason") }}
+            {% for e in form.partner_expense_reason.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="partner-expense-notes-field" class="col-md-12 type-field" data-field-key="partner_expense_notes">
+            {{ form.partner_expense_notes.label(class="form-label") }}
+            {{ form.partner_expense_notes(class="form-control", rows=2, id="partner_expense_notes") }}
+            {% for e in form.partner_expense_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="partner-expense-reference-field" class="col-md-4 type-field" data-field-key="partner_expense_reference">
+            {{ form.partner_expense_reference.label(class="form-label") }}
+            {{ form.partner_expense_reference(class="form-control form-control-sm", id="partner_expense_reference") }}
+            {% for e in form.partner_expense_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="supplier-expense-reason-field" class="col-md-4 type-field" data-field-key="supplier_expense_reason">
+            {{ form.supplier_expense_reason.label(class="form-label") }}
+            {{ form.supplier_expense_reason(class="form-control form-control-sm", id="supplier_expense_reason") }}
+            {% for e in form.supplier_expense_reason.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="supplier-expense-notes-field" class="col-md-12 type-field" data-field-key="supplier_expense_notes">
+            {{ form.supplier_expense_notes.label(class="form-label") }}
+            {{ form.supplier_expense_notes(class="form-control", rows=2, id="supplier_expense_notes") }}
+            {% for e in form.supplier_expense_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="supplier-expense-reference-field" class="col-md-4 type-field" data-field-key="supplier_expense_reference">
+            {{ form.supplier_expense_reference.label(class="form-label") }}
+            {{ form.supplier_expense_reference(class="form-control form-control-sm", id="supplier_expense_reference") }}
+            {% for e in form.supplier_expense_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="handling-notes-field" class="col-md-12 type-field" data-field-key="handling_notes">
+            {{ form.handling_notes.label(class="form-label") }}
+            {{ form.handling_notes(class="form-control", rows=2, id="handling_notes") }}
+            {% for e in form.handling_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="handling-quantity-field" class="col-md-4 type-field" data-field-key="handling_quantity">
+            {{ form.handling_quantity.label(class="form-label") }}
+            {{ form.handling_quantity(class="form-control form-control-sm", id="handling_quantity") }}
+            {% for e in form.handling_quantity.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="handling-unit-field" class="col-md-4 type-field" data-field-key="handling_unit">
+            {{ form.handling_unit.label(class="form-label") }}
+            {{ form.handling_unit(class="form-control form-control-sm", id="handling_unit") }}
+            {% for e in form.handling_unit.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="handling-reference-field" class="col-md-4 type-field" data-field-key="handling_reference">
+            {{ form.handling_reference.label(class="form-label") }}
+            {{ form.handling_reference(class="form-control form-control-sm", id="handling_reference") }}
+            {% for e in form.handling_reference.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+  <div id="fuel-vehicle-number-field" class="col-md-4 type-field" data-field-key="fuel_vehicle_number">
+            {{ form.fuel_vehicle_number.label(class="form-label") }}
+            {{ form.fuel_vehicle_number(class="form-control form-control-sm", id="fuel_vehicle_number") }}
+            {% for e in form.fuel_vehicle_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="fuel-driver-name-field" class="col-md-4 type-field" data-field-key="fuel_driver_name">
+            {{ form.fuel_driver_name.label(class="form-label") }}
+            {{ form.fuel_driver_name(class="form-control form-control-sm", id="fuel_driver_name") }}
+            {% for e in form.fuel_driver_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="fuel-usage-type-field" class="col-md-4 type-field" data-field-key="fuel_usage_type">
+            {{ form.fuel_usage_type.label(class="form-label") }}
+            {{ form.fuel_usage_type(class="custom-select custom-select-sm", id="fuel_usage_type") }}
+            {% for e in form.fuel_usage_type.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="fuel-volume-field" class="col-md-4 type-field" data-field-key="fuel_volume">
+            {{ form.fuel_volume.label(class="form-label") }}
+            {{ form.fuel_volume(class="form-control form-control-sm", id="fuel_volume") }}
+            {% for e in form.fuel_volume.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="fuel-notes-field" class="col-md-12 type-field" data-field-key="fuel_notes">
+            {{ form.fuel_notes.label(class="form-label") }}
+            {{ form.fuel_notes(class="form-control", rows=2, id="fuel_notes") }}
+            {% for e in form.fuel_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="fuel-station-name-field" class="col-md-4 type-field" data-field-key="fuel_station_name">
+            {{ form.fuel_station_name.label(class="form-label") }}
+            {{ form.fuel_station_name(class="form-control form-control-sm", id="fuel_station_name") }}
+            {% for e in form.fuel_station_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="fuel-odometer-start-field" class="col-md-4 type-field" data-field-key="fuel_odometer_start">
+            {{ form.fuel_odometer_start.label(class="form-label") }}
+            {{ form.fuel_odometer_start(class="form-control form-control-sm", id="fuel_odometer_start") }}
+            {% for e in form.fuel_odometer_start.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="fuel-odometer-end-field" class="col-md-4 type-field" data-field-key="fuel_odometer_end">
+            {{ form.fuel_odometer_end.label(class="form-label") }}
+            {{ form.fuel_odometer_end(class="form-control form-control-sm", id="fuel_odometer_end") }}
+            {% for e in form.fuel_odometer_end.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="transport-beneficiary-name-field" class="col-md-4 type-field" data-field-key="transport_beneficiary_name">
+            {{ form.transport_beneficiary_name.label(class="form-label") }}
+            {{ form.transport_beneficiary_name(class="form-control form-control-sm", id="transport_beneficiary_name") }}
+            {% for e in form.transport_beneficiary_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="transport-reason-field" class="col-md-4 type-field" data-field-key="transport_reason">
+            {{ form.transport_reason.label(class="form-label") }}
+            {{ form.transport_reason(class="form-control form-control-sm", id="transport_reason") }}
+            {% for e in form.transport_reason.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="transport-usage-type-field" class="col-md-4 type-field" data-field-key="transport_usage_type">
+            {{ form.transport_usage_type.label(class="form-label") }}
+            {{ form.transport_usage_type(class="custom-select custom-select-sm", id="transport_usage_type") }}
+            {% for e in form.transport_usage_type.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="transport-notes-field" class="col-md-12 type-field" data-field-key="transport_notes">
+            {{ form.transport_notes.label(class="form-label") }}
+            {{ form.transport_notes(class="form-control", rows=2, id="transport_notes") }}
+            {% for e in form.transport_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="transport-route-details-field" class="col-md-12 type-field" data-field-key="transport_route_details">
+            {{ form.transport_route_details.label(class="form-label") }}
+            {{ form.transport_route_details(class="form-control", rows=2, id="transport_route_details") }}
+            {% for e in form.transport_route_details.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="insurance-policy-number-field" class="col-md-4 type-field" data-field-key="insurance_policy_number">
+            {{ form.insurance_policy_number.label(class="form-label") }}
+            {{ form.insurance_policy_number(class="form-control form-control-sm", id="insurance_policy_number") }}
+            {% for e in form.insurance_policy_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="insurance-notes-field" class="col-md-12 type-field" data-field-key="insurance_notes">
+            {{ form.insurance_notes.label(class="form-label") }}
+            {{ form.insurance_notes(class="form-control", rows=2, id="insurance_notes") }}
+            {% for e in form.insurance_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="legal-company-name-field" class="col-md-4 type-field" data-field-key="legal_company_name">
+            {{ form.legal_company_name.label(class="form-label") }}
+            {{ form.legal_company_name(class="form-control form-control-sm", id="legal_company_name") }}
+            {% for e in form.legal_company_name.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="legal-company-address-field" class="col-md-4 type-field" data-field-key="legal_company_address">
+            {{ form.legal_company_address.label(class="form-label") }}
+            {{ form.legal_company_address(class="form-control form-control-sm", id="legal_company_address") }}
+            {% for e in form.legal_company_address.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="legal-case-notes-field" class="col-md-12 type-field" data-field-key="legal_case_notes">
+            {{ form.legal_case_notes.label(class="form-label") }}
+            {{ form.legal_case_notes(class="form-control", rows=2, id="legal_case_notes") }}
+            {% for e in form.legal_case_notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="legal-case-number-field" class="col-md-4 type-field" data-field-key="legal_case_number">
+            {{ form.legal_case_number.label(class="form-label") }}
+            {{ form.legal_case_number(class="form-control form-control-sm", id="legal_case_number") }}
+            {% for e in form.legal_case_number.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+
+          <div id="legal-case-type-field" class="col-md-4 type-field" data-field-key="legal_case_type">
+            {{ form.legal_case_type.label(class="form-label") }}
+            {{ form.legal_case_type(class="form-control form-control-sm", id="legal_case_type") }}
+            {% for e in form.legal_case_type.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
               </div>
             </div>
           </div>
 
-          <!-- حقول الدفع -->
-          <div class="col-12"><hr class="my-2"><h6 class="text-muted mb-0"><i class="fas fa-money-bill ml-1"></i>تفاصيل الدفع</h6></div>
-
-          <div class="col-md-4">
-            {{ form.disbursed_by.label(class="form-label fw-bold") }}
-            {{ form.disbursed_by(class="form-control", id="disbursed_by", placeholder="من سلم المال؟") }}
-            <small class="text-muted">الشخص الذي سلم المال (إلزامي في جميع النفقات)</small>
-            {% for e in form.disbursed_by.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+    <div class="card shadow-sm mb-3 section-card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-money-bill ml-1 text-success"></i>تفاصيل الدفع العامة</h5>
           </div>
-
+      <div class="card-body">
+        <div class="row g-3">
           <div class="col-md-4">
             {{ form.payment_method.label(class="form-label fw-bold") }}
               {{ form.payment_method(class="custom-select", id="payment_method") }}
-            <small class="text-muted">طريقة الدفع</small>
+            <small class="text-muted">طريقة الدفع المستخدمة</small>
               {% for e in form.payment_method.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
             </div>
-
           <div id="methodDetails" class="col-12" style="display:none;">
-            <div class="row g-2">
+            <div class="row g-3">
               <div class="col-md-3" data-field="check_number">
                 {{ form.check_number.label(class="form-label") }}
                 {{ form.check_number(class="form-control", placeholder="رقم الشيك") }}
@@ -232,7 +944,6 @@
                 {{ form.check_payee.label(class="form-label") }}
                 {{ form.check_payee(class="form-control", placeholder="اسم المستفيد") }}
               </div>
-
               <div class="col-md-3" data-field="bank_transfer_ref">
                 {{ form.bank_transfer_ref.label(class="form-label") }}
                 {{ form.bank_transfer_ref(class="form-control", placeholder="مرجع الحوالة") }}
@@ -249,7 +960,6 @@
                 {{ form.account_holder.label(class="form-label") }}
                 {{ form.account_holder(class="form-control", placeholder="صاحب الحساب") }}
               </div>
-
               <div class="col-md-3" data-field="card_number">
                 {{ form.card_number.label(class="form-label") }}
                 {{ form.card_number(class="form-control", placeholder="**** ****") }}
@@ -258,7 +968,6 @@
                 {{ form.card_holder.label(class="form-label") }}
                 {{ form.card_holder(class="form-control", placeholder="حامل البطاقة") }}
               </div>
-
               <div class="col-md-4" data-field="online_gateway">
                 {{ form.online_gateway.label(class="form-label") }}
                 {{ form.online_gateway(class="form-control", placeholder="البوابة") }}
@@ -269,42 +978,41 @@
           </div>
         </div>
       </div>
-
           <div class="col-md-8">
             {{ form.payment_details.label(class="form-label") }}
-            {{ form.payment_details(class="form-control", placeholder="ملاحظات الدفع") }}
-            <small class="text-muted">تفاصيل إضافية عن الدفعة</small>
+            {{ form.payment_details(class="form-control", placeholder="تفاصيل إضافية عن الدفعة") }}
+          </div>
+        </div>
+      </div>
             </div>
 
-          <!-- حقول إضافية -->
-          <div class="col-12">
-            <hr class="my-2">
+    <div class="card shadow-sm mb-3 section-card">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-sliders-h ml-1 text-secondary"></i>حقول عامة اختيارية</h5>
             <button class="btn btn-sm btn-outline-secondary" type="button" data-toggle="collapse" data-target="#optionalSection" aria-expanded="false" aria-controls="optionalSection">
-              <i class="fas fa-sliders-h ml-1"></i> حقول اختيارية
+          عرض/إخفاء
             </button>
           </div>
-
-          <div id="optionalSection" class="collapse col-12">
-
-          <div class="col-md-4">
+      <div id="optionalSection" class="collapse">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4 type-field" data-field-key="tax_invoice_number">
               {{ form.tax_invoice_number.label(class="form-label") }}
             {{ form.tax_invoice_number(class="form-control", placeholder="رقم الفاتورة الضريبية") }}
-            <small class="text-muted">رقم الفاتورة (اختياري)</small>
             </div>
-
-          <div class="col-md-8">
-              {{ form.description.label(class="form-label") }}
+            <div class="col-md-4 type-field" data-field-key="paid_to">
+              {{ form.paid_to.label(class="form-label") }}
+              {{ form.paid_to(class="form-control", placeholder="مدفوع إلى (اختياري)") }}
+            </div>
+            <div class="col-12 type-field" data-field-key="description">
+            {{ form.description.label(class="form-label") }}
             {{ form.description(class="form-control", placeholder="وصف المصروف") }}
-            <small class="text-muted">الوصف التفصيلي</small>
             </div>
-
-          <div class="col-12">
+            <div id="notes-field" class="col-12 type-field" data-field-key="notes">
               {{ form.notes.label(class="form-label") }}
             {{ form.notes(class="form-control", rows=2, placeholder="ملاحظات إضافية") }}
-            <small class="text-muted">أي ملاحظات أخرى</small>
           </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -329,12 +1037,276 @@ document.addEventListener('DOMContentLoaded', function() {
   const employeeField = document.getElementById('employee-field');
   const periodFields = document.getElementById('period-fields');
   const utilityField = document.getElementById('utility-field');
+  const telecomPhoneField = document.getElementById('telecom-phone-field');
+  const telecomServiceField = document.getElementById('telecom-service-field');
+  const insuranceCompanyNameField = document.getElementById('insurance-company-name-field');
+  const insuranceCompanyAddressField = document.getElementById('insurance-company-address-field');
+  const insuranceCompanyPhoneField = document.getElementById('insurance-company-phone-field');
+  const marketingCompanyNameField = document.getElementById('marketing-company-name-field');
+  const marketingCompanyAddressField = document.getElementById('marketing-company-address-field');
+  const marketingCoverageField = document.getElementById('marketing-coverage-field');
+  const bankFeeBankField = document.getElementById('bank-fee-bank-field');
+  const bankFeeNotesField = document.getElementById('bank-fee-notes-field');
+  const govFeeEntityNameField = document.getElementById('gov-fee-entity-name-field');
+  const govFeeEntityAddressField = document.getElementById('gov-fee-entity-address-field');
+  const govFeeNotesField = document.getElementById('gov-fee-notes-field');
+  const portFeePortNameField = document.getElementById('port-fee-port-name-field');
+  const portFeeNotesField = document.getElementById('port-fee-notes-field');
+  const travelDestinationField = document.getElementById('travel-destination-field');
+  const travelReasonField = document.getElementById('travel-reason-field');
+  const travelNotesField = document.getElementById('travel-notes-field');
+  const shippingCompanyField = document.getElementById('shipping-company-field');
+  const shippingNotesField = document.getElementById('shipping-notes-field');
+  const maintenanceProviderNameField = document.getElementById('maintenance-provider-name-field');
+  const maintenanceProviderAddressField = document.getElementById('maintenance-provider-address-field');
+  const maintenanceNotesField = document.getElementById('maintenance-notes-field');
   const warehouseField = document.getElementById('warehouse-field');
   const shipmentField = document.getElementById('shipment-field');
   const partnerField = document.getElementById('partner-field');
   const supplierField = document.getElementById('supplier-field');
   const beneficiaryField = document.getElementById('beneficiary-field');
   const stockField = document.getElementById('stock-field');
+  const advanceFields = document.getElementById('advance-fields');
+  const typeRequiredSection = document.getElementById('typeRequiredSection');
+  const typeOptionalSection = document.getElementById('typeOptionalSection');
+  const typeRequiredRow = document.getElementById('typeRequiredRow');
+  const typeOptionalRow = document.getElementById('typeOptionalRow');
+  const notesField = document.getElementById('notes-field');
+  const descriptionField = document.querySelector('[data-field-key="description"]');
+  const descriptionLabel = descriptionField ? descriptionField.querySelector('label') : null;
+  const descriptionInput = descriptionField ? descriptionField.querySelector('input, textarea') : null;
+  const descriptionDefaultLabel = descriptionLabel ? descriptionLabel.textContent : '';
+  const descriptionDefaultPlaceholder = descriptionInput ? descriptionInput.getAttribute('placeholder') || '' : '';
+  const optionalSection = document.getElementById('optionalSection');
+  const optionalToggle = document.querySelector('[data-target="#optionalSection"]');
+  const beneficiaryLabel = beneficiaryField ? beneficiaryField.querySelector('label') : null;
+  const beneficiaryInput = beneficiaryField ? beneficiaryField.querySelector('input, textarea') : null;
+  const beneficiaryDefaultLabel = beneficiaryLabel ? beneficiaryLabel.textContent : '';
+  const beneficiaryDefaultPlaceholder = beneficiaryInput ? beneficiaryInput.getAttribute('placeholder') || '' : '';
+  const telecomPhoneLabel = telecomPhoneField ? telecomPhoneField.querySelector('label') : null;
+  const telecomPhoneInput = telecomPhoneField ? telecomPhoneField.querySelector('input, textarea') : null;
+  const telecomPhoneDefaultLabel = telecomPhoneLabel ? telecomPhoneLabel.textContent : '';
+  const telecomPhoneDefaultPlaceholder = telecomPhoneInput ? telecomPhoneInput.getAttribute('placeholder') || '' : '';
+  const rentPropertyAddressField = document.getElementById('rent-property-address-field');
+  const rentPropertyNotesField = document.getElementById('rent-property-notes-field');
+  const techProviderNameField = document.getElementById('tech-provider-name-field');
+  const techProviderPhoneField = document.getElementById('tech-provider-phone-field');
+  const techProviderAddressField = document.getElementById('tech-provider-address-field');
+  const techSubscriptionIdField = document.getElementById('tech-subscription-id-field');
+  const storagePropertyAddressField = document.getElementById('storage-property-address-field');
+  const storageExpectedDaysField = document.getElementById('storage-expected-days-field');
+  const storageStartDateField = document.getElementById('storage-start-date-field');
+  const storageNotesField = document.getElementById('storage-notes-field');
+  const customsArrivalDateField = document.getElementById('customs-arrival-date-field');
+  const customsDepartureDateField = document.getElementById('customs-departure-date-field');
+  const customsOriginField = document.getElementById('customs-origin-field');
+  const customsPortNameField = document.getElementById('customs-port-name-field');
+  const customsNotesField = document.getElementById('customs-notes-field');
+  const trainingCompanyNameField = document.getElementById('training-company-name-field');
+  const trainingLocationField = document.getElementById('training-location-field');
+  const trainingDurationDaysField = document.getElementById('training-duration-days-field');
+  const trainingParticipantsCountField = document.getElementById('training-participants-count-field');
+  const trainingNotesField = document.getElementById('training-notes-field');
+  const trainingParticipantsNamesField = document.getElementById('training-participants-names-field');
+  const trainingTopicsField = document.getElementById('training-topics-field');
+  const entertainmentDurationField = document.getElementById('entertainment-duration-field');
+  const entertainmentNotesField = document.getElementById('entertainment-notes-field');
+  const bankFeeReferenceField = document.getElementById('bank-fee-reference-field');
+  const bankFeeContactNameField = document.getElementById('bank-fee-contact-name-field');
+  const bankFeeContactPhoneField = document.getElementById('bank-fee-contact-phone-field');
+  const govFeeReferenceField = document.getElementById('gov-fee-reference-field');
+  const portFeeReferenceField = document.getElementById('port-fee-reference-field');
+  const portFeeAgentNameField = document.getElementById('port-fee-agent-name-field');
+  const portFeeAgentPhoneField = document.getElementById('port-fee-agent-phone-field');
+  const salaryNotesField = document.getElementById('salary-notes-field');
+  const salaryReferenceField = document.getElementById('salary-reference-field');
+  const travelDurationField = document.getElementById('travel-duration-field');
+  const travelStartDateField = document.getElementById('travel-start-date-field');
+  const travelCompanionsField = document.getElementById('travel-companions-field');
+  const travelCostCenterField = document.getElementById('travel-cost-center-field');
+  const employeeAdvancePeriodField = document.getElementById('employee-advance-period-field');
+  const employeeAdvanceReasonField = document.getElementById('employee-advance-reason-field');
+  const employeeAdvanceNotesField = document.getElementById('employee-advance-notes-field');
+  const shippingDateField = document.getElementById('shipping-date-field');
+  const shippingReferenceField = document.getElementById('shipping-reference-field');
+  const shippingModeField = document.getElementById('shipping-mode-field');
+  const shippingTrackingNumberField = document.getElementById('shipping-tracking-number-field');
+  const maintenanceDetailsField = document.getElementById('maintenance-details-field');
+  const maintenanceCompletionDateField = document.getElementById('maintenance-completion-date-field');
+  const maintenanceTechnicianNameField = document.getElementById('maintenance-technician-name-field');
+  const importTaxReferenceField = document.getElementById('import-tax-reference-field');
+  const importTaxNotesField = document.getElementById('import-tax-notes-field');
+  const hospitalityTypeField = document.getElementById('hospitality-type-field');
+  const hospitalityNotesField = document.getElementById('hospitality-notes-field');
+  const hospitalityAttendeesField = document.getElementById('hospitality-attendees-field');
+  const hospitalityLocationField = document.getElementById('hospitality-location-field');
+  const telecomNotesField = document.getElementById('telecom-notes-field');
+  const officeSupplierNameField = document.getElementById('office-supplier-name-field');
+  const officeNotesField = document.getElementById('office-notes-field');
+  const officeItemsListField = document.getElementById('office-items-list-field');
+  const officePurchaseReferenceField = document.getElementById('office-purchase-reference-field');
+  const homeRelationField = document.getElementById('home-relation-field');
+  const homeAddressField = document.getElementById('home-address-field');
+  const homeOwnerNameField = document.getElementById('home-owner-name-field');
+  const homeNotesField = document.getElementById('home-notes-field');
+  const homeCostShareField = document.getElementById('home-cost-share-field');
+  const partnerExpenseReasonField = document.getElementById('partner-expense-reason-field');
+  const partnerExpenseNotesField = document.getElementById('partner-expense-notes-field');
+  const partnerExpenseReferenceField = document.getElementById('partner-expense-reference-field');
+  const supplierExpenseReasonField = document.getElementById('supplier-expense-reason-field');
+  const supplierExpenseNotesField = document.getElementById('supplier-expense-notes-field');
+  const supplierExpenseReferenceField = document.getElementById('supplier-expense-reference-field');
+  const handlingNotesField = document.getElementById('handling-notes-field');
+  const handlingQuantityField = document.getElementById('handling-quantity-field');
+  const handlingUnitField = document.getElementById('handling-unit-field');
+  const handlingReferenceField = document.getElementById('handling-reference-field');
+  const fuelVehicleNumberField = document.getElementById('fuel-vehicle-number-field');
+  const fuelDriverNameField = document.getElementById('fuel-driver-name-field');
+  const fuelUsageTypeField = document.getElementById('fuel-usage-type-field');
+  const fuelVolumeField = document.getElementById('fuel-volume-field');
+  const fuelNotesField = document.getElementById('fuel-notes-field');
+  const fuelStationNameField = document.getElementById('fuel-station-name-field');
+  const fuelOdometerStartField = document.getElementById('fuel-odometer-start-field');
+  const fuelOdometerEndField = document.getElementById('fuel-odometer-end-field');
+  const transportBeneficiaryNameField = document.getElementById('transport-beneficiary-name-field');
+  const transportReasonField = document.getElementById('transport-reason-field');
+  const transportUsageTypeField = document.getElementById('transport-usage-type-field');
+  const transportNotesField = document.getElementById('transport-notes-field');
+  const transportRouteDetailsField = document.getElementById('transport-route-details-field');
+  const insurancePolicyNumberField = document.getElementById('insurance-policy-number-field');
+  const insuranceNotesField = document.getElementById('insurance-notes-field');
+  const legalCompanyNameField = document.getElementById('legal-company-name-field');
+  const legalCompanyAddressField = document.getElementById('legal-company-address-field');
+  const legalCaseNotesField = document.getElementById('legal-case-notes-field');
+  const legalCaseNumberField = document.getElementById('legal-case-number-field');
+  const legalCaseTypeField = document.getElementById('legal-case-type-field');
+  const typeFieldMap = {
+    employee_id: employeeField,
+    period: periodFields,
+    utility_account_id: utilityField,
+    telecom_phone_number: telecomPhoneField,
+    telecom_service_type: telecomServiceField,
+    insurance_company_name: insuranceCompanyNameField,
+    insurance_company_address: insuranceCompanyAddressField,
+    insurance_company_phone: insuranceCompanyPhoneField,
+    marketing_company_name: marketingCompanyNameField,
+    marketing_company_address: marketingCompanyAddressField,
+    marketing_coverage_details: marketingCoverageField,
+    bank_fee_bank_name: bankFeeBankField,
+    bank_fee_notes: bankFeeNotesField,
+    gov_fee_entity_name: govFeeEntityNameField,
+    gov_fee_entity_address: govFeeEntityAddressField,
+    gov_fee_notes: govFeeNotesField,
+    port_fee_port_name: portFeePortNameField,
+    port_fee_notes: portFeeNotesField,
+    travel_destination: travelDestinationField,
+    travel_reason: travelReasonField,
+    travel_notes: travelNotesField,
+    shipping_company_name: shippingCompanyField,
+    shipping_notes: shippingNotesField,
+    maintenance_provider_name: maintenanceProviderNameField,
+    maintenance_provider_address: maintenanceProviderAddressField,
+    maintenance_notes: maintenanceNotesField,
+    warehouse_id: warehouseField,
+    shipment_id: shipmentField,
+    partner_id: partnerField,
+    supplier_id: supplierField,
+    stock_adjustment_id: stockField,
+    beneficiary_name: beneficiaryField,
+    rent_property_address: rentPropertyAddressField,
+    rent_property_notes: rentPropertyNotesField,
+    tech_provider_name: techProviderNameField,
+    tech_provider_phone: techProviderPhoneField,
+    tech_provider_address: techProviderAddressField,
+    tech_subscription_id: techSubscriptionIdField,
+    storage_property_address: storagePropertyAddressField,
+    storage_expected_days: storageExpectedDaysField,
+    storage_start_date: storageStartDateField,
+    storage_notes: storageNotesField,
+    customs_arrival_date: customsArrivalDateField,
+    customs_departure_date: customsDepartureDateField,
+    customs_origin: customsOriginField,
+    customs_port_name: customsPortNameField,
+    customs_notes: customsNotesField,
+    training_company_name: trainingCompanyNameField,
+    training_location: trainingLocationField,
+    training_duration_days: trainingDurationDaysField,
+    training_participants_count: trainingParticipantsCountField,
+    training_notes: trainingNotesField,
+    training_participants_names: trainingParticipantsNamesField,
+    training_topics: trainingTopicsField,
+    entertainment_duration_days: entertainmentDurationField,
+    entertainment_notes: entertainmentNotesField,
+    bank_fee_reference: bankFeeReferenceField,
+    bank_fee_contact_name: bankFeeContactNameField,
+    bank_fee_contact_phone: bankFeeContactPhoneField,
+    gov_fee_reference: govFeeReferenceField,
+    port_fee_reference: portFeeReferenceField,
+    port_fee_agent_name: portFeeAgentNameField,
+    port_fee_agent_phone: portFeeAgentPhoneField,
+    salary_notes: salaryNotesField,
+    salary_reference: salaryReferenceField,
+    travel_duration_days: travelDurationField,
+    travel_start_date: travelStartDateField,
+    travel_companions: travelCompanionsField,
+    travel_cost_center: travelCostCenterField,
+    employee_advance_period: employeeAdvancePeriodField,
+    employee_advance_reason: employeeAdvanceReasonField,
+    employee_advance_notes: employeeAdvanceNotesField,
+    shipping_date: shippingDateField,
+    shipping_reference: shippingReferenceField,
+    shipping_mode: shippingModeField,
+    shipping_tracking_number: shippingTrackingNumberField,
+    maintenance_details: maintenanceDetailsField,
+    maintenance_completion_date: maintenanceCompletionDateField,
+    maintenance_technician_name: maintenanceTechnicianNameField,
+    import_tax_reference: importTaxReferenceField,
+    import_tax_notes: importTaxNotesField,
+    hospitality_type: hospitalityTypeField,
+    hospitality_notes: hospitalityNotesField,
+    hospitality_attendees: hospitalityAttendeesField,
+    hospitality_location: hospitalityLocationField,
+    telecom_notes: telecomNotesField,
+    office_supplier_name: officeSupplierNameField,
+    office_notes: officeNotesField,
+    office_items_list: officeItemsListField,
+    office_purchase_reference: officePurchaseReferenceField,
+    home_relation_to_company: homeRelationField,
+    home_address: homeAddressField,
+    home_owner_name: homeOwnerNameField,
+    home_notes: homeNotesField,
+    home_cost_share: homeCostShareField,
+    partner_expense_reason: partnerExpenseReasonField,
+    partner_expense_notes: partnerExpenseNotesField,
+    partner_expense_reference: partnerExpenseReferenceField,
+    supplier_expense_reason: supplierExpenseReasonField,
+    supplier_expense_notes: supplierExpenseNotesField,
+    supplier_expense_reference: supplierExpenseReferenceField,
+    handling_notes: handlingNotesField,
+    handling_quantity: handlingQuantityField,
+    handling_unit: handlingUnitField,
+    handling_reference: handlingReferenceField,
+    fuel_vehicle_number: fuelVehicleNumberField,
+    fuel_driver_name: fuelDriverNameField,
+    fuel_usage_type: fuelUsageTypeField,
+    fuel_volume: fuelVolumeField,
+    fuel_notes: fuelNotesField,
+    fuel_station_name: fuelStationNameField,
+    fuel_odometer_start: fuelOdometerStartField,
+    fuel_odometer_end: fuelOdometerEndField,
+    transport_beneficiary_name: transportBeneficiaryNameField,
+    transport_reason: transportReasonField,
+    transport_usage_type: transportUsageTypeField,
+    transport_notes: transportNotesField,
+    transport_route_details: transportRouteDetailsField,
+    insurance_policy_number: insurancePolicyNumberField,
+    insurance_notes: insuranceNotesField,
+    legal_company_name: legalCompanyNameField,
+    legal_company_address: legalCompanyAddressField,
+    legal_case_notes: legalCaseNotesField,
+    legal_case_number: legalCaseNumberField,
+    legal_case_type: legalCaseTypeField
+  };
   
   // Meta ديناميكي قادم من الخادم
   const typeMeta = (window.expenseTypeMeta || {});
@@ -360,6 +1332,7 @@ document.addEventListener('DOMContentLoaded', function() {
       inputs.forEach(inp => {
         if (disabled) {
           inp.setAttribute('disabled', 'disabled');
+          inp.removeAttribute('required');
           if (inp.tagName === 'SELECT') {
             inp.selectedIndex = 0;
           } else {
@@ -371,59 +1344,100 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     }
   
-  function updateRelatedFields() {
-    // Debug: فحص العناصر
-    console.log('🔍 Debug:', {
-      typeSelect: !!typeSelect,
-      employeeField: !!employeeField,
-      periodFields: !!periodFields,
-      utilityField: !!utilityField,
-      warehouseField: !!warehouseField,
-      shipmentField: !!shipmentField,
-      partnerField: !!partnerField,
-      supplierField: !!supplierField,
-      beneficiaryField: !!beneficiaryField,
-      stockField: !!stockField
-    });
-    
-    // ✅ إخفاء وتعطيل كل الحقول أولاً ومسح القيم
-    [employeeField, periodFields, utilityField, warehouseField, shipmentField, 
-     partnerField, supplierField, beneficiaryField, stockField].forEach(f => {
-      if (f) {
-        const wasVisible = f.style.display !== 'none';
-        f.style.display = 'none';
-        if (wasVisible) {
-          setFieldsDisabled(f, true);
-        }
+  function markFieldRequired(container, flag) {
+    if (!container) return;
+    const inputs = container.querySelectorAll('input, select, textarea');
+    const label = container.querySelector('label');
+    inputs.forEach(inp => {
+      if (flag) {
+        inp.setAttribute('required', 'required');
+      } else {
+        inp.removeAttribute('required');
       }
     });
-    
+    if (label) {
+      label.classList.toggle('text-danger', flag);
+    }
+  }
+  
+  function showTypeField(key, isRequired) {
+    const container = typeFieldMap[key];
+    if (!container) return;
+    const targetRow = isRequired ? typeRequiredRow : typeOptionalRow;
+    if (targetRow && container.parentElement !== targetRow) {
+      targetRow.appendChild(container);
+    }
+    container.classList.toggle('type-field-required-active', isRequired);
+    container.style.display = 'block';
+    setFieldsDisabled(container, false);
+    markFieldRequired(container, isRequired);
+  }
+  
+  function refreshTypeSections() {
+    if (typeRequiredSection) {
+      const visibleRequired = Array.from(typeRequiredSection.querySelectorAll('.type-field')).some(el => el.style.display !== 'none');
+      typeRequiredSection.style.display = visibleRequired ? 'block' : 'none';
+    }
+    if (typeOptionalSection) {
+      const visibleOptional = Array.from(typeOptionalSection.querySelectorAll('.type-field')).some(el => el.style.display !== 'none');
+      typeOptionalSection.style.display = visibleOptional ? 'block' : 'none';
+    }
+    }
+  
+  function updateRelatedFields() {
+    Object.values(typeFieldMap).forEach(f => {
+      if (!f) return;
+      const wasVisible = f.style.display !== 'none';
+      f.style.display = 'none';
+      f.classList.remove('type-field-required-active');
+      if (wasVisible) {
+        setFieldsDisabled(f, true);
+        markFieldRequired(f, false);
+      }
+    });
+
     const typeId = parseInt(typeSelect.value);
     const meta = typeMeta[typeId] || {};
     const required = new Set((meta.required || []));
     const optional = new Set((meta.optional || []));
 
-    function showIf(key, container) {
-      if (!container) return;
-      if (required.has(key) || optional.has(key)) {
-        container.style.display = 'block';
-        setFieldsDisabled(container, false);
+    required.forEach(key => showTypeField(key, true));
+    optional.forEach(key => {
+      if (required.has(key)) return;
+      showTypeField(key, false);
+    });
+
+    const typeCode = (_types.find(t => t.id === typeId) || {}).code || '';
+    if (beneficiaryLabel) {
+      if (typeCode === 'SOFTWARE') {
+        beneficiaryLabel.textContent = 'اسم مزود الخدمة التقنية';
+      } else {
+        beneficiaryLabel.textContent = beneficiaryDefaultLabel;
       }
     }
-
-    // خرائط المفاتيح إلى الحاويات
-    showIf('employee_id', employeeField);
-    showIf('period', periodFields);
-    showIf('utility_account_id', utilityField);
-    showIf('warehouse_id', warehouseField);
-    showIf('shipment_id', shipmentField);
-    showIf('partner_id', partnerField);
-    showIf('supplier_id', supplierField);
-    showIf('stock_adjustment_id', stockField);
-    showIf('beneficiary_name', beneficiaryField);
+    if (beneficiaryInput) {
+      if (typeCode === 'SOFTWARE') {
+        beneficiaryInput.setAttribute('placeholder', 'اسم مزود الخدمة التقنية');
+      } else {
+        beneficiaryInput.setAttribute('placeholder', beneficiaryDefaultPlaceholder);
+      }
+    }
+    if (telecomPhoneLabel) {
+      if (typeCode === 'SOFTWARE') {
+        telecomPhoneLabel.textContent = 'هاتف مزود الخدمة التقنية';
+      } else {
+        telecomPhoneLabel.textContent = telecomPhoneDefaultLabel;
+      }
+    }
+    if (telecomPhoneInput) {
+      if (typeCode === 'SOFTWARE') {
+        telecomPhoneInput.setAttribute('placeholder', 'هاتف مزود الخدمة التقنية');
+      } else {
+        telecomPhoneInput.setAttribute('placeholder', telecomPhoneDefaultPlaceholder);
+      }
+    }
     
     // إظهار/إخفاء حقول السلف فقط لنوع EMPLOYEE_ADVANCE
-    const advanceFields = document.getElementById('advance-fields');
     const selectedType = _types.find(t => t.id === typeId);
     if (advanceFields) {
       if (selectedType && selectedType.code === 'EMPLOYEE_ADVANCE') {
@@ -443,6 +1457,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
       }
     }
+
+    refreshTypeSections();
   }
   
   typeSelect.addEventListener('change', updateRelatedFields);

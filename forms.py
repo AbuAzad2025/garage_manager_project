@@ -2554,13 +2554,13 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
     branch_id = SelectField('الفرع', validators=[DataRequired()], coerce=int, choices=[], validate_choice=False)
     site_id = SelectField('الموقع', validators=[Optional()], coerce=int, choices=[], validate_choice=False)
 
-    employee_id        = AjaxSelectField('الموظف', endpoint='api.search_employees',       get_label='name', validators=[Optional()], coerce=int)
-    shipment_id        = AjaxSelectField('الشحنة', endpoint='api.search_shipments',       get_label='shipment_number', validators=[Optional()], coerce=int)
-    utility_account_id = AjaxSelectField('حساب المرفق', endpoint='api.search_utility_accounts', get_label='alias', validators=[Optional()], coerce=int)
-    stock_adjustment_id= AjaxSelectField('تسوية مخزون', endpoint='api.search_stock_adjustments', get_label='id', validators=[Optional()], coerce=int)
-    warehouse_id       = AjaxSelectField('المستودع', endpoint='api.search_warehouses',    get_label='name', validators=[Optional()], coerce=int)
-    partner_id         = AjaxSelectField('الشريك', endpoint='api.search_partners',         get_label='name', validators=[Optional()], coerce=int)
-    supplier_id        = AjaxSelectField('المورد', endpoint='api.search_suppliers',        get_label='name', validators=[Optional()], coerce=int)
+    employee_id        = AjaxSelectField('الموظف', endpoint='api.search_employees',       get_label='name', validators=[Optional()], coerce=int, allow_blank=True)
+    shipment_id        = AjaxSelectField('الشحنة', endpoint='api.search_shipments',       get_label='shipment_number', validators=[Optional()], coerce=int, allow_blank=True)
+    utility_account_id = AjaxSelectField('حساب المرفق', endpoint='api.search_utility_accounts', get_label='alias', validators=[Optional()], coerce=int, allow_blank=True)
+    stock_adjustment_id= AjaxSelectField('تسوية مخزون', endpoint='api.search_stock_adjustments', get_label='id', validators=[Optional()], coerce=int, allow_blank=True)
+    warehouse_id       = AjaxSelectField('المستودع', endpoint='api.search_warehouses',    get_label='name', validators=[Optional()], coerce=int, allow_blank=True)
+    partner_id         = AjaxSelectField('الشريك', endpoint='api.search_partners',         get_label='name', validators=[Optional()], coerce=int, allow_blank=True)
+    supplier_id        = AjaxSelectField('المورد', endpoint='api.search_suppliers',        get_label='name', validators=[Optional()], coerce=int, allow_blank=True)
     
     installments_count = IntegerField('عدد الأقساط', validators=[Optional(), NumberRange(min=1, max=60)], default=1)
     create_deduction = BooleanField('خصم شهري تلقائي', default=False)
@@ -2568,6 +2568,134 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
     beneficiary_name = StrippedStringField('اسم الجهة المستفيدة', validators=[Optional(), Length(max=200)])
     paid_to          = StrippedStringField('مدفوع إلى',            validators=[Optional(), Length(max=200)])
     disbursed_by     = StrippedStringField('الشخص الذي سلم المال', validators=[Optional(), Length(max=200)])
+
+    telecom_phone_number = StrippedStringField('رقم الهاتف المرتبط بالفاتورة', validators=[Optional(), Length(max=30)])
+    telecom_service_type = SelectField(
+        'نوع الخدمة',
+        choices=[
+            ('', '-- اختر الخدمة --'),
+            ('voice', 'مكالمات/هاتف ثابت'),
+            ('internet', 'إنترنت/بيانات'),
+            ('both', 'مشتركة'),
+        ],
+        validators=[Optional()],
+        validate_choice=False,
+        coerce=str,
+    )
+    insurance_company_name = StrippedStringField('اسم شركة التأمين', validators=[Optional(), Length(max=200)])
+    insurance_company_address = StrippedStringField('عنوان شركة التأمين', validators=[Optional(), Length(max=200)])
+    insurance_company_phone = StrippedStringField('هاتف شركة التأمين', validators=[Optional(), Length(max=30)])
+    marketing_company_name = StrippedStringField('اسم شركة الإعلانات', validators=[Optional(), Length(max=200)])
+    marketing_company_address = StrippedStringField('عنوان شركة الإعلانات', validators=[Optional(), Length(max=200)])
+    marketing_coverage_details = StrippedStringField('مدة التغطية', validators=[Optional(), Length(max=200)])
+    bank_fee_bank_name = StrippedStringField('اسم البنك للرسوم', validators=[Optional(), Length(max=200)])
+    bank_fee_notes = TextAreaField('ملاحظات الرسوم البنكية', validators=[Optional(), Length(max=1000)])
+    gov_fee_entity_name = StrippedStringField('اسم الجهة الحكومية', validators=[Optional(), Length(max=200)])
+    gov_fee_entity_address = StrippedStringField('عنوان الجهة الحكومية', validators=[Optional(), Length(max=200)])
+    gov_fee_notes = TextAreaField('ملاحظات الرسوم الحكومية', validators=[Optional(), Length(max=1000)])
+    port_fee_port_name = StrippedStringField('اسم الميناء', validators=[Optional(), Length(max=200)])
+    port_fee_notes = TextAreaField('ملاحظات رسوم الميناء', validators=[Optional(), Length(max=1000)])
+    travel_destination = StrippedStringField('الوجهة', validators=[Optional(), Length(max=200)])
+    travel_reason = StrippedStringField('سبب السفر', validators=[Optional(), Length(max=200)])
+    travel_notes = TextAreaField('ملاحظات السفر', validators=[Optional(), Length(max=1000)])
+    shipping_company_name = StrippedStringField('اسم شركة الشحن', validators=[Optional(), Length(max=200)])
+    shipping_notes = TextAreaField('ملاحظات الشحن', validators=[Optional(), Length(max=1000)])
+    maintenance_provider_name = StrippedStringField('اسم جهة الصيانة', validators=[Optional(), Length(max=200)])
+    maintenance_provider_address = StrippedStringField('عنوان جهة الصيانة', validators=[Optional(), Length(max=200)])
+    maintenance_notes = TextAreaField('ملاحظات الصيانة', validators=[Optional(), Length(max=1000)])
+    rent_property_address = StrippedStringField('عنوان العقار المستأجر', validators=[Optional(), Length(max=200)])
+    rent_property_notes = TextAreaField('ملاحظات العقار المستأجر', validators=[Optional(), Length(max=1000)])
+    tech_provider_name = StrippedStringField('اسم مزود الخدمة التقنية', validators=[Optional(), Length(max=200)])
+    tech_provider_phone = StrippedStringField('هاتف مزود الخدمة التقنية', validators=[Optional(), Length(max=30)])
+    tech_provider_address = StrippedStringField('عنوان مزود الخدمة التقنية', validators=[Optional(), Length(max=200)])
+    tech_subscription_id = StrippedStringField('معرف الاشتراك', validators=[Optional(), Length(max=100)])
+    storage_property_address = StrippedStringField('موقع التخزين المؤقت', validators=[Optional(), Length(max=200)])
+    storage_expected_days = IntegerField('المدة المتوقعة (أيام)', validators=[Optional(), NumberRange(min=0, max=3650)])
+    storage_start_date = DateField('تاريخ بدء التخزين', format='%Y-%m-%d', validators=[Optional()])
+    storage_notes = TextAreaField('ملاحظات التخزين', validators=[Optional(), Length(max=1000)])
+    customs_arrival_date = DateField('تاريخ وصول البضاعة', format='%Y-%m-%d', validators=[Optional()])
+    customs_departure_date = DateField('تاريخ خروج البضاعة', format='%Y-%m-%d', validators=[Optional()])
+    customs_origin = StrippedStringField('بلد المنشأ', validators=[Optional(), Length(max=200)])
+    customs_port_name = StrippedStringField('اسم الميناء', validators=[Optional(), Length(max=200)])
+    customs_notes = TextAreaField('ملاحظات التخليص الجمركي', validators=[Optional(), Length(max=1000)])
+    training_company_name = StrippedStringField('اسم جهة التدريب', validators=[Optional(), Length(max=200)])
+    training_location = StrippedStringField('مكان التدريب', validators=[Optional(), Length(max=200)])
+    training_duration_days = IntegerField('مدة التدريب (أيام)', validators=[Optional(), NumberRange(min=0, max=365)])
+    training_participants_count = IntegerField('عدد المتدربين', validators=[Optional(), NumberRange(min=0, max=1000)])
+    training_notes = TextAreaField('ملاحظات التدريب', validators=[Optional(), Length(max=2000)])
+    training_participants_names = TextAreaField('أسماء المتدربين', validators=[Optional(), Length(max=2000)])
+    training_topics = TextAreaField('محاور التدريب', validators=[Optional(), Length(max=2000)])
+    entertainment_duration_days = IntegerField('مدة النشاط الترفيهي (أيام)', validators=[Optional(), NumberRange(min=0, max=365)])
+    entertainment_notes = TextAreaField('ملاحظات الترفيه', validators=[Optional(), Length(max=1000)])
+    bank_fee_reference = StrippedStringField('مرجع العملية البنكية', validators=[Optional(), Length(max=100)])
+    bank_fee_contact_name = StrippedStringField('اسم جهة الاتصال في البنك', validators=[Optional(), Length(max=200)])
+    bank_fee_contact_phone = StrippedStringField('هاتف جهة الاتصال في البنك', validators=[Optional(), Length(max=30)])
+    gov_fee_reference = StrippedStringField('مرجع الرسوم الحكومية', validators=[Optional(), Length(max=100)])
+    port_fee_reference = StrippedStringField('مرجع رسوم الميناء', validators=[Optional(), Length(max=100)])
+    port_fee_agent_name = StrippedStringField('اسم وكيل الميناء', validators=[Optional(), Length(max=200)])
+    port_fee_agent_phone = StrippedStringField('هاتف وكيل الميناء', validators=[Optional(), Length(max=30)])
+    salary_notes = TextAreaField('ملاحظات الرواتب', validators=[Optional(), Length(max=1000)])
+    salary_reference = StrippedStringField('مرجع الرواتب', validators=[Optional(), Length(max=100)])
+    travel_duration_days = IntegerField('مدة المهمة (أيام)', validators=[Optional(), NumberRange(min=0, max=365)])
+    travel_start_date = DateField('تاريخ بدء المهمة', format='%Y-%m-%d', validators=[Optional()])
+    travel_companions = TextAreaField('المرافقون', validators=[Optional(), Length(max=1000)])
+    travel_cost_center = StrippedStringField('مركز التكلفة المرتبط', validators=[Optional(), Length(max=100)])
+    employee_advance_period = StrippedStringField('الفترة المغطاة بالسلفة', validators=[Optional(), Length(max=100)])
+    employee_advance_reason = StrippedStringField('سبب السلفة', validators=[Optional(), Length(max=200)])
+    employee_advance_notes = TextAreaField('ملاحظات السلفة', validators=[Optional(), Length(max=1000)])
+    shipping_date = DateField('تاريخ الشحن', format='%Y-%m-%d', validators=[Optional()])
+    shipping_reference = StrippedStringField('مرجع الشحنة', validators=[Optional(), Length(max=100)])
+    shipping_mode = StrippedStringField('وسيلة الشحن', validators=[Optional(), Length(max=50)])
+    shipping_tracking_number = StrippedStringField('رقم التتبع', validators=[Optional(), Length(max=100)])
+    maintenance_details = TextAreaField('تفاصيل الصيانة', validators=[Optional(), Length(max=2000)])
+    maintenance_completion_date = DateField('تاريخ إتمام الصيانة', format='%Y-%m-%d', validators=[Optional()])
+    maintenance_technician_name = StrippedStringField('اسم الفني المنفذ', validators=[Optional(), Length(max=200)])
+    import_tax_reference = StrippedStringField('مرجع ضريبة الاستيراد', validators=[Optional(), Length(max=100)])
+    import_tax_notes = TextAreaField('ملاحظات ضريبة الاستيراد', validators=[Optional(), Length(max=1000)])
+    hospitality_type = SelectField('نوع الضيافة', choices=[('', '-- اختر النوع --'), ('EMPLOYEES', 'ضيافة موظفين'), ('CLIENTS', 'ضيافة عملاء'), ('GENERAL', 'ضيافة عامة')], validators=[Optional()], validate_choice=False)
+    hospitality_notes = TextAreaField('ملاحظات الضيافة', validators=[Optional(), Length(max=1000)])
+    hospitality_attendees = TextAreaField('الحضور', validators=[Optional(), Length(max=1000)])
+    hospitality_location = StrippedStringField('مكان الضيافة', validators=[Optional(), Length(max=200)])
+    telecom_notes = TextAreaField('ملاحظات الاتصالات', validators=[Optional(), Length(max=1000)])
+    office_supplier_name = StrippedStringField('اسم المورد للمستلزمات المكتبية', validators=[Optional(), Length(max=200)])
+    office_notes = TextAreaField('ملاحظات المستلزمات المكتبية', validators=[Optional(), Length(max=1000)])
+    office_items_list = TextAreaField('قائمة المستلزمات', validators=[Optional(), Length(max=2000)])
+    office_purchase_reference = StrippedStringField('مرجع شراء المستلزمات', validators=[Optional(), Length(max=100)])
+    home_relation_to_company = StrippedStringField('صلة العلاقة بالملكية', validators=[Optional(), Length(max=100)])
+    home_address = StrippedStringField('عنوان البيت', validators=[Optional(), Length(max=200)])
+    home_owner_name = StrippedStringField('اسم مالك البيت', validators=[Optional(), Length(max=200)])
+    home_notes = TextAreaField('ملاحظات المصاريف البيتية', validators=[Optional(), Length(max=1000)])
+    home_cost_share = DecimalField('نسبة أو مبلغ مشاركة التكلفة', places=2, validators=[Optional(), NumberRange(min=0)])
+    partner_expense_reason = StrippedStringField('سبب مصروف الشريك', validators=[Optional(), Length(max=200)])
+    partner_expense_notes = TextAreaField('ملاحظات مصروف الشريك', validators=[Optional(), Length(max=1000)])
+    partner_expense_reference = StrippedStringField('مرجع مصروف الشريك', validators=[Optional(), Length(max=100)])
+    supplier_expense_reason = StrippedStringField('سبب مصروف المورد', validators=[Optional(), Length(max=200)])
+    supplier_expense_notes = TextAreaField('ملاحظات مصروف المورد', validators=[Optional(), Length(max=1000)])
+    supplier_expense_reference = StrippedStringField('مرجع مصروف المورد', validators=[Optional(), Length(max=100)])
+    handling_notes = TextAreaField('ملاحظات المناولة والأرضيات', validators=[Optional(), Length(max=1000)])
+    handling_quantity = DecimalField('الكمية للمناولة', places=2, validators=[Optional(), NumberRange(min=0)])
+    handling_unit = StrippedStringField('وحدة القياس للمناولة', validators=[Optional(), Length(max=50)])
+    handling_reference = StrippedStringField('مرجع المناولة', validators=[Optional(), Length(max=100)])
+    fuel_vehicle_number = StrippedStringField('رقم المركبة', validators=[Optional(), Length(max=50)])
+    fuel_driver_name = StrippedStringField('اسم السائق', validators=[Optional(), Length(max=100)])
+    fuel_usage_type = SelectField('الغرض من الوقود', choices=[('', '-- اختر الغرض --'), ('BUSINESS', 'للعمل'), ('PERSONAL', 'شخصي')], validators=[Optional()], validate_choice=False)
+    fuel_volume = DecimalField('كمية الوقود', places=3, validators=[Optional(), NumberRange(min=0)])
+    fuel_notes = TextAreaField('ملاحظات الوقود', validators=[Optional(), Length(max=1000)])
+    fuel_station_name = StrippedStringField('اسم محطة الوقود', validators=[Optional(), Length(max=200)])
+    fuel_odometer_start = IntegerField('قراءة العداد قبل التعبئة', validators=[Optional(), NumberRange(min=0, max=1000000)])
+    fuel_odometer_end = IntegerField('قراءة العداد بعد التعبئة', validators=[Optional(), NumberRange(min=0, max=1000000)])
+    transport_beneficiary_name = StrippedStringField('اسم المستفيد من المواصلات', validators=[Optional(), Length(max=200)])
+    transport_reason = StrippedStringField('سبب المواصلات', validators=[Optional(), Length(max=200)])
+    transport_usage_type = SelectField('تصنيف المواصلات', choices=[('', '-- اختر التصنيف --'), ('BUSINESS', 'لأغراض العمل'), ('PERSONAL', 'خاصة')], validators=[Optional()], validate_choice=False)
+    transport_notes = TextAreaField('ملاحظات المواصلات', validators=[Optional(), Length(max=1000)])
+    transport_route_details = TextAreaField('تفاصيل المسار', validators=[Optional(), Length(max=2000)])
+    insurance_policy_number = StrippedStringField('رقم الوثيقة التأمينية', validators=[Optional(), Length(max=100)])
+    insurance_notes = TextAreaField('ملاحظات التأمين', validators=[Optional(), Length(max=1000)])
+    legal_company_name = StrippedStringField('اسم شركة المحاماة', validators=[Optional(), Length(max=200)])
+    legal_company_address = StrippedStringField('عنوان شركة المحاماة', validators=[Optional(), Length(max=200)])
+    legal_case_notes = TextAreaField('ملاحظات الاستشارة القانونية', validators=[Optional(), Length(max=1000)])
+    legal_case_number = StrippedStringField('رقم القضية', validators=[Optional(), Length(max=100)])
+    legal_case_type = StrippedStringField('نوع القضية', validators=[Optional(), Length(max=100)])
 
     period_start = DateField('بداية الفترة', validators=[Optional()])
     period_end   = DateField('نهاية الفترة', validators=[Optional()])
@@ -2645,6 +2773,21 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
         if etype and isinstance(etype.fields_meta, dict):
             type_meta = etype.fields_meta
             required_fields = set(type_meta.get('required') or [])
+        if 'telecom_phone_number' in required_fields and not self.telecom_phone_number.data:
+            self.telecom_phone_number.errors.append('أدخل رقم الهاتف أو الجوال المرتبط بالفاتورة')
+            return False
+        if 'telecom_service_type' in required_fields and not self.telecom_service_type.data:
+            self.telecom_service_type.errors.append('اختر نوع الخدمة (مكالمات أو إنترنت)')
+            return False
+        if self.telecom_service_type.data:
+            self.telecom_service_type.data = (self.telecom_service_type.data or '').strip().lower()
+            if self.telecom_service_type.data not in {'voice', 'internet', 'both'}:
+                self.telecom_service_type.errors.append('نوع الخدمة المختار غير مدعوم')
+                return False
+        if self.telecom_service_type.data == '':
+            self.telecom_service_type.data = None
+        if self.telecom_phone_number.data:
+            self.telecom_phone_number.data = self.telecom_phone_number.data.strip()
         if self.period_start.data and self.period_end.data and self.period_end.data < self.period_start.data:
             self.period_end.errors.append('نهاية الفترة يجب أن تكون بعد بدايتها')
             return False
@@ -2710,6 +2853,26 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
             if require_beneficiary and not (self.beneficiary_name.data or self.paid_to.data or self.employee_id.data or self.warehouse_id.data):
                 self.beneficiary_name.errors.append('أدخل اسم الجهة المستفيدة')
                 return False
+
+        handled_special = {'period', 'advance', 'telecom_phone_number', 'telecom_service_type', 'employee_id'}
+        for key in required_fields:
+            if key in handled_special:
+                continue
+            field = getattr(self, key, None)
+            if field is None:
+                continue
+            value = getattr(field, 'data', None)
+            if isinstance(value, str):
+                value = value.strip()
+                field.data = value
+            if isinstance(field, AjaxSelectField):
+                if not value:
+                    field.errors.append('هذا الحقل مطلوب')
+                    return False
+            else:
+                if value in (None, '', []):
+                    field.errors.append('هذا الحقل مطلوب')
+                    return False
 
         m = (self.payment_method.data or '').strip().upper()
         try:

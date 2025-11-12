@@ -30,9 +30,9 @@
           </a>
         </li>
 
-        {% if has_perm('manage_customers') or has_perm('manage_service') or has_perm('manage_sales') or shop_is_super_admin %}
-        <li class="nav-item has-treeview {% if request.blueprint in ['customers_bp', 'service', 'sales_bp', 'recurring'] %}menu-open{% endif %}">
-          <a href="#" class="nav-link {% if request.blueprint in ['customers_bp', 'service', 'sales_bp', 'recurring'] %}active{% endif %}">
+        {% if has_perm('manage_customers') or has_perm('manage_service') or has_perm('manage_sales') or has_perm('view_warehouses') or has_perm('manage_warehouses') or shop_is_super_admin %}
+        <li class="nav-item has-treeview {% if request.blueprint in ['customers_bp', 'service', 'sales_bp', 'recurring'] or request.endpoint == 'warehouse_bp.preorders_list' %}menu-open{% endif %}">
+          <a href="#" class="nav-link {% if request.blueprint in ['customers_bp', 'service', 'sales_bp', 'recurring'] or request.endpoint == 'warehouse_bp.preorders_list' %}active{% endif %}">
             <i class="nav-icon fas fa-briefcase text-primary"></i>
             <p>
               العمليات التشغيلية
@@ -53,6 +53,14 @@
               <a href="{{ url_for('service.list_requests') }}" class="nav-link {% if request.blueprint == 'service' %}active{% endif %}">
                 <i class="far fa-circle nav-icon text-warning"></i>
                 <p>الصيانة</p>
+              </a>
+            </li>
+            {% endif %}
+            {% if has_perm('view_warehouses') or has_perm('manage_warehouses') or shop_is_super_admin %}
+            <li class="nav-item">
+              <a href="{{ url_for('warehouse_bp.preorders_list') }}" class="nav-link {% if request.endpoint == 'warehouse_bp.preorders_list' %}active{% endif %}">
+                <i class="far fa-circle nav-icon text-danger"></i>
+                <p>الحجوزات المسبقة</p>
               </a>
             </li>
             {% endif %}

@@ -59,22 +59,70 @@
     </div>
   </div>
 
-  <div class="row g-3 mb-4" id="check-alerts-section" style="display: none;">
+  {% if general_alerts %}
+  <div class="row g-3 mb-4">
+    {% for alert in general_alerts[:4] %}
+    <div class="col-xl-3 col-lg-4 col-md-6">
+      <div class="card border-0 shadow-sm alert-card h-100">
+        <div class="card-body d-flex flex-column justify-content-between">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="alert-icon text-{{ alert.severity }}"><i class="{{ alert.icon }}"></i></span>
+            <div class="small text-muted">{{ alert.category }}</div>
+          </div>
+          <div class="text-dark mb-2">
+            <div class="fw-bold">{{ alert.title }}</div>
+            <div class="small text-muted">{{ alert.message }}</div>
+            {% if alert.meta %}
+            <div class="small text-muted"><i class="fas fa-calendar-alt ml-1"></i>{{ alert.meta }}</div>
+            {% endif %}
+          </div>
+          <div class="d-flex align-items-center justify-content-between mt-auto">
+            {% if alert.amount_display %}
+            <span class="badge alert-amount">{{ alert.amount_display }}</span>
+            {% endif %}
+            {% if alert.link %}
+            <a href="{{ alert.link }}" class="btn btn-sm btn-outline-primary">تفاصيل</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="row g-3 mb-4">
     <div class="col-12">
-      <div class="card border-0 shadow-lg border-danger">
-        <div class="card-header fw-bold" style="background:#ffebee; color:#c62828;">
-          <h5 class="card-title mb-0" style="color:#c62828;">
-            <i class="fas fa-exclamation-triangle ml-2"></i>
-            تنبيهات الشيكات العاجلة
-          </h5>
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light fw-bold text-primary d-flex align-items-center">
+          <i class="fas fa-money-check-alt ml-2"></i>
+          إشعارات الشيكات المستحقة والمرتجعة
         </div>
-        <div class="card-body" id="check-alerts-container">
-          <!-- سيتم ملؤها ديناميكياً -->
-        </div>
-        <div class="card-footer text-center">
-          <a href="/checks" class="btn btn-primary">
-            <i class="fas fa-money-check-alt"></i> عرض جميع الشيكات
-          </a>
+        <div class="list-group list-group-flush">
+          {% if check_alerts %}
+          {% for alert in check_alerts %}
+            <div class="list-group-item d-flex align-items-center gap-3 flex-wrap">
+              <span class="alert-icon text-{{ alert.severity }}"><i class="{{ alert.icon }}"></i></span>
+              <div class="flex-grow-1">
+                <div class="fw-bold text-dark">{{ alert.title }}</div>
+                <div class="small text-muted">{{ alert.message }}</div>
+                {% if alert.meta %}
+                <div class="small text-muted"><i class="fas fa-calendar-alt ml-1"></i>{{ alert.meta }}</div>
+                {% endif %}
+              </div>
+              {% if alert.amount_display %}
+              <span class="badge alert-amount">{{ alert.amount_display }}</span>
+              {% endif %}
+              {% if alert.link %}
+              <a href="{{ alert.link }}" class="btn btn-sm btn-outline-primary">تفاصيل</a>
+              {% endif %}
+            </div>
+          {% endfor %}
+          {% else %}
+            <div class="list-group-item text-center text-muted">
+              لا توجد إشعارات شيكات حالياً
+            </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -85,7 +133,7 @@
       <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#00c6ff,#0072ff)">
         <div class="card-body d-flex align-items-center justify-content-between">
           <div>
-            <h2>{{ recent_services|length }}</h2>
+            <div class="metric-value">{{ recent_services|length }}</div>
             <div class="small">طلبات الصيانة المعلقة</div>
           </div>
           <i class="fas fa-tools fa-3x opacity-75"></i>
@@ -97,7 +145,7 @@
       <div class="dashboard-stats-card h-100" style="background:linear-gradient(135deg,#fceabb,#f8b500)">
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
           <i class="fas fa-boxes fa-3x mb-3" style="color:#333;"></i>
-          <h2 style="color:#000;">{{ low_stock|length }}</h2>
+          <div class="metric-value" style="color:#000;">{{ low_stock|length }}</div>
           <div class="small" style="color:#222;">قطع المخزون المنخفض</div>
         </div>
         <a href="{{ url_for('warehouse_bp.list') }}" class="card-footer text-center text-decoration-none" style="color:#000;">إدارة المستودعات <i class="fas fa-arrow-circle-left"></i></a>
@@ -107,7 +155,7 @@
       <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#f00000,#dc281e)">
         <div class="card-body d-flex align-items-center justify-content-between">
           <div>
-            <h2>{{ pending_exchanges|default(0) }}</h2>
+            <div class="metric-value">{{ pending_exchanges|default(0) }}</div>
             <div class="small">طلبات التبادل المعلقة</div>
           </div>
           <i class="fas fa-exchange-alt fa-3x opacity-75"></i>
@@ -119,7 +167,7 @@
       <div class="dashboard-stats-card text-white h-100" style="background:linear-gradient(135deg,#11998e,#38ef7d)">
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
           <i class="fas fa-shekel-sign fa-3x mb-3"></i>
-          <h2>{{ today_revenue|default(0)|format_currency }}</h2>
+          <div class="metric-value">{{ today_revenue|default(0)|format_currency }}</div>
           <div class="small">إيرادات اليوم (مبيعات)</div>
         </div>
         <a href="{{ url_for('reports_bp.dynamic_report') }}" class="card-footer text-center text-decoration-none text-white">عرض التقارير <i class="fas fa-arrow-circle-left"></i></a>
@@ -133,7 +181,7 @@
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
           <i class="fas fa-arrow-down fa-3x mb-3" style="color:#fff;"></i>
           <div class="mb-2" style="color:#fff;font-weight:600;font-size:1.1rem;">وارد اليوم</div>
-          <h3 class="fw-bold mb-0" style="color:#fff;font-size:1.8rem;">₪ {{ today_incoming|default(0)|format_currency }}</h3>
+          <div class="metric-value-sm text-white">₪ {{ today_incoming|default(0)|format_currency }}</div>
         </div>
       </div>
     </div>
@@ -142,7 +190,7 @@
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
           <i class="fas fa-arrow-up fa-3x mb-3" style="color:#fff;"></i>
           <div class="mb-2" style="color:#fff;font-weight:600;font-size:1.1rem;">صادر اليوم</div>
-          <h3 class="fw-bold mb-0" style="color:#fff;font-size:1.8rem;">₪ {{ today_outgoing|default(0)|format_currency }}</h3>
+          <div class="metric-value-sm text-white">₪ {{ today_outgoing|default(0)|format_currency }}</div>
         </div>
       </div>
     </div>
@@ -151,7 +199,7 @@
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
           <i class="fas fa-balance-scale fa-3x mb-3" style="color:#fff;"></i>
           <div class="mb-2" style="color:#fff;font-weight:600;font-size:1.1rem;">صافي اليوم</div>
-          <h3 class="fw-bold mb-0" style="color:#fff;font-size:1.8rem;">₪ {{ (today_incoming|default(0) - today_outgoing|default(0))|format_currency }}</h3>
+          <div class="metric-value-sm text-white">₪ {{ (today_incoming|default(0) - today_outgoing|default(0))|format_currency }}</div>
         </div>
       </div>
     </div>
@@ -163,7 +211,7 @@
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
           <i class="fas fa-sign-in-alt fa-3x mb-3" style="color:#fff;"></i>
           <div class="mb-2" style="color:#fff;font-weight:600;font-size:1.1rem;">وارد الأسبوع</div>
-          <h3 class="fw-bold mb-0" style="color:#fff;font-size:1.8rem;">₪ {{ week_incoming|default(0)|format_currency }}</h3>
+          <div class="metric-value-sm text-white">₪ {{ week_incoming|default(0)|format_currency }}</div>
         </div>
       </div>
     </div>
@@ -172,7 +220,7 @@
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
           <i class="fas fa-sign-out-alt fa-3x mb-3" style="color:#222;"></i>
           <div class="mb-2" style="color:#222;font-weight:600;font-size:1.1rem;">صادر الأسبوع</div>
-          <h3 class="fw-bold mb-0" style="color:#000;font-size:1.8rem;">₪ {{ week_outgoing|default(0)|format_currency }}</h3>
+          <div class="metric-value-sm" style="color:#000;">₪ {{ week_outgoing|default(0)|format_currency }}</div>
         </div>
       </div>
     </div>
@@ -181,7 +229,7 @@
         <div class="card-body d-flex flex-column align-items-center justify-content-center text-center">
           <i class="fas fa-equals fa-3x mb-3" style="color:#fff;"></i>
           <div class="mb-2" style="color:#fff;font-weight:600;font-size:1.1rem;">صافي الأسبوع</div>
-          <h3 class="fw-bold mb-0" style="color:#fff;font-size:1.8rem;">₪ {{ week_net|default(0)|format_currency }}</h3>
+          <div class="metric-value-sm text-white">₪ {{ week_net|default(0)|format_currency }}</div>
         </div>
       </div>
     </div>
@@ -286,45 +334,6 @@
     </div>
   </div>
 
-  <div class="dashboard-table">
-    <div class="card-header" style="background:#eceff1; color:#263238;">
-      <i class="fas fa-history"></i> آخر 5 طلبات صيانة
-    </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover mb-0 align-middle text-center">
-          <thead>
-            <tr>
-              <th>رقم الطلب</th>
-              <th>السيارة</th>
-              <th>الحالة</th>
-              <th>تاريخ البداية</th>
-              <th>إجراءات</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in recent_services[:5] %}
-            <tr>
-              <td>{{ s.id }}</td>
-              <td>{{ s.vehicle_vrn }}</td>
-              <td><span class="badge bg-gradient-info text-dark">{{ s.status_label or s.status }}</span></td>
-              <td>{{ s.started_at|default('')|format_date }}</td>
-              <td class="d-flex gap-2 justify-content-center">
-                <a href="{{ url_for('service.view_request', rid=s.id) }}" class="dashboard-btn text-white" style="background:linear-gradient(45deg,#667eea,#764ba2)"><i class="fas fa-eye"></i> عرض</a>
-                <a href="{{ url_for('service.view_receipt', rid=s.id) }}" target="_blank" class="dashboard-btn text-white" style="background:linear-gradient(45deg,#36d1dc,#5b86e5)"><i class="fas fa-file-pdf"></i> تقرير</a>
-              </td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="5" class="text-muted">لا توجد طلبات صيانة حالياً</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
 </div>
 {% endblock %}
 
@@ -412,80 +421,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 30000);
 });
 
-// تحميل تنبيهات الشيكات العاجلة
-function loadCheckAlerts() {
-    $.get('/checks/api/alerts', function(response) {
-        if (response.success && response.count > 0) {
-            const container = $('#check-alerts-container');
-            container.empty();
-            
-            // عرض أول 5 تنبيهات فقط
-            const alerts = response.alerts.slice(0, 5);
-            
-            alerts.forEach(alert => {
-                const alertClass = alert.severity === 'danger' ? 'check-alert-danger' : 'check-alert-warning';
-                const iconClass = alert.icon || 'fas fa-exclamation-circle';
-                
-                const alertHtml = `
-                    <div class="check-alert-item ${alertClass}" onclick="window.location.href='${alert.link}'">
-                        <div class="d-flex align-items-center">
-                            <i class="${iconClass} fa-2x ml-3"></i>
-                            <div class="flex-grow-1">
-                                <h6 class="mb-1 fw-bold">${alert.title}</h6>
-                                <p class="mb-0 small">${alert.message}</p>
-                            </div>
-                            <div class="text-start">
-                                <span class="badge badge-${alert.severity} fs-6 px-3 py-2">
-                                    ${new Intl.NumberFormat('en-US', {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2
-                                    }).format(alert.amount)} ${alert.currency}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                container.append(alertHtml);
-            });
-            
-            $('#check-alerts-section').show();
-        } else {
-            $('#check-alerts-section').hide();
-        }
-    }).fail(function() {
-        // في حالة الخطأ، إخفاء القسم
-        $('#check-alerts-section').hide();
-    });
-}
-
-// تحميل التنبيهات عند تحميل الصفحة
-loadCheckAlerts();
-
-// تحديث كل 5 دقائق
-setInterval(loadCheckAlerts, 300000);
-
 </script>
-
 <style>
-  .check-alert-item {
-    border-left: 4px solid;
-    border-radius: 5px;
-    padding: 15px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: all 0.3s;
+  .metric-value {
+    font-size: 1.75rem;
+    font-weight: 700;
   }
-  .check-alert-item:hover {
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    transform: translateX(5px);
+  .metric-value-sm {
+    font-size: 1.35rem;
+    font-weight: 600;
   }
-  .check-alert-danger { 
-    border-left-color: #dc3545; 
-    background: #f8d7da; 
+  .alert-card {
+    border-top: 3px solid rgba(0,0,0,0.05);
   }
-  .check-alert-warning { 
-    border-left-color: #ffc107; 
-    background: #fff3cd; 
+  .alert-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.05);
+  }
+  .alert-amount {
+    font-size: .85rem;
+    background: rgba(0,0,0,0.05);
+    color: #111;
+    border-radius: 999px;
   }
 </style>
 

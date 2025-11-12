@@ -73,8 +73,172 @@
   body[data-sidebar-position="left"] .expense-nav {
     direction: rtl;
   }
+  
+  .summary-cards{display:flex;gap:1.25rem;flex-wrap:wrap;align-items:stretch}
+  .summary-card{flex:1 1 240px;border-radius:16px;padding:1.25rem;box-shadow:0 8px 20px rgba(0,0,0,.08);color:#1f2937;position:relative;overflow:hidden;transition:transform .3s ease,box-shadow .3s ease}
+  .summary-card:hover{transform:translateY(-4px);box-shadow:0 14px 28px rgba(0,0,0,.12)}
+  .summary-card__row{display:flex;justify-content:space-between;align-items:center}
+  .summary-card h6{font-size:.85rem;margin:0 0 .35rem;letter-spacing:.5px;text-transform:uppercase;opacity:.8;font-weight:600}
+  .summary-card h3{margin:0;font-size:1.9rem;font-weight:700}
+  .summary-card small{display:block;margin-top:.35rem;font-size:.85rem;opacity:.75}
+  .summary-card__icon{font-size:2.4rem;opacity:.25;transition:transform .3s ease}
+  .summary-card:hover .summary-card__icon{transform:scale(1.05)}
+  .summary-card--total{background:linear-gradient(135deg,#f5365c 0%,#fb8c00 100%);color:#fff}
+  .summary-card--count{background:linear-gradient(135deg,#43a047 0%,#26c6da 100%);color:#fff}
+  .summary-card--average{background:linear-gradient(135deg,#3949ab 0%,#5c6bc0 100%);color:#fff}
+  .summary-card--latest{background:linear-gradient(135deg,#4a148c 0%,#7b1fa2 100%);color:#fff}
+  .summary-card--latest .latest-meta{margin-top:1rem;font-size:.9rem;opacity:.9}
+  .summary-card--latest .latest-meta div{margin-bottom:.25rem}
+  .summary-card--latest .latest-meta .text-uppercase{opacity:.75;letter-spacing:.6px}
+  .payee-chip{display:inline-flex;align-items:center;padding:.25rem .7rem;font-size:.92rem;font-weight:600;border-radius:999px;margin-left:.35rem}
+  .payee-chip--employee{background:rgba(13,202,240,.2);color:#04505c;border:1px solid rgba(13,202,240,.45)}
+  .payee-chip--utility{background:rgba(111,66,193,.18);color:#301a68;border:1px solid rgba(111,66,193,.35)}
+  .payee-chip--other{background:rgba(108,117,125,.18);color:#343a40;border:1px solid rgba(108,117,125,.35)}
+  @media print{
+    body{background:#fff}
+    .card,.card-body{box-shadow:none!important;border:none!important}
+    .print-header{display:block!important;margin-bottom:1.5rem}
+    table{width:100%!important;border-collapse:collapse!important}
+    table thead{display:table-header-group!important}
+    table thead th{background:#f4f5f7!important;color:#000!important;border:1px solid #ccc!important;padding:.6rem!important;font-size:1rem!important}
+    table tbody td{border:1px solid #ddd!important;padding:.55rem!important;font-size:.95rem!important;color:#000!important}
+    .payee-chip{border:1px solid #666!important;color:#000!important;background:#f1f1f1!important}
+    .summary-cards,.no-print{display:none!important}
+    .table-responsive{overflow:visible!important}
+  }
 </style>
 {% endblock %}
+
+{% macro type_details(expense) %}
+{% set code = (expense.type.code if expense.type else '')|upper %}
+{% set ns = namespace(items=[]) %}
+{% if code == 'RENT' %}
+  {% if expense.rent_property_address %}{% set ns.items = ns.items + ['عنوان: ' ~ expense.rent_property_address] %}{% endif %}
+  {% if expense.rent_property_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.rent_property_notes] %}{% endif %}
+{% elif code == 'SOFTWARE' %}
+  {% if expense.tech_provider_name %}{% set ns.items = ns.items + ['المزود: ' ~ expense.tech_provider_name] %}{% endif %}
+  {% if expense.tech_provider_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.tech_provider_address] %}{% endif %}
+  {% if expense.tech_provider_phone %}{% set ns.items = ns.items + ['الهاتف: ' ~ expense.tech_provider_phone] %}{% endif %}
+  {% if expense.tech_subscription_id %}{% set ns.items = ns.items + ['معرف: ' ~ expense.tech_subscription_id] %}{% endif %}
+{% elif code == 'SHIP_STORAGE' %}
+  {% if expense.storage_property_address %}{% set ns.items = ns.items + ['الموقع: ' ~ expense.storage_property_address] %}{% endif %}
+  {% if expense.storage_expected_days is not none %}{% set ns.items = ns.items + ['المدة: ' ~ expense.storage_expected_days ~ ' يوم'] %}{% endif %}
+  {% if expense.storage_start_date %}{% set ns.items = ns.items + ['البداية: ' ~ expense.storage_start_date|format_date] %}{% endif %}
+  {% if expense.storage_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.storage_notes] %}{% endif %}
+{% elif code in ['SHIP_CLEARANCE','SHIP_CUSTOMS'] %}
+  {% if expense.customs_origin %}{% set ns.items = ns.items + ['المنشأ: ' ~ expense.customs_origin] %}{% endif %}
+  {% if expense.customs_port_name %}{% set ns.items = ns.items + ['الميناء: ' ~ expense.customs_port_name] %}{% endif %}
+  {% if expense.customs_arrival_date %}{% set ns.items = ns.items + ['الوصول: ' ~ expense.customs_arrival_date|format_date] %}{% endif %}
+  {% if expense.customs_departure_date %}{% set ns.items = ns.items + ['الخروج: ' ~ expense.customs_departure_date|format_date] %}{% endif %}
+  {% if expense.customs_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.customs_notes] %}{% endif %}
+{% elif code == 'TRAINING' %}
+  {% if expense.training_company_name %}{% set ns.items = ns.items + ['الجهة: ' ~ expense.training_company_name] %}{% endif %}
+  {% if expense.training_location %}{% set ns.items = ns.items + ['المكان: ' ~ expense.training_location] %}{% endif %}
+  {% if expense.training_duration_days is not none %}{% set ns.items = ns.items + ['المدة: ' ~ expense.training_duration_days ~ ' يوم'] %}{% endif %}
+  {% if expense.training_participants_count is not none %}{% set ns.items = ns.items + ['عدد الأفراد: ' ~ expense.training_participants_count] %}{% endif %}
+  {% if expense.training_notes %}{% set ns.items = ns.items + ['ملاحظات: ' ~ expense.training_notes] %}{% endif %}
+{% elif code == 'ENTERTAINMENT' %}
+  {% if expense.entertainment_duration_days is not none %}{% set ns.items = ns.items + ['المدة: ' ~ expense.entertainment_duration_days ~ ' يوم'] %}{% endif %}
+  {% if expense.entertainment_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.entertainment_notes] %}{% endif %}
+{% elif code == 'BANK_FEES' %}
+  {% if expense.bank_fee_bank_name %}{% set ns.items = ns.items + ['البنك: ' ~ expense.bank_fee_bank_name] %}{% endif %}
+  {% if expense.bank_fee_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.bank_fee_reference] %}{% endif %}
+  {% if expense.bank_fee_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.bank_fee_notes] %}{% endif %}
+{% elif code == 'GOV_FEES' %}
+  {% if expense.gov_fee_entity_name %}{% set ns.items = ns.items + ['الجهة: ' ~ expense.gov_fee_entity_name] %}{% endif %}
+  {% if expense.gov_fee_entity_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.gov_fee_entity_address] %}{% endif %}
+  {% if expense.gov_fee_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.gov_fee_notes] %}{% endif %}
+{% elif code == 'SHIP_PORT_FEES' %}
+  {% if expense.port_fee_port_name %}{% set ns.items = ns.items + ['الميناء: ' ~ expense.port_fee_port_name] %}{% endif %}
+  {% if expense.port_fee_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.port_fee_reference] %}{% endif %}
+  {% if expense.port_fee_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.port_fee_notes] %}{% endif %}
+{% elif code == 'SALARY' %}
+  {% if expense.period_start and expense.period_end %}{% set ns.items = ns.items + ['الفترة: ' ~ expense.period_start|format_date ~ ' - ' ~ expense.period_end|format_date] %}{% endif %}
+  {% if expense.salary_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.salary_reference] %}{% endif %}
+  {% if expense.salary_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.salary_notes] %}{% endif %}
+{% elif code == 'TRAVEL' %}
+  {% if expense.travel_destination %}{% set ns.items = ns.items + ['الوجهة: ' ~ expense.travel_destination] %}{% endif %}
+  {% if expense.travel_reason %}{% set ns.items = ns.items + ['الهدف: ' ~ expense.travel_reason] %}{% endif %}
+  {% if expense.travel_start_date %}{% set ns.items = ns.items + ['البداية: ' ~ expense.travel_start_date|format_date] %}{% endif %}
+  {% if expense.travel_duration_days is not none %}{% set ns.items = ns.items + ['المدة: ' ~ expense.travel_duration_days ~ ' يوم'] %}{% endif %}
+  {% if expense.travel_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.travel_notes] %}{% endif %}
+{% elif code == 'EMPLOYEE_ADVANCE' %}
+  {% if expense.employee_advance_period %}{% set ns.items = ns.items + ['الفترة: ' ~ expense.employee_advance_period] %}{% endif %}
+  {% if expense.employee_advance_reason %}{% set ns.items = ns.items + ['السبب: ' ~ expense.employee_advance_reason] %}{% endif %}
+  {% if expense.employee_advance_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.employee_advance_notes] %}{% endif %}
+{% elif code == 'SHIP_FREIGHT' %}
+  {% if expense.shipping_company_name %}{% set ns.items = ns.items + ['الشركة: ' ~ expense.shipping_company_name] %}{% endif %}
+  {% if expense.shipping_date %}{% set ns.items = ns.items + ['التاريخ: ' ~ expense.shipping_date|format_date] %}{% endif %}
+  {% if expense.shipping_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.shipping_reference] %}{% endif %}
+  {% if expense.shipping_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.shipping_notes] %}{% endif %}
+  {% if expense.shipping_mode %}{% set ns.items = ns.items + ['الوسيلة: ' ~ expense.shipping_mode] %}{% endif %}
+{% elif code == 'MAINTENANCE' %}
+  {% if expense.maintenance_provider_name %}{% set ns.items = ns.items + ['الجهة: ' ~ expense.maintenance_provider_name] %}{% endif %}
+  {% if expense.maintenance_details %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.maintenance_details] %}{% endif %}
+  {% if expense.maintenance_completion_date %}{% set ns.items = ns.items + ['الإنجاز: ' ~ expense.maintenance_completion_date|format_date] %}{% endif %}
+{% elif code == 'SHIP_IMPORT_TAX' %}
+  {% if expense.import_tax_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.import_tax_reference] %}{% endif %}
+  {% if expense.import_tax_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.import_tax_notes] %}{% endif %}
+{% elif code == 'HOSPITALITY' %}
+  {% if expense.hospitality_type %}{% set ns.items = ns.items + ['النوع: ' ~ expense.hospitality_type] %}{% endif %}
+  {% if expense.hospitality_location %}{% set ns.items = ns.items + ['المكان: ' ~ expense.hospitality_location] %}{% endif %}
+  {% if expense.hospitality_attendees %}{% set ns.items = ns.items + ['الحضور: ' ~ expense.hospitality_attendees] %}{% endif %}
+  {% if expense.hospitality_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.hospitality_notes] %}{% endif %}
+{% elif code == 'TELECOM' or code == '' and expense.telecom_phone_number %}
+  {% if expense.telecom_phone_number %}{% set ns.items = ns.items + ['الهاتف: ' ~ expense.telecom_phone_number] %}{% endif %}
+  {% if expense.telecom_service_type %}{% set ns.items = ns.items + ['الخدمة: ' ~ expense.telecom_service_type] %}{% endif %}
+  {% if expense.telecom_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.telecom_notes] %}{% endif %}
+{% elif code in ['INSURANCE','INS_OLD','SHIP_INSURANCE'] %}
+  {% if expense.insurance_company_name %}{% set ns.items = ns.items + ['الشركة: ' ~ expense.insurance_company_name] %}{% endif %}
+  {% if expense.insurance_company_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.insurance_company_address] %}{% endif %}
+  {% if expense.insurance_company_phone %}{% set ns.items = ns.items + ['الهاتف: ' ~ expense.insurance_company_phone] %}{% endif %}
+  {% if expense.insurance_policy_number %}{% set ns.items = ns.items + ['وثيقة: ' ~ expense.insurance_policy_number] %}{% endif %}
+  {% if expense.insurance_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.insurance_notes] %}{% endif %}
+{% elif code in ['OFFICE','OFFICE_OLD'] %}
+  {% if expense.office_supplier_name %}{% set ns.items = ns.items + ['المورد: ' ~ expense.office_supplier_name] %}{% endif %}
+  {% if expense.office_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.office_notes] %}{% endif %}
+  {% if expense.office_purchase_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.office_purchase_reference] %}{% endif %}
+{% elif code in ['HOME_EXPENSE','HOME_OLD'] %}
+  {% if expense.home_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.home_address] %}{% endif %}
+  {% if expense.home_owner_name %}{% set ns.items = ns.items + ['المالك: ' ~ expense.home_owner_name] %}{% endif %}
+  {% if expense.home_relation_to_company %}{% set ns.items = ns.items + ['العلاقة: ' ~ expense.home_relation_to_company] %}{% endif %}
+  {% if expense.home_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.home_notes] %}{% endif %}
+{% elif code == 'PARTNER_EXPENSE' %}
+  {% if expense.partner and expense.partner.name %}{% set ns.items = ns.items + ['الشريك: ' ~ expense.partner.name] %}{% endif %}
+  {% if expense.partner_expense_reason %}{% set ns.items = ns.items + ['السبب: ' ~ expense.partner_expense_reason] %}{% endif %}
+  {% if expense.partner_expense_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.partner_expense_notes] %}{% endif %}
+{% elif code == 'SUPPLIER_EXPENSE' %}
+  {% if expense.supplier and expense.supplier.name %}{% set ns.items = ns.items + ['المورد: ' ~ expense.supplier.name] %}{% endif %}
+  {% if expense.supplier_expense_reason %}{% set ns.items = ns.items + ['السبب: ' ~ expense.supplier_expense_reason] %}{% endif %}
+  {% if expense.supplier_expense_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.supplier_expense_notes] %}{% endif %}
+{% elif code == 'SHIP_HANDLING' %}
+  {% if expense.handling_quantity is not none %}{% set ns.items = ns.items + ['الكمية: ' ~ expense.handling_quantity] %}{% endif %}
+  {% if expense.handling_unit %}{% set ns.items = ns.items + ['الوحدة: ' ~ expense.handling_unit] %}{% endif %}
+  {% if expense.handling_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.handling_notes] %}{% endif %}
+{% elif code == 'FUEL' %}
+  {% if expense.fuel_vehicle_number %}{% set ns.items = ns.items + ['المركبة: ' ~ expense.fuel_vehicle_number] %}{% endif %}
+  {% if expense.fuel_driver_name %}{% set ns.items = ns.items + ['السائق: ' ~ expense.fuel_driver_name] %}{% endif %}
+  {% if expense.fuel_usage_type %}{% set ns.items = ns.items + ['الغرض: ' ~ expense.fuel_usage_type] %}{% endif %}
+  {% if expense.fuel_volume is not none %}{% set ns.items = ns.items + ['الكمية: ' ~ expense.fuel_volume] %}{% endif %}
+  {% if expense.fuel_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.fuel_notes] %}{% endif %}
+{% elif code == 'TRANSPORT' %}
+  {% if expense.transport_beneficiary_name %}{% set ns.items = ns.items + ['المستفيد: ' ~ expense.transport_beneficiary_name] %}{% endif %}
+  {% if expense.transport_reason %}{% set ns.items = ns.items + ['السبب: ' ~ expense.transport_reason] %}{% endif %}
+  {% if expense.transport_usage_type %}{% set ns.items = ns.items + ['التصنيف: ' ~ expense.transport_usage_type] %}{% endif %}
+  {% if expense.transport_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.transport_notes] %}{% endif %}
+{% elif code == 'CONSULTING' %}
+  {% if expense.legal_company_name %}{% set ns.items = ns.items + ['الشركة: ' ~ expense.legal_company_name] %}{% endif %}
+  {% if expense.legal_company_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.legal_company_address] %}{% endif %}
+  {% if expense.legal_case_number %}{% set ns.items = ns.items + ['رقم القضية: ' ~ expense.legal_case_number] %}{% endif %}
+  {% if expense.legal_case_type %}{% set ns.items = ns.items + ['نوع القضية: ' ~ expense.legal_case_type] %}{% endif %}
+  {% if expense.legal_case_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.legal_case_notes] %}{% endif %}
+{% endif %}
+{% if not ns.items %}
+  {% if expense.description %}{% set ns.items = ns.items + [expense.description] %}{% endif %}
+  {% if expense.notes %}{% set ns.items = ns.items + [expense.notes] %}{% endif %}
+{% endif %}
+{{ ', '.join(ns.items) if ns.items else '—' }}
+{% endmacro %}
 
 {% block content %}
   <!-- رأس الطباعة -->
@@ -125,62 +289,58 @@
     <div class="card-body">
       <!-- الملخصات المالية -->
       {% if summary %}
-      <div class="row mb-4 g-3 no-print">
-        <div class="col-lg-3 col-md-6">
-          <div class="card border-0 shadow-sm text-white bg-danger h-100">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="text-white-50 mb-1">💰 إجمالي النفقات</h6>
-                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_expenses) }} ₪</h3>
-                  <small class="opacity-75">{{ summary.expenses_count }} مصروف</small>
-                </div>
-                <i class="fas fa-receipt fa-2x opacity-50"></i>
-              </div>
+      <div class="summary-cards mb-4 no-print">
+        <div class="summary-card summary-card--total">
+          <div class="summary-card__row">
+            <div>
+              <h6>💰 إجمالي النفقات</h6>
+              <h3>{{ "{:,.2f}".format(summary.total_expenses) }} ₪</h3>
+              <small>{{ summary.expenses_count }} مصروف</small>
             </div>
+            <i class="fas fa-receipt summary-card__icon"></i>
           </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-          <div class="card border-0 shadow-sm text-white bg-success h-100">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="text-white-50 mb-1">✅ المدفوع</h6>
-                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_paid) }} ₪</h3>
-                  <small class="opacity-75">{{ "{:.1f}".format(summary.payment_percentage) }}% مدفوع</small>
-                </div>
-                <i class="fas fa-check-circle fa-2x opacity-50"></i>
-              </div>
+        <div class="summary-card summary-card--count">
+          <div class="summary-card__row">
+            <div>
+              <h6>🧾 عدد المصاريف</h6>
+              <h3>{{ summary.expenses_count }}</h3>
+              <small>ضمن التصفية الحالية</small>
             </div>
+            <i class="fas fa-list-ol summary-card__icon"></i>
           </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-          <div class="card border-0 shadow-sm text-white bg-warning h-100">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="text-white-50 mb-1">⏳ غير المدفوع</h6>
-                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_balance) }} ₪</h3>
-                  <small class="opacity-75">{{ "{:.1f}".format(100 - summary.payment_percentage) }}% متبقي</small>
-                </div>
-                <i class="fas fa-clock fa-2x opacity-50"></i>
-              </div>
+        <div class="summary-card summary-card--average">
+          <div class="summary-card__row">
+            <div>
+              <h6>📊 متوسط المصروف</h6>
+              <h3>{{ "{:,.2f}".format(summary.average_expense) }} ₪</h3>
+              <small>لكل مصروف</small>
             </div>
+            <i class="fas fa-chart-line summary-card__icon"></i>
           </div>
         </div>
-        <div class="col-lg-3 col-md-6">
-          <div class="card border-0 shadow-sm text-white bg-info h-100">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-center">
-                <div>
-                  <h6 class="text-white-50 mb-1">📊 متوسط المصروف</h6>
-                  <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.average_expense) }} ₪</h3>
-                  <small class="opacity-75">لكل مصروف</small>
-                </div>
-                <i class="fas fa-chart-line fa-2x opacity-50"></i>
-              </div>
+        {% set latest = summary.latest_expense %}
+        <div class="summary-card summary-card--latest">
+          <div class="summary-card__row">
+            <div>
+              <h6>🆕 آخر مصروف</h6>
+              {% if latest %}
+              <h3>{{ latest.amount|number_format(2) }} {{ latest.currency or 'ILS' }}</h3>
+              <small>{{ latest.date|format_date }} — {{ latest.type.name if latest.type else 'غير مصنف' }}</small>
+              {% else %}
+              <h3>—</h3>
+              <small>لا يوجد بيانات</small>
+              {% endif %}
             </div>
+            <i class="fas fa-clock summary-card__icon"></i>
           </div>
+          {% if latest %}
+          <div class="latest-meta">
+            <div class="fw-semibold">{{ latest.payee_name or latest.paid_to or 'غير محدد' }}</div>
+            <div class="text-uppercase">{{ latest.payment_method or '—' }}</div>
+          </div>
+          {% endif %}
         </div>
       </div>
       
@@ -267,18 +427,14 @@
           <tr>
             <th>التاريخ</th>
             <th>النوع</th>
-            <th>الموظف</th>
-            <th>المستفيد</th>
+            <th>تفاصيل النوع</th>
+            <th>الجهة</th>
             <th>المبلغ</th>
             <th>العملة</th>
-            <th>سعر الصرف</th>
             <th>طريقة الدفع</th>
-            <th>مدفوع</th>
-            <th>الرصيد</th>
-            <th>الوصف</th>
-            <th>ملاحظات</th>
-            <th>رقم الفاتورة</th>
-            <th style="width:180px">إجراءات</th>
+            <th>المدفوع</th>
+            <th>الحالة</th>
+            <th style="width:170px">إجراءات</th>
           </tr>
         </thead>
         <tbody>
@@ -287,38 +443,26 @@
           <tr>
             <td class="text-nowrap">{{ e.date|format_date }}</td>
             <td>{{ e.type.name if e.type else '—' }}</td>
-            <td>{{ e.employee.name if e.employee else '—' }}</td>
-            <td>
-              {% if pt == 'EMPLOYEE' %}<span class="badge bg-info text-dark ml-1">موظّف</span>
-              {% elif pt == 'UTILITY' %}<span class="badge bg-secondary ml-1">مرفق</span>
-              {% elif pt %}<span class="badge bg-light text-dark ml-1">أخرى</span>{% endif %}
-              {{ e.payee_name or e.paid_to or '—' }}
+            <td class="text-truncate" style="max-width:260px">{{ type_details(e) }}</td>
+            <td class="text-truncate" style="max-width:200px">
+              {% if pt == 'EMPLOYEE' %}<span class="payee-chip payee-chip--employee">موظّف</span>
+              {% elif pt == 'UTILITY' %}<span class="payee-chip payee-chip--utility">مرفق</span>
+              {% elif pt %}<span class="payee-chip payee-chip--other">أخرى</span>{% endif %}
+              <span class="fw-bold text-dark">{{ e.payee_name or e.paid_to or (e.employee.name if e.employee else '—') }}</span>
             </td>
             <td class="fw-bold text-end">
               {{ e.amount|number_format(2) }}
             </td>
             <td class="text-center"><span class="badge badge-secondary">{{ e.currency or 'ILS' }}</span></td>
-            <td class="text-center">
-              {% if e.fx_rate_used and e.currency != 'ILS' %}
-                <small class="text-muted">
-                  {{ "%.4f"|format(e.fx_rate_used) }}
-                  {% if e.fx_rate_source %}
-                    {% if e.fx_rate_source == 'online' %}🌐{% elif e.fx_rate_source == 'manual' %}✍️{% else %}⚙️{% endif %}
-                  {% endif %}
-                </small>
-              {% else %}
-                <span class="text-muted">-</span>
-              {% endif %}
-            </td>
             <td class="text-nowrap">{{ e.payment_method or '—' }}</td>
             <td class="text-end">{{ (e.total_paid or 0)|float|round(2)|number_format(2) }}</td>
-            <td class="text-end">
-              {% if e.is_paid %}<span class="badge bg-success">مدفوع</span>
-              {% else %}{{ (e.balance or 0)|float|round(2)|number_format(2) }}{% endif %}
+            <td class="text-center">
+              {% if e.is_paid %}
+                <span class="badge bg-success">مدفوع بالكامل</span>
+              {% else %}
+                <div class="fw-bold text-danger">{{ (e.balance or 0)|float|round(2)|number_format(2) }}</div>
+              {% endif %}
             </td>
-            <td class="text-truncate" style="max-width:220px">{{ e.description or '—' }}</td>
-            <td class="text-truncate" style="max-width:220px">{{ e.notes or '—' }}</td>
-            <td>{{ e.tax_invoice_number or '—' }}</td>
             <td class="text-nowrap text-center">
               <div class="btn-group">
                 <a href="{{ url_for('expenses_bp.detail', exp_id=e.id) }}" class="btn btn-sm btn-info" title="تفاصيل"><i class="fas fa-eye"></i></a>

@@ -1,0 +1,212 @@
+{% extends "base_print.html" %}
+{% block title %}إيصال صيانة{% endblock %}
+
+{% block head_extra %}
+{% set STATUS_LABELS = {'PENDING':'معلق','DIAGNOSIS':'تشخيص','IN_PROGRESS':'قيد التنفيذ','COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجل'} %}
+{% set is_simple = (variant == 'simple' or variant is not defined) %}
+<style>
+@page { size:A4 portrait; margin:10mm 8mm 12mm 8mm; }
+html,body{font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;direction:rtl;text-align:right;font-size:11.5px;line-height:1.4;background:#fff;color:#202938;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box;}
+*,*::before,*::after{box-sizing:border-box;}
+#receipt{max-width:620px;margin:0 auto;padding:10mm 9mm;background:#fff;}
+.header{text-align:center;border-bottom:2px solid #1f2d3d;padding-bottom:10px;margin-bottom:12px;}
+.header h2{font-size:16px;font-weight:800;margin:0 0 4px 0;color:#1f2d3d;}
+.header .subtitle{font-size:10.5px;color:#5c6880;margin:0;}
+.switcher{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:10px;}
+.switcher a{display:inline-flex;align-items:center;justify-content:center;padding:7px 14px;border-radius:22px;font-size:10.5px;font-weight:700;text-decoration:none;background:#e9edf3;color:#1f2d3d;}
+.switcher a.active{background:#1f2d3d;color:#fff;}
+.meta-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.meta-box{flex:1;min-width:160px;border:1px solid #cbd2da;border-radius:8px;padding:9px 10px;background:#f7f9fc;}
+.meta-label{display:block;font-size:9px;color:#61718a;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
+.meta-value{font-size:12px;font-weight:700;color:#1f2d3d;}
+.section{border:1px solid #d7dce2;border-radius:10px;padding:12px 13px;margin-bottom:12px;background:#fff;}
+.section-title{font-size:12.5px;font-weight:700;color:#1f2d3d;margin-bottom:8px;}
+.info-row{display:flex;gap:7px;font-size:11.5px;padding:3px 0;}
+.info-label{min-width:90px;color:#566274;font-weight:600;}
+.info-value{flex:1;color:#1f2d3d;}
+.table{width:100%;border-collapse:collapse;margin-top:8px;}
+.table th,.table td{border:1px solid #d7dce2;padding:7px 8px;font-size:10.5px;}
+.table thead th{background:#eef2f7;color:#1f2d3d;font-weight:700;}
+.table-empty{color:#8d97a6;text-align:center;padding:12px 0;font-style:italic;}
+.totals{max-width:260px;margin:14px 0 0 auto;border:1px solid #d7dce2;border-radius:10px;padding:12px 13px;background:#f6f8fb;}
+.totals-row{display:flex;justify-content:space-between;font-size:11px;padding:5px 0;}
+.totals-row.final{border-top:1px solid #ccd3dd;margin-top:8px;padding-top:9px;font-size:13.5px;font-weight:800;color:#1f2d3d;}
+.signatures{display:flex;gap:20px;margin-top:16px;}
+.sign-slot{flex:1;text-align:center;font-size:10px;}
+.sign-line{border-top:1px solid #1f2d3d;margin-bottom:6px;padding-top:32px;}
+.actions{margin-top:12px;text-align:center;font-size:10.5px;}
+.print-btn{padding:9px 18px;border-radius:22px;border:0;background:#1f2d3d;color:#fff;font-size:10.5px;font-weight:700;margin:0 6px;cursor:pointer;}
+.back-btn{padding:9px 18px;border-radius:22px;border:0;background:#e9edf3;color:#1f2d3d;font-size:10.5px;font-weight:700;margin:0 6px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;}
+@media print{.switcher,.actions{display:none!important;}body{background:#fff;}#receipt{padding:0 6mm;}}
+</style>
+{% endblock %}
+
+{% block content %}
+{% set status_code = (service.status.value if service.status and service.status is not string else service.status) %}
+{% set status_label = STATUS_LABELS.get((status_code or '')|upper, status_code or '—') %}
+{% set ns = namespace(gross_total=0.0, items_discount=0.0, net_total=0.0) %}
+{% for part in (service.parts or []) %}
+  {% set qty = (part.quantity or 0)|float %}
+  {% set price = (part.unit_price or 0)|float %}
+  {% set disc = (part.discount or 0)|float %}
+  {% set gross = qty * price %}
+  {% set net = gross - disc %}
+  {% set ns.gross_total = ns.gross_total + gross %}
+  {% set ns.items_discount = ns.items_discount + disc %}
+  {% set ns.net_total = ns.net_total + net %}
+{% endfor %}
+{% for task in (service.tasks or []) %}
+  {% set qty = (task.quantity or 0)|float %}
+  {% set price = (task.unit_price or 0)|float %}
+  {% set disc = (task.discount or 0)|float %}
+  {% set gross = qty * price %}
+  {% set net = gross - disc %}
+  {% set ns.gross_total = ns.gross_total + gross %}
+  {% set ns.items_discount = ns.items_discount + disc %}
+  {% set ns.net_total = ns.net_total + net %}
+{% endfor %}
+{% set global_discount = (service.discount_total or 0)|float %}
+{% set subtotal_after_all_disc = ns.net_total - global_discount %}
+{% set tax_rate = (service.tax_rate or 0)|float %}
+{% set tax_amount = subtotal_after_all_disc * (tax_rate/100.0) %}
+{% set grand_total = subtotal_after_all_disc + tax_amount %}
+
+<div id="receipt">
+  <div class="switcher">
+    <a href="{{ url_for('service.view_receipt', rid=service.id) }}" class="{{ '' if is_simple else 'active' }}">النسخة الاحترافية</a>
+    <a href="{{ url_for('service.view_receipt', rid=service.id, simple=1) }}" class="{{ 'active' if is_simple else '' }}">النسخة المبسطة</a>
+  </div>
+  <div class="header">
+    <h2>إيصال صيانة</h2>
+    <p class="subtitle">ملخص الطلب</p>
+  </div>
+  <div class="meta-grid">
+    <div class="meta-box">
+      <span class="meta-label">رقم الطلب</span>
+      <span class="meta-value">{{ service.service_number or ('SRV-' ~ service.id) }}</span>
+    </div>
+    <div class="meta-box">
+      <span class="meta-label">تاريخ الاستلام</span>
+      <span class="meta-value">{{ service.received_at.strftime('%Y-%m-%d') if service.received_at else '—' }}</span>
+    </div>
+    <div class="meta-box">
+      <span class="meta-label">الحالة الحالية</span>
+      <span class="meta-value">{{ status_label }}</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">بيانات العميل</div>
+    <div class="info-row"><span class="info-label">الاسم</span><span class="info-value">{{ service.customer.name if service.customer else '—' }}</span></div>
+    <div class="info-row"><span class="info-label">الجوال</span><span class="info-value">{{ service.customer.phone if service.customer else '—' }}</span></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">بيانات المركبة</div>
+    <div class="info-row"><span class="info-label">النوع</span><span class="info-value">{{ service.vehicle_type.name if service.vehicle_type else '—' }}</span></div>
+    <div class="info-row"><span class="info-label">الموديل</span><span class="info-value">{{ service.vehicle_model or '—' }}</span></div>
+    <div class="info-row"><span class="info-label">اللوحة</span><span class="info-value">{{ service.vehicle_vrn or '—' }}</span></div>
+  </div>
+
+  {% if service.problem_description or service.engineer_notes %}
+  <div class="section">
+    <div class="section-title">الوصف الفني</div>
+    {% if service.problem_description %}<div class="info-row"><span class="info-label">المشكلة</span><span class="info-value">{{ service.problem_description }}</span></div>{% endif %}
+    {% if service.engineer_notes %}<div class="info-row"><span class="info-label">تقرير الفني</span><span class="info-value">{{ service.engineer_notes }}</span></div>{% endif %}
+  </div>
+  {% endif %}
+
+  <div class="section">
+    <div class="section-title">تفاصيل الخدمة</div>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>النوع</th>
+          <th>الوصف</th>
+          <th>الكمية</th>
+          <th>السعر</th>
+          <th>الخصم</th>
+          <th>الإجمالي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for part in (service.parts or []) %}
+        {% set qty = (part.quantity or 0)|float %}
+        {% set price = (part.unit_price or 0)|float %}
+        {% set disc = (part.discount or 0)|float %}
+        {% set gross = qty * price %}
+        {% set net = gross - disc %}
+        <tr>
+          <td>قطعة</td>
+          <td class="info-value">{{ part.part.name if part.part else '—' }}</td>
+          <td>{{ qty|int }}</td>
+          <td style="text-align:end;">{{ '%.2f'|format(price) }}</td>
+          <td style="text-align:end;">{{ disc > 0 and ('%.2f'|format(disc)) or '—' }}</td>
+          <td style="text-align:end;">{{ '%.2f'|format(net) }}</td>
+        </tr>
+        {% endfor %}
+        {% for task in (service.tasks or []) %}
+        {% set qty = (task.quantity or 0)|float %}
+        {% set price = (task.unit_price or 0)|float %}
+        {% set disc = (task.discount or 0)|float %}
+        {% set gross = qty * price %}
+        {% set net = gross - disc %}
+        <tr>
+          <td>مهمة</td>
+          <td class="info-value">{{ task.description or '—' }}</td>
+          <td>{{ qty|int }}</td>
+          <td style="text-align:end;">{{ '%.2f'|format(price) }}</td>
+          <td style="text-align:end;">{{ disc > 0 and ('%.2f'|format(disc)) or '—' }}</td>
+          <td style="text-align:end;">{{ '%.2f'|format(net) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if not service.parts and not service.tasks %}
+      <tbody>
+        <tr>
+          <td colspan="6" class="table-empty">لا توجد بنود مسجلة</td>
+        </tr>
+      </tbody>
+      {% endif %}
+    </table>
+  </div>
+
+  <div class="totals">
+    <div class="totals-row">
+      <span>المجموع قبل الخصم</span>
+      <span>{{ '%.2f'|format(ns.gross_total) }} {{ service.currency or '₪' }}</span>
+    </div>
+    {% if ns.items_discount > 0 %}
+    <div class="totals-row">
+      <span>خصم البنود</span>
+      <span>-{{ '%.2f'|format(ns.items_discount) }} {{ service.currency or '₪' }}</span>
+    </div>
+    {% endif %}
+    {% if global_discount > 0 %}
+    <div class="totals-row">
+      <span>خصم إضافي</span>
+      <span>-{{ '%.2f'|format(global_discount) }} {{ service.currency or '₪' }}</span>
+    </div>
+    {% endif %}
+    <div class="totals-row">
+      <span>الصافي بعد الخصم</span>
+      <span>{{ '%.2f'|format(subtotal_after_all_disc) }} {{ service.currency or '₪' }}</span>
+    </div>
+    {% if tax_rate > 0 %}
+    <div class="totals-row">
+      <span>ضريبة {{ '%.0f'|format(tax_rate) }}%</span>
+      <span>{{ '%.2f'|format(tax_amount) }} {{ service.currency or '₪' }}</span>
+    </div>
+    {% endif %}
+    <div class="totals-row final">
+      <span>الإجمالي النهائي</span>
+      <span>{{ '%.2f'|format(grand_total) }} {{ service.currency or '₪' }}</span>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="print-btn" onclick="window.print()">🖨️ طباعة</button>
+    <a class="back-btn" href="{{ url_for('service.view_request', rid=service.id) }}">رجوع</a>
+  </div>
+</div>
+{% endblock %}

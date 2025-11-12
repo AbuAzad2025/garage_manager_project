@@ -613,8 +613,8 @@ img {
   
   /* إخفاء أعمدة معينة في الجداول */
   .table .hide-mobile {
-    display: none !important;
-  }
+    display: table-cell !important;
+}
 }
 
 /* ═══════════════════════════════════════════════════════════════════

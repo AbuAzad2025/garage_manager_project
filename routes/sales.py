@@ -3,8 +3,9 @@
 from __future__ import annotations
 import json
 from datetime import datetime
+import math
 from typing import Any, Dict, Iterable, Optional, List, Tuple
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort, current_app
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort, current_app, Response
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_, desc, extract, case, and_
 from sqlalchemy.exc import SQLAlchemyError
@@ -413,8 +414,9 @@ def list_sales():
         .options(joinedload(Sale.customer), joinedload(Sale.seller), joinedload(Sale.seller_employee))
          .outerjoin(subtotals, subtotals.c.sale_id == Sale.id)
          .outerjoin(Customer))
-    st = f.get("status", "all").upper()
-    if st and st != "ALL":
+    st = (f.get("status") or "").upper().strip()
+    status_filter_enabled = bool(st and st != "ALL")
+    if status_filter_enabled:
         q = q.filter(Sale.status == st)
     cust = (f.get("customer") or "").strip()
     if cust:
@@ -439,19 +441,63 @@ def list_sales():
         fld = Customer.name
     else:
         fld = Sale.sale_date
-    q = q.order_by(fld.asc() if order == "asc" else fld.desc())
-    page = int(f.get("page", 1))
-    pag = q.paginate(page=page, per_page=20, error_out=False)
-    sales = pag.items
-    for s in sales:
+    ordered_query = q.order_by(fld.asc() if order == "asc" else fld.desc())
+
+    per_page = 20
+    page = max(1, int(f.get("page", 1)))
+
+    print_mode = request.args.get("print") == "1"
+    scope_param = request.args.get("scope")
+    print_scope = scope_param or ("page" if print_mode else "all")
+    range_start = request.args.get("range_start", type=int)
+    range_end = request.args.get("range_end", type=int)
+    target_page = request.args.get("page_number", type=int)
+
+    all_sales = ordered_query.all()
+
+    total_filtered = len(all_sales)
+    total_pages = math.ceil(total_filtered / per_page) if total_filtered else 1
+
+    range_start_value = range_start or 1
+    if range_start_value < 1:
+        range_start_value = 1
+    range_end_value = range_end or (total_filtered if total_filtered else 1)
+    if range_end_value < range_start_value:
+        range_end_value = range_start_value
+    target_page_value = target_page or 1
+    if target_page_value < 1:
+        target_page_value = 1
+    if target_page_value > total_pages:
+        target_page_value = total_pages if total_pages else 1
+
+    if print_mode:
+        if print_scope == "all":
+            sales_list = list(all_sales)
+            row_offset = 0
+        elif print_scope == "range":
+            start_idx = range_start_value - 1
+            end_idx = min(total_filtered, range_end_value)
+            sales_list = all_sales[start_idx:end_idx]
+            row_offset = start_idx
+        else:
+            row_offset = (target_page_value - 1) * per_page
+            start_idx = row_offset
+            end_idx = start_idx + per_page
+            sales_list = all_sales[start_idx:end_idx]
+        pag = None
+    else:
+        pag = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
+        sales_list = list(pag.items)
+        row_offset = (pag.page - 1) * pag.per_page if pag else 0
+    for s in sales_list:
         _format_sale(s)
     
     # حساب الملخصات الحقيقية
     from models import fx_rate
     
     # جلب جميع المبيعات (بدون pagination) لحساب الملخصات
-    all_sales_query = Sale.query
-    if st and st != "ALL":
+    all_sales_query = Sale.query.filter(Sale.is_archived.is_(False))
+    if status_filter_enabled:
         all_sales_query = all_sales_query.filter(Sale.status == st)
     if cust:
         all_sales_query = all_sales_query.join(Customer).filter(
@@ -467,91 +513,124 @@ def list_sales():
     
     all_sales = all_sales_query.all()
     
-    # حساب الإحصائيات
+    # حساب الإحصائيات بدقة
+    def _to_ils(value, currency, fx_used, at_date):
+        amount = Decimal(str(value or 0))
+        code = (currency or "ILS").upper()
+        if code != "ILS":
+            if fx_used:
+                try:
+                    amount *= Decimal(str(fx_used))
+                except Exception:
+                    pass
+            else:
+                try:
+                    rate = fx_rate(code, "ILS", at_date, raise_on_missing=False)
+                    if rate and rate > 0:
+                        amount *= Decimal(str(rate))
+                except Exception:
+                    pass
+        return float(amount)
+    
     total_sales = 0.0
     total_paid = 0.0
     total_pending = 0.0
-    sales_by_status = {}
+    sales_by_status: dict[str, dict[str, float | int]] = {}
+    contributing_sales = 0
     
     for sale in all_sales:
-        # تحويل للشيقل
-        amount = float(sale.total_amount or 0)
-        if sale.currency and sale.currency != 'ILS':
-            try:
-                rate = fx_rate(sale.currency, 'ILS', sale.sale_date, raise_on_missing=False)
-                if rate > 0:
-                    amount = float(amount * float(rate))
-                else:
-                    current_app.logger.warning(f"⚠️ سعر صرف مفقود: {sale.currency}/ILS للبيع #{sale.id} - استخدام المبلغ الأصلي")
-            except Exception as e:
-                current_app.logger.error(f"❌ خطأ في تحويل العملة للبيع #{sale.id}: {str(e)}")
+        status = (sale.status or "DRAFT").upper()
         
-        total_sales += amount
+        sale_amount = _to_ils(sale.total_amount, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
+        balance_amount = _to_ils(sale.balance_due, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
+        refund_amount = _to_ils(sale.refunded_total, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
         
-        # حساب المدفوع
-        payments = Payment.query.filter(
-            Payment.customer_id == sale.customer_id,
-            Payment.direction == 'IN',
-            Payment.status == 'COMPLETED'  # ✅ فلترة الدفعات المكتملة فقط
-        ).all()
+        paid_amount = 0.0
+        for payment in getattr(sale, "payments", []) or []:
+            if (payment.direction or "").upper() != "IN":
+                continue
+            if (payment.status or "").upper() != "COMPLETED":
+                continue
+            paid_amount += _to_ils(payment.total_amount, payment.currency, getattr(payment, "fx_rate_used", None), payment.payment_date)
         
-        paid_for_sale = sum(
-            float(p.total_amount or 0) * float(p.fx_rate_used or 1.0) if p.fx_rate_used
-            else float(p.total_amount or 0)
-            for p in payments
-        )
+        net_amount = sale_amount
+        if status == "REFUNDED":
+            net_amount = max(sale_amount - refund_amount, 0.0)
+            balance_amount = 0.0
         
-        # تصنيف حسب الحالة
-        status = sale.status if hasattr(sale, 'status') else 'DRAFT'
-        if status not in sales_by_status:
-            sales_by_status[status] = {'count': 0, 'amount': 0}
-        sales_by_status[status]['count'] += 1
-        sales_by_status[status]['amount'] += amount
+        if status == "CONFIRMED":
+            total_sales += net_amount
+            total_paid += paid_amount
+            total_pending += max(balance_amount, 0.0)
+            contributing_sales += 1
+        elif status not in ("DRAFT", "CANCELLED", "REFUNDED"):
+            total_sales += net_amount
+            total_paid += paid_amount
+            total_pending += max(balance_amount, 0.0)
+            contributing_sales += 1
+        elif status == "REFUNDED":
+            total_paid += min(paid_amount, net_amount)
+        
+        status_entry = sales_by_status.setdefault(status, {"count": 0, "amount": 0.0})
+        status_entry["count"] += 1
+        status_entry["amount"] += net_amount
     
-    # حساب المدفوع الإجمالي من الدفعات المرتبطة بالمبيعات
-    total_paid = 0.0
-    for sale in all_sales:
-        # جلب الدفعات المرتبطة بهذا البيع
-        sale_payments = Payment.query.filter(
-            Payment.sale_id == sale.id,
-            Payment.direction == 'IN'
-        ).all()
-        
-        for payment in sale_payments:
-            amount = float(payment.total_amount or 0)
-            if payment.fx_rate_used:
-                amount *= float(payment.fx_rate_used)
-            elif payment.currency and payment.currency != 'ILS':
-                try:
-                    rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
-                    if rate > 0:
-                        amount *= float(rate)
-                except Exception as e:
-                    current_app.logger.error(f"❌ خطأ في تحويل عملة الدفعة #{payment.id}: {str(e)}")
-            total_paid += amount
-    
-    total_pending = total_sales - total_paid
-    average_sale = total_sales / len(all_sales) if len(all_sales) > 0 else 0
+    average_sale = total_sales / contributing_sales if contributing_sales else 0.0
     
     summary = {
         'total_sales': total_sales,
         'total_paid': total_paid,
         'total_pending': total_pending,
         'average_sale': average_sale,
-        'sales_count': len(all_sales),
+        'sales_count': contributing_sales,
         'sales_by_status': sales_by_status
     }
     
     query_args = request.args.to_dict()
-    query_args.pop("page", None)
+    for key in ["page", "print", "scope", "range_start", "range_end", "page_number"]:
+        query_args.pop(key, None)
 
-    return render_template("sales/list.html", sales=sales, pagination=pag,
-                           warehouses=Warehouse.query.order_by(Warehouse.name).all(),
-                           customers=Customer.query.order_by(Customer.name).limit(100).all(),
-                           sellers=User.query.filter_by(is_active=True).order_by(User.username).all(),
-                           status_map=STATUS_MAP,
-                           summary=summary,
-                           query_args=query_args)
+    context = {
+        "sales": sales_list,
+        "pagination": pag,
+        "warehouses": Warehouse.query.order_by(Warehouse.name).all(),
+        "customers": Customer.query.order_by(Customer.name).limit(100).all(),
+        "sellers": User.query.filter_by(is_active=True).order_by(User.username).all(),
+        "status_map": STATUS_MAP,
+        "summary": summary,
+        "query_args": query_args,
+        "print_mode": print_mode,
+        "print_scope": print_scope,
+        "range_start": range_start_value,
+        "range_end": range_end_value,
+        "target_page": target_page_value,
+        "total_filtered": total_filtered,
+        "total_pages": total_pages if total_pages else 1,
+        "per_page": per_page,
+        "row_offset": row_offset,
+        "generated_at": datetime.utcnow(),
+        "pdf_export": False,
+        "show_actions": not print_mode,
+    }
+
+    if print_mode:
+        context["pdf_export"] = True
+        try:
+            from weasyprint import HTML
+
+            html_output = render_template("sales/list.html", **context)
+            pdf_bytes = HTML(string=html_output, base_url=request.url_root).write_pdf()
+            filename = f"sales_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.pdf"
+            return Response(
+                pdf_bytes,
+                mimetype="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{filename}"'},
+            )
+        except Exception as exc:
+            current_app.logger.error("sales_print_pdf_error: %s", exc)
+            context["pdf_export"] = False
+
+    return render_template("sales/list.html", **context)
 
 def _resolve_unit_price(product_id: int, warehouse_id: Optional[int]) -> float:
     prod = db.session.get(Product, product_id)

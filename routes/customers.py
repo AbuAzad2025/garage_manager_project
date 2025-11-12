@@ -2,6 +2,7 @@
 import csv
 import io
 import json
+import math
 import re
 from datetime import datetime
 from decimal import Decimal
@@ -118,7 +119,7 @@ def list_customers():
         joinedload(Customer.payments),
         joinedload(Customer.sales)
     )
-    
+
     if name := request.args.get("name"):
         q = q.filter(Customer.name.ilike(f"%{name}%"))
     if phone := request.args.get("phone"):
@@ -127,51 +128,143 @@ def list_customers():
         q = q.filter(Customer.category == category)
     if "is_active" in request.args:
         q = q.filter(Customer.is_active == (request.args.get("is_active") == "1"))
-    
+
+    print_mode = request.args.get("print") == "1"
+    scope_param = request.args.get("scope")
+    print_scope = scope_param or ("page" if print_mode else "all")
+    range_start = request.args.get("range_start", type=int)
+    range_end = request.args.get("range_end", type=int)
+    target_page = request.args.get("page_number", type=int)
+
     page = max(1, request.args.get("page", 1, type=int))
     per_page = request.args.get("per_page", 20, type=int)
     per_page = min(max(1, per_page), 200)
-    
+
     # ترتيب محسّن
-    pagination = q.order_by(Customer.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    ordered_query = q.order_by(Customer.created_at.desc())
+    total_filtered = ordered_query.count()
+
+    if print_scope not in {"all", "range", "page"}:
+        print_scope = "page" if print_mode else "all"
+
+    customers_list = []
+    pagination = None
+
+    start_index = 1
+    page_number = page
+
+    if print_mode:
+        if print_scope == "all":
+            customers_list = ordered_query.all()
+        elif print_scope == "range":
+            start_index = max(1, range_start or 1)
+            end_index = range_end or total_filtered or start_index
+            if end_index < start_index:
+                end_index = start_index
+            limit = max(1, end_index - start_index + 1)
+            customers_list = ordered_query.offset(start_index - 1).limit(limit).all()
+        else:
+            page_number = max(1, target_page or page or 1)
+            customers_list = ordered_query.offset((page_number - 1) * per_page).limit(per_page).all()
+    else:
+        pagination = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
+        customers_list = pagination.items
+
     args = request.args.to_dict(flat=True)
-    args.pop("page", None)
-    
-    # حساب الملخصات الإجمالية لجميع العملاء غير المؤرشفين
-    all_customers = Customer.query.filter(Customer.is_archived == False).all()
-    
+    for key in ["page", "print", "scope", "range_start", "range_end", "page_number"]:
+        args.pop(key, None)
+
+    total_pages = math.ceil(total_filtered / per_page) if per_page else 1
+
+    active_customers = Customer.query.filter(Customer.is_archived.is_(False)).all()
+
     total_balance = 0.0
+    total_sales = 0.0
+    total_payments = 0.0
     customers_with_debt = 0
     customers_with_credit = 0
-    
-    for customer in all_customers:
+
+    for customer in active_customers:
         try:
-            # استخدام customer.balance المحسوب تلقائياً
             balance = float(customer.balance or 0)
-            
             total_balance += balance
-            
-            if balance > 0:
+            if balance < 0:
                 customers_with_debt += 1
-            elif balance < 0:
+            elif balance > 0:
                 customers_with_credit += 1
-                
-        except Exception as e:
+        except Exception:
+            continue
+
+        try:
+            total_sales += float(customer.total_invoiced or 0)
+        except Exception:
             pass
-    
+
+        try:
+            total_payments += float(customer.total_paid or 0)
+        except Exception:
+            pass
+
     summary = {
-        'total_customers': len(all_customers),
+        'total_customers': len(active_customers),
         'total_balance': total_balance,
-        'total_sales': 0.0,  # ✅ إضافة للقالب
-        'total_payments': 0.0,  # ✅ إضافة للقالب
+        'total_sales': total_sales,
+        'total_payments': total_payments,
         'customers_with_debt': customers_with_debt,
         'customers_with_credit': customers_with_credit,
-        'average_balance': total_balance / len(all_customers) if all_customers else 0
+        'average_balance': (total_balance / len(active_customers)) if active_customers else 0
     }
-    
-    if not pagination.items:
+
+    if not customers_list and not print_mode:
         flash("⚠️ لا توجد بيانات لعرضها", "info")
-    return render_template("customers/list.html", customers=pagination.items, pagination=pagination, args=args, summary=summary)
+
+    if print_mode:
+        if print_scope == "range":
+            row_offset = start_index - 1
+        elif print_scope == "page":
+            row_offset = (page_number - 1) * per_page
+        else:
+            row_offset = 0
+    else:
+        row_offset = ((pagination.page - 1) * pagination.per_page) if pagination else 0
+
+    context = {
+        "customers": customers_list,
+        "pagination": pagination,
+        "args": args,
+        "summary": summary,
+        "print_mode": print_mode,
+        "print_scope": print_scope,
+        "range_start": range_start or 1,
+        "range_end": range_end or (total_filtered if total_filtered else 1),
+        "target_page": target_page or page,
+        "total_filtered": total_filtered,
+        "total_pages": total_pages if total_pages else 1,
+        "per_page": per_page,
+        "show_actions": not print_mode,
+        "row_offset": row_offset,
+        "generated_at": datetime.utcnow(),
+        "pdf_export": False,
+    }
+
+    if print_mode:
+        context["pdf_export"] = True
+        try:
+            from weasyprint import HTML
+
+            html_output = render_template("customers/list.html", **context)
+            pdf_bytes = HTML(string=html_output, base_url=request.url_root).write_pdf()
+            filename = f"customers_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.pdf"
+            return Response(
+                pdf_bytes,
+                mimetype="application/pdf",
+                headers={"Content-Disposition": f'inline; filename="{filename}"'},
+            )
+        except Exception as exc:
+            current_app.logger.error("customers_print_pdf_error: %s", exc)
+            context["pdf_export"] = False
+
+    return render_template("customers/list.html", **context)
 
 
 @customers_bp.route("/<int:customer_id>", methods=["GET"], endpoint="customer_detail")
@@ -202,10 +295,13 @@ def customer_analytics(customer_id):
         d = _f2(disc_pct)
         t = _f2(tax_pct)
         gross = q * u
-        disc = gross * (d / 100.0)
+        if d < 0:
+            d = 0.0
+        if d > gross:
+            d = gross
+        disc = d
         taxable = gross - disc
         tax = taxable * (t / 100.0)
-        from decimal import Decimal
         taxable_d = q0(taxable)
         tax_d = q0(tax)
         total_d = q0(taxable_d + tax_d)
@@ -634,7 +730,11 @@ def account_statement(customer_id):
         d = _f2(disc_pct)
         t = _f2(tax_pct)
         gross = q * u
-        disc = gross * (d / 100.0)
+        if d < 0:
+            d = 0.0
+        if d > gross:
+            d = gross
+        disc = d
         taxable = gross - disc
         tax = taxable * (t / 100.0)
         taxable_d = q0(taxable)

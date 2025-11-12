@@ -1,22 +1,28 @@
+{% set has_actions = show_actions if show_actions is defined else True %}
+{% set row_offset = row_offset if row_offset is defined else 0 %}
+{% set print_flag = 1 if print_mode is defined and print_mode else 0 %}
+{% set table_id = table_id if table_id is defined else 'customersTable' %}
+{% set table_classes = table_classes if table_classes is defined else 'table table-hover table-bordered table-striped align-middle mb-0 text-center table-mobile-friendly' %}
 <div class="table-responsive">
-  <table id="customersTable" class="table table-hover table-bordered table-striped align-middle mb-0 text-center table-mobile-friendly" data-dt-skip="true">
+  <table id="{{ table_id }}" class="{{ table_classes }}" data-dt-skip="true" data-print-mode="{{ print_flag }}" data-has-actions="{{ 1 if has_actions else 0 }}">
     <thead class="table-primary">
       <tr>
         <th class="hide-mobile">#</th>
+        <th class="hide-mobile">تاريخ الإنشاء</th>
         <th>الاسم</th>
         <th>الجوال</th>
-        <th class="hide-mobile">البريد</th>
         <th class="hide-mobile">التصنيف</th>
         <th>الرصيد</th>
-        <th class="hide-mobile">الحالة</th>
-        <th class="hide-mobile">تاريخ الإنشاء</th>
+        {% if has_actions %}
         <th>العمليات</th>
+        {% endif %}
       </tr>
     </thead>
     <tbody>
       {% for customer in customers %}
       <tr class="{% if not customer.is_active %}table-secondary{% endif %}">
-        <td class="hide-mobile">{{ loop.index + (pagination.page - 1) * pagination.per_page }}</td>
+        <td class="hide-mobile">{{ loop.index + row_offset }}</td>
+        <td class="hide-mobile">{{ customer.created_at|format_date }}</td>
         <td class="text-start">
           <a href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}" class="fw-bold text-primary">
             {{ customer.name }}
@@ -32,21 +38,11 @@
           {% endif %}
         </td>
         <td>{{ customer.phone or '-' }}</td>
-        <td class="hide-mobile">{{ customer.email or '-' }}</td>
         <td class="hide-mobile">{{ customer.category or '-' }}</td>
         <td class="fw-bold {% if customer.balance < 0 %}text-danger{% else %}text-success{% endif %}">
           {{ customer.balance|format_currency }}
         </td>
-        <td class="hide-mobile">
-          {% if customer.is_archived %}
-            <span class="badge bg-secondary">مؤرشف</span>
-          {% elif customer.is_active %}
-            <span class="badge bg-success">نشط</span>
-          {% else %}
-            <span class="badge bg-warning">غير نشط</span>
-          {% endif %}
-        </td>
-        <td class="hide-mobile">{{ customer.created_at|format_date }}</td>
+        {% if has_actions %}
         <td class="text-nowrap">
           <div class="table-actions">
             <a href="{{ url_for('customers_bp.customer_detail', customer_id=customer.id) }}" class="btn btn-action-view btn-action-sm" title="عرض">
@@ -91,9 +87,10 @@
             </a>
           </div>
         </td>
+        {% endif %}
       </tr>
       {% else %}
-      <tr><td colspan="9" class="text-muted text-center">لا توجد نتائج.</td></tr>
+      <tr><td colspan="{{ 7 if has_actions else 6 }}" class="text-muted text-center">لا توجد نتائج.</td></tr>
       {% endfor %}
     </tbody>
   </table>

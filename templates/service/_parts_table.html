@@ -16,7 +16,7 @@
             <th><i class="fas fa-cog"></i> القطعة</th>
             <th><i class="fas fa-hashtag"></i> الكمية</th>
             <th><i class="fas fa-dollar-sign"></i> سعر الوحدة</th>
-            <th><i class="fas fa-percent"></i> الخصم</th>
+            <th><i class="fas fa-tags"></i> الخصم (₪)</th>
             <th><i class="fas fa-receipt"></i> الضريبة</th>
             <th><i class="fas fa-calculator"></i> الإجمالي</th>
             {% if current_user.has_permission('manage_service') and service.status.value != 'COMPLETED' %}
@@ -45,7 +45,7 @@
               </td>
               <td class="text-center">
                 {% if part.discount and part.discount > 0 %}
-                <span class="badge bg-warning">{{ '%.2f'|format((part.discount or 0)|float) }} ₪</span>
+                <span class="badge bg-secondary">{{ '%.2f'|format((part.discount or 0)|float) }} ₪</span>
                 {% else %}
                 <span class="text-muted">—</span>
                 {% endif %}

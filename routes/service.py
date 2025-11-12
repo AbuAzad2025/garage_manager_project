@@ -15,7 +15,7 @@ from flask import (
 )
 from flask_login import login_required, current_user, login_user
 from sqlalchemy import func, or_, desc, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import joinedload
 
 from extensions import db, cache
@@ -79,27 +79,96 @@ def _has_stock_action(service, action: str) -> bool:
     q = db.session.query(AuditLog.id).filter(AuditLog.model_name=="ServiceRequest", AuditLog.record_id==service.id, AuditLog.action==(action or "").strip().upper()).limit(1)
     return bool(db.session.execute(q).first())
 
+def _flash_error(message: str) -> None:
+    flash(f'❌ {message}', 'danger')
+
+def _friendly_error(exc, fallback=None):
+    if isinstance(exc, IntegrityError):
+        return "لا يمكن حفظ السجل بسبب تعارض في البيانات."
+    text=str(exc or "").strip()
+    lower=text.lower()
+    if "insufficient stock" in lower:
+        return "المخزون غير كافٍ لبعض القطع."
+    if "discount" in lower and ("exceed" in lower or "less than" in lower or "greater than" in lower or "must be between"):
+        return "قيمة الخصم غير مقبولة بالنسبة للإجمالي."
+    if "not a valid choice" in lower or "foreign key" in lower or "violates foreign key" in lower:
+        return "القيم المختارة غير صالحة."
+    if "unique constraint" in lower or "already exists" in lower or "duplicate" in lower:
+        return "السجل موجود مسبقاً ولا يمكن تكراره."
+    if "value too long" in lower or "data too long" in lower:
+        return "النص المدخل أطول من الحد المسموح."
+    if "null value" in lower or "not null" in lower:
+        return "يجب تعبئة جميع الحقول الإلزامية."
+    if "could not convert" in lower or "invalid literal" in lower or "decimal" in lower or "invalid input syntax" in lower:
+        return "القيم المدخلة غير صالحة."
+    if "permission" in lower:
+        return "غير مصرح لك بتنفيذ هذه العملية."
+    return fallback or "حدث خطأ غير متوقع."
+
+def _log_and_flash(log_key: str, exc: Exception, message: str) -> None:
+    current_app.logger.error(log_key, exc_info=exc)
+    _flash_error(message)
+
+def _service_stock_targets(service):
+    totals={}
+    for p in list(service.parts or []):
+        key=(int(p.part_id),int(p.warehouse_id))
+        qty=-int(p.quantity or 0)
+        totals[key]=totals.get(key,0)+qty
+    return totals
+
+def _service_stock_movements(service):
+    actions=("STOCK_CONSUME","STOCK_RELEASE","STOCK_CONSUME_PART","STOCK_RELEASE_PART")
+    rows=db.session.query(AuditLog).filter(AuditLog.model_name=="ServiceRequest",AuditLog.record_id==service.id,AuditLog.action.in_(actions)).all()
+    totals={}
+    for row in rows:
+        payload=None
+        try:
+            payload=json.loads(row.new_data or "{}")
+        except Exception:
+            payload=None
+        if not isinstance(payload,dict): continue
+        items=payload.get("items") if isinstance(payload.get("items"),list) else []
+        for item in items:
+            try:
+                part_id=int(item.get("part_id"))
+                warehouse_id=int(item.get("warehouse_id"))
+                qty=int(item.get("qty") or 0)
+            except Exception:
+                continue
+            key=(part_id,warehouse_id)
+            totals[key]=totals.get(key,0)+qty
+    return totals
+
 def _consume_service_stock_once(service) -> bool:
     if not _service_consumes_stock(service): return False
-    if _has_stock_action(service,"STOCK_CONSUME"): return False
+    targets=_service_stock_targets(service)
+    currents=_service_stock_movements(service)
+    for key in list(currents.keys()):
+        if key not in targets: targets[key]=0
     items=[]
-    for p in list(service.parts or []):
-        qty=-int(p.quantity or 0)
-        new_qty=utils._apply_stock_delta(p.part_id,p.warehouse_id,qty)
-        items.append({"part_id":p.part_id,"warehouse_id":p.warehouse_id,"qty":qty,"stock_after":int(new_qty)})
+    for key,target in targets.items():
+        current=currents.get(key,0)
+        delta=target-current
+        if delta:
+            new_qty=utils._apply_stock_delta(key[0],key[1],delta)
+            items.append({"part_id":key[0],"warehouse_id":key[1],"qty":delta,"stock_after":int(new_qty)})
+    if not items and _has_stock_action(service,"STOCK_CONSUME"): return False
     _log_service_stock_action(service,"STOCK_CONSUME",items)
     current_app.logger.info("service.stock_consume",extra={"event":"service.stock.consume","service_id":service.id,"items":[{"part_id":i["part_id"],"warehouse_id":i["warehouse_id"],"qty":i["qty"]} for i in items]})
-    return True
+    return bool(items)
 
 def _release_service_stock_once(service) -> bool:
     if not _service_consumes_stock(service): return False
-    if not _has_stock_action(service,"STOCK_CONSUME"): return False
-    if _has_stock_action(service,"STOCK_RELEASE"): return False
+    currents=_service_stock_movements(service)
+    if not currents: return False
     items=[]
-    for p in list(service.parts or []):
-        qty=+int(p.quantity or 0)
-        new_qty=utils._apply_stock_delta(p.part_id,p.warehouse_id,qty)
-        items.append({"part_id":p.part_id,"warehouse_id":p.warehouse_id,"qty":qty,"stock_after":int(new_qty)})
+    for key,current in currents.items():
+        if not current: continue
+        delta=-current
+        new_qty=utils._apply_stock_delta(key[0],key[1],delta)
+        items.append({"part_id":key[0],"warehouse_id":key[1],"qty":delta,"stock_after":int(new_qty)})
+    if not items: return False
     _log_service_stock_action(service,"STOCK_RELEASE",items)
     current_app.logger.info("service.stock_release",extra={"event":"service.stock.release","service_id":service.id,"items":[{"part_id":i["part_id"],"warehouse_id":i["warehouse_id"],"qty":i["qty"]} for i in items]})
     return True
@@ -360,7 +429,8 @@ def create_request():
             flash("✅ تم إنشاء طلب الصيانة بنجاح","success")
             return redirect(url_for('service.view_request', rid=service.id))
         except SQLAlchemyError as exc:
-            db.session.rollback(); flash(f"❌ خطأ في قاعدة البيانات: {exc}","danger")
+            db.session.rollback()
+            _log_and_flash("service.create_request", exc, "تعذر إنشاء طلب الصيانة حالياً.")
     return render_template('service/new.html', form=form)
 
 @service_bp.route('/<int:rid>', methods=['GET'])
@@ -377,7 +447,8 @@ def view_request(rid):
 def view_receipt(rid):
     service=_get_or_404(ServiceRequest, rid, options=[joinedload(ServiceRequest.customer), joinedload(ServiceRequest.parts).joinedload(ServicePart.part), joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse), joinedload(ServiceRequest.tasks)])
     variant = 'simple' if (request.args.get('simple') or '').strip().lower() in ('1','true','yes') else 'pro'
-    return render_template('service/receipt.html', service=service, variant=variant)
+    template_name = 'service/receipt_simple.html' if variant == 'simple' else 'service/receipt.html'
+    return render_template(template_name, service=service, variant=variant)
 
 @service_bp.route('/<int:rid>/receipt/download', methods=['GET'])
 @login_required
@@ -401,7 +472,8 @@ def update_diagnosis(rid):
         if service.customer and service.customer.phone: utils.send_whatsapp_message(service.customer.phone, f"تم تحديث ملاحظات المهندس للمركبة {service.vehicle_vrn}.")
         flash('✅ تم تحديث الملاحظات بنجاح','success')
     except SQLAlchemyError as e:
-        db.session.rollback(); flash(f'❌ خطأ في قاعدة البيانات: {str(e)}','danger')
+        db.session.rollback()
+        _log_and_flash("service.update_diagnosis", e, "تعذر حفظ التعديلات، يرجى المحاولة لاحقاً.")
     return redirect(url_for('service.view_request', rid=rid))
 
 @service_bp.route('/<int:rid>/discount_tax', methods=['POST'])
@@ -412,7 +484,7 @@ def update_discount_tax(rid):
     service = _get_or_404(ServiceRequest, rid)
     
     if service.status == ServiceStatus.COMPLETED.value:
-        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        _flash_error('لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً')
         return redirect(url_for('service.view_request', rid=rid))
     
     try:
@@ -426,15 +498,15 @@ def update_discount_tax(rid):
         
         # التحقق من صحة البيانات
         if discount_total < 0:
-            flash('❌ الخصم لا يمكن أن يكون سالباً', 'danger')
+            _flash_error('الخصم لا يمكن أن يكون سالباً')
             return redirect(url_for('service.view_request', rid=rid))
         
         if discount_total > invoice_total:
-            flash(f'❌ الخصم ({discount_total:.2f} ₪) لا يمكن أن يتجاوز إجمالي الفاتورة ({invoice_total:.2f} ₪)', 'danger')
+            _flash_error(f'الخصم ({discount_total:.2f} ₪) لا يمكن أن يتجاوز إجمالي الفاتورة ({invoice_total:.2f} ₪)')
             return redirect(url_for('service.view_request', rid=rid))
         
         if tax_rate < 0 or tax_rate > 100:
-            flash('❌ نسبة الضريبة يجب أن تكون بين 0 و 100', 'danger')
+            _flash_error('نسبة الضريبة يجب أن تكون بين 0 و 100')
             return redirect(url_for('service.view_request', rid=rid))
         
         # حفظ القيم القديمة للـ audit log
@@ -460,11 +532,11 @@ def update_discount_tax(rid):
         flash('✅ تم تحديث الخصم والضريبة بنجاح', 'success')
         
     except ValueError as e:
-        flash(f'❌ خطأ في البيانات: {str(e)}', 'danger')
+        _flash_error(_friendly_error(e, "القيم المدخلة غير صالحة."))
         db.session.rollback()
     except SQLAlchemyError as e:
         db.session.rollback()
-        flash(f'❌ خطأ في قاعدة البيانات: {str(e)}', 'danger')
+        _log_and_flash("service.update_discount_tax", e, "تعذر حفظ التعديلات، يرجى المحاولة لاحقاً.")
     
     return redirect(url_for('service.view_request', rid=rid))
 
@@ -474,17 +546,19 @@ def update_discount_tax(rid):
 def toggle_service(rid, action):
     service=_get_or_404(ServiceRequest, rid)
     try:
+        current_status = getattr(service.status, 'value', service.status)
         if action=='start':
             if not getattr(service,"started_at",None): service.started_at=datetime.utcnow()
-            service.status=ServiceStatus.IN_PROGRESS
+            service.status=ServiceStatus.IN_PROGRESS.value
         elif action=='complete':
             service.completed_at=datetime.utcnow()
             if service.started_at: service.actual_duration=int((service.completed_at-service.started_at).total_seconds()/60)
-            service.status=ServiceStatus.COMPLETED
+            service.status=ServiceStatus.COMPLETED.value
             _consume_service_stock_once(service)
         elif action=='reopen':
-            if service.status==ServiceStatus.COMPLETED.value:
-                service.status=ServiceStatus.IN_PROGRESS
+            if current_status==ServiceStatus.COMPLETED.value:
+                _release_service_stock_once(service)
+                service.status=ServiceStatus.IN_PROGRESS.value
                 service.completed_at=None
         else: abort(400)
         db.session.commit()
@@ -500,9 +574,11 @@ def toggle_service(rid, action):
         
         flash('✅ تم تحديث حالة الصيانة','success')
     except ValueError as ve:
-        db.session.rollback(); flash(f'❌ مخزون غير كافٍ لبعض القطع: {ve}','danger')
+        db.session.rollback()
+        _flash_error(_friendly_error(ve, "لا يمكن تنفيذ هذه العملية."))
     except SQLAlchemyError as e:
-        db.session.rollback(); flash(f'❌ خطأ في قاعدة البيانات: {str(e)}','danger')
+        db.session.rollback()
+        _log_and_flash("service.toggle_service", e, "تعذر تحديث حالة الصيانة حالياً.")
     return redirect(url_for('service.view_request', rid=rid))
 
 @service_bp.route('/<int:rid>/parts/add', methods=['POST'])
@@ -512,7 +588,7 @@ def add_part(rid):
     service=_get_or_404(ServiceRequest, rid)
     
     if service.status == ServiceStatus.COMPLETED.value:
-        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        _flash_error('لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً')
         return redirect(url_for('service.view_request', rid=rid))
     
     try:
@@ -526,29 +602,29 @@ def add_part(rid):
         
         # Validation
         if not warehouse_id or not product_id:
-            flash('❌ يجب اختيار المستودع والقطعة', 'danger')
+            _flash_error('يجب اختيار المستودع والقطعة')
             return redirect(url_for('service.view_request', rid=rid))
         
         if quantity <= 0:
-            flash('❌ الكمية يجب أن تكون أكبر من صفر', 'danger')
+            _flash_error('الكمية يجب أن تكون أكبر من صفر')
             return redirect(url_for('service.view_request', rid=rid))
         
         if unit_price < 0:
-            flash('❌ السعر لا يمكن أن يكون سالباً', 'danger')
+            _flash_error('السعر لا يمكن أن يكون سالباً')
             return redirect(url_for('service.view_request', rid=rid))
         
         if discount < 0:
-            flash('❌ الخصم لا يمكن أن يكون سالباً', 'danger')
+            _flash_error('الخصم لا يمكن أن يكون سالباً')
             return redirect(url_for('service.view_request', rid=rid))
         
         # التحقق من أن الخصم لا يتجاوز إجمالي البند
         gross_amount = quantity * unit_price
         if discount > gross_amount:
-            flash(f'❌ الخصم ({discount:.2f} ₪) لا يمكن أن يتجاوز إجمالي البند ({gross_amount:.2f} ₪)', 'danger')
+            _flash_error(f'الخصم ({discount:.2f} ₪) لا يمكن أن يتجاوز إجمالي البند ({gross_amount:.2f} ₪)')
             return redirect(url_for('service.view_request', rid=rid))
         
         if tax_rate < 0 or tax_rate > 100:
-            flash('❌ نسبة الضريبة يجب أن تكون بين 0 و 100', 'danger')
+            _flash_error('نسبة الضريبة يجب أن تكون بين 0 و 100')
             return redirect(url_for('service.view_request', rid=rid))
         
         part=ServicePart(
@@ -576,13 +652,13 @@ def add_part(rid):
         
     except ValueError as ve:
         db.session.rollback()
-        flash(f'❌ خطأ في البيانات: {ve}','danger')
+        _flash_error(_friendly_error(ve, "القيم المدخلة غير صالحة."))
     except SQLAlchemyError as e:
         db.session.rollback()
-        flash(f'❌ خطأ في قاعدة البيانات: {str(e)}','danger')
+        _log_and_flash("service.add_part", e, "تعذر حفظ القطعة، يرجى المحاولة لاحقاً.")
     except Exception as e:
         db.session.rollback()
-        flash(f'❌ خطأ: {str(e)}','danger')
+        _log_and_flash("service.add_part_unexpected", e, "حدث خطأ غير متوقع أثناء إضافة القطعة.")
     
     return redirect(url_for('service.view_request', rid=rid))
 
@@ -595,11 +671,11 @@ def delete_part(pid):
     service=_get_or_404(ServiceRequest, rid)
     
     if service.status == ServiceStatus.COMPLETED.value:
-        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        _flash_error('لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً')
         return redirect(url_for('service.view_request', rid=rid))
     
     if not current_user.has_permission('manage_service'):
-        flash('❌ غير مصرح لك بحذف قطع الغيار', 'danger')
+        _flash_error('غير مصرح لك بحذف قطع الغيار')
         return redirect(url_for('service.view_request', rid=rid))
     try:
         if _service_consumes_stock(service):
@@ -608,9 +684,11 @@ def delete_part(pid):
             current_app.logger.info("service.part_delete",extra={"event":"service.part.delete","service_id":service.id,"part_id":part.part_id,"warehouse_id":part.warehouse_id,"qty":+int(part.quantity or 0)})
         db.session.delete(part); service.updated_at=datetime.utcnow(); db.session.commit(); flash('✅ تم حذف القطعة ومعالجة المخزون','success')
     except SQLAlchemyError as e:
-        db.session.rollback(); flash(f'❌ خطأ: {str(e)}','danger')
+        db.session.rollback()
+        _log_and_flash("service.delete_part", e, "تعذر حذف القطعة حالياً.")
     except ValueError as ve:
-        db.session.rollback(); flash(f'❌ {ve}','danger')
+        db.session.rollback()
+        _flash_error(_friendly_error(ve, "لا يمكن إرجاع المخزون لهذه القطعة."))
     return redirect(url_for('service.view_request', rid=rid))
 
 @service_bp.route('/<int:rid>/tasks/add', methods=['POST'])
@@ -620,7 +698,7 @@ def add_task(rid):
     service=_get_or_404(ServiceRequest, rid)
     
     if service.status == ServiceStatus.COMPLETED.value:
-        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        _flash_error('لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً')
         return redirect(url_for('service.view_request', rid=rid))
     
     try:
@@ -633,29 +711,29 @@ def add_task(rid):
         
         # Validation
         if not description:
-            flash('❌ يجب إدخال وصف المهمة', 'danger')
+            _flash_error('يجب إدخال وصف المهمة')
             return redirect(url_for('service.view_request', rid=rid))
         
         if quantity <= 0:
-            flash('❌ الكمية يجب أن تكون أكبر من صفر', 'danger')
+            _flash_error('الكمية يجب أن تكون أكبر من صفر')
             return redirect(url_for('service.view_request', rid=rid))
         
         if unit_price < 0:
-            flash('❌ السعر لا يمكن أن يكون سالباً', 'danger')
+            _flash_error('السعر لا يمكن أن يكون سالباً')
             return redirect(url_for('service.view_request', rid=rid))
         
         if discount < 0:
-            flash('❌ الخصم لا يمكن أن يكون سالباً', 'danger')
+            _flash_error('الخصم لا يمكن أن يكون سالباً')
             return redirect(url_for('service.view_request', rid=rid))
         
         # التحقق من أن الخصم لا يتجاوز إجمالي البند
         gross_amount = quantity * unit_price
         if discount > gross_amount:
-            flash(f'❌ الخصم ({discount:.2f} ₪) لا يمكن أن يتجاوز إجمالي البند ({gross_amount:.2f} ₪)', 'danger')
+            _flash_error(f'الخصم ({discount:.2f} ₪) لا يمكن أن يتجاوز إجمالي البند ({gross_amount:.2f} ₪)')
             return redirect(url_for('service.view_request', rid=rid))
         
         if tax_rate < 0 or tax_rate > 100:
-            flash('❌ نسبة الضريبة يجب أن تكون بين 0 و 100', 'danger')
+            _flash_error('نسبة الضريبة يجب أن تكون بين 0 و 100')
             return redirect(url_for('service.view_request', rid=rid))
         
         task=ServiceTask(
@@ -676,13 +754,13 @@ def add_task(rid):
         
     except ValueError as ve:
         db.session.rollback()
-        flash(f'❌ خطأ في البيانات: {ve}','danger')
+        _flash_error(_friendly_error(ve, "القيم المدخلة غير صالحة."))
     except SQLAlchemyError as e:
         db.session.rollback()
-        flash(f'❌ خطأ في قاعدة البيانات: {str(e)}','danger')
+        _log_and_flash("service.add_task", e, "تعذر حفظ المهمة الجديدة، يرجى المحاولة لاحقاً.")
     except Exception as e:
         db.session.rollback()
-        flash(f'❌ خطأ: {str(e)}','danger')
+        _log_and_flash("service.add_task_unexpected", e, "حدث خطأ غير متوقع أثناء إضافة المهمة.")
     
     return redirect(url_for('service.view_request', rid=rid))
 
@@ -693,14 +771,15 @@ def delete_task(tid):
     task=_get_or_404(ServiceTask, tid); rid=task.service_id; service=_get_or_404(ServiceRequest, rid)
     
     if service.status == ServiceStatus.COMPLETED.value:
-        flash('❌ لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً', 'danger')
+        _flash_error('لا يمكن تعديل صيانة مكتملة. يرجى الضغط على "إعادة للصيانه" أولاً')
         return redirect(url_for('service.view_request', rid=rid))
     
     db.session.delete(task)
     try:
         service.updated_at=datetime.utcnow(); db.session.commit(); flash('✅ تم حذف المهمة','success')
     except SQLAlchemyError as e:
-        db.session.rollback(); flash(f'❌ خطأ: {str(e)}','danger')
+        db.session.rollback()
+        _log_and_flash("service.delete_task", e, "تعذر حذف المهمة حالياً.")
     return redirect(url_for('service.view_request', rid=rid))
 
 @service_bp.route('/<int:rid>/payments/add', methods=['GET','POST'])
@@ -765,9 +844,11 @@ def delete_request(rid):
             _release_service_stock_once(service); db.session.delete(service)
         flash('✅ تم حذف الطلب ومعالجة المخزون','success')
     except SQLAlchemyError as e:
-        db.session.rollback(); flash(f'❌ فشل حذف الطلب: {e}','danger')
+        db.session.rollback()
+        _log_and_flash("service.delete_request", e, "تعذر حذف الطلب حالياً.")
     except ValueError as ve:
-        db.session.rollback(); flash(f'❌ {ve}','danger')
+        db.session.rollback()
+        _flash_error(_friendly_error(ve, "لا يمكن حذف الطلب حالياً."))
     return redirect(url_for('service.list_requests'))
 
 @service_bp.route('/api/requests', methods=['GET'])
@@ -814,7 +895,7 @@ def archive_request(rid):
         
     except SQLAlchemyError as e:
         db.session.rollback()
-        flash(f'خطأ في أرشفة الطلب: {str(e)}', 'error')
+        _log_and_flash("service.archive_request", e, "تعذر أرشفة الطلب حالياً.")
         return redirect(url_for('service.view_request', rid=rid))
 
 
@@ -934,8 +1015,7 @@ def archive_service(service_id):
         
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Service archive error: {str(e)}")
-        flash(f'خطأ في أرشفة طلب الصيانة: {str(e)}', 'error')
+        _log_and_flash("service.archive_service", e, "تعذر أرشفة طلب الصيانة حالياً.")
         return redirect(url_for('service.list_requests'))
 
 @service_bp.route('/restore/<int:service_id>', methods=['POST'])
@@ -962,6 +1042,5 @@ def restore_service(service_id):
         
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Service restore error: {str(e)}")
-        flash(f'خطأ في استعادة طلب الصيانة: {str(e)}', 'error')
+        _log_and_flash("service.restore_service", e, "تعذر استعادة طلب الصيانة حالياً.")
         return redirect(url_for('service.list_requests'))

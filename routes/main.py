@@ -3,27 +3,36 @@ from __future__ import annotations
 import os
 import sqlite3
 from datetime import date, datetime, timedelta, time
+from decimal import Decimal
+from typing import List, Tuple
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, send_file, send_from_directory, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func, case
+from sqlalchemy.orm import load_only, joinedload
 
 from extensions import db
 from forms import RestoreForm
 from models import (
+    Check,
+    CheckStatus,
+    Customer,
     ExchangeTransaction,
+    Invoice,
     Note,
-    Product,
-    Sale,
-    ServiceRequest,
-    Supplier,
-    StockLevel,
     Payment,
     PaymentDirection,
     PaymentStatus,
+    Product,
+    Sale,
+    SaleStatus,
+    ServiceRequest,
+    Supplier,
+    Partner,
+    StockLevel,
     Expense,
-    Invoice,
 )
+from models import convert_amount, fx_rate
 import utils
 from reports import sales_report, ar_aging_report
 
@@ -83,12 +92,30 @@ def dashboard():
     partner_stock = (db.session.query(func.count(Product.id)).join(Supplier, Supplier.id == Product.supplier_local_id).scalar() or 0)
 
     recent_sales = []
-    today_revenue = 0.0
+    today_sales_rows: List[Tuple] = []
+    today_revenue = Decimal('0.00')
     revenue_labels = []
     revenue_values = []
     week_revenue = 0.0
     if _has_perm("manage_sales"):
-        recent_sales = Sale.query.order_by(Sale.sale_date.desc()).limit(5).all()
+        recent_sales = (
+            Sale.query.options(
+                load_only(
+                    Sale.id,
+                    Sale.sale_number,
+                    Sale.sale_date,
+                    Sale.total_amount,
+                    Sale.currency,
+                    Sale.customer_id,
+                    Sale.status,
+                    Sale.payment_status,
+                ),
+                joinedload(Sale.customer).load_only(Customer.name),
+            )
+            .order_by(Sale.sale_date.desc())
+            .limit(5)
+            .all()
+        )
         try:
             srep = sales_report(start, end) or {}
         except Exception:
@@ -96,29 +123,54 @@ def dashboard():
         revenue_labels = srep.get("daily_labels", [])
         revenue_values = srep.get("daily_values", [])
         week_revenue = float(srep.get("total_revenue", 0) or 0)
-        # حساب إيرادات اليوم مع تحويل العملات للشيكل
-        today_sales = Sale.query.filter(
-            Sale.status == "CONFIRMED",
+        today_sales_rows = (
+            db.session.query(
+                Sale.total_amount,
+                Sale.currency,
+                Sale.fx_rate_used,
+                Sale.sale_date,
+            )
+            .filter(
+                Sale.status == SaleStatus.CONFIRMED.value,
             Sale.sale_date >= day_start_dt,
             Sale.sale_date < day_end_dt,
-        ).all()
+            )
+            .all()
+        )
 
-        today_revenue = 0.0
-        for sale in today_sales:
-            try:
-                from models import fx_rate
-                amount = float(sale.total_amount or 0)
-                if sale.currency and sale.currency != 'ILS':
-                    rate = fx_rate(sale.currency, 'ILS', sale.sale_date, raise_on_missing=False)
-                    if rate > 0:
-                        amount = float(amount * rate)
-                today_revenue += amount
-            except Exception as e:
-                today_revenue += float(sale.total_amount or 0)
+        for amt, currency, fx_used, sale_dt in today_sales_rows:
+            today_revenue += _to_ils(amt, currency, fx_used, sale_dt)
 
     # حساب الوارد والصادر - يشمل المبيعات + الدفعات
-    from decimal import Decimal
-    from models import convert_amount
+    fx_cache: dict[tuple[str, date | None], Decimal] = {}
+
+    def _to_ils(amount, currency, fx_used, at_dt) -> Decimal:
+        value = Decimal(str(amount or 0))
+        code = (currency or "ILS").upper()
+        if code == "ILS":
+            return value
+        if fx_used:
+            try:
+                return value * Decimal(str(fx_used))
+            except Exception:
+                pass
+        try:
+            key = (code, at_dt.date() if isinstance(at_dt, datetime) else None)
+            rate = fx_cache.get(key)
+            if rate is None:
+                rate = fx_rate(code, "ILS", at_dt, raise_on_missing=False)
+                if rate and rate > 0:
+                    fx_cache[key] = Decimal(str(rate))
+                else:
+                    rate = None
+            if rate and rate > 0:
+                return value * Decimal(str(rate))
+        except Exception:
+            pass
+        try:
+            return convert_amount(value, code, "ILS", at_dt)
+        except Exception:
+            return value
     
     today_incoming = Decimal('0.00')
     today_outgoing = Decimal('0.00')
@@ -126,34 +178,32 @@ def dashboard():
     week_outgoing = Decimal('0.00')
 
     # 1️⃣ إضافة المبيعات المؤكدة لليوم (وارد)
-    if _has_perm("manage_sales"):
-        for sale in today_sales:
-            amt = Decimal(str(sale.total_amount or 0))
-            if sale.currency == "ILS":
-                today_incoming += amt
-            else:
-                try:
-                    today_incoming += convert_amount(amt, sale.currency, "ILS", sale.sale_date)
-                except Exception:
-                    pass
+    if _has_perm("manage_sales") and today_sales_rows:
+        for amount, currency, fx_used, sale_dt in today_sales_rows:
+            today_incoming += _to_ils(amount, currency, fx_used, sale_dt)
     
     # 2️⃣ إضافة الدفعات اليومية (وارد/صادر)
-    today_payments = Payment.query.filter(
+    today_payments = (
+        db.session.query(
+            Payment.total_amount,
+            Payment.currency,
+            Payment.fx_rate_used,
+            Payment.payment_date,
+            Payment.direction,
+        )
+        .filter(
         Payment.payment_date >= day_start_dt,
         Payment.payment_date < day_end_dt,
         Payment.status == PaymentStatus.COMPLETED.value,
-    ).all()
+        )
+        .all()
+    )
 
-    for payment in today_payments:
+    for amount, currency, fx_used, pay_dt, direction in today_payments:
         try:
-            amt = Decimal(str(payment.total_amount or 0))
-            
-            if payment.currency == "ILS":
-                amt_ils = amt
-            else:
-                amt_ils = convert_amount(amt, payment.currency, "ILS", payment.payment_date)
+            amt_ils = _to_ils(amount, currency, fx_used, pay_dt)
 
-            if payment.direction == PaymentDirection.IN.value:
+            if direction == PaymentDirection.IN.value:
                 today_incoming += amt_ils
             else:
                 today_outgoing += amt_ils
@@ -161,40 +211,48 @@ def dashboard():
             pass
     
     # 3️⃣ إضافة المصاريف اليومية (صادر)
-    today_expenses = Expense.query.filter(
+    today_expenses = (
+        db.session.query(
+            Expense.amount,
+            Expense.currency,
+            Expense.date,
+        )
+        .filter(
         Expense.date >= day_start_dt.date(),
         Expense.date < day_end_dt.date(),
-    ).all()
+        )
+        .all()
+    )
     
-    for expense in today_expenses:
+    for amount, currency, exp_date in today_expenses:
         try:
-            amt = Decimal(str(expense.amount or 0))
-            
-            if expense.currency == "ILS":
-                today_outgoing += amt
-            else:
-                today_outgoing += convert_amount(amt, expense.currency, "ILS", expense.date)
+            today_outgoing += _to_ils(amount, currency, None, datetime.combine(exp_date, time.min))
         except Exception:
             pass
     
     # 4️⃣ إضافة فواتير الموردين المستحقة (صادر)
-    today_invoices = Invoice.query.filter(
+    today_invoices = (
+        db.session.query(
+            Invoice.total_amount,
+            Invoice.currency,
+            Invoice.fx_rate_used,
+            Invoice.invoice_date,
+        )
+        .filter(
         Invoice.invoice_date >= day_start_dt,
         Invoice.invoice_date < day_end_dt,
-    ).all()
+        )
+        .all()
+    )
     
-    for invoice in today_invoices:
+    for amount, currency, fx_used, inv_date in today_invoices:
         try:
-            amt = Decimal(str(invoice.total_amount or 0))
-            
-            if invoice.currency == "ILS":
-                today_outgoing += amt
-            else:
-                today_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.invoice_date)
+            today_outgoing += _to_ils(amount, currency, fx_used, inv_date)
         except Exception:
             pass
 
     today_net = float(today_incoming - today_outgoing)
+    today_revenue = float(today_revenue)
     today_incoming = float(today_incoming)
     today_outgoing = float(today_outgoing)
 
@@ -202,39 +260,46 @@ def dashboard():
     
     # المبيعات الأسبوعية
     if _has_perm("manage_sales"):
-        week_sales = Sale.query.filter(
+        week_sales_rows = (
+            db.session.query(
+                Sale.total_amount,
+                Sale.currency,
+                Sale.fx_rate_used,
+                Sale.sale_date,
+            )
+            .filter(
             Sale.status == "CONFIRMED",
             Sale.sale_date >= week_start_dt,
             Sale.sale_date < week_end_dt,
-        ).all()
+            )
+            .all()
+        )
         
-        for sale in week_sales:
-            amt = Decimal(str(sale.total_amount or 0))
-            if sale.currency == "ILS":
-                week_incoming += amt
-            else:
-                try:
-                    week_incoming += convert_amount(amt, sale.currency, "ILS", sale.sale_date)
-                except Exception:
-                    pass
+        for amount, currency, fx_used, sale_dt in week_sales_rows:
+            week_incoming += _to_ils(amount, currency, fx_used, sale_dt)
     
     # الدفعات الأسبوعية
-    week_payments = Payment.query.filter(
+    week_payments = (
+        db.session.query(
+            Payment.total_amount,
+            Payment.currency,
+            Payment.fx_rate_used,
+            Payment.payment_date,
+            Payment.direction,
+        )
+        .filter(
         Payment.payment_date >= week_start_dt,
         Payment.payment_date < week_end_dt,
         Payment.status == PaymentStatus.COMPLETED.value,
-    ).all()
+        )
+        .all()
+    )
 
-    for payment in week_payments:
+    for amount, currency, fx_used, pay_dt, direction in week_payments:
         try:
-            amt = Decimal(str(payment.total_amount or 0))
-            
-            if payment.currency == "ILS":
-                amt_ils = amt
-            else:
-                amt_ils = convert_amount(amt, payment.currency, "ILS", payment.payment_date)
+            amt_ils = _to_ils(amount, currency, fx_used, pay_dt)
 
-            if payment.direction == PaymentDirection.IN.value:
+            if direction == PaymentDirection.IN.value:
                 week_incoming += amt_ils
             else:
                 week_outgoing += amt_ils
@@ -242,36 +307,43 @@ def dashboard():
             pass
     
     # المصاريف الأسبوعية (صادر)
-    week_expenses = Expense.query.filter(
+    week_expenses = (
+        db.session.query(
+            Expense.amount,
+            Expense.currency,
+            Expense.date,
+        )
+        .filter(
         Expense.date >= week_start_dt.date(),
         Expense.date < week_end_dt.date(),
-    ).all()
+        )
+        .all()
+    )
     
-    for expense in week_expenses:
+    for amount, currency, exp_date in week_expenses:
         try:
-            amt = Decimal(str(expense.amount or 0))
-            
-            if expense.currency == "ILS":
-                week_outgoing += amt
-            else:
-                week_outgoing += convert_amount(amt, expense.currency, "ILS", expense.date)
+            week_outgoing += _to_ils(amount, currency, None, datetime.combine(exp_date, time.min))
         except Exception:
             pass
     
     # الفواتير الأسبوعية (صادر)
-    week_invoices = Invoice.query.filter(
+    week_invoices = (
+        db.session.query(
+            Invoice.total_amount,
+            Invoice.currency,
+            Invoice.fx_rate_used,
+            Invoice.invoice_date,
+        )
+        .filter(
         Invoice.invoice_date >= week_start_dt,
         Invoice.invoice_date < week_end_dt,
-    ).all()
+        )
+        .all()
+    )
     
-    for invoice in week_invoices:
+    for amount, currency, fx_used, inv_date in week_invoices:
         try:
-            amt = Decimal(str(invoice.total_amount or 0))
-            
-            if invoice.currency == "ILS":
-                week_outgoing += amt
-            else:
-                week_outgoing += convert_amount(amt, invoice.currency, "ILS", invoice.invoice_date)
+            week_outgoing += _to_ils(amount, currency, fx_used, inv_date)
         except Exception:
             pass
 
@@ -283,26 +355,27 @@ def dashboard():
     from collections import defaultdict
     daily_payments = defaultdict(lambda: {'incoming': Decimal('0.00'), 'outgoing': Decimal('0.00')})
     
-    all_week_payments = Payment.query.filter(
+    all_week_payments = (
+        db.session.query(
+            Payment.total_amount,
+            Payment.currency,
+            Payment.fx_rate_used,
+            Payment.payment_date,
+            Payment.direction,
+        )
+        .filter(
         Payment.payment_date >= week_start_dt,
         Payment.payment_date < week_end_dt,
         Payment.status == PaymentStatus.COMPLETED.value
-    ).all()
+        )
+        .all()
+    )
     
-    for p in all_week_payments:
-        day_key = p.payment_date.date() if p.payment_date else today
-        amt = Decimal(str(p.total_amount or 0))
+    for amount, currency, fx_used, pay_dt, direction in all_week_payments:
+        day_key = pay_dt.date() if pay_dt else today
+        amt_ils = _to_ils(amount, currency, fx_used, pay_dt)
         
-        if p.currency == "ILS":
-            amt_ils = amt
-        else:
-            try:
-                from models import convert_amount
-                amt_ils = convert_amount(amt, p.currency, "ILS", p.payment_date)
-            except Exception:
-                amt_ils = Decimal('0.00')
-        
-        if p.direction == PaymentDirection.IN.value:
+        if direction == PaymentDirection.IN.value:
             daily_payments[day_key]['incoming'] += amt_ils
         else:
             daily_payments[day_key]['outgoing'] += amt_ils
@@ -311,6 +384,171 @@ def dashboard():
     payments_in_values = [float(daily_payments[datetime.strptime(d, '%Y-%m-%d').date()]['incoming']) for d in payments_day_labels]
     payments_out_values = [float(daily_payments[datetime.strptime(d, '%Y-%m-%d').date()]['outgoing']) for d in payments_day_labels]
     payments_net_values = [i - o for i, o in zip(payments_in_values, payments_out_values)]
+
+    dashboard_alerts: List[dict] = []
+    now = datetime.utcnow()
+    today = now.date()
+    week_ahead = today + timedelta(days=7)
+
+    try:
+        overdue_checks = (
+            Check.query.options(
+                load_only(
+                    Check.id,
+                    Check.check_number,
+                    Check.check_due_date,
+                    Check.amount,
+                    Check.currency,
+                    Check.direction,
+                    Check.fx_rate_issue,
+                ),
+                joinedload(Check.customer).load_only(Customer.name),
+                joinedload(Check.supplier).load_only(Supplier.name),
+                joinedload(Check.partner).load_only(Partner.name),
+            )
+            .filter(
+                Check.is_archived.is_(False),
+                Check.status == CheckStatus.PENDING.value,
+                Check.check_due_date < now,
+            )
+            .order_by(Check.check_due_date.asc())
+            .limit(5)
+            .all()
+        )
+
+        for chk in overdue_checks:
+            days_overdue = max((today - chk.check_due_date.date()).days, 0)
+            amount_ils = _to_ils(chk.amount, chk.currency, chk.fx_rate_issue, chk.check_due_date)
+            dashboard_alerts.append({
+                "category": "الشيكات",
+                "severity": "danger",
+                "icon": "fas fa-money-check-alt",
+                "title": f"شيك متأخر {days_overdue} يوم",
+                "message": f"{chk.entity_name} - رقم {chk.check_number}",
+                "amount_display": f"{float(amount_ils):,.2f} ₪",
+                "link": url_for('checks.index'),
+                "meta": chk.check_due_date.strftime('%Y-%m-%d'),
+            })
+
+        upcoming_checks = (
+            Check.query.options(
+                load_only(
+                    Check.id,
+                    Check.check_number,
+                    Check.check_due_date,
+                    Check.amount,
+                    Check.currency,
+                    Check.direction,
+                    Check.fx_rate_issue,
+                ),
+                joinedload(Check.customer).load_only(Customer.name),
+                joinedload(Check.supplier).load_only(Supplier.name),
+                joinedload(Check.partner).load_only(Partner.name),
+            )
+            .filter(
+                Check.is_archived.is_(False),
+                Check.status == CheckStatus.PENDING.value,
+                Check.check_due_date.between(now, datetime.combine(week_ahead, datetime.max.time())),
+            )
+            .order_by(Check.check_due_date.asc())
+            .limit(5)
+            .all()
+        )
+
+        for chk in upcoming_checks:
+            days_left = max((chk.check_due_date.date() - today).days, 0)
+            amount_ils = _to_ils(chk.amount, chk.currency, chk.fx_rate_issue, chk.check_due_date)
+            dashboard_alerts.append({
+                "category": "الشيكات",
+                "severity": "warning",
+                "icon": "fas fa-calendar-check",
+                "title": f"شيك مستحق خلال {days_left} يوم",
+                "message": f"{chk.entity_name} - رقم {chk.check_number}",
+                "amount_display": f"{float(amount_ils):,.2f} ₪",
+                "link": url_for('checks.index'),
+                "meta": chk.check_due_date.strftime('%Y-%m-%d'),
+            })
+    except Exception as exc:
+        current_app.logger.warning(f"Dashboard check alerts error: {exc}")
+
+    try:
+        due_ils_expr = func.sum(Sale.balance_due * func.coalesce(Sale.fx_rate_used, 1)).label("due_ils")
+        customer_debts = (
+            db.session.query(
+                Customer.id,
+                Customer.name,
+                due_ils_expr,
+                func.count(Sale.id).label("sale_count"),
+                func.max(Sale.sale_date).label("last_sale"),
+            )
+            .join(Customer, Customer.id == Sale.customer_id)
+            .filter(
+                Sale.status == SaleStatus.CONFIRMED.value,
+                Sale.balance_due > 0,
+            )
+            .group_by(Customer.id, Customer.name)
+            .order_by(due_ils_expr.desc())
+            .limit(5)
+            .all()
+        )
+
+        for cust_id, cust_name, due_ils, sale_count, last_sale in customer_debts:
+            if due_ils and due_ils > 0:
+                dashboard_alerts.append({
+                    "category": "الذمم",
+                    "severity": "warning",
+                    "icon": "fas fa-user-clock",
+                    "title": f"دين على العميل {cust_name}",
+                    "message": f"عدد الفواتير المفتوحة: {sale_count}",
+                    "amount_display": f"{float(due_ils):,.2f} ₪",
+                    "link": url_for('customers_bp.list_customers', name=cust_name),
+                    "meta": last_sale.strftime('%Y-%m-%d') if last_sale else None,
+                })
+    except Exception as exc:
+        current_app.logger.warning(f"Dashboard customer debt alerts error: {exc}")
+
+    try:
+        recent_expenses = (
+            db.session.query(
+                Expense.id,
+                Expense.description,
+                Expense.amount,
+                Expense.currency,
+                Expense.date,
+            )
+            .filter(
+                Expense.date >= today - timedelta(days=7),
+                Expense.amount > 0,
+            )
+            .order_by(Expense.amount.desc(), Expense.date.desc())
+            .limit(5)
+            .all()
+        )
+
+        expense_threshold = Decimal("5000")
+        for exp_id, description, amount, currency, exp_date in recent_expenses:
+            amount_ils = _to_ils(amount, currency, None, datetime.combine(exp_date, time.min))
+            if amount_ils >= expense_threshold:
+                dashboard_alerts.append({
+                    "category": "المصاريف",
+                    "severity": "info",
+                    "icon": "fas fa-wallet",
+                    "title": "مصروف مرتفع مسجل",
+                    "message": description or f"مصروف رقم {exp_id}",
+                    "amount_display": f"{float(amount_ils):,.2f} ₪",
+                    "link": url_for('expenses_bp.list_expenses'),
+                    "meta": exp_date.strftime('%Y-%m-%d'),
+                })
+    except Exception as exc:
+        current_app.logger.warning(f"Dashboard expense alerts error: {exc}")
+
+    severity_order = {"danger": 0, "warning": 1, "info": 2, "primary": 3}
+    dashboard_alerts.sort(key=lambda item: (
+        severity_order.get(item.get("severity"), 99),
+        0 if item.get("category") == "الشيكات" else 1
+    ))
+    check_alerts = [a for a in dashboard_alerts if a.get("category") == "الشيكات"]
+    general_alerts = [a for a in dashboard_alerts if a.get("category") != "الشيكات"]
 
     recent_services = []
     if _has_perm("manage_service"):
@@ -370,6 +608,9 @@ def dashboard():
         payments_in_values=payments_in_values,
         payments_out_values=payments_out_values,
         payments_net_values=payments_net_values,
+        dashboard_alerts=dashboard_alerts,
+        check_alerts=check_alerts,
+        general_alerts=general_alerts,
     )
 
 @main_bp.route("/backup_db", methods=["GET"], endpoint="backup_db")

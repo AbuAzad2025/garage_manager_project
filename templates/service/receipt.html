@@ -5,84 +5,55 @@
 {% set STATUS_LABELS = {'PENDING':'معلق','DIAGNOSIS':'تشخيص','IN_PROGRESS':'قيد التنفيذ','COMPLETED':'مكتمل','CANCELLED':'ملغي','ON_HOLD':'مؤجل'} %}
 {% set is_simple = (variant == 'simple') %}
 <style>
-@page { size:A4 portrait; margin:14mm 14mm 18mm 14mm; }
-html,body{font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;direction:rtl;text-align:right;font-size:13px;line-height:1.55;background:#fff;color:#111;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-#receipt{max-width:820px;margin:0 auto;padding:18mm 12mm 16mm 12mm;}
-{% if is_simple %}
-.simple-header{text-align:center;border-bottom:2px solid #1d273b;padding-bottom:12px;margin-bottom:18px;}
-.simple-header h2{font-size:20px;font-weight:800;margin:0 0 6px 0;color:#1d273b;}
-.simple-header .subtitle{font-size:12px;color:#555;margin:0;}
-.meta-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;font-size:11px;}
-.meta-box{flex:1;min-width:160px;border:1px solid #c9ced7;border-radius:8px;padding:10px 12px;background:#f7f9fc;}
-.meta-label{display:block;font-size:10px;color:#69748c;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px;}
-.meta-value{font-size:13px;font-weight:700;color:#1d273b;}
-.section{border:1px solid #d4d9e2;border-radius:10px;padding:14px 16px;margin-bottom:16px;background:#fff;}
-.section-title{font-size:13px;font-weight:700;color:#1d273b;margin-bottom:10px;}
-.info-row{display:flex;gap:8px;font-size:12px;padding:4px 0;}
-.info-label{min-width:80px;color:#5a647a;font-weight:600;}
-.info-value{flex:1;color:#111;}
-.table{width:100%;border-collapse:collapse;margin-top:10px;}
-.table th,.table td{border:1px solid #d4d9e2;padding:8px 10px;font-size:11px;}
-.table thead th{background:#eef1f7;color:#1d273b;font-weight:700;}
-.totals{max-width:360px;margin:18px 0 0 auto;border:1px solid #d4d9e2;border-radius:10px;padding:14px 16px;background:#f6f8fb;}
-.totals-row{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;}
-.totals-row.final{border-top:1px solid #ccd3df;margin-top:8px;padding-top:10px;font-size:14px;font-weight:800;color:#1d273b;}
-.signatures{display:flex;gap:28px;margin-top:32px;}
-.sign-slot{flex:1;text-align:center;}
-.sign-line{border-top:1px solid #1d273b;margin-bottom:8px;padding-top:46px;}
-{% else %}
-.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;background:linear-gradient(135deg,#071435,#102a60);color:#fff;padding:24px 26px;border-radius:18px;box-shadow:0 16px 34px rgba(7,20,53,.28);}
-.hero-brand{display:flex;align-items:center;gap:18px;}
-.hero-logo{width:60px;height:60px;border-radius:14px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;overflow:hidden;}
-.hero-logo img{max-width:46px;max-height:46px;display:block;}
-.hero-text{display:flex;flex-direction:column;gap:6px;}
-.hero-name{font-size:19px;font-weight:800;letter-spacing:.4px;}
-.hero-sub{font-size:11px;text-transform:uppercase;letter-spacing:1px;opacity:.82;}
-.hero-meta{display:grid;gap:10px;min-width:220px;}
-.meta-item{background:rgba(255,255,255,.14);border-radius:12px;padding:11px 14px;display:flex;flex-direction:column;}
-.meta-label{font-size:10px;opacity:.72;letter-spacing:.6px;text-transform:uppercase;}
-.meta-value{font-size:14px;font-weight:700;margin-top:4px;}
-.summary-strip{display:flex;flex-wrap:wrap;gap:14px;margin:20px 0;}
-.summary-pill{flex:1;min-width:200px;border-radius:16px;background:linear-gradient(135deg,#132c6b,#255ac6);color:#fff;padding:18px 20px;box-shadow:0 16px 30px rgba(19,44,107,.24);display:flex;flex-direction:column;gap:6px;}
-.summary-label{font-size:12px;opacity:.85;letter-spacing:.6px;}
-.summary-value{font-size:22px;font-weight:800;}
-.summary-meta{font-size:11px;opacity:.78;}
-.section{border-radius:16px;padding:18px 22px;border:1px solid rgba(12,29,71,.14);background:#fff;box-shadow:0 22px 42px rgba(12,29,71,.08);margin-bottom:18px;}
-.section-title{font-size:15px;font-weight:800;color:#111f46;display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
-.badge-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(15,33,82,.08);color:#0f2152;font-size:11px;font-weight:700;}
-.info-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
-.data-card{border:1px solid rgba(15,33,82,.14);border-radius:14px;padding:16px;background:linear-gradient(140deg,#f8faff,#eef2ff);display:flex;flex-direction:column;gap:6px;}
-.data-label{font-size:11px;letter-spacing:.6px;color:#41507a;text-transform:uppercase;}
-.data-value{font-size:17px;font-weight:800;color:#0f2152;}
-.table{width:100%;border-collapse:collapse;margin-top:12px;}
-.table thead th{background:#0c1f4a;color:#fff;border:0;font-size:12px;padding:10px 12px;text-align:center;}
-.table td,.table th{padding:10px 12px;border-bottom:1px solid rgba(15,33,82,.1);font-size:12px;}
-.table tbody td{background:#fbfdff;}
-.table tfoot td,.table tfoot th{background:rgba(12,29,71,.08);font-weight:800;}
-.totals{max-width:380px;margin:20px 0 0 auto;border-radius:16px;padding:18px 20px;background:linear-gradient(160deg,#0d2153,#173d8a);color:#fff;box-shadow:0 18px 28px rgba(13,33,83,.32);}
-.totals-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;}
-.totals-row.final{border-top:1px solid rgba(255,255,255,.4);margin-top:10px;padding-top:12px;font-size:18px;font-weight:800;}
-.signatures{display:flex;gap:32px;margin-top:34px;}
-.sign-slot{flex:1;text-align:center;}
-.sign-line{border-top:2px dashed rgba(13,33,83,.5);margin-bottom:10px;padding-top:52px;}
-.footer{margin-top:26px;text-align:center;font-size:11px;color:#44507c;}
-{% endif %}
-.no-print{margin-top:20px;text-align:center;}
-.switcher{display:inline-flex;align-items:center;gap:10px;}
-.switcher a{display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border-radius:28px;font-size:12px;font-weight:700;text-decoration:none;}
-.switcher a.active{background:#0d1f4a;color:#fff;}
-.switcher a:not(.active){background:#e7eaf3;color:#1d273b;}
-.print-btn{padding:12px 24px;border-radius:30px;border:0;background:#0d1f4a;color:#fff;font-size:13px;font-weight:700;margin:0 8px;cursor:pointer;}
-.back-btn{padding:12px 24px;border-radius:30px;border:0;background:#e7eaf3;color:#1d273b;font-size:13px;font-weight:700;margin:0 8px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;}
-.table .num{text-align:end;font-variant-numeric:tabular-nums;}
-.wrap{word-break:break-word;}
-@media print{.no-print{display:none!important;}body{background:#fff;}}
+@page { size:A4 portrait; margin:10mm 8mm 12mm 8mm; }
+html,body{font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;direction:rtl;text-align:right;font-size:11.5px;line-height:1.4;background:#fff;color:#111;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box;}
+*,*::before,*::after{box-sizing:border-box;}
+#receipt{max-width:620px;margin:0 auto;padding:10mm 9mm;background:#fff;border:1px solid #ccc;}
+.hero{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;border:1px solid #000;padding:10px;border-radius:8px;background:linear-gradient(#fff,#f3f3f3);color:#111;margin-bottom:10px;}
+.hero-brand{display:flex;align-items:center;gap:10px;}
+.hero-logo{width:40px;height:40px;border-radius:10px;border:1px solid #666;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;}
+.hero-logo img{max-width:32px;max-height:32px;display:block;}
+.hero-text{display:flex;flex-direction:column;gap:3px;}
+.hero-name{font-size:15px;font-weight:700;}
+.hero-sub{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#333;}
+.hero-meta{display:grid;gap:6px;min-width:160px;}
+.meta-item{border:1px solid #999;border-radius:8px;padding:6px 8px;background:#fafafa;display:flex;flex-direction:column;}
+.meta-label{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.3px;}
+.meta-value{font-size:12px;font-weight:700;margin-top:3px;color:#111;}
+.summary-strip{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;}
+.summary-pill{flex:1;min-width:150px;border:1px solid #aaa;border-radius:10px;background:#fdfdfd;padding:9px 10px;display:flex;flex-direction:column;gap:4px;}
+.summary-label{font-size:10px;color:#444;}
+.summary-value{font-size:15px;font-weight:700;color:#111;}
+.summary-meta{font-size:9px;color:#666;}
+.section{border:1px solid #cfd2d7;border-radius:10px;padding:11px 12px;background:#fff;margin-bottom:10px;}
+.section-title{font-size:12.5px;font-weight:700;color:#202a38;display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+.badge-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:20px;background:#f1f1f1;color:#333;font-size:9px;font-weight:700;border:1px solid #d5d8dd;}
+.info-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
+.data-card{border:1px solid #d4d7db;border-radius:8px;padding:9px;background:#fafbfc;display:flex;flex-direction:column;gap:4px;}
+.data-label{font-size:9.5px;color:#54606e;text-transform:uppercase;}
+.data-value{font-size:14px;font-weight:700;color:#181f27;}
+.data-note{font-size:10px;color:#6f7a88;}
+.table{width:100%;border-collapse:collapse;margin-top:8px;}
+.table thead th{background:#f1f3f6;color:#1a1f2d;border:1px solid #cfd2d7;font-size:10.5px;padding:8px;text-align:center;}
+.table td,.table th{padding:8px;border:1px solid #d4d7db;font-size:10.5px;}
+.table tbody td{background:#fff;}
+.table-empty{color:#8d97a6;padding:12px 0;text-align:center;font-style:italic;}
+.totals{max-width:260px;margin:14px 0 0 auto;border:1px solid #cfd2d7;border-radius:10px;padding:11px 12px;background:#fafafa;}
+.totals-row{display:flex;justify-content:space-between;padding:5px 0;font-size:10.5px;color:#202a38;}
+.totals-row.final{border-top:1px solid #d4d7db;margin-top:8px;padding-top:9px;font-size:13px;font-weight:800;color:#111;}
+.no-print{margin-top:12px;text-align:center;font-size:10.5px;}
+.switcher{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:6px;}
+.switcher a{display:inline-flex;align-items:center;justify-content:center;padding:7px 13px;border-radius:20px;font-size:10.5px;font-weight:700;text-decoration:none;background:#e9edf3;color:#1f2d3d;border:1px solid #cfd2d7;}
+.switcher a.active{background:#1f2d3d;color:#fff;}
+.print-btn{padding:8px 16px;border-radius:20px;border:1px solid #1f2d3d;background:#1f2d3d;color:#fff;font-size:10.5px;font-weight:700;margin:0 6px;cursor:pointer;}
+.back-btn{padding:8px 16px;border-radius:20px;border:1px solid #cfd2d7;background:#f1f3f6;color:#1f2d3d;font-size:10.5px;font-weight:700;margin:0 6px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;}
+@media print{body{background:#fff;}#receipt{max-width:100%;padding:0 6mm;border:0;} .hero,.summary-strip,.section,.totals{margin-bottom:8px;} .switcher,.print-btn,.back-btn{display:none!important;}}
 </style>
 {% endblock %}
 
 {% block content %}
-{% set st = (service.status.value if service.status and service.status is not string else service.status) %}
-{% set status_label = STATUS_LABELS.get((st or '')|upper, st or '—') %}
+{% set status_code = (service.status.value if service.status and service.status is not string else service.status) %}
+{% set status_label = STATUS_LABELS.get((status_code or '')|upper, status_code or '—') %}
 {% set ns = namespace(gross_total=0.0, items_discount=0.0, net_total=0.0) %}
 {% for part in (service.parts or []) %}
   {% set qty = (part.quantity or 0)|float %}
@@ -111,136 +82,95 @@ html,body{font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;directio
 {% set grand_total = subtotal_after_all_disc + tax_amount %}
 
 <div id="receipt">
-  {% if is_simple %}
-    <div class="simple-header">
-      <h2>إيصال صيانة</h2>
-      <p class="subtitle">ملخص الطلب</p>
+  <div class="switcher" style="margin-bottom:6px;">
+    <a href="{{ url_for('service.view_receipt', rid=service.id) }}" class="{{ '' if is_simple else 'active' }}">النسخة الاحترافية</a>
+    <a href="{{ url_for('service.view_receipt', rid=service.id, simple=1) }}" class="{{ 'active' if is_simple else '' }}">النسخة المبسطة</a>
+  </div>
+  <div class="hero">
+    <div class="hero-brand">
+      <div class="hero-logo">
+        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo" onerror="this.closest('.hero-logo').style.display='none'">
+      </div>
+      <div class="hero-text">
+        {% set brand_name = system_settings.company_name %}
+        {% if not brand_name or ('azad' in brand_name|lower) or ('ازاد' in brand_name) or ('أزاد' in brand_name) %}
+        {% set brand_name = 'المهندس الفلسطيني للمعدات الثقيلة' %}
+        {% endif %}
+        <div class="hero-name">{{ brand_name }}</div>
+        <div class="hero-sub">Service Receipt</div>
+      </div>
     </div>
-    <div class="meta-grid">
-      <div class="meta-box">
+    <div class="hero-meta">
+      <div class="meta-item">
         <span class="meta-label">رقم الطلب</span>
         <span class="meta-value">{{ service.service_number or ('SRV-' ~ service.id) }}</span>
       </div>
-      <div class="meta-box">
+      <div class="meta-item">
         <span class="meta-label">تاريخ الاستلام</span>
         <span class="meta-value">{{ service.received_at.strftime('%Y-%m-%d') if service.received_at else '—' }}</span>
       </div>
-      <div class="meta-box">
-        <span class="meta-label">الحالة الحالية</span>
+      <div class="meta-item">
+        <span class="meta-label">الحالة</span>
         <span class="meta-value">{{ status_label }}</span>
       </div>
     </div>
-  {% else %}
-    <div class="hero">
-      <div class="hero-brand">
-        <div class="hero-logo">
-          <img src="{{ url_for('static', filename='img/logo.png') }}" alt="" onerror="this.closest('.hero-logo').style.display='none'">
-        </div>
-        <div class="hero-text">
-          <div class="hero-name">{{ system_settings.company_name or 'المهندس الفلسطيني للمعدات الثقيلة' }}</div>
-          <div class="hero-sub">Service Receipt</div>
-        </div>
-      </div>
-      <div class="hero-meta">
-        <div class="meta-item">
-          <span class="meta-label">رقم الطلب</span>
-          <span class="meta-value">{{ service.service_number or ('SRV-' ~ service.id) }}</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">تاريخ الاستلام</span>
-          <span class="meta-value">{{ service.received_at.strftime('%Y-%m-%d') if service.received_at else '—' }}</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">الحالة</span>
-          <span class="meta-value">{{ status_label }}</span>
-        </div>
-      </div>
-    </div>
-    <div class="summary-strip">
-      <div class="summary-pill">
-        <span class="summary-label">قيمة العمل</span>
-        <span class="summary-value">{{ '%.2f'|format(ns.gross_total) }} {{ service.currency or '₪' }}</span>
-        <span class="summary-meta">قبل الحسومات</span>
-      </div>
-      <div class="summary-pill">
-        <span class="summary-label">الحسومات</span>
-        <span class="summary-value">{{ '%.2f'|format(ns.items_discount + global_discount) }} {{ service.currency or '₪' }}</span>
-        <span class="summary-meta">تفاصيل البنود والحسم الإجمالي</span>
-      </div>
-      <div class="summary-pill">
-        <span class="summary-label">المستحق النهائي</span>
-        <span class="summary-value">{{ '%.2f'|format(grand_total) }} {{ service.currency or '₪' }}</span>
-        <span class="summary-meta">{{ tax_rate > 0 and ('يشمل ضريبة ' ~ ('%.0f'|format(tax_rate)) ~ '%') or 'بدون ضريبة' }}</span>
-      </div>
-    </div>
-  {% endif %}
+  </div>
 
-  {% if is_simple %}
-    <div class="section">
-      <div class="section-title">بيانات العميل</div>
-      <div class="info-row"><span class="info-label">الاسم</span><span class="info-value">{{ service.customer.name if service.customer else '—' }}</span></div>
-      <div class="info-row"><span class="info-label">الجوال</span><span class="info-value">{{ service.customer.phone if service.customer else '—' }}</span></div>
-      <div class="info-row"><span class="info-label">البريد</span><span class="info-value">{{ service.customer.email if service.customer else '—' }}</span></div>
+  <div class="summary-strip">
+    <div class="summary-pill">
+      <span class="summary-label">قيمة العمل</span>
+      <span class="summary-value">{{ '%.2f'|format(ns.gross_total) }} {{ service.currency or '₪' }}</span>
+      <span class="summary-meta">قبل الحسومات</span>
     </div>
-    <div class="section">
-      <div class="section-title">بيانات المركبة</div>
-      <div class="info-row"><span class="info-label">النوع</span><span class="info-value">{{ service.vehicle_type.name if service.vehicle_type else '—' }}</span></div>
-      <div class="info-row"><span class="info-label">الموديل</span><span class="info-value">{{ service.vehicle_model or '—' }}</span></div>
-      <div class="info-row"><span class="info-label">اللوحة</span><span class="info-value">{{ service.vehicle_vrn or '—' }}</span></div>
+    <div class="summary-pill">
+      <span class="summary-label">الحسومات</span>
+      <span class="summary-value">{{ '%.2f'|format(ns.items_discount + global_discount) }} {{ service.currency or '₪' }}</span>
+      <span class="summary-meta">خصومات البنود والإجمالي</span>
+    </div>
+    <div class="summary-pill">
+      <span class="summary-label">المستحق النهائي</span>
+      <span class="summary-value">{{ '%.2f'|format(grand_total) }} {{ service.currency or '₪' }}</span>
+      <span class="summary-meta">{{ tax_rate > 0 and ('يشمل ضريبة ' ~ ('%.0f'|format(tax_rate)) ~ '%') or 'بدون ضريبة' }}</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">
+      ملفات العميل والمركبة
+      <span class="badge-chip">{{ service.customer.name if service.customer else 'بدون عميل' }}</span>
+    </div>
+    <div class="info-grid">
+      <div class="data-card">
+        <span class="data-label">العميل</span>
+        <span class="data-value">{{ service.customer.name if service.customer else '—' }}</span>
+        <span class="data-note">{{ service.customer.phone if service.customer else 'بدون رقم' }}</span>
+      </div>
+      <div class="data-card">
+        <span class="data-label">نوع المركبة</span>
+        <span class="data-value">{{ service.vehicle_type.name if service.vehicle_type else '—' }}</span>
+        <span class="data-note">{{ service.vehicle_model or 'غير محدد' }}</span>
+      </div>
+      <div class="data-card">
+        <span class="data-label">رقم اللوحة</span>
+        <span class="data-value">{{ service.vehicle_vrn or '—' }}</span>
+        <span class="data-note">{{ status_label }}</span>
+      </div>
     </div>
     {% if service.problem_description or service.engineer_notes %}
-    <div class="section">
-      <div class="section-title">الوصف الفني</div>
-      {% if service.problem_description %}<div class="info-row"><span class="info-label">المشكلة</span><span class="info-value">{{ service.problem_description }}</span></div>{% endif %}
-      {% if service.engineer_notes %}<div class="info-row"><span class="info-label">تقرير الفني</span><span class="info-value">{{ service.engineer_notes }}</span></div>{% endif %}
-    </div>
-    {% endif %}
-  {% else %}
-    <div class="section">
-      <div class="section-title">
-        ملفات العميل والمركبة
-        <span class="badge-chip">{{ service.customer.name if service.customer else 'بدون عميل' }}</span>
-      </div>
-      <div class="info-grid">
-        <div class="data-card">
-          <span class="data-label">العميل</span>
-          <span class="data-value">{{ service.customer.name if service.customer else '—' }}</span>
-          <span class="summary-meta">{{ service.customer.phone if service.customer else 'بدون رقم' }}</span>
-        </div>
-        <div class="data-card">
-          <span class="data-label">البريد</span>
-          <span class="data-value">{{ service.customer.email if service.customer and service.customer.email else '—' }}</span>
-          <span class="summary-meta">مراسلات</span>
-        </div>
-        <div class="data-card">
-          <span class="data-label">نوع المركبة</span>
-          <span class="data-value">{{ service.vehicle_type.name if service.vehicle_type else '—' }}</span>
-          <span class="summary-meta">{{ service.vehicle_model or 'غير محدد' }}</span>
-        </div>
-        <div class="data-card">
-          <span class="data-label">رقم اللوحة</span>
-          <span class="data-value">{{ service.vehicle_vrn or '—' }}</span>
-          <span class="summary-meta">{{ status_label }}</span>
-        </div>
-      </div>
-      {% if service.problem_description or service.engineer_notes %}
-      <div class="data-card" style="margin-top:16px;">
-        <span class="data-label">الوصف الفني</span>
-        <span class="data-value" style="font-size:14px;font-weight:600;">{{ service.problem_description or service.engineer_notes }}</span>
-        {% if service.engineer_notes and service.problem_description %}
-        <span class="summary-meta">{{ service.engineer_notes }}</span>
-        {% endif %}
-      </div>
+    <div class="data-card" style="margin-top:12px;">
+      <span class="data-label">الوصف الفني</span>
+      <span class="data-value" style="font-size:13px;font-weight:600;">{{ service.problem_description or service.engineer_notes }}</span>
+      {% if service.engineer_notes and service.problem_description %}
+      <span class="data-note">{{ service.engineer_notes }}</span>
       {% endif %}
     </div>
-  {% endif %}
+    {% endif %}
+  </div>
 
   <div class="section">
     <div class="section-title">
       تفاصيل الخدمة
-      {% if not is_simple %}
       <span class="badge-chip">{{ (service.parts|length + service.tasks|length) if service.parts or service.tasks else 0 }} بنود</span>
-      {% endif %}
     </div>
     <table class="table">
       <thead>
@@ -262,7 +192,7 @@ html,body{font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;directio
         {% set net = gross - disc %}
         <tr>
           <td>قطعة</td>
-          <td class="wrap">{{ part.part.name if part.part else '—' }}</td>
+          <td class="info-value">{{ part.part.name if part.part else '—' }}</td>
           <td>{{ qty|int }}</td>
           <td class="num">{{ '%.2f'|format(price) }}</td>
           <td class="num">{{ disc > 0 and ('%.2f'|format(disc)) or '—' }}</td>
@@ -277,7 +207,7 @@ html,body{font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;directio
         {% set net = gross - disc %}
         <tr>
           <td>مهمة</td>
-          <td class="wrap">{{ task.description or '—' }}</td>
+          <td class="info-value">{{ task.description or '—' }}</td>
           <td>{{ qty|int }}</td>
           <td class="num">{{ '%.2f'|format(price) }}</td>
           <td class="num">{{ disc > 0 and ('%.2f'|format(disc)) or '—' }}</td>
@@ -288,7 +218,7 @@ html,body{font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;directio
       {% if not service.parts and not service.tasks %}
       <tbody>
         <tr>
-          <td colspan="6" style="text-align:center;color:#8a94a8;padding:16px 0;">لا توجد بنود مسجلة</td>
+          <td colspan="6" class="table-empty">لا توجد بنود مسجلة</td>
         </tr>
       </tbody>
       {% endif %}
@@ -328,33 +258,14 @@ html,body{font-family:"DejaVu Sans","Amiri","Tahoma","Arial",sans-serif;directio
     </div>
   </div>
 
-  <div class="signatures">
-    <div class="sign-slot">
-      <div class="sign-line"></div>
-      <div>توقيع العميل</div>
-    </div>
-    <div class="sign-slot">
-      <div class="sign-line"></div>
-      <div>توقيع المسؤول</div>
-    </div>
-  </div>
-
-  {% if not is_simple %}
-  <div class="footer">
-    <div>{{ system_settings.company_name or 'المهندس الفلسطيني للمعدات الثقيلة' }}</div>
-    <div>{{ system_settings.company_address or 'رام الله - فلسطين' }}</div>
-    <div>{{ system_settings.company_phone or '' }}</div>
-  </div>
-  {% endif %}
-
   <div class="no-print">
-    <div style="margin-bottom:14px;">
+    <div class="switcher" style="margin-bottom:6px;">
+      <a href="{{ url_for('service.view_receipt', rid=service.id) }}" class="{{ '' if is_simple else 'active' }}">النسخة الاحترافية</a>
+      <a href="{{ url_for('service.view_receipt', rid=service.id, simple=1) }}" class="{{ 'active' if is_simple else '' }}">النسخة المبسطة</a>
+    </div>
+    <div>
       <button class="print-btn" onclick="window.print()">🖨️ طباعة</button>
       <a class="back-btn" href="{{ url_for('service.view_request', rid=service.id) }}">رجوع</a>
-    </div>
-    <div class="switcher">
-      <a href="{{ url_for('service.view_receipt', rid=service.id) }}" class="{{ 'active' if not is_simple else '' }}">النسخة الاحترافية</a>
-      <a href="{{ url_for('service.view_receipt', rid=service.id, simple=1) }}" class="{{ 'active' if is_simple else '' }}">النسخة المبسطة</a>
     </div>
   </div>
 </div>

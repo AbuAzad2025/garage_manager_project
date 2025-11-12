@@ -20,6 +20,21 @@
         }
     };
 
+    if (typeof window.showNotification !== 'function') {
+        window.showNotification = function(message, type = 'info') {
+            const normalizedType = (type || 'info').toLowerCase();
+            if (window.toastr && typeof window.toastr[normalizedType === 'danger' ? 'error' : normalizedType] === 'function') {
+                const toastType = normalizedType === 'danger' ? 'error' : normalizedType;
+                window.toastr[toastType](message);
+            } else {
+                console[(normalizedType === 'danger' || normalizedType === 'error') ? 'error' : 'log'](message);
+                if (normalizedType === 'danger' || normalizedType === 'error') {
+                    alert(message);
+                }
+            }
+        };
+    }
+
     // جلب وتصنيف الشيكات
     window.loadAndCategorizeChecks = function() {
         
@@ -40,8 +55,7 @@
                         cashed: [],
                         returned: [],
                         bounced: [],  // ✅ إضافة bounced منفصل
-                        cancelled: [],
-                        archived: []
+                        cancelled: []
                     };
                     
                     checks.forEach(function(check) {
@@ -65,7 +79,7 @@
                         } else if (notes.includes('حالة الشيك: أعيد للبنك') || notes.includes('حالة الشيك: معلق')) {
                             actualStatus = 'PENDING';
                         } else if (notes.includes('حالة الشيك: مؤرشف')) {
-                            actualStatus = 'ARCHIVED';
+                            actualStatus = 'CANCELLED';
                         }
                         
                         // 🚨 التصنيف مع أولوية للمتأخر
@@ -75,14 +89,10 @@
                             categorized.overdue.push(check);
                         } else if (actualStatus === 'CASHED') {
                             categorized.cashed.push(check);
-                        } else if (actualStatus === 'RETURNED') {
+                        } else if (actualStatus === 'RETURNED' || actualStatus === 'BOUNCED') {
                             categorized.returned.push(check);
-                        } else if (actualStatus === 'BOUNCED') {
-                            categorized.bounced.push(check);
                         } else if (actualStatus === 'CANCELLED') {
                             categorized.cancelled.push(check);
-                        } else if (actualStatus === 'ARCHIVED') {
-                            categorized.archived.push(check);
                         } else if (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED') {
                             categorized.pending.push(check);
                         } else {
@@ -97,7 +107,6 @@
                     $('#badge-cashed').text(categorized.cashed.length);
                     $('#badge-returned').text(categorized.returned.length);
                     $('#badge-cancelled').text(categorized.cancelled.length);
-                    $('#badge-archived').text(categorized.archived.length);
                     $('#badge-all').text(checks.length);
                     
                     // 🚨 تحديث تحذير الشيكات المتأخرة
@@ -121,7 +130,6 @@
                     fillTable('cashed', categorized.cashed);
                     fillTable('returned', categorized.returned);
                     fillTable('cancelled', categorized.cancelled);
-                    fillTable('archived', categorized.archived);
                     fillTable('all', checks);
                     
                     // 🔥 فرض إظهار .tab-content والجداول (الحل النهائي!)
@@ -180,36 +188,23 @@
             let actionButtons = '<button class="btn btn-sm btn-info" onclick="viewCheckDetails(\'' + (check.id || '') + '\')" title="عرض"><i class="fas fa-eye"></i></button> ';
             
             const status = (check.status || '').toUpperCase();
-            
-            // أزرار حسب الحالة (مع فحص الملاحظات)
-            const notes = (check.notes || '').toLowerCase();
             let actualStatus = status;
             
             // الكشف عن الحالة الفعلية من الملاحظات
-            if (notes.includes('حالة الشيك: مسحوب')) actualStatus = 'CASHED';
-            else if (notes.includes('حالة الشيك: مرتجع')) actualStatus = 'RETURNED';
-            else if (notes.includes('حالة الشيك: ملغي')) actualStatus = 'CANCELLED';
-            else if (notes.includes('حالة الشيك: أعيد للبنك')) actualStatus = 'RESUBMITTED';
-            else if (notes.includes('حالة الشيك: مؤرشف')) actualStatus = 'ARCHIVED';
-            
             if (actualStatus === 'PENDING' || actualStatus === 'OVERDUE' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED') {
                 // شيكات معلقة (بما فيها المُعادة للبنك): سحب | إرجاع | إلغاء
                 actionButtons += '<button class="btn btn-sm btn-success" onclick="markAsCashed(\'' + (check.id || '') + '\')" title="سحب"><i class="fas fa-check"></i></button> ';
                 actionButtons += '<button class="btn btn-sm btn-warning" onclick="markAsReturned(\'' + (check.id || '') + '\')" title="إرجاع"><i class="fas fa-undo"></i></button> ';
-                actionButtons += '<button class="btn btn-sm btn-secondary" onclick="markAsCancelled(\'' + (check.id || '') + '\')" title="إلغاء/إتلاف"><i class="fas fa-ban"></i></button>';
+                actionButtons += '<button class="btn btn-sm btn-secondary" onclick="markAsCancelled(\'' + (check.id || '') + '\')" title="إلغاء"><i class="fas fa-ban"></i></button>';
             } else if (actualStatus === 'RETURNED' || actualStatus === 'BOUNCED') {
                 // شيكات مرتجعة: إعادة للبنك | إلغاء
                 actionButtons += '<button class="btn btn-sm btn-primary" onclick="resubmitCheck(\'' + (check.id || '') + '\')" title="إعادة للبنك"><i class="fas fa-sync"></i></button> ';
-                actionButtons += '<button class="btn btn-sm btn-secondary" onclick="markAsCancelled(\'' + (check.id || '') + '\')" title="إلغاء/إتلاف"><i class="fas fa-ban"></i></button>';
+                actionButtons += '<button class="btn btn-sm btn-secondary" onclick="markAsCancelled(\'' + (check.id || '') + '\')" title="إلغاء"><i class="fas fa-ban"></i></button>';
             } else if (actualStatus === 'CASHED') {
                 // شيكات مسحوبة: أرشفة فقط
                 actionButtons += '<button class="btn btn-sm btn-dark" onclick="archiveCheck(\'' + (check.id || '') + '\')" title="أرشفة"><i class="fas fa-archive"></i></button>';
             } else if (actualStatus === 'CANCELLED') {
-                // شيكات ملغاة: أرشفة أو استعادة
-                actionButtons += '<button class="btn btn-sm btn-success" onclick="restoreCheck(\'' + (check.id || '') + '\')" title="استعادة"><i class="fas fa-redo"></i></button> ';
-                actionButtons += '<button class="btn btn-sm btn-dark" onclick="archiveCheck(\'' + (check.id || '') + '\')" title="أرشفة"><i class="fas fa-archive"></i></button>';
-            } else if (actualStatus === 'ARCHIVED') {
-                // شيكات مؤرشفة: استعادة فقط
+                // شيكات ملغاة: استعادة فقط
                 actionButtons += '<button class="btn btn-sm btn-success" onclick="restoreCheck(\'' + (check.id || '') + '\')" title="استعادة"><i class="fas fa-redo"></i></button>';
             }
             
@@ -490,60 +485,50 @@
     
     // أرشفة الشيك
     window.archiveCheck = function(checkId) {
-
-        updateCheckStatus(checkId, 'ARCHIVED', 'تم أرشفة الشيك');
+        updateCheckStatus(checkId, 'CANCELLED', 'تم إلغاء الشيك (أرشفة)');
     };
-    
-    // استعادة الشيك من الأرشيف
-    window.restoreCheck = function(checkId) {
 
-        updateCheckStatus(checkId, 'PENDING', 'تم استعادة الشيك من الأرشيف');
+    window.restoreCheck = function(checkId) {
+        updateCheckStatus(checkId, 'PENDING', 'تم استعادة الشيك للحالة المعلقة');
     };
     
     // دالة مشتركة لتحديث حالة الشيك
     function updateCheckStatus(checkId, newStatus, message) {
         const statusInfo = {
             'CASHED': {
-                title: '✅ تأكيد سحب الشيك', 
-                text: 'هل تم صرف هذا الشيك من البنك فعلاً؟\n\nسيتم تسجيل قيد محاسبي تلقائي:\n• مدين: البنك\n• دائن: شيكات تحت التحصيل', 
-                icon: 'question', 
-                confirmText: '✅ نعم، تم السحب', 
-                successText: 'تم تحديث حالة الشيك إلى "مسحوب" بنجاح!\n\nتم تسجيل القيد المحاسبي في دفتر الأستاذ.'
+                title: 'تأكيد السحب',
+                text: 'تم صرف الشيك من البنك؟',
+                icon: 'question',
+                confirmText: 'نعم، تم السحب',
+                successText: 'تم تحديث حالة الشيك إلى "مسحوب".'
             },
             'RETURNED': {
-                title: '⚠️ تأكيد إرجاع الشيك', 
-                text: 'هل تم إرجاع هذا الشيك من البنك؟\n\nسيتم تسجيل قيد محاسبي عكسي:\n• مدين: العملاء/الموردين\n• دائن: شيكات تحت التحصيل/الدفع', 
-                icon: 'warning', 
-                confirmText: '🔄 نعم، تم الإرجاع', 
-                successText: 'تم تحديث حالة الشيك إلى "مرتجع" بنجاح!\n\nتم تسجيل القيد العكسي في دفتر الأستاذ.'
+                title: 'تأكيد الإرجاع',
+                text: 'هل تم إرجاع الشيك من البنك؟',
+                icon: 'warning',
+                confirmText: 'نعم، تم الإرجاع',
+                successText: 'تم تحديث حالة الشيك إلى "مرتجع".'
             },
             'CANCELLED': {
-                title: '⛔ تأكيد إلغاء/إتلاف الشيك', 
-                text: 'هل تريد إلغاء أو إتلاف هذا الشيك نهائياً؟\n\nسيتم:\n• عكس القيد المحاسبي\n• إرجاع الدين للجهة\n• نقل الشيك لتبويب "ملغاة/تالفة"', 
-                icon: 'warning', 
-                confirmText: '⛔ نعم، إلغاء/إتلاف', 
-                successText: 'تم إلغاء الشيك بنجاح!\n\nتم عكس القيد المحاسبي وإرجاع الدين.'
+                title: 'تأكيد الإلغاء',
+                text: 'هل تريد إلغاء هذا الشيك؟',
+                icon: 'warning',
+                confirmText: 'نعم، إلغاء',
+                successText: 'تم تحديث حالة الشيك إلى "ملغي".'
             },
             'RESUBMITTED': {
-                title: '🔁 إعادة تقديم الشيك للبنك', 
-                text: 'هل تريد إعادة تقديم هذا الشيك للبنك مرة أخرى؟\n\nسيعود الشيك إلى حالة "معلق".', 
-                icon: 'info', 
-                confirmText: '🔁 نعم، إعادة تقديم', 
-                successText: 'تم إعادة الشيك للبنك بنجاح!\n\nأصبح الشيك في حالة "معلق" الآن.'
-            },
-            'ARCHIVED': {
-                title: '📦 أرشفة الشيك', 
-                text: 'هل تريد نقل هذا الشيك إلى الأرشيف؟\n\nيمكنك استعادته لاحقاً.', 
-                icon: 'info', 
-                confirmText: '📦 نعم، أرشفة', 
-                successText: 'تم أرشفة الشيك بنجاح!'
+                title: 'إعادة تقديم للكبنك',
+                text: 'سيتم وضع الشيك في حالة انتظار جديدة.',
+                icon: 'info',
+                confirmText: 'إعادة للبنك',
+                successText: 'تم إعادة تقديم الشيك للبنك.'
             },
             'PENDING': {
-                title: '♻️ استعادة الشيك', 
-                text: 'هل تريد استعادة هذا الشيك من الأرشيف؟\n\nسيعود إلى حالة "معلق".', 
-                icon: 'info', 
-                confirmText: '♻️ نعم، استعادة', 
-                successText: 'تم استعادة الشيك من الأرشيف بنجاح!'
+                title: 'استعادة الشيك',
+                text: 'سيعود الشيك لقائمة الشيكات المعلقة.',
+                icon: 'info',
+                confirmText: 'استعادة',
+                successText: 'تم استعادة الشيك للحالة المعلقة.'
             }
         };
         

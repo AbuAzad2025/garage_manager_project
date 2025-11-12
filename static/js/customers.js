@@ -117,7 +117,7 @@
   }
 
   const customersTable = qs("#customersTable");
-  if (customersTable && window.jQuery && window.jQuery.fn && window.jQuery.fn.DataTable) {
+  if (customersTable && customersTable.dataset.printMode !== "1" && window.jQuery && window.jQuery.fn && window.jQuery.fn.DataTable) {
     const $tbl = window.jQuery(customersTable);
     
     // تحقق من البنية
@@ -142,6 +142,8 @@
     
     try {
         const lastCol = (customersTable.tHead && customersTable.tHead.rows[0]) ? customersTable.tHead.rows[0].cells.length - 1 : 8;
+        const hasActions = customersTable.dataset.hasActions !== "0";
+        const columnDefs = hasActions ? [{ orderable: false, targets: [lastCol] }] : [];
         $tbl.DataTable({
           language: { 
             url: "/static/datatables/Arabic.json",
@@ -152,8 +154,8 @@
           searching: false,
           info: false,
           ordering: true,
-          order: [[0, "desc"]],
-          columnDefs: [{ orderable: false, targets: [lastCol] }]
+          order: [[1, "desc"]],
+          columnDefs
         });
     } catch (e) {
 
@@ -271,4 +273,57 @@
 
   const printBtn = qs("#btn-print");
   if (printBtn) printBtn.addEventListener("click", () => window.print());
+
+  const printCustomersTrigger = qs("#open-print-modal");
+  const printCustomersModal = qs("#printCustomersModal");
+  if (printCustomersTrigger && printCustomersModal) {
+    const canUseBootstrapModal = !!(window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.modal === "function");
+    printCustomersTrigger.addEventListener("click", () => {
+      if (canUseBootstrapModal) {
+        window.jQuery(printCustomersModal).modal("show");
+      } else {
+        printCustomersModal.classList.add("show");
+        printCustomersModal.style.display = "block";
+      }
+    });
+    if (!canUseBootstrapModal) {
+      qsa('[data-dismiss="modal"]', printCustomersModal).forEach(el => {
+        el.addEventListener("click", () => {
+          printCustomersModal.classList.remove("show");
+          printCustomersModal.style.display = "none";
+        });
+      });
+    }
+  }
+
+  const printOptionsForm = qs("#print-options-form");
+  if (printOptionsForm) {
+    const scopeInputs = qsa('input[name="scope"]', printOptionsForm);
+    const rangeInputs = qsa('#print-range-fields input', printOptionsForm);
+    const pageInputs = qsa('#print-page-fields input', printOptionsForm);
+    const toggleScopeFields = () => {
+      const selected = printOptionsForm.querySelector('input[name="scope"]:checked');
+      const scopeValue = selected ? selected.value : "all";
+      const rangeEnabled = scopeValue === "range";
+      const pageEnabled = scopeValue === "page";
+      rangeInputs.forEach(input => {
+        input.disabled = !rangeEnabled;
+        if (rangeEnabled) {
+          input.required = true;
+        } else {
+          input.required = false;
+        }
+      });
+      pageInputs.forEach(input => {
+        input.disabled = !pageEnabled;
+        if (pageEnabled) {
+          input.required = true;
+        } else {
+          input.required = false;
+        }
+      });
+    };
+    scopeInputs.forEach(input => input.addEventListener("change", toggleScopeFields));
+    toggleScopeFields();
+  }
 })();

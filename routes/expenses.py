@@ -22,6 +22,124 @@ expenses_bp = Blueprint(
     template_folder="templates/expenses",
 )
 
+DEFAULT_TYPE_META_BY_CODE = {
+    "COMMUNICATION": {
+        "required": ["period", "telecom_phone_number", "telecom_service_type"],
+        "optional": ["utility_account_id", "beneficiary_name", "supplier_id"],
+    },
+    "COMMUNICATIONS": {
+        "required": ["period", "telecom_phone_number", "telecom_service_type"],
+        "optional": ["utility_account_id", "beneficiary_name", "supplier_id"],
+    },
+    "INSURANCE": {
+        "required": ["insurance_company_name", "insurance_company_address"],
+        "optional": ["insurance_company_phone"],
+    },
+    "MARKETING": {
+        "required": ["period", "marketing_company_name", "marketing_company_address", "marketing_coverage_details"],
+        "optional": [],
+    },
+    "MARKETING_OLD": {
+        "required": ["period", "marketing_company_name", "marketing_company_address", "marketing_coverage_details"],
+        "optional": [],
+    },
+    "BANK_FEES": {
+        "required": ["bank_fee_bank_name", "bank_fee_notes"],
+        "optional": [],
+    },
+    "GOV_FEES": {
+        "required": ["gov_fee_entity_name", "gov_fee_entity_address", "gov_fee_notes"],
+        "optional": [],
+    },
+    "SHIP_PORT_FEES": {
+        "required": ["port_fee_port_name", "port_fee_notes"],
+        "optional": [],
+    },
+    "TRAVEL": {
+        "required": ["travel_destination", "travel_reason", "travel_notes"],
+        "optional": [],
+    },
+    "SHIP_FREIGHT": {
+        "required": ["shipping_company_name", "shipping_notes"],
+        "optional": [],
+    },
+    "MAINTENANCE": {
+        "required": ["maintenance_provider_name", "maintenance_provider_address", "maintenance_notes"],
+        "optional": [],
+    },
+}
+
+DEFAULT_TYPE_META_BY_NAME_SUBSTRING = {
+    "اتصال": {
+        "required": ["period", "telecom_phone_number", "telecom_service_type"],
+        "optional": ["utility_account_id", "beneficiary_name", "supplier_id"],
+    },
+    "تأمين": {
+        "required": ["insurance_company_name", "insurance_company_address"],
+        "optional": ["insurance_company_phone"],
+    },
+    "تسويق": {
+        "required": ["period", "marketing_company_name", "marketing_company_address", "marketing_coverage_details"],
+        "optional": [],
+    },
+    "رسوم بنكية": {
+        "required": ["bank_fee_bank_name", "bank_fee_notes"],
+        "optional": [],
+    },
+    "رسوم حكومية": {
+        "required": ["gov_fee_entity_name", "gov_fee_entity_address", "gov_fee_notes"],
+        "optional": [],
+    },
+    "رسوم موانئ": {
+        "required": ["port_fee_port_name", "port_fee_notes"],
+        "optional": [],
+    },
+    "سفر": {
+        "required": ["travel_destination", "travel_reason", "travel_notes"],
+        "optional": [],
+    },
+    "شحن": {
+        "required": ["shipping_company_name", "shipping_notes"],
+        "optional": [],
+    },
+    "صيانة": {
+        "required": ["maintenance_provider_name", "maintenance_provider_address", "maintenance_notes"],
+        "optional": [],
+    },
+}
+
+
+def _merge_type_meta(exp_type: ExpenseType) -> dict:
+    base_meta = exp_type.fields_meta or {}
+    merged = dict(base_meta) if isinstance(base_meta, dict) else {}
+
+    code = (exp_type.code or "").strip().upper()
+    name = (exp_type.name or "").strip()
+
+    defaults = {}
+    if code in DEFAULT_TYPE_META_BY_CODE:
+        defaults = DEFAULT_TYPE_META_BY_CODE[code]
+    else:
+        for key, meta in DEFAULT_TYPE_META_BY_NAME_SUBSTRING.items():
+            if key in name:
+                defaults = meta
+                break
+
+    def _merge_list(key):
+        default_vals = defaults.get(key) if isinstance(defaults, dict) else None
+        result = set()
+        if isinstance(default_vals, (list, tuple, set)):
+            result.update(default_vals)
+        current_vals = merged.get(key)
+        if isinstance(current_vals, (list, tuple, set)):
+            result.update(current_vals)
+        return sorted(result)
+
+    merged["required"] = _merge_list("required")
+    merged["optional"] = _merge_list("optional")
+
+    return merged
+
 def _get_or_404(model, ident, *options):
     if options:
         q = db.session.query(model)
@@ -697,7 +815,8 @@ def index():
         'average_expense': total_expenses / len(expenses) if len(expenses) > 0 else 0,
         'expenses_by_type': expenses_by_type_sorted,
         'expenses_by_currency': expenses_by_currency,
-        'payment_percentage': (total_paid / total_expenses * 100) if total_expenses > 0 else 0
+        'payment_percentage': (total_paid / total_expenses * 100) if total_expenses > 0 else 0,
+        'latest_expense': expenses[0] if expenses else None
     }
     
     return render_template(
@@ -755,7 +874,7 @@ def add():
     form.shipment_id.choices = [(0, '-- اختر شحنة --')] + [(s.id, f"شحنة #{s.id}") for s in Shipment.query.order_by(Shipment.id.desc()).limit(50).all()]
     form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')] + [(sa.id, f"تسوية #{sa.id}") for sa in StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()]
     
-    types_meta = {t.id: (t.fields_meta or {}) for t in _types}
+    types_meta = {t.id: _merge_type_meta(t) for t in _types}
 
     if form.validate_on_submit():
         exp = Expense()
@@ -976,7 +1095,7 @@ def edit(exp_id):
     
     _types = ExpenseType.query.order_by(ExpenseType.name).all()
     form.type_id.choices = [(t.id, t.name) for t in _types]
-    types_meta = {t.id: (t.fields_meta or {}) for t in _types}
+    types_meta = {t.id: _merge_type_meta(t) for t in _types}
     
     employees = Employee.query.order_by(Employee.name).limit(200).all()
     form.employee_id.choices = [(0, '-- اختر موظفاً --')]

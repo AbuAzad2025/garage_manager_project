@@ -2253,6 +2253,9 @@ button:focus, .btn:focus {
     color:#000!important;
     background:transparent!important;
   }
+  .hide-mobile {
+    display: table-cell !important;
+  }
 }
 
 .modal {
