@@ -97,6 +97,38 @@ def dashboard():
     revenue_labels = []
     revenue_values = []
     week_revenue = 0.0
+
+    # حساب الوارد والصادر - يشمل المبيعات + الدفعات
+    fx_cache: dict[tuple[str, date | None], Decimal] = {}
+
+    def _to_ils(amount, currency, fx_used, at_dt) -> Decimal:
+        value = Decimal(str(amount or 0))
+        code = (currency or "ILS").upper()
+        if code == "ILS":
+            return value
+        if fx_used:
+            try:
+                return value * Decimal(str(fx_used))
+            except Exception:
+                pass
+        try:
+            key = (code, at_dt.date() if isinstance(at_dt, datetime) else None)
+            rate = fx_cache.get(key)
+            if rate is None:
+                rate = fx_rate(code, "ILS", at_dt, raise_on_missing=False)
+                if rate and rate > 0:
+                    fx_cache[key] = Decimal(str(rate))
+                else:
+                    rate = None
+            if rate and rate > 0:
+                return value * Decimal(str(rate))
+        except Exception:
+            pass
+        try:
+            return convert_amount(value, code, "ILS", at_dt)
+        except Exception:
+            return value
+
     if _has_perm("manage_sales"):
         recent_sales = (
             Sale.query.options(
@@ -132,8 +164,8 @@ def dashboard():
             )
             .filter(
                 Sale.status == SaleStatus.CONFIRMED.value,
-            Sale.sale_date >= day_start_dt,
-            Sale.sale_date < day_end_dt,
+                Sale.sale_date >= day_start_dt,
+                Sale.sale_date < day_end_dt,
             )
             .all()
         )
@@ -141,37 +173,6 @@ def dashboard():
         for amt, currency, fx_used, sale_dt in today_sales_rows:
             today_revenue += _to_ils(amt, currency, fx_used, sale_dt)
 
-    # حساب الوارد والصادر - يشمل المبيعات + الدفعات
-    fx_cache: dict[tuple[str, date | None], Decimal] = {}
-
-    def _to_ils(amount, currency, fx_used, at_dt) -> Decimal:
-        value = Decimal(str(amount or 0))
-        code = (currency or "ILS").upper()
-        if code == "ILS":
-            return value
-        if fx_used:
-            try:
-                return value * Decimal(str(fx_used))
-            except Exception:
-                pass
-        try:
-            key = (code, at_dt.date() if isinstance(at_dt, datetime) else None)
-            rate = fx_cache.get(key)
-            if rate is None:
-                rate = fx_rate(code, "ILS", at_dt, raise_on_missing=False)
-                if rate and rate > 0:
-                    fx_cache[key] = Decimal(str(rate))
-                else:
-                    rate = None
-            if rate and rate > 0:
-                return value * Decimal(str(rate))
-        except Exception:
-            pass
-        try:
-            return convert_amount(value, code, "ILS", at_dt)
-        except Exception:
-            return value
-    
     today_incoming = Decimal('0.00')
     today_outgoing = Decimal('0.00')
     week_incoming = Decimal('0.00')
