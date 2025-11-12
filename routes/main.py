@@ -8,7 +8,7 @@ from typing import List, Tuple
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, send_file, send_from_directory, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import func, case
+from sqlalchemy import func, case, and_
 from sqlalchemy.orm import load_only, joinedload
 
 from extensions import db
@@ -173,184 +173,31 @@ def dashboard():
         for amt, currency, fx_used, sale_dt in today_sales_rows:
             today_revenue += _to_ils(amt, currency, fx_used, sale_dt)
 
-    today_incoming = Decimal('0.00')
-    today_outgoing = Decimal('0.00')
-    week_incoming = Decimal('0.00')
-    week_outgoing = Decimal('0.00')
+    total_customer_balance = 0.0
+    total_supplier_balance = 0.0
+    total_partner_balance = 0.0
+    try:
+        total_customer_balance = float(db.session.query(func.coalesce(func.sum(Customer.balance), 0)).scalar() or 0)
+    except Exception:
+        total_customer_balance = 0.0
+    try:
+        total_supplier_balance = float(db.session.query(func.coalesce(func.sum(Supplier.balance), 0)).scalar() or 0)
+    except Exception:
+        total_supplier_balance = 0.0
+    try:
+        total_partner_balance = float(db.session.query(func.coalesce(func.sum(Partner.balance), 0)).scalar() or 0)
+    except Exception:
+        total_partner_balance = 0.0
 
-    # 1️⃣ إضافة المبيعات المؤكدة لليوم (وارد)
-    if _has_perm("manage_sales") and today_sales_rows:
-        for amount, currency, fx_used, sale_dt in today_sales_rows:
-            today_incoming += _to_ils(amount, currency, fx_used, sale_dt)
-    
-    # 2️⃣ إضافة الدفعات اليومية (وارد/صادر)
-    today_payments = (
-        db.session.query(
-            Payment.total_amount,
-            Payment.currency,
-            Payment.fx_rate_used,
-            Payment.payment_date,
-            Payment.direction,
-        )
-        .filter(
-        Payment.payment_date >= day_start_dt,
-        Payment.payment_date < day_end_dt,
-        Payment.status == PaymentStatus.COMPLETED.value,
-        )
-        .all()
-    )
-
-    for amount, currency, fx_used, pay_dt, direction in today_payments:
-        try:
-            amt_ils = _to_ils(amount, currency, fx_used, pay_dt)
-
-            if direction == PaymentDirection.IN.value:
-                today_incoming += amt_ils
-            else:
-                today_outgoing += amt_ils
-        except Exception:
-            pass
-    
-    # 3️⃣ إضافة المصاريف اليومية (صادر)
-    today_expenses = (
-        db.session.query(
-            Expense.amount,
-            Expense.currency,
-            Expense.date,
-        )
-        .filter(
-        Expense.date >= day_start_dt.date(),
-        Expense.date < day_end_dt.date(),
-        )
-        .all()
-    )
-    
-    for amount, currency, exp_date in today_expenses:
-        try:
-            today_outgoing += _to_ils(amount, currency, None, datetime.combine(exp_date, time.min))
-        except Exception:
-            pass
-    
-    # 4️⃣ إضافة فواتير الموردين المستحقة (صادر)
-    today_invoices = (
-        db.session.query(
-            Invoice.total_amount,
-            Invoice.currency,
-            Invoice.fx_rate_used,
-            Invoice.invoice_date,
-        )
-        .filter(
-        Invoice.invoice_date >= day_start_dt,
-        Invoice.invoice_date < day_end_dt,
-        )
-        .all()
-    )
-    
-    for amount, currency, fx_used, inv_date in today_invoices:
-        try:
-            today_outgoing += _to_ils(amount, currency, fx_used, inv_date)
-        except Exception:
-            pass
-
-    today_net = float(today_incoming - today_outgoing)
     today_revenue = float(today_revenue)
-    today_incoming = float(today_incoming)
-    today_outgoing = float(today_outgoing)
+    today_incoming = float(total_customer_balance)
+    today_outgoing = float(total_supplier_balance + total_partner_balance)
+    today_net = float(today_incoming - today_outgoing)
 
-    # 3️⃣ حساب الوارد/الصادر الأسبوعي (مبيعات + دفعات)
-    
-    # المبيعات الأسبوعية
-    if _has_perm("manage_sales"):
-        week_sales_rows = (
-            db.session.query(
-                Sale.total_amount,
-                Sale.currency,
-                Sale.fx_rate_used,
-                Sale.sale_date,
-            )
-            .filter(
-            Sale.status == "CONFIRMED",
-            Sale.sale_date >= week_start_dt,
-            Sale.sale_date < week_end_dt,
-            )
-            .all()
-        )
-        
-        for amount, currency, fx_used, sale_dt in week_sales_rows:
-            week_incoming += _to_ils(amount, currency, fx_used, sale_dt)
-    
-    # الدفعات الأسبوعية
-    week_payments = (
-        db.session.query(
-            Payment.total_amount,
-            Payment.currency,
-            Payment.fx_rate_used,
-            Payment.payment_date,
-            Payment.direction,
-        )
-        .filter(
-        Payment.payment_date >= week_start_dt,
-        Payment.payment_date < week_end_dt,
-        Payment.status == PaymentStatus.COMPLETED.value,
-        )
-        .all()
-    )
-
-    for amount, currency, fx_used, pay_dt, direction in week_payments:
-        try:
-            amt_ils = _to_ils(amount, currency, fx_used, pay_dt)
-
-            if direction == PaymentDirection.IN.value:
-                week_incoming += amt_ils
-            else:
-                week_outgoing += amt_ils
-        except Exception:
-            pass
-    
-    # المصاريف الأسبوعية (صادر)
-    week_expenses = (
-        db.session.query(
-            Expense.amount,
-            Expense.currency,
-            Expense.date,
-        )
-        .filter(
-        Expense.date >= week_start_dt.date(),
-        Expense.date < week_end_dt.date(),
-        )
-        .all()
-    )
-    
-    for amount, currency, exp_date in week_expenses:
-        try:
-            week_outgoing += _to_ils(amount, currency, None, datetime.combine(exp_date, time.min))
-        except Exception:
-            pass
-    
-    # الفواتير الأسبوعية (صادر)
-    week_invoices = (
-        db.session.query(
-            Invoice.total_amount,
-            Invoice.currency,
-            Invoice.fx_rate_used,
-            Invoice.invoice_date,
-        )
-        .filter(
-        Invoice.invoice_date >= week_start_dt,
-        Invoice.invoice_date < week_end_dt,
-        )
-        .all()
-    )
-    
-    for amount, currency, fx_used, inv_date in week_invoices:
-        try:
-            week_outgoing += _to_ils(amount, currency, fx_used, inv_date)
-        except Exception:
-            pass
-
+    # 3️⃣ عرض الذمم الأسبوعية بنفس أرقام الرصيد الإجمالي
+    week_incoming = today_incoming
+    week_outgoing = today_outgoing
     week_net = float(week_incoming - week_outgoing)
-    week_incoming = float(week_incoming)
-    week_outgoing = float(week_outgoing)
 
     # حساب الدفعات اليومية مع تحويل العملات
     from collections import defaultdict
@@ -473,35 +320,39 @@ def dashboard():
         current_app.logger.warning(f"Dashboard check alerts error: {exc}")
 
     try:
-        due_ils_expr = func.sum(Sale.balance_due * func.coalesce(Sale.fx_rate_used, 1)).label("due_ils")
         customer_debts = (
             db.session.query(
                 Customer.id,
                 Customer.name,
-                due_ils_expr,
+                Customer.balance.label("cust_balance"),
                 func.count(Sale.id).label("sale_count"),
                 func.max(Sale.sale_date).label("last_sale"),
             )
-            .join(Customer, Customer.id == Sale.customer_id)
-            .filter(
-                Sale.status == SaleStatus.CONFIRMED.value,
-                Sale.balance_due > 0,
+            .outerjoin(
+                Sale,
+                and_(
+                    Sale.customer_id == Customer.id,
+                    Sale.status == SaleStatus.CONFIRMED.value,
+                    Sale.balance_due > 0,
+                )
             )
-            .group_by(Customer.id, Customer.name)
-            .order_by(due_ils_expr.desc())
+            .filter(Customer.balance < 0)
+            .group_by(Customer.id, Customer.name, Customer.balance)
+            .order_by(Customer.balance.asc())
             .limit(5)
             .all()
         )
 
-        for cust_id, cust_name, due_ils, sale_count, last_sale in customer_debts:
-            if due_ils and due_ils > 0:
+        for cust_id, cust_name, cust_balance, sale_count, last_sale in customer_debts:
+            if cust_balance and cust_balance < 0:
+                amount_due = abs(float(cust_balance))
                 dashboard_alerts.append({
                     "category": "الذمم",
                     "severity": "warning",
                     "icon": "fas fa-user-clock",
                     "title": f"دين على العميل {cust_name}",
                     "message": f"عدد الفواتير المفتوحة: {sale_count}",
-                    "amount_display": f"{float(due_ils):,.2f} ₪",
+                    "amount_display": f"{amount_due:,.2f} ₪",
                     "link": url_for('customers_bp.list_customers', name=cust_name),
                     "meta": last_sale.strftime('%Y-%m-%d') if last_sale else None,
                 })
@@ -605,6 +456,9 @@ def dashboard():
         week_incoming=week_incoming,
         week_outgoing=week_outgoing,
         week_net=week_net,
+        total_customer_balance=total_customer_balance,
+        total_supplier_balance=total_supplier_balance,
+        total_partner_balance=total_partner_balance,
         payments_day_labels=payments_day_labels,
         payments_in_values=payments_in_values,
         payments_out_values=payments_out_values,

@@ -5213,6 +5213,8 @@ def _compute_total_amount(mapper, connection, target: "Sale"):
         total = Decimal("0.00")
     target.total_amount = q(total)
     target.balance_due = q(target.total_amount or 0) - q(target.total_paid or 0)
+    if target.balance_due < 0:
+        target.balance_due = Decimal("0.00")
 
 @event.listens_for(Sale, "before_update")
 def _sale_enforce_status(mapper, connection, target: "Sale"):
