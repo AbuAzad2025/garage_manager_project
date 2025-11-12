@@ -539,6 +539,7 @@ def suppliers_statement(supplier_id: int):
             'check_number': getattr(pmt, 'check_number', None) if method_raw == 'cheque' else None,
             'check_bank': getattr(pmt, 'check_bank', None),
             'check_due_date': getattr(pmt, 'check_due_date', None) if method_raw == 'cheque' else None,
+            'deliverer_name': getattr(pmt, 'deliverer_name', None) or '',
             'receiver_name': getattr(pmt, 'receiver_name', None) or '',
             'status': payment_status,
             'is_bounced': is_bounced,

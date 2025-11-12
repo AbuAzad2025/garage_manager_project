@@ -447,6 +447,9 @@
                   {% endif %}
                   
                   {# المستلم - إذا موجود #}
+                  {% if pd.deliverer_name %}
+                    - سلَّم ({{ pd.deliverer_name }})
+                  {% endif %}
                   {% if pd.receiver_name %}
                     - لـيـد ({{ pd.receiver_name }})
                   {% endif %}

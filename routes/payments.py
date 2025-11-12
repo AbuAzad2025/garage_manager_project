@@ -280,12 +280,16 @@ def _serialize_payment_min(p, *, full=False):
         "entity_display": p.entity_label() if hasattr(p, "entity_label") else (getattr(p, "entity_type", "") or ""),
         "splits": [_serialize_split(s) for s in (list(getattr(p, "splits", []) or []))],
     }
+    d["deliverer_name"] = getattr(p, "deliverer_name", None)
+    d["receiver_name"] = getattr(p, "receiver_name", None)
     if full:
         d.update({
             "payment_number": getattr(p, "payment_number", None),
             "receipt_number": getattr(p, "receipt_number", None),
             "reference": getattr(p, "reference", None),
             "notes": getattr(p, "notes", None),
+            "deliverer_name": getattr(p, "deliverer_name", None),
+            "receiver_name": getattr(p, "receiver_name", None),
             "customer_id": getattr(p, "customer_id", None),
             "supplier_id": getattr(p, "supplier_id", None),
             "partner_id": getattr(p, "partner_id", None),
@@ -301,6 +305,45 @@ def _serialize_payment_min(p, *, full=False):
 
 def _serialize_payment(p, *, full=False):
     return _serialize_payment_min(p, full=full)
+
+def _resolve_user_display():
+    for attr in ("display_name", "full_name", "name", "username", "email"):
+        val = getattr(current_user, attr, None)
+        if val:
+            s = str(val).strip()
+            if s:
+                return s
+    return ""
+
+def _clean_name(value):
+    if isinstance(value, dict):
+        value = value.get("name")
+    if value is None:
+        return ""
+    s = str(value).strip()
+    return s or ""
+
+def _resolve_counterparty_name(person_name=None, customer_id=None, supplier_id=None, partner_id=None, fallback=None):
+    for src in (person_name, fallback):
+        name = _clean_name(src)
+        if name:
+            return name
+    if customer_id:
+        obj = db.session.get(Customer, customer_id)
+        name = _clean_name(getattr(obj, "name", None) if obj else None)
+        if name:
+            return name
+    if supplier_id:
+        obj = db.session.get(Supplier, supplier_id)
+        name = _clean_name(getattr(obj, "name", None) if obj else None)
+        if name:
+            return name
+    if partner_id:
+        obj = db.session.get(Partner, partner_id)
+        name = _clean_name(getattr(obj, "name", None) if obj else None)
+        if name:
+            return name
+    return ""
 
 def ensure_currency(cur):
     try:
@@ -996,6 +1039,27 @@ def create_payment():
                     except Exception:
                         pass
             
+            deliverer_val = (form.deliverer_name.data or "").strip() if hasattr(form, "deliverer_name") else ""
+            receiver_val = (form.receiver_name.data or "").strip() if hasattr(form, "receiver_name") else ""
+            user_display = _resolve_user_display()
+            counterparty_name = _resolve_counterparty_name(person_name=person_name, customer_id=final_customer_id, supplier_id=final_supplier_id, partner_id=final_partner_id, fallback=ref_text)
+            if direction_val == "IN":
+                if not deliverer_val:
+                    deliverer_val = counterparty_name
+                if not receiver_val:
+                    receiver_val = user_display
+            elif direction_val == "OUT":
+                if not deliverer_val:
+                    deliverer_val = user_display
+                if not receiver_val:
+                    receiver_val = counterparty_name
+            else:
+                if not deliverer_val:
+                    deliverer_val = user_display
+                if not receiver_val:
+                    receiver_val = counterparty_name
+            deliverer_val = (deliverer_val or "").strip() or None
+            receiver_val = (receiver_val or "").strip() or None
             payment = Payment(
                 entity_type=etype,
                 customer_id=final_customer_id,
@@ -1017,6 +1081,8 @@ def create_payment():
                 reference=ref_text or None,
                 receipt_number=(_fd(getattr(form, "receipt_number", None)) or None),
                 notes=notes_raw,
+                deliverer_name=deliverer_val,
+                receiver_name=receiver_val,
                 created_by=getattr(current_user, "id", None),
             )
             _ensure_payment_number(payment)
@@ -1273,6 +1339,16 @@ def create_expense_payment(exp_id):
                 flash(f"⚠️ تحذير: مجموع الدفعات بعد التحويل ({float(sum_converted):.2f}) أقل من المطلوب ({float(tgt_total_dec):.2f}) بمقدار {abs(float(diff)):.2f}. سيُحدّث الرصيد بالمبلغ الفعلي.", "warning")
         method_val = parsed_splits[0].method if parsed_splits else _coerce_method(getattr(form, "method", None).data or "cash").value
         notes_raw = (getattr(form, "note", None).data if hasattr(form, "note") else None) or (getattr(form, "notes", None).data if hasattr(form, "notes") else None) or ""
+        deliverer_val = (form.deliverer_name.data or "").strip() if hasattr(form, "deliverer_name") else ""
+        receiver_val = (form.receiver_name.data or "").strip() if hasattr(form, "receiver_name") else ""
+        user_display = _resolve_user_display()
+        counterparty_name = _resolve_counterparty_name(person_name=payee, supplier_id=getattr(exp, "supplier_id", None), partner_id=getattr(exp, "partner_id", None), fallback=payee)
+        if not deliverer_val:
+            deliverer_val = user_display
+        if not receiver_val:
+            receiver_val = counterparty_name
+        deliverer_val = (deliverer_val or "").strip() or None
+        receiver_val = (receiver_val or "").strip() or None
         payment = Payment(
             entity_type="EXPENSE",
             expense_id=exp.id,
@@ -1286,6 +1362,8 @@ def create_expense_payment(exp_id):
             payment_date=form.payment_date.data or datetime.utcnow(),
             reference=(form.reference.data or "").strip() or None,
             notes=(notes_raw or "").strip() or None,
+            deliverer_name=deliverer_val,
+            receiver_name=receiver_val,
             created_by=getattr(current_user, "id", None),
         )
         _ensure_payment_number(payment)
@@ -2118,7 +2196,25 @@ def shop_checkout():
         payment_method = data.get("payment_method", "CASH")
         customer_id = data.get("customer_id")
         
-        # إنشاء الدفعة
+        deliverer_name = data.get("deliverer_name")
+        if isinstance(deliverer_name, str):
+            deliverer_name = deliverer_name.strip()
+        else:
+            deliverer_name = ""
+        receiver_name = data.get("receiver_name")
+        if isinstance(receiver_name, str):
+            receiver_name = receiver_name.strip()
+        else:
+            receiver_name = ""
+        user_display = _resolve_user_display()
+        counterparty_name = _resolve_counterparty_name(person_name=data.get("customer_name"), customer_id=customer_id, fallback=data.get("customer_name"))
+        if not deliverer_name:
+            deliverer_name = counterparty_name
+        if not receiver_name:
+            receiver_name = user_display
+        deliverer_name = deliverer_name.strip() or None
+        receiver_name = receiver_name.strip() or None
+
         payment = Payment(
             entity_type="SHOP_ORDER",
             customer_id=customer_id,
@@ -2131,6 +2227,8 @@ def shop_checkout():
             reference=f"طلب متجر #{datetime.utcnow().strftime('%Y%m%d%H%M%S')}",
             notes=f"دفعة متجر إلكتروني - {len(items)} منتج",
             created_by=current_user.id,
+            deliverer_name=deliverer_name,
+            receiver_name=receiver_name,
         )
         
         _ensure_payment_number(payment)
@@ -2290,7 +2388,12 @@ def shop_refund():
         if original_payment.status != PaymentStatus.COMPLETED.value:
             return jsonify({"error": "لا يمكن استرداد دفعة غير مكتملة"}), 400
         
-        # إنشاء دفعة استرداد
+        user_display = _resolve_user_display()
+        counterparty_name = _resolve_counterparty_name(person_name=original_payment.receiver_name or original_payment.deliverer_name, customer_id=original_payment.customer_id)
+        deliverer_name = user_display.strip() if user_display else ""
+        receiver_name = counterparty_name.strip() if counterparty_name else ""
+        deliverer_name = deliverer_name or None
+        receiver_name = receiver_name or None
         refund_payment = Payment(
             entity_type="SHOP_REFUND",
             customer_id=original_payment.customer_id,
@@ -2303,6 +2406,8 @@ def shop_refund():
             reference=f"استرداد - {original_payment.payment_number}",
             notes=f"استرداد مبلغ: {reason}",
             created_by=current_user.id,
+            deliverer_name=deliverer_name,
+            receiver_name=receiver_name,
         )
         
         _ensure_payment_number(refund_payment)

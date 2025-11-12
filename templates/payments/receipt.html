@@ -141,6 +141,9 @@
       <tr><th>طريقة الدفع</th><td>{{ _method or '—' }}</td></tr>
       <tr><th>الاتجاه</th><td>{{ 'وارد' if _dir in ['IN','INCOMING'] else 'صادر' }}</td></tr>
       <tr><th>الحالة</th><td>{{ _status or '—' }}</td></tr>
+      {% if payment.deliverer_name %}
+      <tr><th>مسلم الدفعة</th><td>{{ payment.deliverer_name }}</td></tr>
+      {% endif %}
       {% if payment.receiver_name %}
       <tr><th>مستلم الدفعة</th><td>{{ payment.receiver_name }}</td></tr>
       {% endif %}

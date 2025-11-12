@@ -786,6 +786,24 @@ h2, h3, h4 {
             </div>
             {% endif %}
 
+            <!-- اسم المسلم - اختياري -->
+            {% if form.deliverer_name is not none %}
+            <div class="mb-4">
+              <label class="form-label optional-field">
+                <i class="fas fa-user-check text-secondary"></i>
+                {{ form.deliverer_name.label.text }}
+                <span class="badge bg-secondary ms-1" style="font-size: 0.7rem;">اختياري</span>
+              </label>
+              {{ form.deliverer_name(class="form-control", placeholder="اسم الشخص المسلم") }}
+              <small class="form-text text-muted">
+                <i class="fas fa-info-circle"></i> يُترك فارغًا ليُحدَّد آليًا حسب جهة الدفع
+              </small>
+              {% for e in form.deliverer_name.errors %}
+                <div class="text-danger small mt-1">{{ e }}</div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
             <!-- اسم المستلم - اختياري -->
             {% if form.receiver_name is not none %}
             <div class="mb-4">
@@ -796,7 +814,7 @@ h2, h3, h4 {
               </label>
               {{ form.receiver_name(class="form-control", placeholder="اسم الشخص المستلم") }}
               <small class="form-text text-muted">
-                <i class="fas fa-info-circle"></i> اسم الشخص الذي استلم المبلغ
+                <i class="fas fa-info-circle"></i> يُترك فارغًا ليُحدَّد آليًا حسب جهة الدفع
               </small>
               {% for e in form.receiver_name.errors %}
                 <div class="text-danger small mt-1">{{ e }}</div>

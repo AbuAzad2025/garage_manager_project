@@ -970,6 +970,7 @@ def account_statement(customer_id):
             method_display = method_arabic
         
         amount = float(getattr(p, 'total_amount', 0) or 0)
+        deliverer_name = getattr(p, 'deliverer_name', None) or ''
         receiver_name = getattr(p, 'receiver_name', None) or ''
         receipt_number = getattr(p, 'receipt_number', None) or getattr(p, 'payment_number', None) or ''
         check_number = getattr(p, 'check_number', None) if method_raw == 'cheque' else None
@@ -987,6 +988,7 @@ def account_statement(customer_id):
             'card_holder': getattr(p, 'card_holder', None),
             'card_last4': getattr(p, 'card_last4', None),
             'bank_transfer_ref': getattr(p, 'bank_transfer_ref', None),
+            'deliverer_name': deliverer_name,
             'receiver_name': receiver_name,
             'status': payment_status,
             'is_bounced': is_bounced,
@@ -1005,6 +1007,8 @@ def account_statement(customer_id):
                 payment_statement += f" #{check_number}"
         else:
             payment_statement = f"سند قبض - {method_arabic}"
+        if deliverer_name and not is_bounced:
+            payment_statement += f" - سلَّم ({deliverer_name})"
         if receiver_name and not is_bounced:
             payment_statement += f" - لـيـد ({receiver_name})"
         
