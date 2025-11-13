@@ -888,8 +888,18 @@
                             </div>
                         </div>
                         <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-4 ml-auto">
+                                    <div class="input-group input-group-sm">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                        </div>
+                                        <input type="text" id="ledger-search" class="form-control" placeholder="بحث في القيود">
+                                    </div>
+                                </div>
+                            </div>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover table-sm" id="ledger-table">
+                                <table class="table table-bordered table-hover table-sm datatable" id="ledger-table" data-dt-skip="1">
                                     <thead class="table-light">
                                         <tr>
                                             <th style="width: 7%;">التاريخ</th>
@@ -1356,6 +1366,7 @@ $(document).ready(function() {
     // تعيين من بداية السنة إلى اليوم
     $('#from-date').val(firstDayOfYear);
     $('#to-date').val(today);
+    $('#ledger-search').prop('disabled', true);
 
     // تحميل البيانات
     loadLedgerData();
@@ -1370,6 +1381,8 @@ $(document).ready(function() {
         loadReceivablesSummary();
     });
 });
+
+let ledgerDataTable = null;
 
 function loadLedgerData() {
     const formData = $('#filter-form').serialize();
@@ -1391,22 +1404,31 @@ function loadLedgerData() {
 }
 
 function updateLedgerTable(data, totals) {
-
-    const tbody = $('#ledger-table tbody');
+    const table = $('#ledger-table');
+    const tbody = table.find('tbody');
+    const searchInput = $('#ledger-search');
+    if (ledgerDataTable) {
+        ledgerDataTable.destroy();
+        ledgerDataTable = null;
+    } else if ($.fn && $.fn.DataTable && $.fn.DataTable.isDataTable('#ledger-table')) {
+        table.DataTable().destroy();
+    }
     tbody.empty();
-    
     if (!data || data.length === 0) {
+        if (searchInput.length) {
+            searchInput.val('');
+            searchInput.prop('disabled', true);
+        }
         tbody.append('<tr><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-info-circle"></i> لا توجد قيود محاسبية في الفترة المحددة</td></tr>');
         return;
     }
-    
+    if (searchInput.length) {
+        searchInput.prop('disabled', false);
+    }
     data.forEach(function(entry) {
-        
         const debitClass = entry.debit > 0 ? 'debit-cell' : '';
         const creditClass = entry.credit > 0 ? 'credit-cell' : '';
         const balanceClass = 'balance-cell';
-        
-        // تحديد اللون والأيقونة حسب نوع الجهة
         let entityBadge = '';
         if (entry.entity_name && entry.entity_name !== '—' && entry.entity_name !== 'غير محدد') {
             let badgeColor = 'secondary';
@@ -1434,7 +1456,6 @@ function updateLedgerTable(data, totals) {
         } else {
             entityBadge = '<span class="text-muted">—</span>';
         }
-        
         const row = `
             <tr>
                 <td class="text-center">${entry.date}</td>
@@ -1454,29 +1475,29 @@ function updateLedgerTable(data, totals) {
         `;
         tbody.append(row);
     });
-    
-    // ✅ تحديث الإجماليات من الباكند مباشرة
     if (totals) {
         $('#total-debit').text(formatCurrency(totals.total_debit));
         $('#total-credit').text(formatCurrency(totals.total_credit));
         $('#final-balance').text(formatCurrency(totals.final_balance));
     }
-    
-    // تهيئة DataTables للجداول الطويلة
-    if (data.length > 15) {
-        // تدمير DataTable القديم إذا كان موجوداً
-        if ($.fn.DataTable.isDataTable('#ledger-table')) {
-            $('#ledger-table').DataTable().destroy();
-        }
-        
-        // إنشاء DataTable جديد
-        $('#ledger-table').DataTable({
+    initLedgerDataTable();
+}
+
+function initLedgerDataTable() {
+    const table = $('#ledger-table');
+    if (!table.length) {
+        return;
+    }
+    const searchInput = $('#ledger-search');
+    const searchValue = searchInput.length ? searchInput.val() : '';
+    const activate = () => {
+        ledgerDataTable = table.DataTable({
             language: {
                 url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
             },
             pageLength: 25,
-            order: [[0, 'desc']],  // ترتيب حسب التاريخ (الأحدث أولاً)
-            dom: 'Bfrtip',
+            order: [[0, 'desc']],
+            dom: 'Brtip',
             buttons: [
                 {
                     extend: 'excel',
@@ -1503,22 +1524,31 @@ function updateLedgerTable(data, totals) {
                 { targets: [0, 1, 2, 3, 8], className: 'text-center' }
             ],
             footerCallback: function(row, data, start, end, display) {
-                // تحديث الإجماليات في footer
                 const api = this.api();
-                
-                // حساب الإجماليات للصفحة المعروضة
                 let pageDebit = 0;
                 let pageCredit = 0;
-                
                 api.column(5, { page: 'current' }).data().each(function(value) {
                     pageDebit += parseFloat(value) || 0;
                 });
-                
                 api.column(6, { page: 'current' }).data().each(function(value) {
                     pageCredit += parseFloat(value) || 0;
                 });
             }
         });
+        if (searchInput.length) {
+            searchInput.prop('disabled', false);
+            searchInput.off('input.ledger').on('input.ledger', function() {
+                ledgerDataTable.search(this.value).draw();
+            });
+            if (searchValue) {
+                ledgerDataTable.search(searchValue).draw();
+            }
+        }
+    };
+    if ($.fn && $.fn.DataTable) {
+        activate();
+    } else {
+        $(document).one('datatables:ready', activate);
     }
 }
 
@@ -2232,6 +2262,10 @@ function viewTransaction(type, id) {
         case 'check_cashed':
             // الشيكات مرتبطة بـ Payment - عرض صفحة الدفعة
             url = '/payments/' + id;
+            break;
+        case 'service':
+        case 'maintenance':
+            url = '{{ url_for("service.view_request", rid=0) }}'.replace('0', id);
             break;
         case 'manual':
             // القيود اليدوية - عرض تفاصيل القيد
