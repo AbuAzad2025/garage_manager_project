@@ -831,7 +831,136 @@ def index():
             csrf_value = generate_csrf()
             table_html = render_template_string(
                 """
-{% from 'expenses/expenses_list.html' import type_details %}
+{% macro type_details(expense) %}
+{% set code = (expense.type.code if expense.type else '')|upper %}
+{% set ns = namespace(items=[]) %}
+{% if code == 'RENT' %}
+  {% if expense.rent_property_address %}{% set ns.items = ns.items + ['عنوان: ' ~ expense.rent_property_address] %}{% endif %}
+  {% if expense.rent_property_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.rent_property_notes] %}{% endif %}
+{% elif code == 'SOFTWARE' %}
+  {% if expense.tech_provider_name %}{% set ns.items = ns.items + ['المزود: ' ~ expense.tech_provider_name] %}{% endif %}
+  {% if expense.tech_provider_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.tech_provider_address] %}{% endif %}
+  {% if expense.tech_provider_phone %}{% set ns.items = ns.items + ['الهاتف: ' ~ expense.tech_provider_phone] %}{% endif %}
+  {% if expense.tech_subscription_id %}{% set ns.items = ns.items + ['معرف: ' ~ expense.tech_subscription_id] %}{% endif %}
+{% elif code == 'SHIP_STORAGE' %}
+  {% if expense.storage_property_address %}{% set ns.items = ns.items + ['الموقع: ' ~ expense.storage_property_address] %}{% endif %}
+  {% if expense.storage_expected_days is not none %}{% set ns.items = ns.items + ['المدة: ' ~ expense.storage_expected_days ~ ' يوم'] %}{% endif %}
+  {% if expense.storage_start_date %}{% set ns.items = ns.items + ['البداية: ' ~ expense.storage_start_date|format_date] %}{% endif %}
+  {% if expense.storage_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.storage_notes] %}{% endif %}
+{% elif code in ['SHIP_CLEARANCE','SHIP_CUSTOMS'] %}
+  {% if expense.customs_origin %}{% set ns.items = ns.items + ['المنشأ: ' ~ expense.customs_origin] %}{% endif %}
+  {% if expense.customs_port_name %}{% set ns.items = ns.items + ['الميناء: ' ~ expense.customs_port_name] %}{% endif %}
+  {% if expense.customs_arrival_date %}{% set ns.items = ns.items + ['الوصول: ' ~ expense.customs_arrival_date|format_date] %}{% endif %}
+  {% if expense.customs_departure_date %}{% set ns.items = ns.items + ['الخروج: ' ~ expense.customs_departure_date|format_date] %}{% endif %}
+  {% if expense.customs_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.customs_notes] %}{% endif %}
+{% elif code == 'TRAINING' %}
+  {% if expense.training_company_name %}{% set ns.items = ns.items + ['الجهة: ' ~ expense.training_company_name] %}{% endif %}
+  {% if expense.training_location %}{% set ns.items = ns.items + ['المكان: ' ~ expense.training_location] %}{% endif %}
+  {% if expense.training_duration_days is not none %}{% set ns.items = ns.items + ['المدة: ' ~ expense.training_duration_days ~ ' يوم'] %}{% endif %}
+  {% if expense.training_participants_count is not none %}{% set ns.items = ns.items + ['عدد الأفراد: ' ~ expense.training_participants_count] %}{% endif %}
+  {% if expense.training_notes %}{% set ns.items = ns.items + ['ملاحظات: ' ~ expense.training_notes] %}{% endif %}
+{% elif code == 'ENTERTAINMENT' %}
+  {% if expense.entertainment_duration_days is not none %}{% set ns.items = ns.items + ['المدة: ' ~ expense.entertainment_duration_days ~ ' يوم'] %}{% endif %}
+  {% if expense.entertainment_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.entertainment_notes] %}{% endif %}
+{% elif code == 'BANK_FEES' %}
+  {% if expense.bank_fee_bank_name %}{% set ns.items = ns.items + ['البنك: ' ~ expense.bank_fee_bank_name] %}{% endif %}
+  {% if expense.bank_fee_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.bank_fee_reference] %}{% endif %}
+  {% if expense.bank_fee_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.bank_fee_notes] %}{% endif %}
+{% elif code == 'GOV_FEES' %}
+  {% if expense.gov_fee_entity_name %}{% set ns.items = ns.items + ['الجهة: ' ~ expense.gov_fee_entity_name] %}{% endif %}
+  {% if expense.gov_fee_entity_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.gov_fee_entity_address] %}{% endif %}
+  {% if expense.gov_fee_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.gov_fee_notes] %}{% endif %}
+{% elif code == 'SHIP_PORT_FEES' %}
+  {% if expense.port_fee_port_name %}{% set ns.items = ns.items + ['الميناء: ' ~ expense.port_fee_port_name] %}{% endif %}
+  {% if expense.port_fee_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.port_fee_reference] %}{% endif %}
+  {% if expense.port_fee_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.port_fee_notes] %}{% endif %}
+{% elif code == 'SALARY' %}
+  {% if expense.period_start and expense.period_end %}{% set ns.items = ns.items + ['الفترة: ' ~ expense.period_start|format_date ~ ' - ' ~ expense.period_end|format_date] %}{% endif %}
+  {% if expense.salary_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.salary_reference] %}{% endif %}
+  {% if expense.salary_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.salary_notes] %}{% endif %}
+{% elif code == 'TRAVEL' %}
+  {% if expense.travel_destination %}{% set ns.items = ns.items + ['الوجهة: ' ~ expense.travel_destination] %}{% endif %}
+  {% if expense.travel_reason %}{% set ns.items = ns.items + ['الهدف: ' ~ expense.travel_reason] %}{% endif %}
+  {% if expense.travel_start_date %}{% set ns.items = ns.items + ['البداية: ' ~ expense.travel_start_date|format_date] %}{% endif %}
+  {% if expense.travel_duration_days is not none %}{% set ns.items = ns.items + ['المدة: ' ~ expense.travel_duration_days ~ ' يوم'] %}{% endif %}
+  {% if expense.travel_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.travel_notes] %}{% endif %}
+{% elif code == 'EMPLOYEE_ADVANCE' %}
+  {% if expense.employee_advance_period %}{% set ns.items = ns.items + ['الفترة: ' ~ expense.employee_advance_period] %}{% endif %}
+  {% if expense.employee_advance_reason %}{% set ns.items = ns.items + ['السبب: ' ~ expense.employee_advance_reason] %}{% endif %}
+  {% if expense.employee_advance_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.employee_advance_notes] %}{% endif %}
+{% elif code == 'SHIP_FREIGHT' %}
+  {% if expense.shipping_company_name %}{% set ns.items = ns.items + ['الشركة: ' ~ expense.shipping_company_name] %}{% endif %}
+  {% if expense.shipping_date %}{% set ns.items = ns.items + ['التاريخ: ' ~ expense.shipping_date|format_date] %}{% endif %}
+  {% if expense.shipping_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.shipping_reference] %}{% endif %}
+  {% if expense.shipping_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.shipping_notes] %}{% endif %}
+  {% if expense.shipping_mode %}{% set ns.items = ns.items + ['الوسيلة: ' ~ expense.shipping_mode] %}{% endif %}
+{% elif code == 'MAINTENANCE' %}
+  {% if expense.maintenance_provider_name %}{% set ns.items = ns.items + ['الجهة: ' ~ expense.maintenance_provider_name] %}{% endif %}
+  {% if expense.maintenance_details %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.maintenance_details] %}{% endif %}
+  {% if expense.maintenance_completion_date %}{% set ns.items = ns.items + ['الإنجاز: ' ~ expense.maintenance_completion_date|format_date] %}{% endif %}
+{% elif code == 'SHIP_IMPORT_TAX' %}
+  {% if expense.import_tax_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.import_tax_reference] %}{% endif %}
+  {% if expense.import_tax_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.import_tax_notes] %}{% endif %}
+{% elif code == 'HOSPITALITY' %}
+  {% if expense.hospitality_type %}{% set ns.items = ns.items + ['النوع: ' ~ expense.hospitality_type] %}{% endif %}
+  {% if expense.hospitality_location %}{% set ns.items = ns.items + ['المكان: ' ~ expense.hospitality_location] %}{% endif %}
+  {% if expense.hospitality_attendees %}{% set ns.items = ns.items + ['الحضور: ' ~ expense.hospitality_attendees] %}{% endif %}
+  {% if expense.hospitality_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.hospitality_notes] %}{% endif %}
+{% elif code == 'TELECOM' or code == '' and expense.telecom_phone_number %}
+  {% if expense.telecom_phone_number %}{% set ns.items = ns.items + ['الهاتف: ' ~ expense.telecom_phone_number] %}{% endif %}
+  {% if expense.telecom_service_type %}{% set ns.items = ns.items + ['الخدمة: ' ~ expense.telecom_service_type] %}{% endif %}
+  {% if expense.telecom_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.telecom_notes] %}{% endif %}
+{% elif code in ['INSURANCE','INS_OLD','SHIP_INSURANCE'] %}
+  {% if expense.insurance_company_name %}{% set ns.items = ns.items + ['الشركة: ' ~ expense.insurance_company_name] %}{% endif %}
+  {% if expense.insurance_company_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.insurance_company_address] %}{% endif %}
+  {% if expense.insurance_company_phone %}{% set ns.items = ns.items + ['الهاتف: ' ~ expense.insurance_company_phone] %}{% endif %}
+  {% if expense.insurance_policy_number %}{% set ns.items = ns.items + ['وثيقة: ' ~ expense.insurance_policy_number] %}{% endif %}
+  {% if expense.insurance_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.insurance_notes] %}{% endif %}
+{% elif code in ['OFFICE','OFFICE_OLD'] %}
+  {% if expense.office_supplier_name %}{% set ns.items = ns.items + ['المورد: ' ~ expense.office_supplier_name] %}{% endif %}
+  {% if expense.office_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.office_notes] %}{% endif %}
+  {% if expense.office_purchase_reference %}{% set ns.items = ns.items + ['مرجع: ' ~ expense.office_purchase_reference] %}{% endif %}
+{% elif code in ['HOME_EXPENSE','HOME_OLD'] %}
+  {% if expense.home_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.home_address] %}{% endif %}
+  {% if expense.home_owner_name %}{% set ns.items = ns.items + ['المالك: ' ~ expense.home_owner_name] %}{% endif %}
+  {% if expense.home_relation_to_company %}{% set ns.items = ns.items + ['العلاقة: ' ~ expense.home_relation_to_company] %}{% endif %}
+  {% if expense.home_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.home_notes] %}{% endif %}
+{% elif code == 'PARTNER_EXPENSE' %}
+  {% if expense.partner and expense.partner.name %}{% set ns.items = ns.items + ['الشريك: ' ~ expense.partner.name] %}{% endif %}
+  {% if expense.partner_expense_reason %}{% set ns.items = ns.items + ['السبب: ' ~ expense.partner_expense_reason] %}{% endif %}
+  {% if expense.partner_expense_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.partner_expense_notes] %}{% endif %}
+{% elif code == 'SUPPLIER_EXPENSE' %}
+  {% if expense.supplier and expense.supplier.name %}{% set ns.items = ns.items + ['المورد: ' ~ expense.supplier.name] %}{% endif %}
+  {% if expense.supplier_expense_reason %}{% set ns.items = ns.items + ['السبب: ' ~ expense.supplier_expense_reason] %}{% endif %}
+  {% if expense.supplier_expense_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.supplier_expense_notes] %}{% endif %}
+{% elif code == 'SHIP_HANDLING' %}
+  {% if expense.handling_quantity is not none %}{% set ns.items = ns.items + ['الكمية: ' ~ expense.handling_quantity] %}{% endif %}
+  {% if expense.handling_unit %}{% set ns.items = ns.items + ['الوحدة: ' ~ expense.handling_unit] %}{% endif %}
+  {% if expense.handling_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.handling_notes] %}{% endif %}
+{% elif code == 'FUEL' %}
+  {% if expense.fuel_vehicle_number %}{% set ns.items = ns.items + ['المركبة: ' ~ expense.fuel_vehicle_number] %}{% endif %}
+  {% if expense.fuel_driver_name %}{% set ns.items = ns.items + ['السائق: ' ~ expense.fuel_driver_name] %}{% endif %}
+  {% if expense.fuel_usage_type %}{% set ns.items = ns.items + ['الغرض: ' ~ expense.fuel_usage_type] %}{% endif %}
+  {% if expense.fuel_volume is not none %}{% set ns.items = ns.items + ['الكمية: ' ~ expense.fuel_volume] %}{% endif %}
+  {% if expense.fuel_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.fuel_notes] %}{% endif %}
+{% elif code == 'TRANSPORT' %}
+  {% if expense.transport_beneficiary_name %}{% set ns.items = ns.items + ['المستفيد: ' ~ expense.transport_beneficiary_name] %}{% endif %}
+  {% if expense.transport_reason %}{% set ns.items = ns.items + ['السبب: ' ~ expense.transport_reason] %}{% endif %}
+  {% if expense.transport_usage_type %}{% set ns.items = ns.items + ['التصنيف: ' ~ expense.transport_usage_type] %}{% endif %}
+  {% if expense.transport_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.transport_notes] %}{% endif %}
+{% elif code == 'CONSULTING' %}
+  {% if expense.legal_company_name %}{% set ns.items = ns.items + ['الشركة: ' ~ expense.legal_company_name] %}{% endif %}
+  {% if expense.legal_company_address %}{% set ns.items = ns.items + ['العنوان: ' ~ expense.legal_company_address] %}{% endif %}
+  {% if expense.legal_case_number %}{% set ns.items = ns.items + ['رقم القضية: ' ~ expense.legal_case_number] %}{% endif %}
+  {% if expense.legal_case_type %}{% set ns.items = ns.items + ['نوع القضية: ' ~ expense.legal_case_type] %}{% endif %}
+  {% if expense.legal_case_notes %}{% set ns.items = ns.items + ['تفاصيل: ' ~ expense.legal_case_notes] %}{% endif %}
+{% endif %}
+{% if not ns.items %}
+  {% if expense.description %}{% set ns.items = ns.items + [expense.description] %}{% endif %}
+  {% if expense.notes %}{% set ns.items = ns.items + [expense.notes] %}{% endif %}
+{% endif %}
+{{ ', '.join(ns.items) if ns.items else '—' }}
+{% endmacro %}
 <table id="expenses-table" class="table table-striped table-bordered align-middle table-sticky">
   <thead class="table-primary text-center">
     <tr>

@@ -303,6 +303,18 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(function (err) {
           if (requestId !== expensesAjaxSeq) return;
           console.error(err);
+          if (err && typeof err.text === 'function') {
+            err.text().then(function (raw) {
+              try {
+                const parsed = JSON.parse(raw);
+                if (parsed && parsed.error && typeof window.showNotification === 'function') {
+                  window.showNotification(parsed.error, 'danger');
+                }
+              } catch (parseErr) {
+                console.error("Failed to parse error payload", parseErr);
+              }
+            }).catch(function () {});
+          }
           tableWrapper.innerHTML = previousTable;
           summaryWrapper = document.getElementById('expenses-summary-wrapper');
           if (window.ExpensesUI && typeof window.ExpensesUI.refreshUI === 'function') {
