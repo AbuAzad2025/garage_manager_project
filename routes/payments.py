@@ -437,7 +437,6 @@ def index():
     end_date = (request.args.get("end_date") or request.args.get("end") or "").strip()
     currency_param = (request.args.get("currency") or "").strip().upper()
     entity_id = request.args.get("entity_id", type=int)
-    search_q = (request.args.get("q") or "").strip()
     reference_like = (request.args.get("reference") or "").strip()
     filters = []
     if entity_type:
@@ -505,9 +504,6 @@ def index():
             filters.append(Payment.loan_settlement_id == entity_id)
         elif et == "shipment":
             filters.append(Payment.shipment_id == entity_id)
-    if search_q:
-        like = f"%{search_q}%"
-        filters.append(or_(Payment.payment_number.ilike(like), Payment.reference.ilike(like), Payment.notes.ilike(like)))
     if reference_like:
         filters.append(Payment.reference.ilike(f"%{reference_like}%"))
     base_q = (

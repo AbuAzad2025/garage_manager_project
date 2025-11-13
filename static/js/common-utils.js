@@ -31,6 +31,59 @@ function fmtAmount(v) {
     });
 }
 
+function enableTableSorting(selector) {
+    const table = typeof selector === 'string' ? document.querySelector(selector) : selector;
+    if (!table || !table.tHead || !table.tBodies.length) return;
+    const headers = Array.from(table.tHead.rows[0].cells);
+    headers.forEach((th, index) => {
+        if (th.dataset.sortable === 'false') return;
+        th.style.cursor = 'pointer';
+        let indicator = th.querySelector('.sort-indicator');
+        if (!indicator) {
+            indicator = document.createElement('span');
+            indicator.className = 'sort-indicator ml-1';
+            indicator.textContent = '';
+            th.appendChild(indicator);
+        }
+        th.addEventListener('click', function() {
+            const direction = th.dataset.sortDir === 'asc' ? 'desc' : 'asc';
+            headers.forEach(h => {
+                h.dataset.sortDir = '';
+                const span = h.querySelector('.sort-indicator');
+                if (span) span.textContent = '';
+            });
+            th.dataset.sortDir = direction;
+            indicator.textContent = direction === 'asc' ? '▲' : '▼';
+            const tbody = table.tBodies[0];
+            const rows = Array.from(tbody.rows);
+            const movable = rows.filter(row => row.dataset.sortFixed !== 'true');
+            const fixed = rows.filter(row => row.dataset.sortFixed === 'true');
+            const multiplier = direction === 'asc' ? 1 : -1;
+            movable.sort((aRow, bRow) => {
+                const aCell = aRow.cells[index];
+                const bCell = bRow.cells[index];
+                const aRaw = aCell ? (aCell.dataset.sortValue ?? aCell.textContent.trim()) : '';
+                const bRaw = bCell ? (bCell.dataset.sortValue ?? bCell.textContent.trim()) : '';
+                const aNum = parseFloat(String(aRaw).replace(/[^0-9.-]+/g, ''));
+                const bNum = parseFloat(String(bRaw).replace(/[^0-9.-]+/g, ''));
+                const aNumeric = !isNaN(aNum);
+                const bNumeric = !isNaN(bNum);
+                if (aNumeric && bNumeric) {
+                    if (aNum === bNum) return 0;
+                    return aNum > bNum ? multiplier : -multiplier;
+                }
+                return String(aRaw).localeCompare(String(bRaw), 'ar', {numeric: true, sensitivity: 'base'}) * multiplier;
+            });
+            movable.forEach(row => tbody.appendChild(row));
+            fixed.forEach(row => tbody.appendChild(row));
+        });
+    });
+}
+
+if (typeof window !== 'undefined') {
+    window.enableTableSorting = enableTableSorting;
+}
+
 // ✅ تنسيق العملة
 function formatCurrency(amount, currency = 'ILS') {
     const num = toNumber(amount);

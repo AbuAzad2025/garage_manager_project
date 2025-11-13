@@ -200,7 +200,7 @@
             <th>الاسم</th>
             <th>الهاتف</th>
             <th>الرصيد</th>
-            <th style="width:520px">عمليات</th>
+            <th style="width:520px" data-sortable="false">عمليات</th>
           </tr>
         </thead>
         <tbody>
@@ -210,7 +210,7 @@
             <td>{{ loop.index }}</td>
             <td class="partner-name">{{ p.name }}</td>
             <td class="partner-phone">{{ p.phone_number or '—' }}</td>
-            <td>
+            <td data-sort-value="{{ balance }}">
               <span class="badge {% if balance < 0 %}bg-danger{% elif balance == 0 %}bg-secondary{% else %}bg-success{% endif %}">
                 {{ '%.2f'|format(balance) }} ₪
               </span>

@@ -37,6 +37,9 @@
     });
   };
 
+  let customersSearchTimer = null;
+  let customersRequestId = 0;
+
   qsa('input[name="phone"]').forEach((phone, i) => {
     const whatsapps = qsa('input[name="whatsapp"]');
     const whatsapp = whatsapps[i];
@@ -47,16 +50,17 @@
   });
 
   // حذف العملاء يعمل من القوالب مباشرة (list.html & detail.html)
-
-  const advForm = qs("#customer-adv-search");
-  if (advForm) {
-    advForm.addEventListener("submit", e => {
+  const bindCustomerDeleteButtons = () => {
+    if (!(window.jQuery && window.jQuery.fn)) return;
+    window.jQuery(".delete-btn").off("click").on("click", function(e) {
       e.preventDefault();
-      const params = new URLSearchParams(new FormData(advForm)).toString();
-      const base = window.location.pathname;
-      window.location.href = params ? `${base}?${params}` : base;
+      const customerId = window.jQuery(this).data("id");
+      const url = "/customers/" + customerId + "/delete";
+      if (confirm("هل أنت متأكد من حذف هذا العميل؟\n\nملاحظة: سيتم الحذف فقط إذا لم يكن له معاملات أو رصيد.")) {
+        window.jQuery("#deleteForm").attr("action", url).submit();
+      }
     });
-  }
+  };
 
   const resetBtn = qs("#reset-adv-filter");
   if (resetBtn) resetBtn.addEventListener("click", () => { window.location.href = window.location.pathname; });
@@ -114,52 +118,6 @@
       field.addEventListener("change", updateMessagePreview);
     });
     toggleSections();
-  }
-
-  const customersTable = qs("#customersTable");
-  if (customersTable && customersTable.dataset.printMode !== "1" && window.jQuery && window.jQuery.fn && window.jQuery.fn.DataTable) {
-    const $tbl = window.jQuery(customersTable);
-    
-    // تحقق من البنية
-    if (!$tbl.find('thead').length || !$tbl.find('tbody').length) {
-      return;
-    }
-    
-    // تحقق من وجود بيانات فعلية
-    const dataRows = $tbl.find('tbody tr').not(':has(td[colspan])');
-    if (dataRows.length === 0) {
-      return; // لا نهيئ DataTables للجداول الفارغة
-    }
-    
-    // تحقق من تطابق الأعمدة
-    const headerCols = $tbl.find('thead tr:first th, thead tr:first td').length;
-    const bodyCols = dataRows.first().find('td').length;
-    
-    if (headerCols !== bodyCols) {
-
-      return;
-    }
-    
-    try {
-        const lastCol = (customersTable.tHead && customersTable.tHead.rows[0]) ? customersTable.tHead.rows[0].cells.length - 1 : 8;
-        const hasActions = customersTable.dataset.hasActions !== "0";
-        const columnDefs = hasActions ? [{ orderable: false, targets: [lastCol] }] : [];
-        $tbl.DataTable({
-          language: { 
-            url: "/static/datatables/Arabic.json",
-            emptyTable: "لا توجد بيانات",
-            paginate: { first: "الأول", last: "الأخير", next: "التالي", previous: "السابق" }
-          },
-          paging: false,
-          searching: false,
-          info: false,
-          ordering: true,
-          order: [[1, "desc"]],
-          columnDefs
-        });
-    } catch (e) {
-
-    }
   }
 
   ["#customer-create-form", "#customer-edit-form"].forEach(sel => {
@@ -269,6 +227,96 @@
   if (window.jQuery && window.jQuery.fn && window.jQuery.fn.select2) {
     const $sel = window.jQuery("#customer_id");
     if ($sel.length) $sel.select2({ width: "100%", tags: false, createTag: () => null });
+  }
+
+  const initCustomerTable = () => {
+    bindCustomerDeleteButtons();
+    if (typeof window !== "undefined" && typeof window.enableTableSorting === "function") {
+      window.enableTableSorting("#customersTable");
+    }
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initCustomerTable);
+  } else {
+    initCustomerTable();
+  }
+
+  const customersTableWrapper = qs("#customers-table-wrapper");
+  const paginationWrapper = qs("#customers-pagination-wrapper");
+  const customersSearchInput = qs("#customers-search");
+  const customersSearchSummary = qs("#customers-search-summary");
+
+  const fetchCustomers = (targetUrl) => {
+    if (!customersTableWrapper) return;
+    const urlObj = new URL(targetUrl, window.location.origin);
+    urlObj.searchParams.set("ajax", "1");
+    const requestId = ++customersRequestId;
+    const previousMarkup = customersTableWrapper.innerHTML;
+    const tbody = customersTableWrapper.querySelector("tbody");
+    if (tbody && typeof window.setLoading === "function") {
+      window.setLoading(tbody, true);
+    }
+    return fetch(urlObj.toString(), {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      }
+    }).then(res => {
+      if (!res.ok) throw res;
+      return res.json();
+    }).then(data => {
+      if (requestId !== customersRequestId) return;
+      if (customersTableWrapper && typeof data.table_html === "string") {
+        customersTableWrapper.innerHTML = data.table_html;
+      }
+      if (paginationWrapper) {
+        paginationWrapper.innerHTML = data.pagination_html || "";
+      }
+      if (customersSearchSummary && typeof data.total_filtered === "number") {
+        customersSearchSummary.textContent = `إجمالي النتائج: ${data.total_filtered}`;
+      }
+      initCustomerTable();
+      urlObj.searchParams.delete("ajax");
+      const qstr = urlObj.searchParams.toString();
+      const nextUrl = qstr ? `${urlObj.pathname}?${qstr}` : urlObj.pathname;
+      window.history.replaceState({}, "", nextUrl);
+    }).catch(err => {
+      if (requestId !== customersRequestId) return;
+      console.error(err);
+      if (customersTableWrapper) {
+        customersTableWrapper.innerHTML = previousMarkup;
+        initCustomerTable();
+      }
+      showToast("تعذر تحديث القائمة", "danger");
+    });
+  };
+
+  if (paginationWrapper) {
+    paginationWrapper.addEventListener("click", (event) => {
+      const link = event.target.closest("a.page-link");
+      if (!link) return;
+      event.preventDefault();
+      fetchCustomers(link.href);
+    });
+  }
+
+  if (customersSearchInput) {
+    const triggerSearch = () => {
+      const currentUrl = new URL(window.location.href);
+      const term = customersSearchInput.value.trim();
+      if (term) {
+        currentUrl.searchParams.set("q", term);
+      } else {
+        currentUrl.searchParams.delete("q");
+      }
+      currentUrl.searchParams.delete("page");
+      currentUrl.searchParams.set("page", "1");
+      fetchCustomers(currentUrl.toString());
+    };
+    customersSearchInput.addEventListener("input", () => {
+      clearTimeout(customersSearchTimer);
+      customersSearchTimer = setTimeout(triggerSearch, 350);
+    });
   }
 
   const printBtn = qs("#btn-print");

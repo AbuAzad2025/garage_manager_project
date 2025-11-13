@@ -252,7 +252,7 @@ html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",san
 
       <!-- الجدول -->
       <div class="table-responsive">
-        <table class="table table-hover align-middle">
+        <table id="salesTable" class="table table-hover align-middle">
           <thead class="thead-light">
             <tr>
               <th>رقم</th>
@@ -263,7 +263,7 @@ html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",san
               <th>سعر الصرف</th>
               <th>مدفوع</th>
               <th>متبقي</th>
-              <th class="text-center">إجراءات</th>
+              <th class="text-center" data-sortable="false">إجراءات</th>
             </tr>
           </thead>
           <tbody>
@@ -272,7 +272,7 @@ html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",san
               <td>{{ sale.sale_number }}</td>
               <td>{{ sale.date_iso }}</td>
               <td>{{ sale.customer_name }}</td>
-              <td>{{ sale.total_fmt }}</td>
+              <td data-sort-value="{{ sale.total_amount or 0 }}">{{ sale.total_fmt }}</td>
               <td class="text-center"><span class="badge badge-secondary">{{ sale.currency or 'ILS' }}</span></td>
               <td class="text-center">
                 {% if sale.fx_rate_used and sale.currency != 'ILS' %}
@@ -286,8 +286,8 @@ html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",san
                   <span class="text-muted">-</span>
                 {% endif %}
               </td>
-              <td>{{ sale.paid_fmt }}</td>
-              <td>
+              <td data-sort-value="{{ sale.total_paid or 0 }}">{{ sale.paid_fmt }}</td>
+              <td data-sort-value="{{ sale.balance_due or 0 }}">
                 <span class="badge {{ 'bg-success' if (sale.balance_due or 0) == 0 else 'bg-danger' }}">
                   {{ sale.balance_fmt }}
                 </span>

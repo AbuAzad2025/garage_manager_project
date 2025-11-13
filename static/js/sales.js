@@ -5,7 +5,6 @@
   const qsa=(s,el=document)=>Array.from(el.querySelectorAll(s));
   const on=(el,ev,cb)=>el&&el.addEventListener(ev,cb,{passive:false});
   const toNum=v=>{const n=parseFloat((v??'').toString().replace(/[^\d.-]/g,''));return Number.isFinite(n)?n:0;};
-
   function loadScriptOnce(src){return new Promise(res=>{if(document.querySelector(`script[src="${src}"]`)) return res();const s=document.createElement('script');s.src=src;s.onload=res;document.head.appendChild(s);});}
   function loadCssOnce(href){if(!document.querySelector(`link[href="${href}"]`)){const l=document.createElement('link');l.rel='stylesheet';l.href=href;document.head.appendChild(l);}}
   function loadJQueryOnce(){return new Promise(res=>{if(window.jQuery) return res();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js';s.onload=()=>res();document.head.appendChild(s);});}
@@ -25,18 +24,15 @@
   (function initList(){
     const form = qs('#filterForm');
     if(!form) return;
-    on(form,'submit', e=>{
-      e.preventDefault();
-      const params = new URLSearchParams(new FormData(form));
-      const action = form.getAttribute('action') || window.location.pathname;
-      window.location = action + '?' + params.toString();
-    });
     const resetBtn = form.querySelector('button[type="reset"]');
     if(resetBtn) on(resetBtn,'click',e=>{
       e.preventDefault();
       const action = form.getAttribute('action') || window.location.pathname;
       window.location = action;
     });
+    if (typeof window !== 'undefined' && typeof window.enableTableSorting === 'function') {
+      window.enableTableSorting('#salesTable');
+    }
   })();
 
   // ====== إنشاء/تعديل فاتورة ======

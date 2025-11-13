@@ -238,6 +238,10 @@ document.addEventListener('DOMContentLoaded', function () {
     initDT(document.getElementById('employees-table'));
   }
 
+  if (typeof window !== 'undefined' && typeof window.enableTableSorting === 'function') {
+    window.enableTableSorting('#expenses-table');
+  }
+
   window.ExpensesUI = {
     refreshUI: () => { initAllAjaxSelects(); validatePeriod(); }
   };

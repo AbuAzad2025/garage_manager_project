@@ -434,14 +434,14 @@
             <th>طريقة الدفع</th>
             <th>المدفوع</th>
             <th>الحالة</th>
-            <th style="width:170px">إجراءات</th>
+            <th style="width:170px" data-sortable="false">إجراءات</th>
           </tr>
         </thead>
         <tbody>
           {% for e in expenses %}
           {% set pt = e.payee_type or '' %}
           <tr>
-            <td class="text-nowrap">{{ e.date|format_date }}</td>
+            <td class="text-nowrap" data-sort-value="{{ e.date.isoformat() if e.date else '' }}">{{ e.date|format_date }}</td>
             <td>{{ e.type.name if e.type else '—' }}</td>
             <td class="text-truncate" style="max-width:260px">{{ type_details(e) }}</td>
             <td class="text-truncate" style="max-width:200px">
@@ -450,13 +450,13 @@
               {% elif pt %}<span class="payee-chip payee-chip--other">أخرى</span>{% endif %}
               <span class="fw-bold text-dark">{{ e.payee_name or e.paid_to or (e.employee.name if e.employee else '—') }}</span>
             </td>
-            <td class="fw-bold text-end">
+            <td class="fw-bold text-end" data-sort-value="{{ e.amount or 0 }}">
               {{ e.amount|number_format(2) }}
             </td>
             <td class="text-center"><span class="badge badge-secondary">{{ e.currency or 'ILS' }}</span></td>
             <td class="text-nowrap">{{ e.payment_method or '—' }}</td>
-            <td class="text-end">{{ (e.total_paid or 0)|float|round(2)|number_format(2) }}</td>
-            <td class="text-center">
+            <td class="text-end" data-sort-value="{{ e.total_paid or 0 }}">{{ (e.total_paid or 0)|float|round(2)|number_format(2) }}</td>
+            <td class="text-center" data-sort-value="{{ 0 if e.is_paid else (e.balance or 0) }}">
               {% if e.is_paid %}
                 <span class="badge bg-success">مدفوع بالكامل</span>
               {% else %}

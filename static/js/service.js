@@ -406,7 +406,11 @@
   // Smooth Scroll للعناصر
   function initSmoothScroll() {
     $('a[href^="#"]').on('click', function(e) {
-      var target = $(this.getAttribute('href'));
+      var href = this.getAttribute('href');
+      if (!href || href === '#') {
+        return;
+      }
+      var target = $(href);
       if (target.length) {
         e.preventDefault();
         $('html, body').stop().animate({

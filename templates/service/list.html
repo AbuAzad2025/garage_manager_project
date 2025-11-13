@@ -195,6 +195,7 @@
           <input id="vrn" name="vrn" class="form-control" value="{{ filter_values.vrn or '' }}" placeholder="VRN">
         </div>
 
+
         <div class="col-6 col-md-3 col-xl-2">
           <label for="date" class="form-label"><i class="fas fa-calendar-day"></i> الزمن</label>
           <select id="date" name="date" class="custom-select">
@@ -267,13 +268,14 @@
               <td>{{ s.customer.name if s.customer else (s.name or '—') }}</td>
               <td class="text-nowrap">{{ s.vehicle_vrn or '—' }}</td>
               <td class="text-nowrap">
-                <span class="badge bg-light text-dark">
+                <span class="badge badge-total-amount">
                   {{ '%.2f'|format(s.total or 0.0) }} ₪
                 </span>
               </td>
               <td class="text-nowrap">
-                <span class="badge {{ 'bg-success' if (s.balance_due or 0) <= 0 else 'bg-warning text-dark' }}">
-                  {{ '%.2f'|format(s.balance_due or 0.0) }} ₪
+                {% set balance_value = s.balance_due or 0.0 %}
+                <span class="badge {{ 'badge-balance-zero' if balance_value|float <= 0 else 'badge-balance-positive' }}">
+                  {{ '%.2f'|format(balance_value) }} ₪
                 </span>
               </td>
               <td>

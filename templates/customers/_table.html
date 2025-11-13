@@ -14,11 +14,11 @@
         <th class="hide-mobile">التصنيف</th>
         <th>الرصيد</th>
         {% if has_actions %}
-        <th>العمليات</th>
+        <th data-sortable="false">العمليات</th>
         {% endif %}
       </tr>
     </thead>
-    <tbody>
+    <tbody id="customersTableBody">
       {% for customer in customers %}
       <tr class="{% if not customer.is_active %}table-secondary{% endif %}">
         <td class="hide-mobile">{{ loop.index + row_offset }}</td>
@@ -39,7 +39,7 @@
         </td>
         <td>{{ customer.phone or '-' }}</td>
         <td class="hide-mobile">{{ customer.category or '-' }}</td>
-        <td class="fw-bold {% if customer.balance < 0 %}text-danger{% else %}text-success{% endif %}">
+        <td class="fw-bold {% if customer.balance < 0 %}text-danger{% else %}text-success{% endif %}" data-sort-value="{{ customer.balance or 0 }}">
           {{ customer.balance|format_currency }}
         </td>
         {% if has_actions %}

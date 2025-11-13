@@ -667,6 +667,35 @@ def get_ledger_data():
                 if getattr(payment, "notes", ""):
                     description_parts.append(f"- {payment.notes}")
                 
+                linked_service_id = None
+                linked_service_number = None
+                linked_service_customer = None
+                linked_service_vehicle = None
+                linked_service_balance = None
+                
+                if getattr(payment, "service_id", None):
+                    linked_service_id = int(payment.service_id)
+                    service_obj = getattr(payment, "service", None)
+                    if service_obj is None:
+                        try:
+                            service_obj = db.session.get(ServiceRequest, linked_service_id)
+                        except Exception:
+                            service_obj = None
+                    if service_obj is not None:
+                        linked_service_number = service_obj.service_number or f"SRV-{service_obj.id}"
+                        linked_service_customer = getattr(getattr(service_obj, "customer", None), "name", None)
+                        linked_service_vehicle = service_obj.vehicle_model or service_obj.vehicle_vrn or getattr(getattr(service_obj, "vehicle_type", None), "name", None)
+                        try:
+                            balance_due_val = float(getattr(service_obj, "balance_due", None))
+                        except Exception:
+                            balance_due_val = None
+                        linked_service_balance = balance_due_val
+                        description_parts.append(f"- صيانة #{linked_service_number}")
+                        if linked_service_vehicle:
+                            description_parts.append(f"- المركبة: {linked_service_vehicle}")
+                        if linked_service_customer and linked_service_customer != entity_name:
+                            description_parts.append(f"- العميل: {linked_service_customer}")
+                
                 description = " ".join(description_parts)
                 
                 # ✅ تحديد نوع القيد حسب الحالة
@@ -676,6 +705,9 @@ def get_ledger_data():
                 elif is_pending and method_raw == 'cheque':
                     entry_type = "check_pending"
                     type_ar = "شيك معلق"
+                elif linked_service_id:
+                    entry_type = "service_payment"
+                    type_ar = "دفعة صيانة"
                 else:
                     entry_type = "payment"
                     type_ar = "دفعة"
@@ -697,19 +729,34 @@ def get_ledger_data():
                         "check_number": getattr(payment, 'check_number', None),
                         "check_bank": getattr(payment, 'check_bank', None),
                         "check_due_date": getattr(payment, 'check_due_date', None),
-                        "status": payment_status
+                        "status": payment_status,
+                        "is_archived": getattr(payment, "is_archived", False),
+                        "service_id": linked_service_id,
+                        "service_number": linked_service_number,
+                        "service_vehicle": linked_service_vehicle,
+                        "service_customer": linked_service_customer,
+                        "service_balance_due": linked_service_balance
                     }
                 })
         
         # 4. الصيانة (Service Requests)
+        ignore_tag = "[LEDGER_SKIP]"
+        ignore_tag_upper = ignore_tag.upper()
         if not transaction_type or transaction_type in ['maintenance', 'service']:
             services_query = ServiceRequest.query
             if from_date:
                 services_query = services_query.filter(ServiceRequest.created_at >= from_date)
             if to_date:
                 services_query = services_query.filter(ServiceRequest.created_at <= to_date)
-            
             for service in services_query.order_by(ServiceRequest.created_at).all():
+                text_notes = " ".join(filter(None, [
+                    getattr(service, "description", None),
+                    getattr(service, "engineer_notes", None),
+                    getattr(service, "notes", None),
+                    getattr(service, "archive_reason", None),
+                ])).upper()
+                if ignore_tag_upper in text_notes:
+                    continue
                 parts_total = float(service.parts_total or 0)
                 labor_total = float(service.labor_total or 0)
                 discount = float(service.discount_total or 0)
@@ -1113,15 +1160,45 @@ def get_ledger_data():
             "products_without_cost": products_without_cost
         }
         
+        search_term = (request.args.get('q') or '').strip()
+        filtered_entries = ledger_entries
+        if search_term:
+            search_lower = search_term.lower()
+
+            def _entry_matches(entry):
+                fields = [
+                    entry.get("transaction_number"),
+                    entry.get("type"),
+                    entry.get("type_ar"),
+                    entry.get("description"),
+                    entry.get("entity_name"),
+                    entry.get("entity_type"),
+                    entry.get("date"),
+                ]
+                for field in fields:
+                    if field and search_lower in str(field).lower():
+                        return True
+                for numeric in (entry.get("debit"), entry.get("credit"), entry.get("balance")):
+                    if numeric is not None and search_lower in f"{numeric}".lower():
+                        return True
+                payment_details = entry.get("payment_details")
+                if isinstance(payment_details, dict):
+                    for value in payment_details.values():
+                        if value and search_lower in str(value).lower():
+                            return True
+                return False
+
+            filtered_entries = [entry for entry in ledger_entries if _entry_matches(entry)]
+
         # حساب إجماليات البيانات (لدفتر الأستاذ)
         ledger_totals = {
-            'total_debit': sum([entry['debit'] for entry in ledger_entries]),
-            'total_credit': sum([entry['credit'] for entry in ledger_entries]),
-            'final_balance': ledger_entries[-1]['balance'] if ledger_entries else 0
+            'total_debit': sum(entry['debit'] for entry in filtered_entries),
+            'total_credit': sum(entry['credit'] for entry in filtered_entries),
+            'final_balance': filtered_entries[-1]['balance'] if filtered_entries else 0
         }
         
         return jsonify({
-            "data": ledger_entries,
+            "data": filtered_entries,
             "statistics": statistics,
             "totals": ledger_totals
         })

@@ -18,6 +18,7 @@ from flask import (
     jsonify,
     redirect,
     render_template,
+    render_template_string,
     request,
     url_for,
 )
@@ -129,6 +130,21 @@ def list_customers():
     if "is_active" in request.args:
         q = q.filter(Customer.is_active == (request.args.get("is_active") == "1"))
 
+    search_term = request.args.get("q", "").strip()
+    if search_term:
+        like_pattern = f"%{search_term}%"
+        filters = [
+            Customer.name.ilike(like_pattern),
+            Customer.phone.ilike(like_pattern),
+            Customer.whatsapp.ilike(like_pattern),
+            Customer.email.ilike(like_pattern),
+            Customer.address.ilike(like_pattern),
+            Customer.category.ilike(like_pattern),
+        ]
+        if search_term.isdigit():
+            filters.append(Customer.id == int(search_term))
+        q = q.filter(or_(*filters))
+
     print_mode = request.args.get("print") == "1"
     scope_param = request.args.get("scope")
     print_scope = scope_param or ("page" if print_mode else "all")
@@ -171,7 +187,7 @@ def list_customers():
         customers_list = pagination.items
 
     args = request.args.to_dict(flat=True)
-    for key in ["page", "print", "scope", "range_start", "range_end", "page_number"]:
+    for key in ["page", "print", "scope", "range_start", "range_end", "page_number", "ajax"]:
         args.pop(key, None)
 
     total_pages = math.ceil(total_filtered / per_page) if per_page else 1
@@ -246,6 +262,58 @@ def list_customers():
         "generated_at": datetime.utcnow(),
         "pdf_export": False,
     }
+
+    if _is_ajax() and not print_mode:
+        table_html = render_template(
+            "customers/_table.html",
+            customers=customers_list,
+            show_actions=True,
+            row_offset=row_offset,
+            print_mode=False,
+            table_id="customersTable",
+        )
+        pagination_html = ""
+        if pagination:
+            pagination_html = render_template_string(
+                """
+{% if pagination %}
+<nav class="mt-3 no-print">
+  <ul class="pagination justify-content-center mb-0">
+    {% if pagination.has_prev %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=pagination.prev_num, **args) }}">السابق</a>
+      </li>
+    {% endif %}
+    {% for p in pagination.iter_pages() %}
+      {% if p %}
+        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=p, **args) }}">{{ p }}</a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+      <li class="page-item">
+        <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=pagination.next_num, **args) }}">التالي</a>
+      </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+                """,
+                pagination=pagination,
+                args=args,
+            )
+        return jsonify(
+            {
+                "table_html": table_html,
+                "pagination_html": pagination_html,
+                "total_filtered": total_filtered,
+                "page": pagination.page if pagination else 1,
+                "pages": pagination.pages if pagination else 1,
+            }
+        )
 
     if print_mode:
         context["pdf_export"] = True

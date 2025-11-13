@@ -216,8 +216,12 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    wireSimpleSearch("partnerSearch", "partnersTable", [".partner-name", ".partner-phone"]);
     wireSimpleSearch("supplierSearch", "suppliersTable", [".supplier-name", ".supplier-phone"]);
+    wireSimpleSearch("partnerSearch", "partnersTable", [".partner-name", ".partner-phone"]);
+    if (typeof window !== 'undefined' && typeof window.enableTableSorting === 'function') {
+      window.enableTableSorting('#suppliersTable');
+      window.enableTableSorting('#partnersTable');
+    }
     attachSettleButtons();
     bindPrint();
     $("[data-toggle=\"tooltip\"]").tooltip();

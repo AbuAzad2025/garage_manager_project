@@ -1362,7 +1362,8 @@ $(document).ready(function() {
     // تعيين التاريخ الحالي كافتراضي - لكن نترك الحقول فارغة لعرض كل البيانات
     const today = new Date().toISOString().split('T')[0];
     const firstDayOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
-    
+    const ledgerSearchInput = $('#ledger-search');
+    let ledgerSearchTimer = null;
     // تعيين من بداية السنة إلى اليوم
     $('#from-date').val(firstDayOfYear);
     $('#to-date').val(today);
@@ -1380,17 +1381,27 @@ $(document).ready(function() {
         loadAccountsSummary();
         loadReceivablesSummary();
     });
+
+    ledgerSearchInput.on('input', function() {
+        clearTimeout(ledgerSearchTimer);
+        ledgerSearchTimer = setTimeout(() => {
+            loadLedgerData();
+        }, 300);
+    });
+
 });
 
 let ledgerDataTable = null;
 
 function loadLedgerData() {
     const formData = $('#filter-form').serialize();
+    const searchTerm = $('#ledger-search').val() || '';
+    const params = formData ? `${formData}&q=${encodeURIComponent(searchTerm)}` : `q=${encodeURIComponent(searchTerm)}`;
 
     $.ajax({
         url: '{{ url_for("ledger.get_ledger_data") }}',
         method: 'GET',
-        data: formData,
+        data: params,
         success: function(response) {
 
             updateLedgerTable(response.data, response.totals);
@@ -1416,8 +1427,7 @@ function updateLedgerTable(data, totals) {
     tbody.empty();
     if (!data || data.length === 0) {
         if (searchInput.length) {
-            searchInput.val('');
-            searchInput.prop('disabled', true);
+            searchInput.prop('disabled', false);
         }
         tbody.append('<tr><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-info-circle"></i> لا توجد قيود محاسبية في الفترة المحددة</td></tr>');
         return;
@@ -1466,11 +1476,7 @@ function updateLedgerTable(data, totals) {
                 <td class="text-end ${debitClass}">${entry.debit > 0 ? formatCurrency(entry.debit) : '—'}</td>
                 <td class="text-end ${creditClass}">${entry.credit > 0 ? formatCurrency(entry.credit) : '—'}</td>
                 <td class="text-end ${balanceClass}">${formatCurrency(entry.balance)}</td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-info" onclick="viewTransaction('${entry.type}', ${entry.id})" title="عرض التفاصيل">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </td>
+                <td class="text-center">${buildLedgerActions(entry)}</td>
             </tr>
         `;
         tbody.append(row);
@@ -1483,13 +1489,91 @@ function updateLedgerTable(data, totals) {
     initLedgerDataTable();
 }
 
+function buildLedgerActions(entry) {
+    const buttons = [];
+    const entryId = Number(entry.id);
+    buttons.push(`
+        <button class="btn btn-info btn-sm" onclick="viewTransaction('${entry.type}', ${entryId})" title="عرض التفاصيل">
+            <i class="fas fa-eye"></i>
+        </button>
+    `);
+    if (entry && (entry.type === 'payment' || entry.type === 'service_payment')) {
+        const isArchived = !!entry.payment_details?.is_archived;
+        if (isArchived) {
+            buttons.push(`
+                <button class="btn btn-success btn-sm" onclick="restoreLedgerPayment(${entryId})" title="استعادة الدفعة">
+                    <i class="fas fa-undo"></i>
+                </button>
+            `);
+        }
+        buttons.push(`
+            <button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment(${entryId})" title="حذف الدفعة بشكل نهائي">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        `);
+    }
+    return `<div class="btn-group btn-group-sm" role="group">${buttons.join('')}</div>`;
+}
+
+async function restoreLedgerPayment(paymentId) {
+    if (!confirm('تأكيد استعادة الدفعة #' + paymentId + '؟')) return;
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    try {
+        const response = await fetch(`/payments/restore/${paymentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'X-CSRFToken': token,
+                'Accept': 'application/json'
+            },
+            body: new URLSearchParams({ csrf_token: token }).toString(),
+            redirect: 'follow'
+        });
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+        showAlert(`تم استعادة الدفعة #${paymentId} بنجاح`, 'success');
+        loadLedgerData();
+    } catch (error) {
+        showAlert('تعذر استعادة الدفعة: ' + (error.message || error), 'error');
+    }
+}
+
+async function deleteLedgerPayment(paymentId) {
+    const reason = prompt('ادخل سبب الحذف القوي للدفعة #' + paymentId + ' (إلزامي):');
+    if (reason === null) return;
+    const trimmed = (reason || '').trim();
+    if (!trimmed) {
+        showAlert('سبب الحذف مطلوب لإتمام العملية.', 'error');
+        return;
+    }
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    try {
+        const response = await fetch(`/hard-delete/api/delete-payment/${paymentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRFToken': token
+            },
+            body: JSON.stringify({ reason: trimmed })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.success === false) {
+            throw new Error(payload.error || ('HTTP ' + response.status));
+        }
+        showAlert(`تم حذف الدفعة #${paymentId} بنجاح`, 'success');
+        loadLedgerData();
+    } catch (error) {
+        showAlert('تعذر حذف الدفعة: ' + (error.message || error), 'error');
+    }
+}
+
 function initLedgerDataTable() {
     const table = $('#ledger-table');
     if (!table.length) {
         return;
     }
-    const searchInput = $('#ledger-search');
-    const searchValue = searchInput.length ? searchInput.val() : '';
     const activate = () => {
         ledgerDataTable = table.DataTable({
             language: {
@@ -1515,7 +1599,7 @@ function initLedgerDataTable() {
                     className: 'btn btn-sm btn-info'
                 }
             ],
-            searching: true,
+            searching: false,
             paging: true,
             info: true,
             responsive: true,
@@ -1535,6 +1619,8 @@ function initLedgerDataTable() {
                 });
             }
         });
+        const searchInput = $('#ledger-search');
+        const searchValue = searchInput.length ? searchInput.val() : '';
         if (searchInput.length) {
             searchInput.prop('disabled', false);
             searchInput.off('input.ledger').on('input.ledger', function() {
@@ -2058,6 +2144,7 @@ function getTransactionBadgeClass(type) {
         'purchase': 'info',
         'expense': 'warning',
         'payment': 'primary',
+        'service_payment': 'primary',
         'check_pending': 'warning text-dark',
         'check_bounced': 'danger',
         'maintenance': 'danger',
@@ -2118,6 +2205,26 @@ function getTransactionDescription(entry) {
         
         checkInfo += '</div>';
         descriptionHtml += checkInfo;
+    }
+    
+    if (entry.payment_details && entry.payment_details.service_id) {
+        const pd = entry.payment_details;
+        let serviceInfo = '<div class="mt-2 p-2 bg-light rounded" style="border-right: 3px solid #28a745;">';
+        serviceInfo += `<strong><i class="fas fa-wrench"></i> دفعة صيانة</strong><br>`;
+        if (pd.service_number) {
+            serviceInfo += `<i class="fas fa-hashtag"></i> رقم الصيانة: ${pd.service_number}<br>`;
+        }
+        if (pd.service_customer) {
+            serviceInfo += `<i class="fas fa-user-check"></i> العميل: ${pd.service_customer}<br>`;
+        }
+        if (pd.service_vehicle) {
+            serviceInfo += `<i class="fas fa-car-side"></i> المركبة: ${pd.service_vehicle}<br>`;
+        }
+        if (pd.service_balance_due !== null && pd.service_balance_due !== undefined) {
+            serviceInfo += `<i class="fas fa-balance-scale"></i> المتبقي: ${formatCurrency(pd.service_balance_due)} ₪`;
+        }
+        serviceInfo += '</div>';
+        descriptionHtml += serviceInfo;
     }
     
     // إضافة ملخص سريع
@@ -2261,6 +2368,9 @@ function viewTransaction(type, id) {
         case 'check_bounced':
         case 'check_cashed':
             // الشيكات مرتبطة بـ Payment - عرض صفحة الدفعة
+            url = '/payments/' + id;
+            break;
+        case 'service_payment':
             url = '/payments/' + id;
             break;
         case 'service':

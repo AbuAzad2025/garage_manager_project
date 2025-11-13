@@ -22,6 +22,43 @@
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
 }
 
+.badge-total-amount {
+  background: linear-gradient(135deg, #0d47a1 0%, #002171 100%);
+  color: #ffffff;
+  font-weight: 800;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.9rem;
+  box-shadow: 0 6px 14px rgba(13, 71, 161, 0.35);
+  letter-spacing: 0.4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.badge-balance-positive {
+  background: linear-gradient(135deg, #c62828 0%, #8e0000 100%);
+  color: #ffffff;
+  font-weight: 700;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.9rem;
+  box-shadow: 0 6px 14px rgba(198, 40, 40, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.badge-balance-zero {
+  background: linear-gradient(135deg, #1b5e20 0%, #0d3d12 100%);
+  color: #ffffff;
+  font-weight: 700;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.9rem;
+  box-shadow: 0 6px 14px rgba(27, 94, 32, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .badge-status::before {
   content: '';
   position: absolute;

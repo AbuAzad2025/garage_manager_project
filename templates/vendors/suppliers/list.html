@@ -110,7 +110,7 @@
             <th>الاسم</th>
             <th>الهاتف</th>
             <th>الرصيد</th>
-            <th style="min-width: 440px;">عمليات</th>
+            <th style="min-width: 440px;" data-sortable="false">عمليات</th>
           </tr>
         </thead>
         <tbody>
@@ -119,7 +119,7 @@
             <td>{{ loop.index }}</td>
             <td class="supplier-name">{{ s.name }}</td>
             <td class="supplier-phone">{{ s.phone or '—' }}</td>
-            <td>
+            <td data-sort-value="{{ s.balance_in_ils or 0 }}">
               <span class="badge {% if (s.balance_in_ils or 0) < 0 %}bg-danger{% elif (s.balance_in_ils or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
                 {{ '%.2f'|format(s.balance_in_ils or 0) }} ₪
               </span>
@@ -248,56 +248,37 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
 <script>
-  // ✅ استخدام الملخصات من الباكند مباشرة (السياسة 0.1)
   document.addEventListener('DOMContentLoaded', function() {
-    // ✅ البيانات محسوبة في الباكند - نعرضها فقط
     const totalBalance = {{ summary.total_balance|default(0) }};
     const totalDebit = {{ summary.total_debit|default(0) }};
     const totalCredit = {{ summary.total_credit|default(0) }};
-    
-    // عرض الملخصات من الباكند
     const totalBalanceEl = document.getElementById('total-balance');
     const totalDebitEl = document.getElementById('total-debit');
     const totalCreditEl = document.getElementById('total-credit');
-    
-    if (totalBalanceEl) {
-      totalBalanceEl.textContent = totalBalance.toFixed(2);
-    }
-    
-    if (totalDebitEl) {
-      totalDebitEl.textContent = totalDebit.toFixed(2);
-    }
-    
-    if (totalCreditEl) {
-      totalCreditEl.textContent = totalCredit.toFixed(2);
-    }
+    if (totalBalanceEl) totalBalanceEl.textContent = totalBalance.toFixed(2);
+    if (totalDebitEl) totalDebitEl.textContent = totalDebit.toFixed(2);
+    if (totalCreditEl) totalCreditEl.textContent = totalCredit.toFixed(2);
+    fetch('/suppliers/unpriced-items')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.count > 0) {
+          document.getElementById('unpricedCount').textContent = data.count;
+          document.getElementById('unpricedAlert').style.display = 'block';
+          window.unpricedItems = data.items;
+        }
+      })
+      .catch(function(err) {
+        console.warn('فشل تحميل القطع غير المسعّرة:', err);
+      });
   });
-  
-  // التحقق من القطع غير المسعّرة
-  fetch('/suppliers/unpriced-items')
-    .then(res => res.json())
-    .then(data => {
-      if (data.success && data.count > 0) {
-        document.getElementById('unpricedCount').textContent = data.count;
-        document.getElementById('unpricedAlert').style.display = 'block';
-        
-        // حفظ البيانات للاستخدام في Modal
-        window.unpricedItems = data.items;
-      }
-    })
-    .catch(err =>);
-});
 </script>
 
 <script>
-// Modal لتسعير القطع
 function showUnpricedModal() {
   if (!window.unpricedItems || window.unpricedItems.length === 0) {
     alert('لا توجد قطع غير مسعّرة');
     return;
   }
-  
-  // إنشاء HTML للقطع
   let html = '<div class="list-group">';
   window.unpricedItems.forEach(item => {
     const missingText = item.missing.map(m => {
@@ -306,7 +287,6 @@ function showUnpricedModal() {
       if (m === 'unit_cost') return 'سعر وحدة';
       return m;
     }).join(' + ');
-    
     html += `
       <div class="list-group-item">
         <div class="d-flex justify-content-between align-items-center">
@@ -324,8 +304,6 @@ function showUnpricedModal() {
     `;
   });
   html += '</div>';
-  
-  // إنشاء Modal ديناميكياً
   const modal = document.createElement('div');
   modal.className = 'modal fade';
   modal.id = 'pricingModal';
@@ -349,18 +327,12 @@ function showUnpricedModal() {
       </div>
     </div>
   `;
-  
   document.body.appendChild(modal);
   $(modal).modal('show');
-  
-  // حذف Modal عند الإغلاق
   modal.addEventListener('hidden.bs.modal', () => {
     modal.remove();
   });
 }
 </script>
 
-<script>
-  // وظائف الأرشفة متوفرة الآن في archive.js
-  </script>
 {% endblock %}

@@ -42,6 +42,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
   }
   injectStatementButtons();
+  if (typeof window !== 'undefined' && typeof window.enableTableSorting === 'function') {
+    window.enableTableSorting('#paymentsTable');
+  }
   function debounce(fn, ms) { let t; return function () { clearTimeout(t); t = setTimeout(() => fn.apply(this, arguments), ms); }; }
   const debouncedReload = debounce(function () { updateUrlQuery(); loadPayments(1); }, 250);
   filterSelectors.forEach(function (sel) {
@@ -98,17 +101,18 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function (data) {
         const list = Array.isArray(data.payments) ? data.payments : [];
-        // ✅ حفظ مجموع الصفحة من الباكند
         _currentPageSum = {
           sum: data.totals?.page_sum || 0,
           sumILS: data.totals?.page_sum_ils || 0
         };
-        renderPaymentsTable(list);
+        _lastList = list.slice();
+        renderPaymentsTable(_lastList);
         renderPagination(Number(data.total_pages || 1), Number(data.current_page || 1));
         renderTotals(data.totals || null);
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
+        _lastList = [];
         renderPaymentsTable([]);
         renderPagination(1, 1);
         renderTotals(null);
@@ -126,29 +130,31 @@ document.addEventListener('DOMContentLoaded', function() {
   let _currentPageSum = {sum: 0, sumILS: 0}; // ✅ سيتم ملؤها من الباكند
   
   function renderPaymentsTable(list) {
-    _lastList = list.slice();
     const tbody = document.querySelector('#paymentsTable tbody');
-    if (!tbody) return; // ✅ الجدول قد لا يكون موجود في بعض الصفحات
+    if (!tbody) return;
     tbody.innerHTML = '';
     if (!list.length) {
+      const message = 'لا توجد بيانات';
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td colspan="13" class="text-center text-muted py-4">لا توجد بيانات</td>';
+      tr.innerHTML = '<td colspan="13" class="text-center text-muted py-4">' + message + '</td>';
       tbody.appendChild(tr);
       return;
     }
-    var sanitize = function (v) {
+    const sanitize = function (v) {
       if (v == null) return '';
       return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     };
-    list.sort(function (a, b) {
-      var db = b.payment_date ? Date.parse(b.payment_date) : 0;
-      var da = a.payment_date ? Date.parse(a.payment_date) : 0;
-      if (!isNaN(db) && !isNaN(da) && db !== da) return db - da;
-      var bi = b.id || 0;
-      var ai = a.id || 0;
+    const sorted = list.slice().sort(function (a, b) {
+      const db = b.payment_date ? Date.parse(b.payment_date) : 0;
+      const da = a.payment_date ? Date.parse(a.payment_date) : 0;
+      if (!Number.isNaN(db) && !Number.isNaN(da) && db !== da) return db - da;
+      const bi = b.id || 0;
+      const ai = a.id || 0;
       return bi - ai;
     });
-    list.forEach(function (p) {
+    let sumAmount = 0;
+    let sumAmountIls = 0;
+    sorted.forEach(function (p) {
       const splitsHtml = (p.splits || []).map(function (s) {
         const splitCurrency = (s.currency || p.currency || '').toUpperCase();
         const convertedCurrency = (p.currency || '').toUpperCase();
@@ -178,6 +184,10 @@ document.addEventListener('DOMContentLoaded', function() {
           fxRateDisplay = FXUtils.formatFxRate(1, 'default');
         }
       }
+      const amountNumeric = Number(p.total_amount || 0);
+      if (!Number.isNaN(amountNumeric)) sumAmount += amountNumeric;
+      const amountIlsNumeric = Number(amountInILS || 0);
+      if (!Number.isNaN(amountIlsNumeric)) sumAmountIls += amountIlsNumeric;
       
       // إنشاء عمود التفاصيل المحسّن
       const entityDetails = deriveEntityLabel(p);
@@ -189,12 +199,12 @@ document.addEventListener('DOMContentLoaded', function() {
       var receiverText = p.receiver_name && p.receiver_name.trim() ? sanitize(p.receiver_name.trim()) : '-';
       
       tr.innerHTML =
-        '<td class="text-center"><strong>' + p.id + '</strong></td>' +
-        '<td>' + dateOnly + '</td>' +
-        '<td class="text-end"><strong>' + fmtAmount(p.total_amount) + '</strong></td>' +
+        '<td class="text-center" data-sort-value="' + (p.id || 0) + '"><strong>' + p.id + '</strong></td>' +
+        '<td data-sort-value="' + (p.payment_date || '') + '">' + dateOnly + '</td>' +
+        '<td class="text-end" data-sort-value="' + (amountNumeric || 0) + '"><strong>' + fmtAmount(p.total_amount) + '</strong></td>' +
         '<td class="text-center"><span class="badge badge-secondary">' + (p.currency || '') + '</span></td>' +
         '<td class="text-center"><small>' + fxRateDisplay + '</small></td>' +
-        '<td class="text-end"><strong style="color: #0056b3;">' + fmtAmount(amountInILS) + ' ₪</strong></td>' +
+        '<td class="text-end" data-sort-value="' + (amountIlsNumeric || 0) + '"><strong style="color: #0056b3;">' + fmtAmount(amountInILS) + ' ₪</strong></td>' +
         '<td>' + (splitsHtml || '<span class="badge badge-info">' + (p.method || '') + '</span>') + '</td>' +
         '<td class="text-center">' + badgeForDirection(p.direction) + '</td>' +
         '<td class="text-center">' + badgeForStatus(p.status) + '</td>' +
@@ -204,10 +214,12 @@ document.addEventListener('DOMContentLoaded', function() {
         '<td>' + actions + '</td>';
       tbody.appendChild(tr);
     });
-    // ✅ استخدام مجموع الصفحة من الباكند
-    const t = document.createElement('tr');
-    t.innerHTML = '<td></td><td class="text-end fw-bold">إجمالي الصفحة</td><td class="fw-bold">' + fmtAmount(_currentPageSum.sum) + '</td><td></td><td></td><td class="fw-bold" style="color: #0056b3;">' + fmtAmount(_currentPageSum.sumILS) + ' ₪</td><td colspan="7"></td>';
-    tbody.appendChild(t);
+    const totalsSource = _currentPageSum || { sum: sumAmount, sumILS: sumAmountIls };
+    const totalsLabel = 'إجمالي الصفحة';
+    const totalRow = document.createElement('tr');
+    totalRow.dataset.sortFixed = 'true';
+    totalRow.innerHTML = '<td></td><td class="text-end fw-bold">' + totalsLabel + '</td><td class="fw-bold">' + fmtAmount(totalsSource.sum) + '</td><td></td><td></td><td class="fw-bold" style="color: #0056b3;">' + fmtAmount(totalsSource.sumILS) + ' ₪</td><td colspan="7"></td>';
+    tbody.appendChild(totalRow);
   }
   // Event listener لحذف الدفعات
   document.addEventListener('click', async function (e) {
@@ -218,8 +230,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!confirm('هل أنت متأكد من حذف سند الدفع #' + id + '؟')) return;
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.getElementById('csrf_token')?.value || '';
     try {
-      const r = await fetch('/payments/' + id + '/delete', {
-        method: 'POST',
+      const r = await fetch('/payments/' + id, {
+        method: 'DELETE',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'

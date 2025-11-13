@@ -460,32 +460,49 @@ body.print-mode .content {
 
   <div class="card shadow-sm rounded">
     <div class="card-body p-0">
-      {% include 'customers/_table.html' %}
-      {% if pagination %}
-      <nav class="mt-3 no-print">
-        <ul class="pagination justify-content-center mb-0">
-          {% if pagination.has_prev %}
-            <li class="page-item">
-              <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=pagination.prev_num, **args) }}">السابق</a>
-            </li>
-          {% endif %}
-          {% for p in pagination.iter_pages() %}
-            {% if p %}
-              <li class="page-item {% if p == pagination.page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=p, **args) }}">{{ p }}</a>
+      <div class="p-3 border-bottom bg-light">
+        <div class="row align-items-center">
+          <div class="col-lg-6 col-md-7">
+            <div class="input-group">
+              <span class="input-group-text"><i class="fas fa-search"></i></span>
+              <input type="text" id="customers-search" class="form-control" placeholder="بحث في العملاء" value="{{ args.get('q','') }}">
+            </div>
+          </div>
+          <div class="col-lg-6 col-md-5 text-md-left text-sm-right mt-3 mt-md-0">
+            <span class="text-muted d-inline-block" id="customers-search-summary">إجمالي النتائج: {{ total_filtered }}</span>
+          </div>
+        </div>
+      </div>
+      <div id="customers-table-wrapper">
+        {% include 'customers/_table.html' %}
+      </div>
+      <div id="customers-pagination-wrapper" class="px-3 pb-3">
+        {% if pagination %}
+        <nav class="mt-3 no-print">
+          <ul class="pagination justify-content-center mb-0">
+            {% if pagination.has_prev %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=pagination.prev_num, **args) }}">السابق</a>
               </li>
-            {% else %}
-              <li class="page-item disabled"><span class="page-link">…</span></li>
             {% endif %}
-          {% endfor %}
-          {% if pagination.has_next %}
-            <li class="page-item">
-              <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=pagination.next_num, **args) }}">التالي</a>
-            </li>
-          {% endif %}
-        </ul>
-      </nav>
-      {% endif %}
+            {% for p in pagination.iter_pages() %}
+              {% if p %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                  <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=p, **args) }}">{{ p }}</a>
+                </li>
+              {% else %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+              {% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="{{ url_for('customers_bp.list_customers', page=pagination.next_num, **args) }}">التالي</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+      </div>
     </div>
   </div>
 
