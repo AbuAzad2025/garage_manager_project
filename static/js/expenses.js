@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const $one = (sel, ctx) => (ctx || document).querySelector(sel);
   const $all = (sel, ctx) => Array.from((ctx || document).querySelectorAll(sel));
+  let expensesAjaxSeq = 0;
 
   function setDisabled(el, disabled) {
     if (!el) return;
@@ -233,16 +234,132 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
-    initDT(document.getElementById('expenses-table'));
+    const runExpensesTableInit = () => initDT(document.getElementById('expenses-table'));
+    window.__initExpensesDataTable = runExpensesTableInit;
+    runExpensesTableInit();
     initDT(document.getElementById('types-table'));
     initDT(document.getElementById('employees-table'));
+  }
+
+  function initExpensesAjax() {
+    const tableWrapper = document.getElementById('expenses-table-wrapper');
+    const searchInput = document.getElementById('expenses-search');
+    const searchSummary = document.getElementById('expenses-search-summary');
+    let summaryWrapper = document.getElementById('expenses-summary-wrapper');
+    if (!tableWrapper) return false;
+
+    const loadingTpl = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</div>';
+
+    function fetchAndUpdate(targetUrl) {
+      const baseUrl = targetUrl instanceof URL ? targetUrl : new URL(targetUrl, window.location.origin);
+      baseUrl.searchParams.delete('ajax');
+      const previousTable = tableWrapper.innerHTML;
+      const requestId = ++expensesAjaxSeq;
+      tableWrapper.innerHTML = loadingTpl;
+
+      const fetchUrl = new URL(baseUrl.toString(), window.location.origin);
+      fetchUrl.searchParams.set('ajax', '1');
+
+      return fetch(fetchUrl.toString(), {
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+      })
+        .then(function (res) {
+          if (!res.ok) throw res;
+          return res.json();
+        })
+        .then(function (data) {
+          if (requestId !== expensesAjaxSeq) return;
+
+          if (typeof data.table_html === 'string') {
+            tableWrapper.innerHTML = data.table_html;
+          } else {
+            tableWrapper.innerHTML = previousTable;
+          }
+
+          if (typeof data.summary_html === 'string' && document.getElementById('expenses-summary-wrapper')) {
+            const currentSummary = document.getElementById('expenses-summary-wrapper');
+            currentSummary.outerHTML = data.summary_html;
+            summaryWrapper = document.getElementById('expenses-summary-wrapper');
+          } else {
+            summaryWrapper = document.getElementById('expenses-summary-wrapper');
+          }
+
+          if (searchSummary && typeof data.total_filtered === 'number') {
+            searchSummary.textContent = 'إجمالي النتائج: ' + data.total_filtered;
+          }
+
+          if (window.ExpensesUI && typeof window.ExpensesUI.refreshUI === 'function') {
+            window.ExpensesUI.refreshUI();
+          } else {
+            if (typeof window.__initExpensesDataTable === 'function') window.__initExpensesDataTable();
+            if (typeof window.enableTableSorting === 'function') window.enableTableSorting('#expenses-table');
+          }
+
+          const finalUrl = new URL(baseUrl.toString(), window.location.origin);
+          finalUrl.searchParams.delete('ajax');
+          const qs = finalUrl.searchParams.toString();
+          window.history.replaceState({}, '', finalUrl.pathname + (qs ? '?' + qs : ''));
+        })
+        .catch(function (err) {
+          if (requestId !== expensesAjaxSeq) return;
+          console.error(err);
+          tableWrapper.innerHTML = previousTable;
+          summaryWrapper = document.getElementById('expenses-summary-wrapper');
+          if (window.ExpensesUI && typeof window.ExpensesUI.refreshUI === 'function') {
+            window.ExpensesUI.refreshUI();
+          } else {
+            if (typeof window.__initExpensesDataTable === 'function') window.__initExpensesDataTable();
+            if (typeof window.enableTableSorting === 'function') window.enableTableSorting('#expenses-table');
+          }
+        });
+    }
+
+    function triggerSearch() {
+      const nextUrl = new URL(window.location.href);
+      const term = searchInput ? searchInput.value.trim() : '';
+      if (term) {
+        nextUrl.searchParams.set('q', term);
+      } else {
+        nextUrl.searchParams.delete('q');
+        nextUrl.searchParams.delete('search');
+      }
+      nextUrl.searchParams.delete('page');
+      fetchAndUpdate(nextUrl);
+    }
+
+    if (searchInput) {
+      const debouncedSearch = typeof debounce === 'function' ? debounce(triggerSearch, 300) : triggerSearch;
+      searchInput.addEventListener('input', function () { debouncedSearch(); }, { passive: true });
+    }
+
+    window.addEventListener('popstate', function () {
+      const current = new URL(window.location.href);
+      if (searchInput) {
+        const term = current.searchParams.get('q') || current.searchParams.get('search') || '';
+        if (searchInput.value !== term) searchInput.value = term;
+      }
+      fetchAndUpdate(current);
+    });
+
+    return true;
   }
 
   if (typeof window !== 'undefined' && typeof window.enableTableSorting === 'function') {
     window.enableTableSorting('#expenses-table');
   }
 
+  initExpensesAjax();
+
   window.ExpensesUI = {
-    refreshUI: () => { initAllAjaxSelects(); validatePeriod(); }
+    refreshUI: () => {
+      initAllAjaxSelects();
+      validatePeriod();
+      if (typeof window.__initExpensesDataTable === 'function') {
+        window.__initExpensesDataTable();
+      }
+      if (typeof window.enableTableSorting === 'function') {
+        window.enableTableSorting('#expenses-table');
+      }
+    }
   };
 });

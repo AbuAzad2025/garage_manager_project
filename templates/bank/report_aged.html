@@ -21,43 +21,109 @@
 
 <section class="content">
 <div class="container-fluid">
-  <div class="card">
-    <div class="card-header bg-warning">
-      <h3 class="card-title">تحليل الأرصدة حسب العمر (Aged Balances)</h3>
-    </div>
-    <div class="card-body p-0">
-      <table class="table table-bordered">
-        <thead>
-          <tr class="bg-light">
-            <th>الحساب البنكي</th>
-            <th class="text-center">0-30 يوم</th>
-            <th class="text-center">31-60 يوم</th>
-            <th class="text-center">61-90 يوم</th>
-            <th class="text-center">+90 يوم</th>
-            <th class="text-center">الإجمالي</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if aged_data %}
-            {% for item in aged_data %}
-            <tr>
-              <td>{{ item.account_name }}</td>
-              <td class="text-end">{{ "{:,.2f}".format(item.days_0_30) }} ₪</td>
-              <td class="text-end">{{ "{:,.2f}".format(item.days_31_60) }} ₪</td>
-              <td class="text-end">{{ "{:,.2f}".format(item.days_61_90) }} ₪</td>
-              <td class="text-end text-danger">{{ "{:,.2f}".format(item.days_90_plus) }} ₪</td>
-              <td class="text-end"><strong>{{ "{:,.2f}".format(item.total) }} ₪</strong></td>
-            </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="6" class="text-center">لا توجد بيانات</td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <form method="GET">
+        <div class="form-row">
+          <div class="col-md-6 mb-2">
+            <label class="form-label">الحساب البنكي</label>
+            <select name="account" class="custom-select">
+              <option value="">جميع الحسابات</option>
+              {% for account in bank_accounts %}
+              <option value="{{ account.id }}" {% if selected_account == account.id %}selected{% endif %}>
+                {{ account.name }} ({{ account.account_number }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3 mb-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary btn-block">
+              <i class="fas fa-sync"></i> تحديث
+            </button>
+          </div>
+          <div class="col-md-3 mb-2 d-flex align-items-end">
+            <a href="{{ url_for('bank.report_aged') }}" class="btn btn-light btn-block">
+              <i class="fas fa-undo"></i> إعادة تعيين
+            </a>
+          </div>
+        </div>
+      </form>
     </div>
   </div>
+
+  {% set labels = {
+    'current': '0-30 يوم',
+    '30_days': '31-60 يوم',
+    '60_days': '61-90 يوم',
+    '90_days': '91-120 يوم',
+    'over_90': 'أكثر من 120 يوم'
+  } %}
+  {% set colors = {
+    'current': 'bg-success',
+    '30_days': 'bg-info',
+    '60_days': 'bg-primary',
+    '90_days': 'bg-warning',
+    'over_90': 'bg-danger'
+  } %}
+
+  <div class="row mb-3">
+    {% for key, label in labels.items() %}
+    <div class="col-sm-6 col-lg-2 mb-3">
+      <div class="info-box {{ colors.get(key, 'bg-light') }} text-white">
+        <span class="info-box-icon"><i class="fas fa-clock"></i></span>
+        <div class="info-box-content">
+          <span class="info-box-text">{{ label }}</span>
+          <span class="info-box-number">{{ "{:,.2f}".format(totals.get(key, 0)) }} ₪</span>
+          <span class="info-box-text">({{ aged_data.get(key, [])|length }} معاملة)</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% for key, label in labels.items() %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header {{ colors.get(key, 'bg-light') }} text-white d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">{{ label }}</h5>
+      <span class="badge bg-dark">{{ aged_data.get(key, [])|length }}</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>الحساب البنكي</th>
+              <th>الوصف</th>
+              <th class="text-center">مدين</th>
+              <th class="text-center">دائن</th>
+              <th class="text-center">صافي</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set bucket = aged_data.get(key, []) %}
+            {% if bucket %}
+            {% for tx in bucket %}
+            <tr>
+              <td>{{ tx.transaction_date.strftime('%Y-%m-%d') }}</td>
+              <td>{{ tx.bank_account.name }}</td>
+              <td>{{ tx.description or '-' }}</td>
+              <td class="text-center text-success">{{ "{:,.2f}".format(tx.debit) if tx.debit else '-' }}</td>
+              <td class="text-center text-danger">{{ "{:,.2f}".format(tx.credit) if tx.credit else '-' }}</td>
+              <td class="text-center">{{ "{:,.2f}".format((tx.debit or 0) - (tx.credit or 0)) }}</td>
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">لا توجد معاملات في هذا النطاق الزمني</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
 </div>
 </section>
 {% endblock %}

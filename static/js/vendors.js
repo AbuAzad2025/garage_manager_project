@@ -46,6 +46,275 @@
     return isNaN(n) ? 0 : n;
   }
 
+var suppliersRequestSeq = 0;
+var partnersRequestSeq = 0;
+
+  function formatTwoDecimals(val) {
+    var num = Number(val);
+    if (!isFinite(num)) num = 0;
+    return num.toFixed(2);
+  }
+
+  function updateBalanceCardClass(card, value) {
+    if (!card) return;
+    card.classList.remove("bg-success", "bg-danger", "bg-secondary");
+    card.classList.add("text-white");
+    if (value > 0) card.classList.add("bg-success");
+    else if (value < 0) card.classList.add("bg-danger");
+    else card.classList.add("bg-secondary");
+  }
+
+  function initSuppliersAjax() {
+    var searchInput = document.getElementById("suppliers-search");
+    var tableWrapper = document.getElementById("suppliers-table-wrapper");
+    var searchSummary = document.getElementById("suppliers-search-summary");
+    if (!searchInput || !tableWrapper || !searchSummary) return false;
+    var totalCountEls = [
+      document.getElementById("suppliers-total-count"),
+      document.getElementById("suppliers-total-count-secondary")
+    ];
+    var totalBalanceEl = document.getElementById("suppliers-total-balance");
+    var balanceCard = document.getElementById("suppliers-total-balance-card");
+    var averageEls = [
+      document.getElementById("suppliers-average-balance"),
+      document.getElementById("suppliers-average-balance-secondary")
+    ];
+    var debtEl = document.getElementById("suppliers-with-debt");
+    var creditEl = document.getElementById("suppliers-with-credit");
+
+    function applySummary(data) {
+      var totalSuppliers = Number(data.total_suppliers || 0);
+      totalCountEls.forEach(function (el) { if (el) el.textContent = totalSuppliers; });
+      var totalBalance = Number(data.total_balance || 0);
+      if (totalBalanceEl) totalBalanceEl.textContent = formatTwoDecimals(totalBalance);
+      updateBalanceCardClass(balanceCard, totalBalance);
+      var avg = Number(data.average_balance || 0);
+      averageEls.forEach(function (el) { if (el) el.textContent = formatTwoDecimals(avg); });
+      if (debtEl) debtEl.textContent = Number(data.suppliers_with_debt || 0);
+      if (creditEl) creditEl.textContent = Number(data.suppliers_with_credit || 0);
+      if (searchSummary) searchSummary.textContent = "إجمالي النتائج: " + Number(data.total_filtered || 0);
+    }
+
+    function requestSuppliers(url) {
+      var requestId = ++suppliersRequestSeq;
+      var previous = tableWrapper.innerHTML;
+      tableWrapper.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</div>';
+      var fetchUrl = new URL(url);
+      fetchUrl.searchParams.set("ajax", "1");
+      fetch(fetchUrl.toString(), { headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" } })
+        .then(function (res) {
+          if (!res.ok) throw res;
+          return res.json();
+        })
+        .then(function (data) {
+          if (requestId !== suppliersRequestSeq) return;
+          if (typeof data.table_html === "string") {
+            tableWrapper.innerHTML = data.table_html;
+          } else {
+            tableWrapper.innerHTML = previous;
+          }
+          applySummary(data);
+          if (typeof window !== "undefined" && typeof window.enableTableSorting === "function") {
+            window.enableTableSorting("#suppliersTable");
+          }
+          attachSettleButtons();
+          if (window.jQuery && typeof window.jQuery === "function") {
+            window.jQuery('[data-toggle="tooltip"]').tooltip();
+          }
+        })
+        .catch(function (err) {
+          if (requestId !== suppliersRequestSeq) return;
+          console.error(err);
+          tableWrapper.innerHTML = previous;
+        });
+    }
+
+    function updateFromInput() {
+      var baseUrl = new URL(window.location.href);
+      var term = searchInput.value.trim();
+      if (term) {
+        baseUrl.searchParams.set("q", term);
+      } else {
+        baseUrl.searchParams.delete("q");
+        baseUrl.searchParams.delete("search");
+      }
+      baseUrl.searchParams.delete("ajax");
+      var next = baseUrl.pathname + (baseUrl.searchParams.toString() ? "?" + baseUrl.searchParams.toString() : "");
+      window.history.replaceState(null, "", next);
+      requestSuppliers(baseUrl);
+    }
+
+    var debouncedUpdate = typeof debounce === "function" ? debounce(updateFromInput, 300) : updateFromInput;
+    searchInput.addEventListener("input", function () { debouncedUpdate(); }, { passive: true });
+
+    function syncFromLocation() {
+      var current = new URL(window.location.href);
+      var term = current.searchParams.get("q") || current.searchParams.get("search") || "";
+      if (searchInput.value !== term) searchInput.value = term;
+      requestSuppliers(current);
+    }
+
+    window.addEventListener("popstate", function () { syncFromLocation(); });
+    syncFromLocation();
+    return true;
+  }
+
+  function initPartnersAjax() {
+    var searchInput = document.getElementById("partners-search");
+    var tableWrapper = document.getElementById("partners-table-wrapper");
+    var searchSummary = document.getElementById("partners-search-summary");
+    if (!tableWrapper) return false;
+
+    var totalCountEls = [
+      document.getElementById("partners-total-count"),
+      document.getElementById("partners-total-count-secondary")
+    ];
+    var totalBalanceWrapper = document.getElementById("partners-total-balance-wrapper");
+    var totalBalanceValue = document.getElementById("partners-total-balance");
+    var averageBalanceEl = document.getElementById("partners-average-balance");
+    var debtEl = document.getElementById("partners-with-debt");
+    var creditEl = document.getElementById("partners-with-credit");
+    var balanceFilter = document.getElementById("balanceFilter");
+
+    function adjustBalanceClass(value) {
+      if (!totalBalanceWrapper) return;
+      totalBalanceWrapper.classList.remove("text-success", "text-danger", "text-secondary");
+      if (value > 0) {
+        totalBalanceWrapper.classList.add("text-success");
+      } else if (value < 0) {
+        totalBalanceWrapper.classList.add("text-danger");
+      } else {
+        totalBalanceWrapper.classList.add("text-secondary");
+      }
+    }
+
+    function applySummary(summary) {
+      var totalPartners = Number(summary && summary.total_partners || 0);
+      totalCountEls.forEach(function (el) { if (el) el.textContent = totalPartners; });
+      if (totalBalanceValue) {
+        var totalBalance = Number(summary && summary.total_balance || 0);
+        totalBalanceValue.textContent = formatTwoDecimals(totalBalance);
+        adjustBalanceClass(totalBalance);
+      }
+      if (averageBalanceEl) {
+        averageBalanceEl.textContent = formatTwoDecimals(Number(summary && summary.average_balance || 0));
+      }
+      if (debtEl) debtEl.textContent = Number(summary && summary.partners_with_debt || 0);
+      if (creditEl) creditEl.textContent = Number(summary && summary.partners_with_credit || 0);
+      if (searchSummary) {
+        searchSummary.textContent = "إجمالي النتائج: " + Number(summary && summary.total_filtered || totalPartners || 0);
+      }
+    }
+
+    function applyBalanceFilter() {
+      if (!balanceFilter) return;
+      var mode = balanceFilter.value || "all";
+      var rows = tableWrapper.querySelectorAll("tbody tr");
+      rows.forEach(function (row) {
+        var cell = row.querySelector("td[data-sort-value]");
+        if (!cell) {
+          row.style.display = "";
+          return;
+        }
+        var balance = parseFloat(cell.getAttribute("data-sort-value") || "0");
+        var show = true;
+        if (mode === "positive") show = balance > 0;
+        else if (mode === "negative") show = balance < 0;
+        else if (mode === "zero") show = balance === 0;
+        row.style.display = show ? "" : "none";
+      });
+    }
+
+    function fetchPartners(target) {
+      var requestId = ++partnersRequestSeq;
+      var previous = tableWrapper.innerHTML;
+      tableWrapper.innerHTML = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</div>';
+      var urlObj = target instanceof URL ? target : new URL(target, window.location.origin);
+      urlObj.searchParams.set("ajax", "1");
+      fetch(urlObj.toString(), { headers: { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" } })
+        .then(function (res) {
+          if (!res.ok) throw res;
+          return res.json();
+        })
+        .then(function (data) {
+          if (requestId !== partnersRequestSeq) return;
+          if (typeof data.table_html === "string") {
+            tableWrapper.innerHTML = data.table_html;
+          } else {
+            tableWrapper.innerHTML = previous;
+          }
+          applySummary({
+            total_partners: data.total_partners,
+            total_balance: data.total_balance,
+            average_balance: data.average_balance,
+            partners_with_debt: data.partners_with_debt,
+            partners_with_credit: data.partners_with_credit,
+            total_filtered: data.total_filtered
+          });
+          if (typeof window !== "undefined" && typeof window.enableTableSorting === "function") {
+            window.enableTableSorting("#partnersTable");
+          }
+          attachSettleButtons();
+          if (balanceFilter) applyBalanceFilter();
+          urlObj.searchParams.delete("ajax");
+          var nextSearch = urlObj.searchParams.toString();
+          var nextUrl = urlObj.pathname + (nextSearch ? "?" + nextSearch : "");
+          window.history.replaceState(null, "", nextUrl);
+        })
+        .catch(function (err) {
+          if (requestId !== partnersRequestSeq) return;
+          console.error(err);
+          tableWrapper.innerHTML = previous;
+          if (typeof window !== "undefined" && typeof window.enableTableSorting === "function") {
+            window.enableTableSorting("#partnersTable");
+          }
+          attachSettleButtons();
+        });
+    }
+
+    function updateFromInputs() {
+      var baseUrl = new URL(window.location.href);
+      var term = searchInput ? searchInput.value.trim() : "";
+      if (term) {
+        baseUrl.searchParams.set("q", term);
+      } else {
+        baseUrl.searchParams.delete("q");
+        baseUrl.searchParams.delete("search");
+      }
+      baseUrl.searchParams.delete("ajax");
+      fetchPartners(baseUrl);
+    }
+
+    if (searchInput) {
+      var debouncedSearch = typeof debounce === "function" ? debounce(updateFromInputs, 300) : updateFromInputs;
+      searchInput.addEventListener("input", function () {
+        debouncedSearch();
+      }, { passive: true });
+    }
+
+    if (balanceFilter) {
+      balanceFilter.addEventListener("change", function () {
+        applyBalanceFilter();
+      });
+    }
+
+    function syncFromLocation() {
+      var current = new URL(window.location.href);
+      var term = current.searchParams.get("q") || current.searchParams.get("search") || "";
+      if (searchInput && searchInput.value !== term) {
+        searchInput.value = term;
+      }
+      fetchPartners(current);
+    }
+
+    window.addEventListener("popstate", function () {
+      syncFromLocation();
+    });
+
+    syncFromLocation();
+    return true;
+  }
+
   function openSettlementModal(payload) {
     var modalEl = document.getElementById("settlementModal");
     if (!modalEl) return;
@@ -216,14 +485,20 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    wireSimpleSearch("supplierSearch", "suppliersTable", [".supplier-name", ".supplier-phone"]);
-    wireSimpleSearch("partnerSearch", "partnersTable", [".partner-name", ".partner-phone"]);
-    if (typeof window !== 'undefined' && typeof window.enableTableSorting === 'function') {
-      window.enableTableSorting('#suppliersTable');
-      window.enableTableSorting('#partnersTable');
+    var suppliersInitialized = initSuppliersAjax();
+    var partnersInitialized = initPartnersAjax();
+    if (typeof window !== "undefined" && typeof window.enableTableSorting === "function") {
+      if (!suppliersInitialized) {
+        window.enableTableSorting("#suppliersTable");
+      }
+      if (!partnersInitialized) {
+        window.enableTableSorting("#partnersTable");
+      }
     }
     attachSettleButtons();
     bindPrint();
-    $("[data-toggle=\"tooltip\"]").tooltip();
+    if (window.jQuery && typeof window.jQuery === "function") {
+      window.jQuery('[data-toggle="tooltip"]').tooltip();
+    }
   });
 })();

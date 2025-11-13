@@ -182,12 +182,12 @@
               </div>
           </div>
           {% if total_incoming is defined and total_outgoing is defined %}
-          <div class="row g-3 mb-3 summary-cards">
+          <div id="payments-summary-wrapper" class="row g-3 mb-3 summary-cards">
               <div class="col-md-3 col-6">
                   <div class="card shadow-sm">
                       <div class="summary-card-body">
                           <div class="summary-card-label text-success">دفعات واردة</div>
-                          <div class="summary-card-value text-success">{{ "{:,.2f}".format(total_incoming) }} ₪</div>
+                          <div class="summary-card-value text-success"><span id="payments-total-incoming">{{ "{:,.2f}".format(total_incoming) }}</span> ₪</div>
                       </div>
                   </div>
               </div>
@@ -195,7 +195,7 @@
                   <div class="card shadow-sm">
                       <div class="summary-card-body">
                           <div class="summary-card-label text-danger">دفعات صادرة</div>
-                          <div class="summary-card-value text-danger">{{ "{:,.2f}".format(total_outgoing) }} ₪</div>
+                          <div class="summary-card-value text-danger"><span id="payments-total-outgoing">{{ "{:,.2f}".format(total_outgoing) }}</span> ₪</div>
                       </div>
                   </div>
               </div>
@@ -203,7 +203,7 @@
                   <div class="card shadow-sm">
                       <div class="summary-card-body">
                           <div class="summary-card-label {% if net_total >= 0 %}text-primary{% else %}text-warning{% endif %}">صافي التدفق</div>
-                          <div class="summary-card-value {% if net_total >= 0 %}text-primary{% else %}text-warning{% endif %}">{{ "{:,.2f}".format(net_total) }} ₪</div>
+                          <div class="summary-card-value {% if net_total >= 0 %}text-primary{% else %}text-warning{% endif %}"><span id="payments-net-total">{{ "{:,.2f}".format(net_total) }}</span> ₪</div>
                           <small class="text-muted">الوارد − الصادر</small>
                       </div>
                   </div>
@@ -212,12 +212,27 @@
                   <div class="card shadow-sm">
                       <div class="summary-card-body">
                           <div class="summary-card-label text-info">إجمالي الدفعات</div>
-                          <div class="summary-card-value text-info">{{ "{:,.2f}".format(grand_total) }} ₪<small>{{ payments|length if payments else 0 }} سند</small></div>
+                          <div class="summary-card-value text-info"><span id="payments-grand-total">{{ "{:,.2f}".format(grand_total) }}</span> ₪<small><span id="payments-total-count">{{ payments|length if payments else 0 }}</span> سند</small></div>
                       </div>
                   </div>
               </div>
           </div>
           {% endif %}
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body py-3">
+              <div class="row align-items-center">
+                <div class="col-lg-6 col-md-7">
+                  <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" id="payments-search" class="form-control" placeholder="بحث عام في سندات الدفع" value="{{ request.args.get('q','') }}">
+                  </div>
+                </div>
+                <div class="col-lg-6 col-md-5 text-md-left text-sm-right mt-3 mt-md-0">
+                  <span class="text-muted d-inline-block" id="payments-search-summary">إجمالي النتائج: {{ total_filtered }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="card mb-4 screen-only">
             <div class="card-body">
               <div class="row mb-4 g-2 align-items-end">

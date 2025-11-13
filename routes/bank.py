@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from extensions import db
 from models import (BankAccount, BankStatement, BankTransaction, BankReconciliation, 
-                   Account, Branch, Payment, Expense, Sale, GLEntry, SystemSettings)
+                   Account, Branch, Payment, Expense, Sale, SystemSettings, _gl_upsert_batch_and_entries)
 from sqlalchemy import func, and_, or_, desc, asc
 from datetime import datetime, date, timedelta
 from decimal import Decimal
@@ -108,19 +108,29 @@ def add_account():
             db.session.flush()
             
             if opening_balance != 0:
-                gl_entry = GLEntry(
-                    entry_date=date.today(),
-                    reference_type='BANK_OPENING',
-                    reference_id=bank_account.id,
-                    account_code=gl_account_code,
-                    debit=opening_balance if opening_balance > 0 else 0,
-                    credit=abs(opening_balance) if opening_balance < 0 else 0,
-                    description=f'رصيد افتتاحي للحساب البنكي: {name}',
-                    branch_id=branch_id,
-                    currency=currency,
-                    created_by=current_user.id
+                amount = float(abs(opening_balance))
+                if opening_balance > 0:
+                    entries = [
+                        (gl_account_code, amount, 0),
+                        ("3000_EQUITY", 0, amount),
+                    ]
+                else:
+                    entries = [
+                        (gl_account_code, 0, amount),
+                        ("3000_EQUITY", amount, 0),
+                    ]
+                _gl_upsert_batch_and_entries(
+                    db.session.connection(),
+                    source_type="BANK_ACCOUNT",
+                    source_id=bank_account.id,
+                    purpose="OPENING_BALANCE",
+                    currency=currency or "ILS",
+                    memo=f"رصيد افتتاحي للحساب البنكي: {name}",
+                    entries=entries,
+                    ref=f"OB-BANK-{bank_account.id}",
+                    entity_type="BANK_ACCOUNT",
+                    entity_id=bank_account.id
                 )
-                db.session.add(gl_entry)
             
             db.session.commit()
             
@@ -254,10 +264,33 @@ def upload_statement():
     if request.method == 'POST':
         try:
             bank_account_id = int(request.form.get('bank_account_id'))
-            statement_date = datetime.strptime(request.form.get('statement_date'), '%Y-%m-%d').date()
-            statement_number = request.form.get('statement_number')
-            opening_balance = Decimal(request.form.get('opening_balance', 0))
-            closing_balance = Decimal(request.form.get('closing_balance', 0))
+            
+            statement_date_raw = request.form.get('statement_date')
+            if not statement_date_raw:
+                flash('الرجاء إدخال تاريخ الكشف', 'danger')
+                return redirect(request.url)
+            
+            statement_date = datetime.strptime(statement_date_raw, '%Y-%m-%d').date()
+            statement_number = (request.form.get('statement_number') or '').strip() or f"STMT-{statement_date.strftime('%Y%m%d')}"
+            
+            period_start_raw = request.form.get('period_start') or statement_date_raw
+            period_end_raw = request.form.get('period_end') or statement_date_raw
+            
+            period_start = datetime.strptime(period_start_raw, '%Y-%m-%d').date()
+            period_end = datetime.strptime(period_end_raw, '%Y-%m-%d').date()
+            
+            if period_end < period_start:
+                flash('تاريخ نهاية الفترة يجب أن يكون بعد أو مساوي لتاريخ البداية', 'danger')
+                return redirect(request.url)
+            
+            def _to_decimal(value):
+                try:
+                    return Decimal(str(value or 0))
+                except Exception:
+                    return Decimal('0')
+            
+            opening_balance = _to_decimal(request.form.get('opening_balance'))
+            closing_balance = _to_decimal(request.form.get('closing_balance'))
             
             bank_account = BankAccount.query.get_or_404(bank_account_id)
             
@@ -268,46 +301,115 @@ def upload_statement():
                 flash(f'كشف بنفس الرقم {statement_number} موجود مسبقاً', 'danger')
                 return redirect(request.url)
             
+            file = request.files.get('statement_file') or request.files.get('csv_file')
+            if not file or not file.filename:
+                flash('الرجاء اختيار ملف كشف بصيغة CSV', 'danger')
+                return redirect(request.url)
+            
+            filename = secure_filename(file.filename)
+            if not filename.lower().endswith('.csv'):
+                flash('صيغة الملف يجب أن تكون CSV', 'danger')
+                return redirect(request.url)
+            
+            content = file.read().decode('utf-8-sig')
+            if content:
+                csv_reader = csv.DictReader(io.StringIO(content))
+                
+                transactions_buffer = []
+                transaction_count = 0
+                total_debit_amount = Decimal('0')
+                total_credit_amount = Decimal('0')
+                
+                for idx, row in enumerate(csv_reader, start=1):
+                    if not row:
+                        continue
+                    
+                    normalized = {}
+                    for key, value in (row or {}).items():
+                        if key is None:
+                            continue
+                        clean_key = key.strip().lower()
+                        normalized[clean_key] = value.strip() if isinstance(value, str) else value
+                    
+                    raw_date = normalized.get('date')
+                    if not raw_date:
+                        flash(f'صف {idx}: التاريخ مفقود، تم تجاهل السطر', 'warning')
+                        continue
+                    
+                    try:
+                        trans_date = datetime.strptime(raw_date, '%Y-%m-%d').date()
+                    except Exception:
+                        flash(f'صف {idx}: تنسيق التاريخ غير صالح ({raw_date})، تم تجاهل السطر', 'warning')
+                        continue
+                    
+                    description = normalized.get('description', '')
+                    
+                    def _to_decimal(val):
+                        try:
+                            return Decimal(str(val or 0))
+                        except Exception:
+                            return Decimal('0')
+                    
+                    debit = _to_decimal(normalized.get('debit'))
+                    credit = _to_decimal(normalized.get('credit'))
+                    reference = normalized.get('reference', '')
+                    
+                    total_debit_amount += debit
+                    total_credit_amount += credit
+                    
+                    transactions_buffer.append({
+                        'transaction_date': trans_date,
+                        'description': description,
+                        'reference': reference,
+                        'debit': debit,
+                        'credit': credit
+                    })
+                    
+                    transaction_count += 1
+                
+                flash(f'✅ تم رفع {transaction_count} معاملة من الكشف', 'info')
+            else:
+                flash('الملف فارغ أو غير صالح', 'danger')
+                return redirect(request.url)
+            
+            expected_closing = opening_balance + total_debit_amount - total_credit_amount
+            if round(expected_closing, 2) != round(closing_balance, 2):
+                diff = float(expected_closing - closing_balance)
+                flash(f'❌ الرصيد الختامي المدخل لا يطابق الحركة المحسوبة. الفارق: {diff:.2f} ₪', 'danger')
+                return redirect(request.url)
+            
             statement = BankStatement(
                 bank_account_id=bank_account_id,
                 statement_number=statement_number,
                 statement_date=statement_date,
+                period_start=period_start,
+                period_end=period_end,
                 opening_balance=opening_balance,
                 closing_balance=closing_balance,
-                uploaded_by=current_user.id
+                total_deposits=total_debit_amount.quantize(Decimal('0.01')),
+                total_withdrawals=total_credit_amount.quantize(Decimal('0.01')),
+                status='IMPORTED',
+                imported_by=current_user.id,
+                imported_at=datetime.now(),
+                created_by=current_user.id,
+                updated_by=current_user.id
             )
             
             db.session.add(statement)
             db.session.flush()
             
-            file = request.files.get('csv_file')
-            if file and file.filename.endswith('.csv'):
-                content = file.read().decode('utf-8')
-                csv_reader = csv.DictReader(io.StringIO(content))
-                
-                transaction_count = 0
-                for row in csv_reader:
-                    trans_date = datetime.strptime(row.get('date', row.get('Date')), '%Y-%m-%d').date()
-                    description = row.get('description', row.get('Description', ''))
-                    debit = Decimal(row.get('debit', row.get('Debit', 0)))
-                    credit = Decimal(row.get('credit', row.get('Credit', 0)))
-                    reference = row.get('reference', row.get('Reference', ''))
-                    
-                    transaction = BankTransaction(
-                        bank_account_id=bank_account_id,
-                        statement_id=statement.id,
-                        transaction_date=trans_date,
-                        description=description,
-                        reference=reference,
-                        debit=debit,
-                        credit=credit,
-                        matched=False
-                    )
-                    
-                    db.session.add(transaction)
-                    transaction_count += 1
-                
-                flash(f'✅ تم رفع {transaction_count} معاملة من الكشف', 'info')
+            for tx in transactions_buffer:
+                transaction = BankTransaction(
+                    bank_account_id=bank_account_id,
+                    statement_id=statement.id,
+                    transaction_date=tx['transaction_date'],
+                    description=tx['description'],
+                    reference=tx['reference'],
+                    debit=tx['debit'],
+                    credit=tx['credit'],
+                    matched=False
+                )
+                db.session.add(transaction)
             
             db.session.commit()
             

@@ -40,25 +40,25 @@
     <div class="col-md-3">
       <div class="card bg-primary text-white p-3 rounded-4 shadow-sm">
         <h6 class="mb-1"><i class="fas fa-truck"></i> إجمالي الموردين</h6>
-        <h3 class="mb-0">{{ summary.total_suppliers }}</h3>
+        <h3 class="mb-0"><span id="suppliers-total-count">{{ summary.total_suppliers }}</span></h3>
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card {% if summary.total_balance > 0 %}bg-success{% elif summary.total_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} text-white p-3 rounded-4 shadow-sm">
+      <div id="suppliers-total-balance-card" class="card {% if summary.total_balance > 0 %}bg-success{% elif summary.total_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} text-white p-3 rounded-4 shadow-sm">
         <h6 class="mb-1"><i class="fas fa-balance-scale"></i> الرصيد الصافي</h6>
-        <h3 class="mb-0">{{ "%.2f"|format(summary.total_balance) }} ₪</h3>
+        <h3 class="mb-0"><span id="suppliers-total-balance">{{ "%.2f"|format(summary.total_balance) }}</span> ₪</h3>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card bg-warning text-white p-3 rounded-4 shadow-sm">
         <h6 class="mb-1"><i class="fas fa-users"></i> عدد الموردين</h6>
-        <h3 class="mb-0">{{ summary.total_suppliers }}</h3>
+        <h3 class="mb-0"><span id="suppliers-total-count-secondary">{{ summary.total_suppliers }}</span></h3>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card bg-info text-white p-3 rounded-4 shadow-sm">
         <h6 class="mb-1"><i class="fas fa-calculator"></i> متوسط الرصيد</h6>
-        <h3 class="mb-0">{{ "%.2f"|format(summary.average_balance) }} ₪</h3>
+        <h3 class="mb-0"><span id="suppliers-average-balance">{{ "%.2f"|format(summary.average_balance) }}</span> ₪</h3>
       </div>
     </div>
   </div>
@@ -68,26 +68,41 @@
     <div class="col-md-4">
       <div class="card bg-danger text-white p-3 rounded-4 shadow-sm">
         <h6 class="mb-1"><i class="fas fa-exclamation-circle"></i> موردين بذمة (مستحق دفع)</h6>
-        <h3 class="mb-0">{{ summary.suppliers_with_debt }}</h3>
+        <h3 class="mb-0"><span id="suppliers-with-debt">{{ summary.suppliers_with_debt }}</span></h3>
       </div>
     </div>
     <div class="col-md-4">
       <div class="card bg-success text-white p-3 rounded-4 shadow-sm">
         <h6 class="mb-1"><i class="fas fa-check-circle"></i> موردين مدينين (لنا)</h6>
-        <h3 class="mb-0">{{ summary.suppliers_with_credit }}</h3>
+        <h3 class="mb-0"><span id="suppliers-with-credit">{{ summary.suppliers_with_credit }}</span></h3>
       </div>
     </div>
     <div class="col-md-4">
       <div class="card text-white p-3 rounded-4 shadow-sm" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
         <h6 class="mb-1 text-white"><i class="fas fa-chart-line"></i> متوسط الرصيد</h6>
-        <h3 class="mb-0 text-white">{{ "%.2f"|format(summary.average_balance) }} ₪</h3>
+        <h3 class="mb-0 text-white"><span id="suppliers-average-balance-secondary">{{ "%.2f"|format(summary.average_balance) }}</span> ₪</h3>
       </div>
     </div>
   </div>
 
-  <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
-    <input id="supplierSearch" type="text" class="form-control" style="max-width: 320px;" placeholder="بحث سريع...">
-    <div class="ms-auto d-flex gap-2">
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-3">
+      <div class="row align-items-center">
+        <div class="col-lg-6 col-md-7">
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input id="suppliers-search" type="text" class="form-control" placeholder="بحث عام في الموردين" value="{{ request.args.get('q','') }}">
+          </div>
+        </div>
+        <div class="col-lg-6 col-md-5 text-md-left text-sm-right mt-3 mt-md-0">
+          <span class="text-muted d-inline-block" id="suppliers-search-summary">إجمالي النتائج: {{ summary.total_suppliers }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 align-items-center mb-3 justify-content-end">
+    <div class="d-flex gap-2">
       <a href="{{ url_for('supplier_settlements_bp.list') }}" class="btn btn-warning">
         <i class="fas fa-file-invoice-dollar ml-1"></i>
         <span class="d-none d-sm-inline">قائمة التسويات</span>
@@ -103,6 +118,7 @@
 
   <div class="card shadow-sm rounded-4">
     <div class="card-body p-0">
+      <div id="suppliers-table-wrapper">
       <table class="table table-striped table-hover mb-0 align-middle" id="suppliersTable">
         <thead class="table-dark">
           <tr>
@@ -190,6 +206,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </div>

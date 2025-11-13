@@ -288,132 +288,150 @@
 
     <div class="card-body">
       <!-- الملخصات المالية -->
+      <div id="expenses-summary-wrapper">
       {% if summary %}
-      <div class="summary-cards mb-4 no-print">
-        <div class="summary-card summary-card--total">
-          <div class="summary-card__row">
-            <div>
-              <h6>💰 إجمالي النفقات</h6>
-              <h3>{{ "{:,.2f}".format(summary.total_expenses) }} ₪</h3>
-              <small>{{ summary.expenses_count }} مصروف</small>
+        <div class="summary-cards mb-4 no-print">
+          <div class="summary-card summary-card--total">
+            <div class="summary-card__row">
+              <div>
+                <h6>💰 إجمالي النفقات</h6>
+                <h3>{{ "{:,.2f}".format(summary.total_expenses) }} ₪</h3>
+                <small>{{ summary.expenses_count }} مصروف</small>
+              </div>
+              <i class="fas fa-receipt summary-card__icon"></i>
             </div>
-            <i class="fas fa-receipt summary-card__icon"></i>
           </div>
-        </div>
-        <div class="summary-card summary-card--count">
-          <div class="summary-card__row">
-            <div>
-              <h6>🧾 عدد المصاريف</h6>
-              <h3>{{ summary.expenses_count }}</h3>
-              <small>ضمن التصفية الحالية</small>
+          <div class="summary-card summary-card--count">
+            <div class="summary-card__row">
+              <div>
+                <h6>🧾 عدد المصاريف</h6>
+                <h3>{{ summary.expenses_count }}</h3>
+                <small>ضمن التصفية الحالية</small>
+              </div>
+              <i class="fas fa-list-ol summary-card__icon"></i>
             </div>
-            <i class="fas fa-list-ol summary-card__icon"></i>
           </div>
-        </div>
-        <div class="summary-card summary-card--average">
-          <div class="summary-card__row">
-            <div>
-              <h6>📊 متوسط المصروف</h6>
-              <h3>{{ "{:,.2f}".format(summary.average_expense) }} ₪</h3>
-              <small>لكل مصروف</small>
+          <div class="summary-card summary-card--average">
+            <div class="summary-card__row">
+              <div>
+                <h6>📊 متوسط المصروف</h6>
+                <h3>{{ "{:,.2f}".format(summary.average_expense) }} ₪</h3>
+                <small>لكل مصروف</small>
+              </div>
+              <i class="fas fa-chart-line summary-card__icon"></i>
             </div>
-            <i class="fas fa-chart-line summary-card__icon"></i>
           </div>
-        </div>
-        {% set latest = summary.latest_expense %}
-        <div class="summary-card summary-card--latest">
-          <div class="summary-card__row">
-            <div>
-              <h6>🆕 آخر مصروف</h6>
-              {% if latest %}
-              <h3>{{ latest.amount|number_format(2) }} {{ latest.currency or 'ILS' }}</h3>
-              <small>{{ latest.date|format_date }} — {{ latest.type.name if latest.type else 'غير مصنف' }}</small>
-              {% else %}
-              <h3>—</h3>
-              <small>لا يوجد بيانات</small>
-              {% endif %}
+          {% set latest = summary.latest_expense %}
+          <div class="summary-card summary-card--latest">
+            <div class="summary-card__row">
+              <div>
+                <h6>🆕 آخر مصروف</h6>
+                {% if latest %}
+                <h3>{{ latest.amount|number_format(2) }} {{ latest.currency or 'ILS' }}</h3>
+                <small>{{ latest.date|format_date }} — {{ latest.type.name if latest.type else 'غير مصنف' }}</small>
+                {% else %}
+                <h3>—</h3>
+                <small>لا يوجد بيانات</small>
+                {% endif %}
+              </div>
+              <i class="fas fa-clock summary-card__icon"></i>
             </div>
-            <i class="fas fa-clock summary-card__icon"></i>
-          </div>
-          {% if latest %}
-          <div class="latest-meta">
-            <div class="fw-semibold">{{ latest.payee_name or latest.paid_to or 'غير محدد' }}</div>
-            <div class="text-uppercase">{{ latest.payment_method or '—' }}</div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-      
-      <!-- تصنيف النفقات -->
-      <div class="row mb-4 no-print">
-        <div class="col-md-6">
-          <div class="card">
-            <div class="card-header bg-primary text-white">
-              <h5 class="mb-0">📊 التصنيف حسب النوع</h5>
+            {% if latest %}
+            <div class="latest-meta">
+              <div class="fw-semibold">{{ latest.payee_name or latest.paid_to or 'غير محدد' }}</div>
+              <div class="text-uppercase">{{ latest.payment_method or '—' }}</div>
             </div>
-            <div class="card-body">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>النوع</th>
-                    <th>العدد</th>
-                    <th>المبلغ (₪)</th>
-                    <th>النسبة</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for type_name, data in summary.expenses_by_type[:5] %}
-                  <tr>
-                    <td><strong>{{ type_name }}</strong></td>
-                    <td>{{ data.count }}</td>
-                    <td>{{ "{:,.2f}".format(data.amount) }}</td>
-                    <td>
-                      {% set percentage = (data.amount / summary.total_expenses * 100) if summary.total_expenses > 0 else 0 %}
-                      <div class="progress" style="height: 20px;">
-                        <div class="progress-bar bg-danger" role="progressbar" style="width: {{ percentage }}%">
-                          {{ "{:.1f}".format(percentage) }}%
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
+            {% endif %}
           </div>
         </div>
         
-        <div class="col-md-6">
-          <div class="card">
-            <div class="card-header bg-info text-white">
-              <h5 class="mb-0">💱 التصنيف حسب العملة</h5>
+        <!-- تصنيف النفقات -->
+        <div class="row mb-4 no-print">
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">📊 التصنيف حسب النوع</h5>
+              </div>
+              <div class="card-body">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>النوع</th>
+                      <th>العدد</th>
+                      <th>المبلغ (₪)</th>
+                      <th>النسبة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for type_name, data in summary.expenses_by_type[:5] %}
+                    <tr>
+                      <td><strong>{{ type_name }}</strong></td>
+                      <td>{{ data.count }}</td>
+                      <td>{{ "{:,.2f}".format(data.amount) }}</td>
+                      <td>
+                        {% set percentage = (data.amount / summary.total_expenses * 100) if summary.total_expenses > 0 else 0 %}
+                        <div class="progress" style="height: 20px;">
+                          <div class="progress-bar bg-danger" role="progressbar" style="width: {{ percentage }}%">
+                            {{ "{:.1f}".format(percentage) }}%
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div class="card-body">
-              <table class="table table-sm">
-                <thead>
-                  <tr>
-                    <th>العملة</th>
-                    <th>العدد</th>
-                    <th>المبلغ الأصلي</th>
-                    <th>بالشيقل</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for currency, data in summary.expenses_by_currency.items() %}
-                  <tr>
-                    <td><strong>{{ currency }}</strong></td>
-                    <td>{{ data.count }}</td>
-                    <td>{{ "{:,.2f}".format(data.amount) }}</td>
-                    <td>{{ "{:,.2f}".format(data.amount_ils) }} ₪</td>
-                  </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+          </div>
+          
+          <div class="col-md-6">
+            <div class="card">
+              <div class="card-header bg-info text-white">
+                <h5 class="mb-0">💱 التصنيف حسب العملة</h5>
+              </div>
+              <div class="card-body">
+                <table class="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>العملة</th>
+                      <th>العدد</th>
+                      <th>المبلغ الأصلي</th>
+                      <th>بالشيقل</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for currency, data in summary.expenses_by_currency.items() %}
+                    <tr>
+                      <td><strong>{{ currency }}</strong></td>
+                      <td>{{ data.count }}</td>
+                      <td>{{ "{:,.2f}".format(data.amount) }}</td>
+                      <td>{{ "{:,.2f}".format(data.amount_ils) }} ₪</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+      </div>
+      
+      <div class="card border-0 shadow-sm mb-3 no-print">
+        <div class="card-body py-3">
+          <div class="row align-items-center">
+            <div class="col-lg-6 col-md-7">
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input id="expenses-search" type="text" class="form-control" placeholder="بحث عام في المصاريف" value="{{ search or '' }}">
+              </div>
+            </div>
+            <div class="col-lg-6 col-md-5 text-md-left text-sm-right mt-3 mt-md-0">
+              <span class="text-muted d-inline-block" id="expenses-search-summary">إجمالي النتائج: {{ summary.expenses_count if summary else expenses|length }}</span>
             </div>
           </div>
         </div>
       </div>
-      {% endif %}
       
       {# … نفس فورم الفلاتر كما هو … #}
       {{ super() }}
@@ -421,7 +439,8 @@
   </div>
 
   <div class="card shadow-sm">
-    <div class="card-body table-responsive">
+    <div class="card-body p-0">
+      <div id="expenses-table-wrapper" class="table-responsive">
       <table id="expenses-table" class="table table-striped table-bordered align-middle table-sticky">
         <thead class="table-primary text-center">
           <tr>
@@ -499,6 +518,7 @@
           {# … نفس الإجماليات … #}
         </tfoot>
       </table>
+      </div>
     </div>
   </div>
 {% endblock %}

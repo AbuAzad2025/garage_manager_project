@@ -39,16 +39,67 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label>ملف الكشف (CSV/Excel):</label>
-          <input type="file" name="statement_file" class="form-control-file" accept=".csv,.xlsx,.xls" required>
-          <small class="form-text text-muted">الصيغ المدعومة: CSV, Excel (.xlsx, .xls)</small>
+        <div class="row">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label>تاريخ الكشف *</label>
+              <input type="date" name="statement_date" class="form-control" required>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label>رقم الكشف</label>
+              <input type="text" name="statement_number" class="form-control" placeholder="مثال: STMT-2025-11-01">
+              <small class="form-text text-muted">يتم توليد رقم تلقائي إذا تُرك الحقل فارغاً</small>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label>الرصيد الافتتاحي *</label>
+              <input type="number" step="0.01" name="opening_balance" class="form-control" required>
+            </div>
+          </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">
-          <i class="fas fa-upload"></i> رفع ومعالجة
-        </button>
-        <a href="{{ url_for('bank.accounts') }}" class="btn btn-secondary">إلغاء</a>
+        <div class="row">
+          <div class="col-md-4">
+            <div class="form-group">
+              <label>الرصيد الختامي *</label>
+              <input type="number" step="0.01" name="closing_balance" class="form-control" required>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label>بداية الفترة</label>
+              <input type="date" name="period_start" class="form-control">
+              <small class="form-text text-muted">يتم استخدام تاريخ الكشف تلقائياً إذا تُرك الحقل فارغاً</small>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-group">
+              <label>نهاية الفترة</label>
+              <input type="date" name="period_end" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>ملف الكشف (CSV):</label>
+          <input type="file" name="statement_file" class="form-control-file" accept=".csv" required>
+          <small class="form-text text-muted">الرجاء رفع ملف CSV مطابق لتنسيق الكشف البنكي</small>
+        </div>
+
+        <div class="btn-group">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-upload"></i> رفع ومعالجة
+          </button>
+          <a href="{{ url_for('bank.statements') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-list"></i> عرض الكشوف
+          </a>
+          <a href="{{ url_for('bank.accounts') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> إلغاء
+          </a>
+        </div>
       </form>
     </div>
   </div>

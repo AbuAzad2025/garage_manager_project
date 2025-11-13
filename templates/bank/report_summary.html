@@ -21,89 +21,143 @@
 
 <section class="content">
 <div class="container-fluid">
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <form method="GET">
+        <div class="form-row">
+          <div class="col-md-4 mb-2">
+            <label class="form-label">من تاريخ</label>
+            <input type="date" name="date_from" value="{{ date_from or '' }}" class="form-control">
+          </div>
+          <div class="col-md-4 mb-2">
+            <label class="form-label">إلى تاريخ</label>
+            <input type="date" name="date_to" value="{{ date_to or '' }}" class="form-control">
+          </div>
+          <div class="col-md-4 mb-2 d-flex align-items-end">
+            <div class="btn-group btn-block w-100">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-sync"></i> تحديث
+              </button>
+              <a href="{{ url_for('bank.report_summary') }}" class="btn btn-light">
+                <i class="fas fa-undo"></i> إعادة تعيين
+              </a>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="row mb-3">
-    <div class="col-md-3">
-      <div class="info-box bg-success">
-        <span class="info-box-icon"><i class="fas fa-university"></i></span>
-        <div class="info-box-content">
-          <span class="info-box-text">إجمالي الحسابات</span>
-          <span class="info-box-number">{{ summary.total_accounts or 0 }}</span>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="small-box bg-success">
+        <div class="inner">
+          <h3>{{ summary_data|length }}</h3>
+          <p>عدد الحسابات</p>
+        </div>
+        <div class="icon">
+          <i class="fas fa-university"></i>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="info-box bg-info">
-        <span class="info-box-icon"><i class="fas fa-money-bill"></i></span>
-        <div class="info-box-content">
-          <span class="info-box-text">إجمالي الأرصدة</span>
-          <span class="info-box-number">{{ "{:,.2f}".format(summary.total_balance or 0) }} ₪</span>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="small-box bg-info">
+        <div class="inner">
+          <h3>{{ "{:,.2f}".format(grand_totals.total_debit) }} ₪</h3>
+          <p>إجمالي المدين</p>
+        </div>
+        <div class="icon">
+          <i class="fas fa-arrow-down"></i>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="info-box bg-warning">
-        <span class="info-box-icon"><i class="fas fa-arrow-down"></i></span>
-        <div class="info-box-content">
-          <span class="info-box-text">المصروفات</span>
-          <span class="info-box-number">{{ "{:,.2f}".format(summary.total_expenses or 0) }} ₪</span>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="small-box bg-danger">
+        <div class="inner">
+          <h3>{{ "{:,.2f}".format(grand_totals.total_credit) }} ₪</h3>
+          <p>إجمالي الدائن</p>
+        </div>
+        <div class="icon">
+          <i class="fas fa-arrow-up"></i>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="info-box bg-primary">
-        <span class="info-box-icon"><i class="fas fa-arrow-up"></i></span>
-        <div class="info-box-content">
-          <span class="info-box-text">الإيرادات</span>
-          <span class="info-box-number">{{ "{:,.2f}".format(summary.total_income or 0) }} ₪</span>
+    <div class="col-md-3 col-sm-6 mb-3">
+      <div class="small-box bg-warning">
+        <div class="inner">
+          <h3>{{ "{:,.2f}".format(grand_totals.total_balance) }} ₪</h3>
+          <p>إجمالي الأرصدة الحالية</p>
+        </div>
+        <div class="icon">
+          <i class="fas fa-wallet"></i>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header bg-success">
-      <h3 class="card-title">تفاصيل الحسابات البنكية</h3>
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+      <h3 class="card-title mb-0">تفاصيل الحسابات البنكية</h3>
+      <span class="badge bg-dark">{{ summary_data|length }}</span>
     </div>
     <div class="card-body p-0">
-      <table class="table table-bordered table-hover">
-        <thead>
-          <tr class="bg-light">
-            <th>اسم الحساب</th>
-            <th>رقم الحساب</th>
-            <th>البنك</th>
-            <th class="text-center">الرصيد الحالي</th>
-            <th class="text-center">الحالة</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if accounts %}
-            {% for account in accounts %}
+      <div class="table-responsive">
+        <table class="table table-hover table-striped mb-0">
+          <thead class="bg-light">
             <tr>
-              <td>{{ account.name }}</td>
-              <td>{{ account.account_number }}</td>
-              <td>{{ account.bank_name }}</td>
-              <td class="text-end {% if account.balance >= 0 %}text-success{% else %}text-danger{% endif %}">
-                {{ "{:,.2f}".format(account.balance or 0) }} ₪
+              <th>اسم الحساب</th>
+              <th>رقم الحساب</th>
+              <th>البنك</th>
+              <th class="text-center">عدد المعاملات</th>
+              <th class="text-center">إجمالي المدين</th>
+              <th class="text-center">إجمالي الدائن</th>
+              <th class="text-center">صافي الحركة</th>
+              <th class="text-center">الرصيد الحالي</th>
+              <th class="text-center">معاملات غير مطابقة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if summary_data %}
+            {% for item in summary_data %}
+            <tr>
+              <td>{{ item.account.name }}</td>
+              <td>{{ item.account.account_number }}</td>
+              <td>{{ item.account.bank_name }}</td>
+              <td class="text-center">{{ item.transaction_count }}</td>
+              <td class="text-center text-success">{{ "{:,.2f}".format(item.total_debit) }} ₪</td>
+              <td class="text-center text-danger">{{ "{:,.2f}".format(item.total_credit) }} ₪</td>
+              <td class="text-center {% if item.net_movement >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ "{:,.2f}".format(item.net_movement) }} ₪
+              </td>
+              <td class="text-center {% if item.current_balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ "{:,.2f}".format(item.current_balance) }} ₪
               </td>
               <td class="text-center">
-                {% if account.is_active %}
-                  <span class="badge bg-success">نشط</span>
-                {% else %}
-                  <span class="badge bg-secondary">معطل</span>
-                {% endif %}
+                <span class="badge {% if item.unmatched_count == 0 %}bg-success{% else %}bg-warning{% endif %}">
+                  {{ item.unmatched_count }}
+                </span>
               </td>
             </tr>
             {% endfor %}
-          {% else %}
+            {% else %}
             <tr>
-              <td colspan="5" class="text-center">لا توجد حسابات بنكية</td>
+              <td colspan="9" class="text-center text-muted py-4">لا توجد بيانات لعرضها</td>
             </tr>
-          {% endif %}
-        </tbody>
-      </table>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-footer d-flex justify-content-end">
+      <div class="btn-group">
+        <span class="btn btn-light">
+          إجمالي المعاملات غير المطابقة: {{ grand_totals.total_unmatched }}
+        </span>
+      </div>
     </div>
   </div>
 </div>
 </section>
 {% endblock %}
+
 

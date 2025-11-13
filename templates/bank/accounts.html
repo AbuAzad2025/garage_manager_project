@@ -54,12 +54,26 @@
             <a href="{{ url_for('bank.statements') }}" class="btn btn-info">
                 <i class="fas fa-file-invoice"></i> كشوف الحساب
             </a>
+            <a href="{{ url_for('bank.upload_statement') }}" class="btn btn-success">
+                <i class="fas fa-file-upload"></i> رفع كشف جديد
+            </a>
             <a href="{{ url_for('bank.reconciliations') }}" class="btn btn-warning">
                 <i class="fas fa-balance-scale"></i> التسويات
             </a>
             <button class="btn btn-secondary btn-print" onclick="printReport('.content')">
                 <i class="fas fa-print"></i> طباعة
             </button>
+        </div>
+        <div class="btn-group ml-2">
+            <a href="{{ url_for('bank.report_unmatched') }}" class="btn btn-outline-warning">
+                <i class="fas fa-exclamation-triangle"></i> معاملات غير مطابقة
+            </a>
+            <a href="{{ url_for('bank.report_aged') }}" class="btn btn-outline-info">
+                <i class="fas fa-clock"></i> تقرير العمر
+            </a>
+            <a href="{{ url_for('bank.report_summary') }}" class="btn btn-outline-success">
+                <i class="fas fa-chart-bar"></i> ملخص البنك
+            </a>
         </div>
     </div>
 </div>

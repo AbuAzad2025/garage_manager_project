@@ -72,7 +72,7 @@
               </div>
               <div>
                 <div class="text-muted small">عدد الشركاء</div>
-                <div class="metric-value text-dark">{{ partners|length }}</div>
+                <div class="metric-value text-dark"><span id="partners-total-count">{{ summary.total_partners }}</span></div>
               </div>
             </div>
             <div class="d-flex align-items-center gap-3">
@@ -81,8 +81,8 @@
               </div>
               <div>
                 <div class="text-muted small">الرصيد الصافي</div>
-                <div class="metric-value {{ 'text-success' if summary.total_balance > 0 else 'text-danger' if summary.total_balance < 0 else 'text-secondary' }}">
-                  {{ "%.2f"|format(summary.total_balance) }} ₪
+                <div id="partners-total-balance-wrapper" class="metric-value {{ 'text-success' if summary.total_balance > 0 else 'text-danger' if summary.total_balance < 0 else 'text-secondary' }}">
+                  <span id="partners-total-balance">{{ "%.2f"|format(summary.total_balance) }}</span> ₪
                 </div>
               </div>
             </div>
@@ -92,7 +92,7 @@
               </div>
               <div>
                 <div class="text-muted small">مستحق دفع للشركاء</div>
-                <div class="metric-value text-warning">{{ summary.partners_with_debt }}</div>
+                <div class="metric-value text-warning"><span id="partners-with-debt">{{ summary.partners_with_debt }}</span></div>
               </div>
             </div>
             <div class="d-flex align-items-center gap-3">
@@ -101,7 +101,7 @@
               </div>
               <div>
                 <div class="text-muted small">شركاء مدينين لنا</div>
-                <div class="metric-value text-info">{{ summary.partners_with_credit }}</div>
+                <div class="metric-value text-info"><span id="partners-with-credit">{{ summary.partners_with_credit }}</span></div>
               </div>
             </div>
           </div>
@@ -112,7 +112,7 @@
           <div class="card-body py-3 px-4 d-flex justify-content-between align-items-center">
             <div>
               <div class="text-muted small">إجمالي الشركاء</div>
-              <div class="metric-value text-dark">{{ summary.total_partners }}</div>
+              <div class="metric-value text-dark"><span id="partners-total-count-secondary">{{ summary.total_partners }}</span></div>
             </div>
             <div class="text-secondary">
               <i class="fas fa-users-cog fa-2x"></i>
@@ -125,7 +125,7 @@
           <div class="card-body py-3 px-4 d-flex justify-content-between align-items-center">
             <div>
               <div class="text-muted small">متوسط الرصيد</div>
-              <div class="metric-value text-dark">{{ "%.2f"|format(summary.average_balance) }} ₪</div>
+              <div class="metric-value text-dark"><span id="partners-average-balance">{{ "%.2f"|format(summary.average_balance) }}</span> ₪</div>
             </div>
             <div class="text-secondary">
               <i class="fas fa-chart-area fa-2x"></i>
@@ -160,23 +160,31 @@
     </div>
   </div>
 
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-3">
+      <div class="row align-items-center">
+        <div class="col-lg-6 col-md-7">
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input id="partners-search" type="text" class="form-control" placeholder="بحث عام في الشركاء" value="{{ request.args.get('q','') }}">
+          </div>
+        </div>
+        <div class="col-lg-6 col-md-5 text-md-left text-sm-right mt-3 mt-md-0">
+          <span class="text-muted d-inline-block" id="partners-search-summary">إجمالي النتائج: {{ summary.total_partners }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="toolbar-section mb-3">
     <div class="row g-2 align-items-center">
       <div class="col-lg-4 col-md-6">
-        <input id="partnerSearch" type="text" class="form-control" placeholder="بحث عن شريك...">
-      </div>
-      <div class="col-lg-4 col-md-6">
-        <div class="input-group">
-          <div class="input-group-prepend">
-            <span class="input-group-text"><i class="fas fa-filter"></i></span>
-          </div>
-          <select class="custom-select" id="balanceFilter">
-            <option value="all">جميع الحالات</option>
-            <option value="positive">له رصيد</option>
-            <option value="negative">عليه رصيد</option>
-            <option value="zero">رصيد متوازن</option>
-          </select>
-        </div>
+        <select class="custom-select" id="balanceFilter">
+          <option value="all">جميع الحالات</option>
+          <option value="positive">له رصيد</option>
+          <option value="negative">عليه رصيد</option>
+          <option value="zero">رصيد متوازن</option>
+        </select>
       </div>
       <div class="col-lg-4 col-md-12 d-flex justify-content-lg-end gap-2">
         <a href="{{ url_for('partner_settlements_bp.list') }}" class="btn btn-warning text-white font-weight-bold">
@@ -193,6 +201,7 @@
 
   <div class="card shadow-sm rounded-4">
     <div class="card-body p-0">
+      <div id="partners-table-wrapper">
       <table class="table table-striped table-hover mb-0" id="partnersTable">
         <thead class="table-dark">
           <tr>
@@ -274,6 +283,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </div>

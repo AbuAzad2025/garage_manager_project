@@ -3,11 +3,13 @@ import csv
 import io
 from datetime import datetime, date as _date
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from flask import Blueprint, flash, redirect, render_template, abort, request, url_for, Response, current_app
+from flask import Blueprint, flash, redirect, render_template, render_template_string, abort, request, url_for, Response, current_app, jsonify
+import traceback
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, and_
+from flask_wtf.csrf import generate_csrf
 
 from extensions import db
 from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm
@@ -818,6 +820,243 @@ def index():
         'payment_percentage': (total_paid / total_expenses * 100) if total_expenses > 0 else 0,
         'latest_expense': expenses[0] if expenses else None
     }
+    
+    is_ajax = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.args.get("ajax") == "1"
+        or request.accept_mimetypes.best == "application/json"
+    )
+    if is_ajax:
+        try:
+            csrf_value = generate_csrf()
+            table_html = render_template_string(
+                """
+{% from 'expenses/expenses_list.html' import type_details %}
+<table id="expenses-table" class="table table-striped table-bordered align-middle table-sticky">
+  <thead class="table-primary text-center">
+    <tr>
+      <th>التاريخ</th>
+      <th>النوع</th>
+      <th>تفاصيل النوع</th>
+      <th>الجهة</th>
+      <th>المبلغ</th>
+      <th>العملة</th>
+      <th>طريقة الدفع</th>
+      <th>المدفوع</th>
+      <th>الحالة</th>
+      <th style="width:170px" data-sortable="false">إجراءات</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in expenses %}
+    {% set pt = e.payee_type or '' %}
+    <tr>
+      <td class="text-nowrap" data-sort-value="{{ e.date.isoformat() if e.date else '' }}">{{ e.date|format_date }}</td>
+      <td>{{ e.type.name if e.type else '—' }}</td>
+      <td class="text-truncate" style="max-width:260px">{{ type_details(e) }}</td>
+      <td class="text-truncate" style="max-width:200px">
+        {% if pt == 'EMPLOYEE' %}<span class="payee-chip payee-chip--employee">موظّف</span>
+        {% elif pt == 'UTILITY' %}<span class="payee-chip payee-chip--utility">مرفق</span>
+        {% elif pt %}<span class="payee-chip payee-chip--other">أخرى</span>{% endif %}
+        <span class="fw-bold text-dark">{{ e.payee_name or e.paid_to or (e.employee.name if e.employee else '—') }}</span>
+      </td>
+      <td class="fw-bold text-end" data-sort-value="{{ e.amount or 0 }}">
+        {{ e.amount|number_format(2) }}
+      </td>
+      <td class="text-center"><span class="badge badge-secondary">{{ e.currency or 'ILS' }}</span></td>
+      <td class="text-nowrap">{{ e.payment_method or '—' }}</td>
+      <td class="text-end" data-sort-value="{{ e.total_paid or 0 }}">{{ (e.total_paid or 0)|float|round(2)|number_format(2) }}</td>
+      <td class="text-center" data-sort-value="{{ 0 if e.is_paid else (e.balance or 0) }}">
+        {% if e.is_paid %}
+          <span class="badge bg-success">مدفوع بالكامل</span>
+        {% else %}
+          <div class="fw-bold text-danger">{{ (e.balance or 0)|float|round(2)|number_format(2) }}</div>
+        {% endif %}
+      </td>
+      <td class="text-nowrap text-center">
+        <div class="btn-group">
+          <a href="{{ url_for('expenses_bp.detail', exp_id=e.id) }}" class="btn btn-sm btn-info" title="تفاصيل"><i class="fas fa-eye"></i></a>
+          {% if current_user.has_permission('manage_expenses') %}
+            <a href="{{ url_for('expenses_bp.edit', exp_id=e.id) }}" class="btn btn-sm btn-warning" title="تعديل"><i class="fas fa-edit"></i></a>
+            {% if e.is_archived %}
+            <button type="button" class="btn btn-action-restore btn-action-sm" title="استعادة" onclick="restoreExpense({{ e.id }})">
+              <i class="fas fa-undo"></i>
+            </button>
+            {% else %}
+            <button type="button" class="btn btn-action-archive btn-action-sm" title="أرشفة" onclick="archiveExpense({{ e.id }})">
+              <i class="fas fa-archive"></i>
+            </button>
+            {% endif %}
+            <form method="post" action="{{ url_for('expenses_bp.delete', exp_id=e.id) }}" onsubmit="return confirm('حذف المصروف؟');" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="btn btn-sm btn-danger" title="حذف عادي"><i class="fas fa-trash"></i></button>
+            </form>
+            <a href="{{ url_for('hard_delete_bp.delete_expense', expense_id=e.id) }}"
+               class="btn btn-sm btn-outline-danger" title="حذف قوي"
+               onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
+              <i class="fas fa-bomb"></i>
+            </a>
+          {% endif %}
+          {% if current_user.has_permission('manage_payments') and not e.is_paid and e.balance and e.balance > 0 %}
+            <a href="{{ url_for('expenses_bp.pay', exp_id=e.id) }}" class="btn btn-sm btn-outline-success" title="دفع ({{ '%.2f'|format(e.balance) }} ₪)"><i class="fas fa-money-bill-wave"></i></a>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    {# … نفس الإجماليات … #}
+  </tfoot>
+</table>
+            """,
+            expenses=expenses,
+            current_user=current_user,
+            csrf_token=csrf_value,
+        )
+            summary_html = render_template_string(
+                """
+<div id="expenses-summary-wrapper">
+{% if summary %}
+  <div class="summary-cards mb-4 no-print">
+    <div class="summary-card summary-card--total">
+      <div class="summary-card__row">
+        <div>
+          <h6>💰 إجمالي النفقات</h6>
+          <h3>{{ "{:,.2f}".format(summary.total_expenses) }} ₪</h3>
+          <small>{{ summary.expenses_count }} مصروف</small>
+        </div>
+        <i class="fas fa-receipt summary-card__icon"></i>
+      </div>
+    </div>
+    <div class="summary-card summary-card--count">
+      <div class="summary-card__row">
+        <div>
+          <h6>🧾 عدد المصاريف</h6>
+          <h3>{{ summary.expenses_count }}</h3>
+          <small>ضمن التصفية الحالية</small>
+        </div>
+        <i class="fas fa-list-ol summary-card__icon"></i>
+      </div>
+    </div>
+    <div class="summary-card summary-card--average">
+      <div class="summary-card__row">
+        <div>
+          <h6>📊 متوسط المصروف</h6>
+          <h3>{{ "{:,.2f}".format(summary.average_expense) }} ₪</h3>
+          <small>لكل مصروف</small>
+        </div>
+        <i class="fas fa-chart-line summary-card__icon"></i>
+      </div>
+    </div>
+    {% set latest = summary.latest_expense %}
+    <div class="summary-card summary-card--latest">
+      <div class="summary-card__row">
+        <div>
+          <h6>🆕 آخر مصروف</h6>
+          {% if latest %}
+          <h3>{{ latest.amount|number_format(2) }} {{ latest.currency or 'ILS' }}</h3>
+          <small>{{ latest.date|format_date }} — {{ latest.type.name if latest.type else 'غير مصنف' }}</small>
+          {% else %}
+          <h3>—</h3>
+          <small>لا يوجد بيانات</small>
+          {% endif %}
+        </div>
+        <i class="fas fa-clock summary-card__icon"></i>
+      </div>
+      {% if latest %}
+      <div class="latest-meta">
+        <div class="fw-semibold">{{ latest.payee_name or latest.paid_to or 'غير محدد' }}</div>
+        <div class="text-uppercase">{{ latest.payment_method or '—' }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row mb-4 no-print">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">📊 التصنيف حسب النوع</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>النوع</th>
+                <th>العدد</th>
+                <th>المبلغ (₪)</th>
+                <th>النسبة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for type_name, data in summary.expenses_by_type[:5] %}
+              <tr>
+                <td><strong>{{ type_name }}</strong></td>
+                <td>{{ data.count }}</td>
+                <td>{{ "{:,.2f}".format(data.amount) }}</td>
+                <td>
+                  {% set percentage = (data.amount / summary.total_expenses * 100) if summary.total_expenses > 0 else 0 %}
+                  <div class="progress" style="height: 20px;">
+                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ percentage }}%">
+                      {{ "{:.1f}".format(percentage) }}%
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">💱 التصنيف حسب العملة</h5>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th>العملة</th>
+                <th>العدد</th>
+                <th>المبلغ الأصلي</th>
+                <th>بالشيقل</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for currency, data in summary.expenses_by_currency.items() %}
+              <tr>
+                <td><strong>{{ currency }}</strong></td>
+                <td>{{ data.count }}</td>
+                <td>{{ "{:,.2f}".format(data.amount) }}</td>
+                <td>{{ "{:,.2f}".format(data.amount_ils) }} ₪</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+            </div>
+                """,
+                summary=summary,
+            )
+        except Exception as exc:
+            current_app.logger.exception("Expenses AJAX rendering failed: %s", exc)
+            return jsonify({"error": traceback.format_exc()}), 500
+        else:
+            return jsonify(
+                {
+                    "table_html": table_html,
+                    "summary_html": summary_html,
+                    "total_filtered": len(expenses),
+                }
+            )
     
     return render_template(
         "expenses/expenses_list.html",

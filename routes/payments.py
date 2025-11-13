@@ -430,6 +430,7 @@ def index():
     range_end = request.args.get("range_end", type=int)
     target_page = request.args.get("page_number", type=int)
     entity_type = (request.args.get("entity_type") or request.args.get("entity") or "").strip().upper()
+    search_term = (request.args.get("q") or "").strip()
     status = (request.args.get("status") or "").strip()
     direction = (request.args.get("direction") or "").strip()
     method = (request.args.get("method") or "").strip()
@@ -506,6 +507,30 @@ def index():
             filters.append(Payment.shipment_id == entity_id)
     if reference_like:
         filters.append(Payment.reference.ilike(f"%{reference_like}%"))
+    if search_term:
+        like_pattern = f"%{search_term}%"
+        search_filters = [
+            Payment.payment_number.ilike(like_pattern),
+            Payment.reference.ilike(like_pattern),
+            Payment.receipt_number.ilike(like_pattern),
+            Payment.notes.ilike(like_pattern),
+            Payment.deliverer_name.ilike(like_pattern),
+            Payment.receiver_name.ilike(like_pattern),
+            Payment.bank_transfer_ref.ilike(like_pattern),
+            Payment.check_number.ilike(like_pattern),
+            Payment.card_holder.ilike(like_pattern),
+        ]
+        if search_term.isdigit():
+            search_filters.append(Payment.id == int(search_term))
+        search_filters.extend([
+            Payment.customer.has(Customer.name.ilike(like_pattern)),
+            Payment.supplier.has(Supplier.name.ilike(like_pattern)),
+            Payment.partner.has(Partner.name.ilike(like_pattern)),
+            Payment.invoice.has(Invoice.invoice_number.ilike(like_pattern)),
+            Payment.sale.has(Sale.sale_number.ilike(like_pattern)),
+            Payment.service.has(ServiceRequest.service_number.ilike(like_pattern)),
+        ])
+        filters.append(or_(*search_filters))
     base_q = (
         Payment.query.filter(Payment.is_archived == False)
         .filter(*filters)

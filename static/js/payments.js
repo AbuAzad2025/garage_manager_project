@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeSmartSearchOnce();
   
   const filterSelectors = ['#filterEntity', '#filterStatus', '#filterDirection', '#filterMethod', '#startDate', '#endDate', '#filterCurrency'];
+  const searchInput = document.querySelector('#payments-search');
   const ENTITY_ENUM = { customer:'CUSTOMER', supplier:'SUPPLIER', partner:'PARTNER', sale:'SALE', service:'SERVICE', expense:'EXPENSE', loan:'LOAN', preorder:'PREORDER', shipment:'SHIPMENT' };
   const AR_STATUS = { COMPLETED:'مكتملة', PENDING:'قيد الانتظار', FAILED:'فاشلة', REFUNDED:'مُرجعة' };
   function inferEntityContext() {
@@ -53,6 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
     el.addEventListener('change', debouncedReload, { passive: true });
     if (el.tagName === 'INPUT') el.addEventListener('input', debouncedReload, { passive: true });
   });
+  if (searchInput) searchInput.addEventListener('input', debouncedReload, { passive: true });
   // ✅ الدوال نُقلت إلى common-utils.js (normalizeEntity, normalizeMethod, normDir, validDates)
   function currentFilters(page = 1) {
     const raw = {
@@ -63,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
       start_date: document.querySelector('#startDate')?.value || '',
       end_date: document.querySelector('#endDate')?.value || '',
       currency: (document.querySelector('#filterCurrency')?.value || '').toUpperCase(),
+      q: (searchInput && searchInput.value) ? searchInput.value.trim() : '',
       page
     };
     const v = validDates(raw.start_date, raw.end_date);
@@ -80,6 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setVal('#startDate', qs.get('start_date'));
     setVal('#endDate', qs.get('end_date'));
     setVal('#filterCurrency', qs.get('currency'));
+    setVal('#payments-search', qs.get('q'));
   }
   function updateUrlQuery() {
     const raw = currentFilters();
@@ -109,6 +113,10 @@ document.addEventListener('DOMContentLoaded', function() {
         renderPaymentsTable(_lastList);
         renderPagination(Number(data.total_pages || 1), Number(data.current_page || 1));
         renderTotals(data.totals || null);
+        const searchSummaryEl = document.getElementById('payments-search-summary');
+        if (searchSummaryEl) searchSummaryEl.textContent = 'إجمالي النتائج: ' + (data.total_items || 0);
+        const totalCountEl = document.getElementById('payments-total-count');
+        if (totalCountEl) totalCountEl.textContent = data.total_items || 0;
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
@@ -116,6 +124,10 @@ document.addEventListener('DOMContentLoaded', function() {
         renderPaymentsTable([]);
         renderPagination(1, 1);
         renderTotals(null);
+        const searchSummaryEl = document.getElementById('payments-search-summary');
+        if (searchSummaryEl) searchSummaryEl.textContent = 'إجمالي النتائج: 0';
+        const totalCountEl = document.getElementById('payments-total-count');
+        if (totalCountEl) totalCountEl.textContent = '0';
       })
       .finally(function () { setLoading(false); });
   }
@@ -315,16 +327,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   function renderTotals(totals) {
-    const elIn = document.getElementById('totalIncoming');
-    const elOut = document.getElementById('totalOutgoing');
-    const elNet = document.getElementById('netTotal');
-    const elAll = document.getElementById('grandTotal');
-    if (!elIn && !elOut && !elNet && !elAll) return;
     const safe = totals || { total_incoming: 0, total_outgoing: 0, net_total: 0, grand_total: 0, total_paid: 0 };
-    if (elIn) elIn.textContent = fmtAmount(safe.total_incoming || 0);
-    if (elOut) elOut.textContent = fmtAmount(safe.total_outgoing || 0);
-    if (elNet) elNet.textContent = fmtAmount(safe.net_total || 0);
-    if (elAll) elAll.textContent = fmtAmount(safe.grand_total || 0);
+    const incomingEl = document.getElementById('payments-total-incoming');
+    if (incomingEl) incomingEl.textContent = fmtAmount(safe.total_incoming || 0);
+    const outgoingEl = document.getElementById('payments-total-outgoing');
+    if (outgoingEl) outgoingEl.textContent = fmtAmount(safe.total_outgoing || 0);
+    const netEl = document.getElementById('payments-net-total');
+    if (netEl) netEl.textContent = fmtAmount(safe.net_total || 0);
+    const grandEl = document.getElementById('payments-grand-total');
+    if (grandEl) grandEl.textContent = fmtAmount(safe.grand_total || 0);
   }
   function exportCsv() {
     try {

@@ -1,9 +1,10 @@
 
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from flask import abort, Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import abort, Blueprint, flash, jsonify, redirect, render_template, render_template_string, request, url_for
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
+from flask_wtf.csrf import generate_csrf
 from sqlalchemy import func, or_, and_
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import joinedload
@@ -55,10 +56,10 @@ def _get_or_404(model, ident, options=None):
 # @permission_required("manage_vendors")  # Commented out
 def suppliers_list():
     form = CSRFProtectForm()
-    s = (request.args.get("search") or "").strip()
+    search_term = (request.args.get("q") or request.args.get("search") or "").strip()
     q = Supplier.query.filter(Supplier.is_archived == False)
-    if s:
-        term = f"%{s}%"
+    if search_term:
+        term = f"%{search_term}%"
         q = q.filter(or_(Supplier.name.ilike(term), Supplier.phone.ilike(term), Supplier.identity_number.ilike(term)))
     suppliers = q.order_by(Supplier.name).all()
     
@@ -89,11 +90,119 @@ def suppliers_list():
         'suppliers_with_credit': suppliers_with_credit,
         'average_balance': total_balance / len(suppliers) if suppliers else 0
     }
+
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("ajax") == "1"
+    if is_ajax:
+        csrf_value = generate_csrf()
+        table_html = render_template_string(
+            """
+<table class="table table-striped table-hover mb-0 align-middle" id="suppliersTable">
+  <thead class="table-dark">
+    <tr>
+      <th style="width:70px">#</th>
+      <th>الاسم</th>
+      <th>الهاتف</th>
+      <th>الرصيد</th>
+      <th style="min-width: 440px;" data-sortable="false">عمليات</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in suppliers %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td class="supplier-name">{{ s.name }}</td>
+      <td class="supplier-phone">{{ s.phone or '—' }}</td>
+      <td data-sort-value="{{ s.balance_in_ils or 0 }}">
+        <span class="badge {% if (s.balance_in_ils or 0) < 0 %}bg-danger{% elif (s.balance_in_ils or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+          {{ '%.2f'|format(s.balance_in_ils or 0) }} ₪
+        </span>
+      </td>
+      <td>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{{ url_for('supplier_settlements_bp.supplier_settlement', supplier_id=s.id) }}"
+             class="btn btn-sm btn-success d-flex align-items-center"
+             title="التسوية الذكية الشاملة - قطع، مبيعات، صيانة، دفعات">
+            <i class="fas fa-calculator"></i>
+            <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
+          </a>
+          <a href="{{ url_for('payments.create_payment') }}?entity_type=SUPPLIER&entity_id={{ s.id }}&entity_name={{ s.name|urlencode }}"
+             class="btn btn-sm btn-primary d-flex align-items-center" title="إضافة دفعة">
+            <i class="fas fa-money-bill-wave"></i>
+            <span class="d-none d-lg-inline ms-1">دفع</span>
+          </a>
+          <a href="{{ url_for('vendors_bp.suppliers_statement', supplier_id=s.id) }}"
+             class="btn btn-sm btn-warning d-flex align-items-center" title="كشف حساب مبسط">
+            <i class="fas fa-file-invoice"></i>
+            <span class="d-none d-lg-inline ms-1">كشف حساب</span>
+          </a>
+          <a href="{{ url_for('reports_bp.supplier_detail_report', supplier_id=s.id) }}"
+             class="btn btn-sm btn-info d-flex align-items-center" title="تقرير تفصيلي شامل">
+            <i class="fas fa-chart-line"></i>
+            <span class="d-none d-lg-inline ms-1">تقرير مفصل</span>
+          </a>
+          {% if current_user.has_permission('manage_vendors') %}
+            <a href="{{ url_for('vendors_bp.suppliers_edit', id=s.id) }}"
+               class="btn btn-sm btn-outline-secondary d-flex align-items-center" title="تعديل">
+              <i class="fas fa-edit"></i>
+              <span class="d-none d-lg-inline ms-1">تعديل</span>
+            </a>
+            {% if s.is_archived %}
+            <button type="button" class="btn btn-sm btn-success d-flex align-items-center" title="استعادة" onclick="restoreSupplier({{ s.id }})">
+              <i class="fas fa-undo"></i>
+              <span class="d-none d-lg-inline ms-1">استعادة</span>
+            </button>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-warning d-flex align-items-center" title="أرشفة" onclick="archiveSupplier({{ s.id }})">
+              <i class="fas fa-archive"></i>
+              <span class="d-none d-lg-inline ms-1">أرشفة</span>
+            </button>
+            {% endif %}
+            <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit"
+                      class="btn btn-sm btn-danger d-flex align-items-center"
+                      title="حذف عادي"
+                      onclick="return confirm('حذف المورد؟');">
+                <i class="fas fa-trash"></i>
+                <span class="d-none d-lg-inline ms-1">حذف</span>
+              </button>
+            </form>
+            <a href="{{ url_for('hard_delete_bp.delete_supplier', supplier_id=s.id) }}"
+               class="btn btn-sm btn-outline-danger d-flex align-items-center"
+               title="حذف قوي"
+               onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
+              <i class="fas fa-bomb"></i>
+              <span class="d-none d-lg-inline ms-1">حذف قوي</span>
+            </a>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center py-4">لا توجد بيانات</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+            """,
+            suppliers=suppliers,
+            csrf_token=csrf_value,
+        )
+        return jsonify(
+            {
+                "table_html": table_html,
+                "total_suppliers": summary["total_suppliers"],
+                "total_balance": summary["total_balance"],
+                "average_balance": summary["average_balance"],
+                "suppliers_with_debt": summary["suppliers_with_debt"],
+                "suppliers_with_credit": summary["suppliers_with_credit"],
+                "total_filtered": len(suppliers),
+            }
+        )
     
     return render_template(
         "vendors/suppliers/list.html",
         suppliers=suppliers,
-        search=s,
+        search=search_term,
         form=form,
         pay_url=url_for("payments.create_payment"),
         summary=summary,
@@ -786,10 +895,10 @@ def suppliers_statement(supplier_id: int):
 # @permission_required("manage_vendors")  # Commented out
 def partners_list():
     form = CSRFProtectForm()
-    s = (request.args.get("search") or "").strip()
+    search_term = (request.args.get("q") or request.args.get("search") or "").strip()
     q = Partner.query.filter(Partner.is_archived == False)
-    if s:
-        term = f"%{s}%"
+    if search_term:
+        term = f"%{search_term}%"
         q = q.filter(or_(Partner.name.ilike(term), Partner.phone_number.ilike(term), Partner.identity_number.ilike(term)))
     partners = q.order_by(Partner.name).all()
     
@@ -837,10 +946,112 @@ def partners_list():
         'average_balance': total_balance / len(partners) if partners else 0
     }
     
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("ajax") == "1"
+    if is_ajax:
+        csrf_value = generate_csrf()
+        table_html = render_template_string(
+            """
+<table class="table table-striped table-hover mb-0" id="partnersTable">
+  <thead class="table-dark">
+    <tr>
+      <th style="width:70px">#</th>
+      <th>الاسم</th>
+      <th>الهاتف</th>
+      <th>الرصيد</th>
+      <th style="width:520px" data-sortable="false">عمليات</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in partners %}
+    {% set balance = (p.current_balance if p is not none and p.current_balance is defined and p.current_balance is not none else (p.balance_in_ils or 0)) %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td class="partner-name">{{ p.name }}</td>
+      <td class="partner-phone">{{ p.phone_number or '—' }}</td>
+      <td data-sort-value="{{ balance }}">
+        <span class="badge {% if balance < 0 %}bg-danger{% elif balance == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+          {{ '%.2f'|format(balance) }} ₪
+        </span>
+        {% if p.current_balance_source is defined and p.current_balance_source == 'smart' %}
+          <small class="text-muted d-block">ذكّي</small>
+        {% endif %}
+      </td>
+      <td>
+        <div class="d-flex partner-actions">
+          <a href="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=p.id) }}"
+             class="btn btn-sm btn-success" title="التسوية الذكية الشاملة">
+            <i class="fas fa-calculator"></i><span class="d-none d-xl-inline">تسوية</span>
+          </a>
+          <a href="{{ url_for('payments.create_payment') }}?entity_type=PARTNER&entity_id={{ p.id }}&entity_name={{ p.name|urlencode }}"
+             class="btn btn-sm btn-primary" title="إضافة دفعة">
+            <i class="fas fa-money-bill-wave"></i><span class="d-none d-xl-inline">دفع</span>
+          </a>
+          <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ p.id }}"
+             class="btn btn-sm btn-warning text-white" title="كشف الحساب المالي">
+            <i class="fas fa-file-invoice-dollar"></i><span class="d-none د-xl-inline">كشف حساب</span>
+          </a>
+          <a href="{{ url_for('reports_bp.partner_detail_report', partner_id=p.id) }}"
+             class="btn btn-sm btn-info text-white" title="تقرير تفصيلي شامل">
+            <i class="fas fa-chart-line"></i><span class="d-none د-xl-inline">تقرير</span>
+          </a>
+          {% if current_user.has_permission('manage_vendors') %}
+            <a href="{{ url_for('vendors_bp.partners_edit', id=p.id) }}"
+               class="btn btn-sm btn-secondary" title="تعديل بيانات الشريك">
+              <i class="fas fa-edit"></i><span class="d-none د-xl-inline">تعديل</span>
+            </a>
+            {% if p.is_archived %}
+              <button type="button" class="btn btn-sm btn-success" onclick="restorePartner({{ p.id }})" title="استعادة الشريك">
+                <i class="fas fa-undo"></i><span class="d-none د-xl-inline">استعادة</span>
+              </button>
+            {% else %}
+              <button type="button" class="btn btn-sm btn-outline-warning" onclick="archivePartner({{ p.id }})" title="أرشفة الشريك">
+                <i class="fas fa-archive"></i><span class="d-none d-xl-inline">أرشفة</span>
+              </button>
+            {% endif %}
+            <form method="post"
+                  action="{{ url_for('vendors_bp.partners_delete', id=p.id) }}"
+                  onsubmit="return confirm('حذف الشريك؟');"
+                  class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف عادي">
+                <i class="fas fa-trash"></i><span class="d-none d-xl-inline">حذف</span>
+              </button>
+            </form>
+            <a href="{{ url_for('hard_delete_bp.delete_partner', partner_id=p.id) }}"
+               class="btn btn-sm btn-danger"
+               onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')"
+               title="حذف قوي - يحذف جميع البيانات المرتبطة">
+              <i class="fas fa-bomb"></i><span class="d-none d-xl-inline">حذف قوي</span>
+            </a>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-center py-4">لا توجد بيانات</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+            """,
+            partners=partners,
+            csrf_token=csrf_value,
+        )
+        return jsonify(
+            {
+                "table_html": table_html,
+                "total_partners": summary["total_partners"],
+                "total_balance": summary["total_balance"],
+                "average_balance": summary["average_balance"],
+                "partners_with_debt": summary["partners_with_debt"],
+                "partners_with_credit": summary["partners_with_credit"],
+                "total_filtered": len(partners),
+            }
+        )
+
     return render_template(
         "vendors/partners/list.html",
         partners=partners,
-        search=s,
+        search=search_term,
         form=form,
         pay_url=url_for("payments.create_payment"),
         summary=summary,
