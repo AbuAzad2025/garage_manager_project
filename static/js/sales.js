@@ -9,6 +9,8 @@
   function loadCssOnce(href){if(!document.querySelector(`link[href="${href}"]`)){const l=document.createElement('link');l.rel='stylesheet';l.href=href;document.head.appendChild(l);}}
   function loadJQueryOnce(){return new Promise(res=>{if(window.jQuery) return res();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js';s.onload=()=>res();document.head.appendChild(s);});}
   const debounce=(fn, d=200)=>{let t; return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),d);}};
+  let salesSearchTimer=null;
+  let salesRequestId=0;
 
   async function fetchProductInfo(pid, wid, targetCurrency){
     if(!(pid && wid)) return {};
@@ -20,6 +22,7 @@
     }catch(_){ return {}; }
   }
 
+  const initSalesTable=()=>{if(typeof window!=='undefined'&&typeof window.enableTableSorting==='function'){window.enableTableSorting('#salesTable');}};
   // ====== قائمة الفواتير (فلتر) ======
   (function initList(){
     const form = qs('#filterForm');
@@ -30,8 +33,68 @@
       const action = form.getAttribute('action') || window.location.pathname;
       window.location = action;
     });
-    if (typeof window !== 'undefined' && typeof window.enableTableSorting === 'function') {
-      window.enableTableSorting('#salesTable');
+    initSalesTable();
+    const salesTableWrapper = qs('#sales-table-wrapper');
+    const paginationWrapper = qs('#sales-pagination-wrapper');
+    const salesSummaryWrapper = qs('#sales-summary-wrapper');
+    const salesSearchInput = qs('#sales-search');
+    const salesSearchSummary = qs('#sales-search-summary');
+    const notify = (msg)=>{if(typeof window.showNotification==='function'){window.showNotification(msg,'danger');}else{alert(msg);}};
+    const fetchSales = (targetUrl)=>{
+      if(!salesTableWrapper) return;
+      const urlObj=new URL(targetUrl,window.location.origin);
+      urlObj.searchParams.set('ajax','1');
+      const requestId=++salesRequestId;
+      const previousTable=salesTableWrapper.innerHTML;
+      const previousPagination=paginationWrapper?paginationWrapper.innerHTML:'';
+      const previousSummary=salesSummaryWrapper?salesSummaryWrapper.innerHTML:'';
+      const tbody=salesTableWrapper.querySelector('tbody');
+      if(tbody&&typeof window.setLoading==='function'){window.setLoading(tbody,true);}
+      return fetch(urlObj.toString(),{headers:{'X-Requested-With':'XMLHttpRequest','Accept':'application/json'}}).then(res=>{
+        if(!res.ok) throw res;
+        return res.json();
+      }).then(data=>{
+        if(requestId!==salesRequestId) return;
+        if(typeof data.table_html==='string'){salesTableWrapper.innerHTML=data.table_html;}
+        if(paginationWrapper){paginationWrapper.innerHTML=data.pagination_html||'';}
+        if(salesSummaryWrapper){salesSummaryWrapper.innerHTML=data.summary_html||'';}
+        if(salesSearchSummary&&typeof data.total_filtered==='number'){salesSearchSummary.textContent=`إجمالي النتائج: ${data.total_filtered}`;}
+        initSalesTable();
+        urlObj.searchParams.delete('ajax');
+        const qstr=urlObj.searchParams.toString();
+        const nextUrl=qstr?`${urlObj.pathname}?${qstr}`:urlObj.pathname;
+        window.history.replaceState({},'',nextUrl);
+      }).catch(err=>{
+        if(requestId!==salesRequestId) return;
+        console.error(err);
+        salesTableWrapper.innerHTML=previousTable;
+        if(paginationWrapper){paginationWrapper.innerHTML=previousPagination;}
+        if(salesSummaryWrapper){salesSummaryWrapper.innerHTML=previousSummary;}
+        initSalesTable();
+        notify('تعذر تحديث القائمة');
+      });
+    };
+    if(paginationWrapper){
+      paginationWrapper.addEventListener('click',event=>{
+        const link=event.target.closest('a.page-link');
+        if(!link) return;
+        event.preventDefault();
+        fetchSales(link.href);
+      });
+    }
+    if(salesSearchInput){
+      const triggerSearch=()=>{
+        const currentUrl=new URL(window.location.href);
+        const term=salesSearchInput.value.trim();
+        if(term){currentUrl.searchParams.set('q',term);}else{currentUrl.searchParams.delete('q');}
+        currentUrl.searchParams.delete('page');
+        currentUrl.searchParams.set('page','1');
+        fetchSales(currentUrl.toString());
+      };
+      salesSearchInput.addEventListener('input',()=>{
+        clearTimeout(salesSearchTimer);
+        salesSearchTimer=setTimeout(triggerSearch,350);
+      });
     }
   })();
 

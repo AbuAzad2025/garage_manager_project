@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 import math
 from typing import Any, Dict, Iterable, Optional, List, Tuple
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for, abort, current_app, Response
+from flask import Blueprint, flash, jsonify, redirect, render_template, render_template_string, request, url_for, abort, current_app, Response
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_, desc, extract, case, and_
 from sqlalchemy.exc import SQLAlchemyError
@@ -433,6 +433,20 @@ def list_sales():
     inv = (f.get("invoice_no") or "").strip()
     if inv:
         q = q.filter(Sale.sale_number.ilike(f"%{inv}%"))
+    search_term = (f.get("q") or "").strip()
+    if search_term:
+        like = f"%{search_term}%"
+        search_filters = [
+            Sale.sale_number.ilike(like),
+            Sale.notes.ilike(like),
+            Sale.currency.ilike(like),
+            Sale.receiver_name.ilike(like),
+            Customer.name.ilike(like),
+            Customer.phone.ilike(like),
+        ]
+        if search_term.isdigit():
+            search_filters.append(Sale.id == int(search_term))
+        q = q.filter(or_(*search_filters))
     sort = f.get("sort", "date")
     order = f.get("order", "desc")
     if sort == "total":
@@ -497,12 +511,28 @@ def list_sales():
     
     # جلب جميع المبيعات (بدون pagination) لحساب الملخصات
     all_sales_query = Sale.query.filter(Sale.is_archived.is_(False))
+    need_customer_join = bool(cust or search_term)
     if status_filter_enabled:
         all_sales_query = all_sales_query.filter(Sale.status == st)
+    if need_customer_join:
+        all_sales_query = all_sales_query.outerjoin(Customer)
     if cust:
-        all_sales_query = all_sales_query.join(Customer).filter(
+        all_sales_query = all_sales_query.filter(
             or_(Customer.name.ilike(f"%{cust}%"), Customer.phone.ilike(f"%{cust}%"))
         )
+    if search_term:
+        like_all = f"%{search_term}%"
+        search_filters_all = [
+            Sale.sale_number.ilike(like_all),
+            Sale.notes.ilike(like_all),
+            Sale.currency.ilike(like_all),
+            Sale.receiver_name.ilike(like_all),
+            Customer.name.ilike(like_all),
+            Customer.phone.ilike(like_all),
+        ]
+        if search_term.isdigit():
+            search_filters_all.append(Sale.id == int(search_term))
+        all_sales_query = all_sales_query.filter(or_(*search_filters_all))
     try:
         if df:
             all_sales_query = all_sales_query.filter(Sale.sale_date >= datetime.fromisoformat(df))
@@ -587,7 +617,7 @@ def list_sales():
     }
     
     query_args = request.args.to_dict()
-    for key in ["page", "print", "scope", "range_start", "range_end", "page_number"]:
+    for key in ["page", "print", "scope", "range_start", "range_end", "page_number", "ajax"]:
         query_args.pop(key, None)
 
     context = {
@@ -612,6 +642,218 @@ def list_sales():
         "pdf_export": False,
         "show_actions": not print_mode,
     }
+
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.accept_mimetypes.best == "application/json"
+    if is_ajax and not print_mode:
+        table_html = render_template_string(
+            """
+<table id="salesTable" class="table table-hover align-middle">
+  <thead class="thead-light">
+    <tr>
+      <th>رقم</th>
+      <th>التاريخ</th>
+      <th>العميل</th>
+      <th>الإجمالي</th>
+      <th>العملة</th>
+      <th>سعر الصرف</th>
+      <th>مدفوع</th>
+      <th>متبقي</th>
+      <th class="text-center" data-sortable="false">إجراءات</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for sale in sales %}
+    <tr>
+      <td>{{ sale.sale_number }}</td>
+      <td>{{ sale.date_iso }}</td>
+      <td>{{ sale.customer_name }}</td>
+      <td data-sort-value="{{ sale.total_amount or 0 }}">{{ sale.total_fmt }}</td>
+      <td class="text-center"><span class="badge badge-secondary">{{ sale.currency or 'ILS' }}</span></td>
+      <td class="text-center">
+        {% if sale.fx_rate_used and sale.currency != 'ILS' %}
+        <small class="text-muted">
+          {{ "%.4f"|format(sale.fx_rate_used) }}
+          {% if sale.fx_rate_source %}
+            {% if sale.fx_rate_source == 'online' %}🌐{% elif sale.fx_rate_source == 'manual' %}✍️{% else %}⚙️{% endif %}
+          {% endif %}
+        </small>
+        {% else %}
+        <span class="text-muted">-</span>
+        {% endif %}
+      </td>
+      <td data-sort-value="{{ sale.total_paid or 0 }}">{{ sale.paid_fmt }}</td>
+      <td data-sort-value="{{ sale.balance_due or 0 }}">
+        <span class="badge {{ 'bg-success' if (sale.balance_due or 0) == 0 else 'bg-danger' }}">
+          {{ sale.balance_fmt }}
+        </span>
+      </td>
+      <td class="text-center">
+        <div class="table-actions">
+          <a href="{{ url_for('sales_bp.sale_detail', id=sale.id) }}" class="btn btn-action-view btn-action-sm" title="عرض">
+            <i class="fas fa-eye"></i>
+          </a>
+          <a href="{{ url_for('sales_bp.edit_sale', id=sale.id) }}" class="btn btn-action-edit btn-action-sm" title="تعديل">
+            <i class="fas fa-edit"></i>
+          </a>
+          <a href="{{ url_for('sales_bp.generate_invoice', id=sale.id) }}" class="btn btn-action-print btn-action-sm" title="فاتورة ضريبية" target="_blank">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </a>
+          {% if sale.is_archived %}
+          <button type="button" class="btn btn-action-restore btn-action-sm" title="استعادة" onclick="restoreSale({{ sale.id }})">
+            <i class="fas fa-undo"></i>
+          </button>
+          {% else %}
+          <button type="button" class="btn btn-action-archive btn-action-sm" title="أرشفة" onclick="archiveSale({{ sale.id }})">
+            <i class="fas fa-archive"></i>
+          </button>
+          {% endif %}
+          {% if sale.balance_due and sale.balance_due > 0 %}
+          <a href="{{ url_for('payments.create_payment',
+                               entity_type='SALE',
+                               entity_id=sale.id,
+                               amount=sale.balance_due,
+                               currency=sale.currency if sale.currency else 'ILS',
+                               reference='دفع مبيعة من ' ~ (sale.customer.name if sale.customer else 'عميل') ~ ' - ' ~ (sale.sale_number or sale.id),
+                               notes='دفع مبيعة: ' ~ (sale.sale_number or sale.id) ~ ' - العميل: ' ~ (sale.customer.name if sale.customer else 'غير محدد'),
+                               customer_id=sale.customer_id) }}" class="btn btn-sm btn-success" title="إضافة دفعة"><i class="fas fa-money-bill-wave"></i></a>
+          {% endif %}
+          {% if current_user.has_permission('manage_sales') %}
+          <form method="post" action="{{ url_for('sales_bp.delete_sale', id=sale.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-danger" title="حذف عادي" onclick="return confirm('حذف الفاتورة؟');">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+          <a href="{{ url_for('hard_delete_bp.delete_sale', sale_id=sale.id) }}"
+             class="btn btn-sm btn-outline-danger" title="حذف قوي"
+             onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
+            <i class="fas fa-bomb"></i>
+          </a>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="text-center text-muted py-4">لا توجد فواتير</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+            """,
+            sales=sales_list,
+            current_user=current_user,
+        )
+        pagination_html = render_template_string(
+            """
+{% if pagination and pagination.pages > 1 %}
+<nav class="mt-3">
+  <ul class="pagination justify-content-center">
+    {% if pagination.has_prev %}
+    <li class="page-item">
+      <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=pagination.prev_num, **query_args) }}">السابق</a>
+    </li>
+    {% endif %}
+    {% for num in pagination.iter_pages() %}
+      {% if num %}
+      <li class="page-item {% if num == pagination.page %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=num, **query_args) }}">{{ num }}</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">…</span></li>
+      {% endif %}
+    {% endfor %}
+    {% if pagination.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="{{ url_for('sales_bp.list_sales', page=pagination.next_num, **query_args) }}">التالي</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+            """,
+            pagination=pag,
+            query_args=query_args,
+        )
+        summary_html = render_template_string(
+            """
+{% if summary %}
+<div class="row g-3 mb-4">
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-primary text-white sales-summary-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-1">إجمالي المبيعات</h6>
+            <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_sales) }} ₪</h3>
+            <small class="opacity-75">{{ summary.sales_count }} فاتورة</small>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-file-invoice fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-success text-white sales-summary-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-1">المدفوع</h6>
+            <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_paid) }} ₪</h3>
+            <small class="opacity-75">{{ "{:.1f}".format((summary.total_paid / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-check-circle fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-warning text-white sales-summary-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-1">المستحق</h6>
+            <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.total_pending) }} ₪</h3>
+            <small class="opacity-75">{{ "{:.1f}".format((summary.total_pending / summary.total_sales * 100) if summary.total_sales > 0 else 0) }}%</small>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-clock fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card border-0 shadow-sm bg-info text-white sales-summary-card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <div>
+            <h6 class="card-title mb-1">متوسط الفاتورة</h6>
+            <h3 class="mb-0 fw-bold">{{ "{:,.2f}".format(summary.average_sale) }} ₪</h3>
+            <small class="opacity-75">لكل فاتورة</small>
+          </div>
+          <div class="align-self-center">
+            <i class="fas fa-chart-line fa-2x opacity-75"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+            """,
+            summary=summary,
+        )
+        return jsonify(
+            {
+                "table_html": table_html,
+                "pagination_html": pagination_html,
+                "summary_html": summary_html,
+                "total_filtered": total_filtered,
+            }
+        )
 
     if print_mode:
         context["pdf_export"] = True
