@@ -1,6 +1,9 @@
 // Arabic DataTables Translation (Inline)
 (function() {
-    if (window.jQuery && $.fn && $.fn.dataTable) {
+    let applied = false;
+    function applyDefaults() {
+        if (applied) return;
+        if (!(window.jQuery && $.fn && $.fn.dataTable)) return;
         $.extend(true, $.fn.dataTable.defaults, {
             language: {
                 "emptyTable": "لا توجد بيانات متاحة",
@@ -27,5 +30,10 @@
                 "searchPlaceholder": "ابحث هنا..."
             }
         });
+        applied = true;
+    }
+    if (window.jQuery) {
+        $(document).on('datatables:ready', applyDefaults);
+        applyDefaults();
     }
 })();

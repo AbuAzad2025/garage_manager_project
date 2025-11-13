@@ -282,6 +282,18 @@ def _serialize_payment_min(p, *, full=False):
     }
     d["deliverer_name"] = getattr(p, "deliverer_name", None)
     d["receiver_name"] = getattr(p, "receiver_name", None)
+    d["service_id"] = getattr(p, "service_id", None)
+    if getattr(p, "service_id", None):
+        svc = getattr(p, "service", None)
+        if svc is None and getattr(p, "service_id", None):
+            try:
+                svc = db.session.get(ServiceRequest, int(p.service_id))
+            except Exception:
+                svc = None
+        if svc is not None:
+            d["service_number"] = svc.service_number or svc.id
+            d["service_vehicle"] = svc.vehicle_model or svc.vehicle_vrn or getattr(getattr(svc, "vehicle_type", None), "name", None)
+            d["service_customer_name"] = getattr(getattr(svc, "customer", None), "name", None)
     if full:
         d.update({
             "payment_number": getattr(p, "payment_number", None),
@@ -498,7 +510,14 @@ def index():
         filters.append(or_(Payment.payment_number.ilike(like), Payment.reference.ilike(like), Payment.notes.ilike(like)))
     if reference_like:
         filters.append(Payment.reference.ilike(f"%{reference_like}%"))
-    base_q = Payment.query.filter(Payment.is_archived == False).filter(*filters)
+    base_q = (
+        Payment.query.filter(Payment.is_archived == False)
+        .filter(*filters)
+        .options(
+            joinedload(Payment.service).joinedload(ServiceRequest.customer),
+            joinedload(Payment.service).joinedload(ServiceRequest.vehicle_type),
+        )
+    )
     ordered_query = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc())
     
     all_payments = ordered_query.all()
@@ -780,7 +799,16 @@ def create_payment():
                         cust = db.session.get(Customer, svc.customer_id)
                         if cust:
                             person = {"type": "customer", "id": cust.id, "name": cust.name}
-                    entity_info = {"type": "service","number": svc.service_number,"date": svc.request_date.strftime("%Y-%m-%d") if getattr(svc, "request_date", None) else "","total": int(q0(grand_i)),"paid": total_paid_i,"balance": due_i,"currency": getattr(svc, "currency", "ILS") if hasattr(svc, "currency") else "ILS","person": person}
+                            if hasattr(form, "customer_search"):
+                                form.customer_search.data = cust.name
+                            if hasattr(form, "customer_id"):
+                                form.customer_id.data = str(cust.id)
+                    identifier = svc.service_number or f"#{svc.id}"
+                    if hasattr(form, "service_search"):
+                        form.service_search.data = identifier
+                    entity_info = {"type": "service","number": identifier,"date": svc.request_date.strftime("%Y-%m-%d") if getattr(svc, "request_date", None) else "","total": int(q0(grand_i)),"paid": total_paid_i,"balance": due_i,"currency": getattr(svc, "currency", "ILS") if hasattr(svc, "currency") else "ILS","person": person}
+                    if not form.direction.data:
+                        form.direction.data = "IN"
             elif et == "EXPENSE" and eid:
                 exp = db.session.get(Expense, int(eid))
                 if exp:

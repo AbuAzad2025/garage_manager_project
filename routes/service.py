@@ -439,7 +439,17 @@ def create_request():
 def view_request(rid):
     service=_get_or_404(ServiceRequest, rid, options=[joinedload(ServiceRequest.customer), joinedload(ServiceRequest.parts).joinedload(ServicePart.part), joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse), joinedload(ServiceRequest.tasks)])
     warehouses=Warehouse.query.order_by(Warehouse.name.asc()).all()
-    return render_template('service/view.html', service=service, warehouses=warehouses)
+    try:
+        due_amount = float(getattr(service, 'balance_due', 0) or 0)
+    except Exception:
+        total_amt = float(getattr(service, 'total_amount', 0) or 0)
+        total_paid = float(getattr(service, 'total_paid', 0) or 0)
+        due_amount = max(total_amt - total_paid, 0)
+    try:
+        total_paid_amount = float(getattr(service, 'total_paid', 0) or 0)
+    except Exception:
+        total_paid_amount = 0.0
+    return render_template('service/view.html', service=service, warehouses=warehouses, due_amount=due_amount, total_paid_amount=total_paid_amount)
 
 @service_bp.route('/<int:rid>/receipt', methods=['GET'])
 @login_required
@@ -789,11 +799,22 @@ def add_payment(rid):
     """إعادة توجيه لإنشاء دفعة للصيانة مع البيانات الكاملة"""
     service = _get_or_404(ServiceRequest, rid)
     
-    # حساب المبلغ المستحق
+    # حساب المبلغ المتبقي فعلاً
+    balance = None
     try:
-        balance = float(getattr(service, 'balance_due', None) or getattr(service, 'total_amount', 0) or 0)
+        balance = float(getattr(service, 'balance_due', None))
     except Exception:
-        balance = 0.0
+        balance = None
+    if balance is None:
+        try:
+            total_amt = float(getattr(service, 'total_amount', 0) or 0)
+            total_paid = float(getattr(service, 'total_paid', 0) or 0)
+            balance = max(total_amt - total_paid, 0)
+        except Exception:
+            balance = float(getattr(service, 'total_amount', 0) or 0)
+    if not balance or balance <= 0:
+        flash('🔔 هذا الطلب مسدد بالكامل، لا يمكن إضافة دفعة جديدة.', 'warning')
+        return redirect(url_for('service.view_request', rid=rid))
     
     # جلب العملة
     currency = getattr(service, 'currency', 'ILS') or 'ILS'
@@ -805,7 +826,7 @@ def add_payment(rid):
     return redirect(url_for('payments.create_payment', 
                           entity_type='SERVICE', 
                           entity_id=rid,
-                          amount=balance if balance > 0 else None,
+                          amount=balance if balance and balance > 0 else None,
                           currency=currency,
                           reference=f'دفع صيانة من {customer_name} - {service_number}',
                           notes=f'دفع طلب صيانة: {service_number} - العميل: {customer_name} - المركبة: {service.vehicle_model or "غير محدد"}',

@@ -6678,7 +6678,17 @@ class Payment(db.Model, TimestampMixin):
         if self.invoice: return f"فاتورة #{self.invoice.invoice_number or self.invoice.id}"
         if self.sale: return f"فاتورة مبيعات #{self.sale.sale_number or self.sale.id}"
         if self.shipment: return f"شحنة #{self.shipment.shipment_number or self.shipment.id}"
-        if self.service: return f"طلب صيانة #{self.service.service_number or self.service.id}"
+        if self.service:
+            identifier = self.service.service_number or self.service.id
+            vehicle_info = self.service.vehicle_model or self.service.vehicle_vrn or getattr(getattr(self.service, "vehicle_type", None), "name", None)
+            customer_name = getattr(getattr(self.service, "customer", None), "name", None)
+            parts = []
+            if vehicle_info:
+                parts.append(f"المركبة: {vehicle_info}")
+            if customer_name:
+                parts.append(f"العميل: {customer_name}")
+            suffix = " — ".join(parts)
+            return f"طلب صيانة #{identifier}" + (f" — {suffix}" if suffix else "")
         if self.preorder: return f"طلب مسبق #{self.preorder.reference or self.preorder.id}"
         if self.expense:
             parts = []

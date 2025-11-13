@@ -94,9 +94,10 @@
     </div>
     <div class="card-body">
       <div class="d-flex flex-wrap gap-2">
-        {% if service.total_amount and service.total_amount > 0 %}
+        {% set due = due_amount|default(0.0) %}
+        {% if due > 0 %}
         <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary fw-bold">
-          <i class="fas fa-cash-register"></i> تسجيل دفعة ({{ '%.2f'|format(service.total_amount) }} {{ service.currency or '₪' }})
+          <i class="fas fa-cash-register"></i> تسجيل دفعة ({{ '%.2f'|format(due) }} {{ service.currency or '₪' }})
           {% if service.fx_rate_used and service.currency != 'ILS' %}
             <br><small class="text-white-50">سعر الصرف: {{ "%.4f"|format(service.fx_rate_used) }}
             {% if service.fx_rate_source %}
@@ -105,6 +106,10 @@
             </small>
           {% endif %}
         </a>
+        {% else %}
+        <span class="badge badge-success align-self-center px-4 py-2">
+          <i class="fas fa-check-circle ml-1"></i> مسدد بالكامل
+        </span>
         {% endif %}
         {% if service.status.value != 'COMPLETED' %}
         <form class="d-inline" method="post" action="{{ url_for('service.toggle_service', rid=service.id, action='start') }}">

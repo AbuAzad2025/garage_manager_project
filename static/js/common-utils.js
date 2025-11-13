@@ -155,6 +155,13 @@ function formatDateTime(dateString) {
 
 // ✅ استخراج تسمية الجهة من كائن الدفعة
 function deriveEntityLabel(p) {
+    const esc = (val) => String(val ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    if (p.service_id) {
+        const icon = '<i class="fas fa-wrench text-danger"></i>';
+        const vehicle = esc(p.service_vehicle || 'غير محدد');
+        const customer = esc(p.service_customer_name || 'غير معروف');
+        return `${icon} صيانة المركبة (${vehicle}) للعميل: ${customer}`;
+    }
     if (p.entity_display) return p.entity_display;
     
     const entityConfig = {
@@ -162,7 +169,6 @@ function deriveEntityLabel(p) {
         supplier_id: {icon: 'fas fa-truck text-info', label: 'مورد', badge: 'badge-info'},
         partner_id: {icon: 'fas fa-handshake text-success', label: 'شريك', badge: 'badge-success'},
         sale_id: {icon: 'fas fa-shopping-cart text-warning', label: 'فاتورة مبيعات', badge: 'badge-warning'},
-        service_id: {icon: 'fas fa-wrench text-danger', label: 'صيانة مركبة', badge: 'badge-danger'},
         expense_id: {icon: 'fas fa-receipt text-secondary', label: 'مصروف', badge: 'badge-secondary'},
         shipment_id: {icon: 'fas fa-shipping-fast text-primary', label: 'شحنة', badge: 'badge-primary'},
         preorder_id: {icon: 'fas fa-calendar-check text-info', label: 'طلب مسبق', badge: 'badge-info'},

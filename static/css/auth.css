@@ -293,7 +293,8 @@ body::after {
   color: white;
   z-index: 1020;
   transition: right 0.3s ease;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   box-shadow: -5px 0 15px rgba(0,0,0,0.1);
 }
 
@@ -326,7 +327,9 @@ body::after {
 }
 
 .sidebar-content {
+  flex: 1;
   padding: 1rem 0;
+  overflow-y: auto;
 }
 
 .sidebar-section {
@@ -374,10 +377,6 @@ body::after {
 }
 
 .sidebar-footer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
   padding: 1.5rem;
   background: rgba(0,0,0,0.1);
   border-top: 1px solid rgba(255,255,255,0.1);

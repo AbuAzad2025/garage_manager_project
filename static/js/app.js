@@ -2,6 +2,65 @@
   "use strict";
   if (!$) return;
 
+  const dataTablesAssets = {
+    css: [
+      "/static/adminlte/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css",
+      "/static/adminlte/plugins/datatables-responsive/css/responsive.bootstrap4.min.css",
+      "/static/adminlte/plugins/datatables-buttons/css/buttons.bootstrap4.min.css"
+    ],
+    js: [
+      "/static/adminlte/plugins/datatables/jquery.dataTables.min.js",
+      "/static/adminlte/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js",
+      "/static/adminlte/plugins/datatables-responsive/js/dataTables.responsive.min.js",
+      "/static/adminlte/plugins/datatables-responsive/js/responsive.bootstrap4.min.js",
+      "/static/adminlte/plugins/datatables-buttons/js/dataTables.buttons.min.js",
+      "/static/adminlte/plugins/datatables-buttons/js/buttons.bootstrap4.min.js",
+      "/static/adminlte/plugins/jszip/jszip.min.js",
+      "/static/adminlte/plugins/datatables-buttons/js/buttons.html5.min.js",
+      "/static/adminlte/plugins/datatables-buttons/js/buttons.print.min.js"
+    ]
+  };
+  let dataTablesPromise = null;
+
+  function ensureDataTables() {
+    if ($.fn.DataTable) return Promise.resolve();
+    if (dataTablesPromise) return dataTablesPromise;
+    const cssLoaders = dataTablesAssets.css.map(href => {
+      if (window.PerfUtils && PerfUtils.loadCSS) return PerfUtils.loadCSS(href);
+      return new Promise((resolve, reject) => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = href;
+        link.onload = () => resolve(link);
+        link.onerror = () => reject(new Error("Failed to load CSS: " + href));
+        document.head.appendChild(link);
+      });
+    });
+    const loadJsSequentially = dataTablesAssets.js.reduce((chain, src) => {
+      return chain.then(() => {
+        if (window.PerfUtils && PerfUtils.loadScript) {
+          return PerfUtils.loadScript(src, { async: false });
+        }
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.async = false;
+          script.onload = () => resolve(script);
+          script.onerror = () => reject(new Error("Failed to load script: " + src));
+          document.head.appendChild(script);
+        });
+      });
+    }, Promise.resolve());
+    dataTablesPromise = Promise.all(cssLoaders).then(() => loadJsSequentially).then(() => {
+      if (!$.fn.DataTable) throw new Error("DataTables failed to load");
+      $(document).trigger("datatables:ready");
+    }).catch(err => {
+      dataTablesPromise = null;
+      console.error(err);
+    });
+    return dataTablesPromise || Promise.resolve();
+  }
+
   $(function () {
     const observer = new MutationObserver(() => {
       if (window._mutationPending) return;
@@ -32,8 +91,13 @@
   }
 
   function initDataTables(root) {
-    if (!$.fn.DataTable) return;
-    $(root).find(".datatable").each(function () {
+    const tables = $(root).find(".datatable");
+    if (!tables.length) return;
+    if (!$.fn.DataTable) {
+      ensureDataTables().then(() => initDataTables(root));
+      return;
+    }
+    tables.each(function () {
       const $tbl = $(this);
       // تخطي الجداول المحددة بـ data-dt-skip
       if ($tbl.data("dt-skip") || $tbl.attr("data-dt-skip")) return;

@@ -94,5 +94,21 @@
       </div>
       <span class="fw-bold text-success fs-4">{{ '%.2f'|format(total_amount) }} ₪</span>
     </div>
+
+    <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded mt-3">
+      <div>
+        <i class="fas fa-coins text-primary"></i>
+        <strong>المدفوع</strong>
+      </div>
+      <span class="fw-bold text-primary">{{ '%.2f'|format(total_paid_amount|default(0.0)) }} ₪</span>
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded mt-2">
+      <div>
+        <i class="fas fa-balance-scale text-danger"></i>
+        <strong>المتبقي</strong>
+      </div>
+      <span class="fw-bold text-danger">{{ '%.2f'|format(due_amount|default(0.0)) }} ₪</span>
+    </div>
   </div>
 </div>
