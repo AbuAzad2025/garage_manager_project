@@ -84,7 +84,7 @@ def multi_tenant():
             tenant_max_users = request.form.get('tenant_max_users', '10')
             tenant_modules = request.form.getlist('tenant_modules')
             
-            # حفظ البيانات الأساسية
+                                   
             db.session.add(SystemSettings(key=f'tenant_{tenant_name}_db', value=tenant_db))
             db.session.add(SystemSettings(key=f'tenant_{tenant_name}_active', value='True'))
             db.session.add(SystemSettings(key=f'tenant_{tenant_name}_domain', value=tenant_domain))
@@ -93,7 +93,7 @@ def multi_tenant():
             db.session.add(SystemSettings(key=f'tenant_{tenant_name}_modules', value=json.dumps(tenant_modules)))
             db.session.add(SystemSettings(key=f'tenant_{tenant_name}_created_at', value=str(datetime.utcnow())))
             
-            # إنشاء قاعدة البيانات إذا كانت SQLite
+                                                  
             if tenant_db.startswith('sqlite:///'):
                 db_path = tenant_db.replace('sqlite:///', '')
                 full_path = os.path.join(current_app.root_path, db_path)
@@ -116,7 +116,7 @@ def multi_tenant():
         
         elif action == 'delete_tenant':
             tenant_name = request.form.get('tenant_name')
-            # حذف جميع الإعدادات المرتبطة
+                                         
             SystemSettings.query.filter(SystemSettings.key.like(f'tenant_{tenant_name}_%')).delete()
             db.session.commit()
             flash(f'✅ تم حذف Tenant: {tenant_name}', 'success')
@@ -129,7 +129,7 @@ def multi_tenant():
             tenant_max_users = request.form.get('tenant_max_users', '10')
             tenant_modules = request.form.getlist('tenant_modules')
             
-            # تحديث الإعدادات
+                             
             _update_tenant_setting(f'tenant_{tenant_name}_domain', tenant_domain)
             _update_tenant_setting(f'tenant_{tenant_name}_logo', tenant_logo)
             _update_tenant_setting(f'tenant_{tenant_name}_max_users', tenant_max_users)
@@ -139,13 +139,13 @@ def multi_tenant():
             flash(f'✅ تم تحديث Tenant: {tenant_name}', 'success')
             return redirect(url_for('advanced.multi_tenant'))
     
-    # جلب جميع Tenants
+                      
     tenant_list = _get_all_tenants()
     
-    # الوحدات المتاحة
+                     
     available_modules = _get_available_modules_list()
     
-    # إحصائيات
+              
     stats = {
         'total_tenants': len(tenant_list),
         'active_tenants': sum(1 for t in tenant_list if t['active']),
@@ -243,7 +243,7 @@ def version_control():
             'notes': notes_setting.value if notes_setting else ''
         })
     
-    # ترتيب حسب التاريخ (الأحدث أولاً)
+                                      
     versions.sort(key=lambda x: x['date'], reverse=True)
     
     return render_template('advanced/version_control.html', versions=versions)
@@ -457,12 +457,12 @@ def restore_backup(filename):
             flash('❌ الملف غير موجود', 'danger')
             return redirect(url_for('advanced.backup_manager'))
         
-        # نسخ احتياطية للحالي قبل الاستعادة
+                                           
         current_db = os.path.join(current_app.root_path, 'instance', 'app.db')
         safety_backup = os.path.join(backup_dir, f'before_restore_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db')
         shutil.copy2(current_db, safety_backup)
         
-        # استعادة النسخة
+                        
         shutil.copy2(backup_path, current_db)
         
         flash(f'✅ تم استعادة النسخة: {filename}', 'success')
@@ -530,14 +530,14 @@ def test_db_connection():
         if not connection_string:
             return jsonify({'success': False, 'message': 'Connection string مطلوب'})
         
-        # محاولة الاتصال
+                        
         test_engine = create_engine(connection_string, echo=False)
         
         with test_engine.connect() as conn:
             result = conn.execute(text("SELECT 1")).scalar()
             
             if result == 1:
-                # جلب معلومات إضافية
+                                    
                 try:
                     version = conn.execute(text("SELECT version()")).scalar()
                 except Exception:
@@ -591,7 +591,7 @@ def feature_flags():
         return redirect(url_for('advanced.feature_flags'))
     
     flags = [
-        # {'key': 'ai_assistant', 'name': 'المساعد الذكي', 'description': 'تفعيل AI في دفتر الأستاذ'},  # تم نقله للوحدة السرية
+                                                                                                                               
         {'key': 'auto_backup', 'name': 'نسخ احتياطي تلقائي', 'description': 'نسخ يومية تلقائية'},
         {'key': 'email_notifications', 'name': 'إشعارات البريد', 'description': 'إرسال تنبيهات بالبريد'},
         {'key': 'whatsapp_notifications', 'name': 'إشعارات واتساب', 'description': 'إرسال رسائل واتساب'},
@@ -620,8 +620,8 @@ def system_health():
         
         if action == 'fix_permissions':
             try:
-                # إصلاح صلاحيات المجلدات
-                dirs_to_fix = ['instance', 'instance/backups', 'AI', 'static/uploads']  # AI تم نقله من instance/ai
+                                        
+                dirs_to_fix = ['instance', 'instance/backups', 'AI', 'static/uploads']                             
                 for dir_path in dirs_to_fix:
                     full_path = os.path.join(current_app.root_path, dir_path)
                     os.makedirs(full_path, exist_ok=True)
@@ -631,7 +631,7 @@ def system_health():
         
         elif action == 'clear_cache':
             try:
-                # حذف ملفات الكاش
+                                 
                 cache_dirs = ['__pycache__', 'instance/__pycache__']
                 for cache_dir in cache_dirs:
                     cache_path = os.path.join(current_app.root_path, cache_dir)
@@ -643,7 +643,7 @@ def system_health():
         
         elif action == 'optimize_db':
             try:
-                # تحسين قاعدة البيانات
+                                      
                 db.session.execute(text("VACUUM"))
                 db.session.commit()
                 flash('✅ تم تحسين قاعدة البيانات', 'success')
@@ -805,7 +805,7 @@ def download_cloned_system(clone_name):
             flash('❌ النظام غير موجود', 'danger')
             return redirect(url_for('advanced.system_cloner'))
         
-        # إنشاء ZIP في الذاكرة
+                              
         memory_file = BytesIO()
         with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for root, dirs, files in os.walk(clone_dir):
@@ -948,7 +948,7 @@ def system_cloner():
             'dependencies': ['core'],
             'files': {
                 'models': ['GLBatch', 'GLEntry', 'Account'],
-                'routes': ['ledger_blueprint'],  # ledger_ai_assistant تم حذفه ودمجه في security.ai_hub
+                'routes': ['ledger_blueprint'],                                                        
                 'templates': ['ledger/*'],
                 'static': []
             }
@@ -1002,21 +1002,21 @@ def system_cloner():
             flash(f'📦 الملفات: {result["files_count"]} ملف', 'info')
             flash(f'📍 الموقع: {result["output_path"]}', 'info')
             
-            # إعادة توجيه مع إمكانية التحميل
+                                            
             return redirect(url_for('advanced.system_cloner', download=clone_name))
             
         except Exception as e:
             flash(f'❌ خطأ: {str(e)}', 'danger')
             return redirect(url_for('advanced.system_cloner'))
     
-    # جلب الأنظمة المستنسخة
+                           
     clones_dir = os.path.join(current_app.root_path, 'instance', 'clones')
     cloned_systems = []
     if os.path.exists(clones_dir):
         for name in os.listdir(clones_dir):
             clone_path = os.path.join(clones_dir, name)
             if os.path.isdir(clone_path):
-                # حساب حجم المجلد
+                                 
                 total_size = sum(
                     os.path.getsize(os.path.join(dirpath, filename))
                     for dirpath, dirnames, filenames in os.walk(clone_path)
@@ -1305,7 +1305,7 @@ def mobile_app_generator():
     
     available_modules = _get_mobile_modules()
     
-    # جلب التطبيقات المُنشأة
+                            
     apps_dir = os.path.join(current_app.root_path, 'instance', 'mobile_apps')
     mobile_apps = []
     if os.path.exists(apps_dir):
@@ -1771,11 +1771,11 @@ def _convert_database(target_db, connection_string):
     from sqlalchemy import create_engine, MetaData, Table, Column
     from sqlalchemy.orm import sessionmaker
     
-    # التحقق من صحة connection_string
+                                     
     if not connection_string or len(connection_string) < 10:
         raise ValueError("Connection string غير صالح")
     
-    # إنشاء نسخة احتياطية قبل التحويل
+                                     
     backup_dir = os.path.join(current_app.root_path, 'instance', 'backups', 'db')
     os.makedirs(backup_dir, exist_ok=True)
     
@@ -1787,10 +1787,10 @@ def _convert_database(target_db, connection_string):
     
     source_engine = db.engine
     
-    # محاولة الاتصال بقاعدة البيانات المستهدفة
+                                              
     try:
         target_engine = create_engine(connection_string, echo=False)
-        # اختبار الاتصال
+                        
         with target_engine.connect() as conn:
             conn.execute(text("SELECT 1"))
     except Exception as e:
@@ -1799,18 +1799,18 @@ def _convert_database(target_db, connection_string):
     source_metadata = MetaData()
     source_metadata.reflect(bind=source_engine)
     
-    # إنشاء الجداول في قاعدة البيانات المستهدفة
+                                               
     target_metadata = MetaData()
     
-    # نسخ تعريفات الجداول
+                         
     for table_name, source_table in source_metadata.tables.items():
         if table_name.startswith('sqlite_') or table_name.startswith('alembic_'):
             continue
         
-        # إنشاء جدول جديد في الـ metadata المستهدف
+                                                  
         columns = []
         for column in source_table.columns:
-            # نسخ الأعمدة مع تعديل الأنواع حسب الحاجة
+                                                     
             col_copy = Column(
                 column.name,
                 column.type,
@@ -1823,7 +1823,7 @@ def _convert_database(target_db, connection_string):
         
         Table(table_name, target_metadata, *columns, extend_existing=True)
     
-    # إنشاء الجداول
+                   
     target_metadata.create_all(bind=target_engine)
     
     SourceSession = sessionmaker(bind=source_engine)
@@ -1845,10 +1845,10 @@ def _convert_database(target_db, connection_string):
                 source_table = source_metadata.tables[table_name]
                 target_table = target_metadata.tables[table_name]
                 
-                # جلب البيانات من المصدر
+                                        
                 source_data = source_session.execute(source_table.select()).fetchall()
                 
-                # إدراج البيانات في المستهدف
+                                            
                 for row in source_data:
                     try:
                         row_dict = dict(row._mapping)
@@ -1860,7 +1860,7 @@ def _convert_database(target_db, connection_string):
                 
                 tables_converted += 1
                 
-                # commit بعد كل جدول لتجنب فقدان البيانات
+                                                         
                 target_session.commit()
                 
             except Exception as e:
@@ -1954,20 +1954,20 @@ def _get_available_modules_list():
 def _create_tenant_database(db_path):
     """إنشاء قاعدة بيانات جديدة للـ Tenant"""
     try:
-        # نسخ هيكل قاعدة البيانات الحالية
+                                         
         current_db = os.path.join(current_app.root_path, 'instance', 'app.db')
         if os.path.exists(current_db):
             shutil.copy2(current_db, db_path)
             
-            # حذف البيانات وترك الهيكل فقط
+                                          
             conn = sqlite3.connect(db_path)
             cursor = conn.cursor()
             
-            # جلب جميع الجداول
+                              
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
             tables = cursor.fetchall()
             
-            # حذف البيانات من كل جدول
+                                     
             for (table_name,) in tables:
                 try:
                     cursor.execute(f"DELETE FROM {table_name}")
