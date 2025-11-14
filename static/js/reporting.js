@@ -5,7 +5,10 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const safeJSON = (s, fallback = null) => { try { return JSON.parse(s || ""); } catch { return fallback; } };
-  const t = (k) => (window.FIELD_LABELS && FIELD_LABELS[k]) || k;
+  const t = (k) => {
+    const labels = window.FIELD_LABELS || {};
+    return labels[k] || k;
+  };
 
   const EXCLUDED = (window.EXCLUDED_FIELDS || []).map(String);
   const filterList = (arr) => (arr || []).filter((x) => !EXCLUDED.includes(String(x)));
@@ -318,6 +321,251 @@
     return v ?? '—';
   }
 
+  function getReportTitle() {
+    const withAttr = document.querySelector('[data-report-title]');
+    if (withAttr) {
+      const attr = withAttr.getAttribute('data-report-title');
+      if (attr) return attr.trim();
+    }
+    const source =
+      document.querySelector('.page-title') ||
+      document.querySelector('.content h4') ||
+      document.querySelector('h3');
+    if (source && source.textContent) return source.textContent.trim();
+    return document.title || 'التقرير';
+  }
+
+  const PRINT_ROWS_PER_PAGE_DEFAULT = 35;
+  let activePrintTable = null;
+  let activeRowCount = 0;
+  let activeColumns = [];
+  let printForm;
+  let printModal;
+
+  function collectColumns(table) {
+    const row = table.querySelector('thead tr:last-child') || table.querySelector('thead tr') || table.querySelector('tbody tr');
+    if (!row) return [];
+    return Array.from(row.children).map((cell, idx) => ({
+      index: idx,
+      label: (cell.textContent || '').trim() || `عمود ${idx + 1}`
+    }));
+  }
+
+  function populateColumnOptions() {
+    const container = $('#printColumnsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    if (!activeColumns.length) {
+      const empty = document.createElement('div');
+      empty.className = 'text-muted small';
+      empty.textContent = 'لا توجد أعمدة متاحة.';
+      container.appendChild(empty);
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    activeColumns.forEach((col) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'custom-control custom-checkbox';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'custom-control-input';
+      input.id = `report-print-col-${col.index}`;
+      input.name = 'print_columns';
+      input.value = String(col.index);
+      input.checked = true;
+      const label = document.createElement('label');
+      label.className = 'custom-control-label';
+      label.setAttribute('for', input.id);
+      label.textContent = col.label;
+      wrap.appendChild(input);
+      wrap.appendChild(label);
+      fragment.appendChild(wrap);
+    });
+    container.appendChild(fragment);
+  }
+
+  function updatePrintStats() {
+    $('#printRowCount').textContent = activeRowCount;
+    const pages = Math.max(1, Math.ceil((activeRowCount || 0) / PRINT_ROWS_PER_PAGE_DEFAULT));
+    $('#printPageCount').textContent = pages;
+    const rowStart = printForm?.querySelector('[name="start_row"]');
+    const rowEnd = printForm?.querySelector('[name="end_row"]');
+    if (rowStart) rowStart.value = 1;
+    if (rowEnd) rowEnd.value = activeRowCount || 1;
+    const pageStart = printForm?.querySelector('[name="start_page"]');
+    const pageEnd = printForm?.querySelector('[name="end_page"]');
+    if (pageStart) pageStart.value = 1;
+    if (pageEnd) pageEnd.value = pages;
+    const rowsPerPageInput = printForm?.querySelector('[name="rows_per_page"]');
+    if (rowsPerPageInput) rowsPerPageInput.value = PRINT_ROWS_PER_PAGE_DEFAULT;
+  }
+
+  function updateModeFields(mode) {
+    const rowInputs = ['start_row', 'end_row'].map((name) => printForm?.querySelector(`[name="${name}"]`));
+    const pageInputs = ['start_page', 'end_page', 'rows_per_page'].map((name) => printForm?.querySelector(`[name="${name}"]`));
+    rowInputs.forEach((el) => { if (el) el.disabled = mode !== 'rows'; });
+    pageInputs.forEach((el) => { if (el) el.disabled = mode !== 'pages'; });
+  }
+
+  function openPrintModal(table) {
+    activePrintTable = table;
+    activeRowCount = Array.from(table.querySelectorAll('tbody tr')).length;
+    activeColumns = collectColumns(table);
+    populateColumnOptions();
+    updatePrintStats();
+    const modeAll = printForm?.querySelector('#printModeAll');
+    if (modeAll) modeAll.checked = true;
+    updateModeFields('all');
+    const orientation = printForm?.querySelector('[name="orientation"]');
+    if (orientation) orientation.value = 'portrait';
+    if (window.jQuery && typeof window.jQuery.fn?.modal === 'function') {
+      const modalInstance = window.jQuery('#reportPrintModal');
+      modalInstance.modal({ backdrop: 'static', keyboard: false, show: true });
+    } else if (printModal) {
+      printModal.classList.add('show');
+      printModal.style.display = 'block';
+    }
+  }
+
+  function applyRowRange(clone, start, end) {
+    if (!start || !end) return;
+    const rows = Array.from(clone.querySelectorAll('tbody tr'));
+    rows.forEach((row, idx) => {
+      const position = idx + 1;
+      if (position < start || position > end) row.remove();
+    });
+  }
+
+  function applyColumnFilter(clone, keepSet) {
+    if (!keepSet || !keepSet.size) return;
+    const rows = Array.from(clone.querySelectorAll('tr'));
+    rows.forEach((row) => {
+      let cursor = -1;
+      Array.from(row.children).forEach((cell) => {
+        const span = Number(cell.colSpan || 1);
+        for (let i = 0; i < span; i += 1) {
+          cursor += 1;
+          if (span > 1) continue;
+          if (!keepSet.has(cursor)) {
+            cell.remove();
+            break;
+          }
+        }
+      });
+    });
+  }
+
+  function sendToPrintWindow(clone, orientation) {
+    const title = getReportTitle();
+    const stamp = new Date().toLocaleString('ar-EG');
+    const orient = orientation === 'landscape' ? 'landscape' : 'portrait';
+    const styles = `
+      <style>
+        @page { size: A4 ${orient}; margin: 12mm; }
+        * { box-sizing: border-box; }
+        body { font-family: "Tajawal", "Cairo", "Arial", sans-serif; direction: rtl; padding: 16px; color: #000; }
+        h3 { margin: 0 0 8px 0; font-size: 18px; }
+        p { margin: 0 0 16px 0; font-size: 12px; color: #555; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { border: 1px solid #333; padding: 6px 8px; text-align: right; vertical-align: middle; }
+        thead th { background: #f1f1f1; }
+        tbody tr:nth-child(even) { background: #fafafa; }
+      </style>
+    `;
+    const win = window.open('about:blank', '_blank', 'width=1000,height=800');
+    if (!win) {
+      alert('لم يتم فتح نافذة الطباعة. يرجى السماح بالنوافذ المنبثقة أو إعادة المحاولة.');
+      return;
+    }
+    win.document.write(`<!DOCTYPE html>
+      <html lang="ar" dir="rtl">
+      <head>
+        <meta charset="utf-8">
+        <title>${title}</title>
+        ${styles}
+      </head>
+      <body>
+        <h3>${title}</h3>
+        <p>${stamp}</p>
+        ${clone.outerHTML}
+      </body>
+      </html>`);
+    win.document.close();
+    win.focus();
+    win.onload = () => win.print();
+  }
+
+  function handlePrintSubmit(event) {
+    event.preventDefault();
+    if (!activePrintTable) return;
+    const data = new FormData(printForm);
+    const mode = data.get('print_mode') || 'all';
+    const orientation = data.get('orientation') || 'portrait';
+    const selectedColumns = data.getAll('print_columns');
+    const keep = selectedColumns.length
+      ? new Set(selectedColumns.map((val) => Number(val)))
+      : new Set(activeColumns.map((col) => col.index));
+    if (!keep.size) {
+      alert('يجب اختيار عمود واحد على الأقل للطباعة.');
+      return;
+    }
+    const clone = activePrintTable.cloneNode(true);
+    const totalRows = activeRowCount || 0;
+    if (mode === 'rows') {
+      let start = parseInt(data.get('start_row'), 10) || 1;
+      let end = parseInt(data.get('end_row'), 10) || totalRows;
+      if (start > end) [start, end] = [end, start];
+      applyRowRange(clone, start, end);
+    } else if (mode === 'pages') {
+      let startPage = parseInt(data.get('start_page'), 10) || 1;
+      let endPage = parseInt(data.get('end_page'), 10) || 1;
+      if (startPage > endPage) [startPage, endPage] = [endPage, startPage];
+      const rowsPerPage = parseInt(data.get('rows_per_page'), 10) || PRINT_ROWS_PER_PAGE_DEFAULT;
+      const firstRow = (startPage - 1) * rowsPerPage + 1;
+      const lastRow = endPage * rowsPerPage;
+      applyRowRange(clone, firstRow, lastRow);
+    }
+    applyColumnFilter(clone, keep);
+    sendToPrintWindow(clone, orientation);
+    if (window.jQuery && typeof window.jQuery.fn?.modal === 'function') {
+      window.jQuery('#reportPrintModal').modal('hide');
+    } else if (printModal) {
+      printModal.classList.remove('show');
+      printModal.style.display = 'none';
+    }
+  }
+
+  function setupPrintModal() {
+    printForm = document.getElementById('reportPrintForm');
+    printModal = document.getElementById('reportPrintModal');
+    if (!printForm) return;
+    printForm.addEventListener('submit', handlePrintSubmit);
+    $$('#reportPrintForm input[name="print_mode"]').forEach((radio) => {
+      radio.addEventListener('change', (event) => updateModeFields(event.target.value));
+    });
+  }
+
+  function setupTablePrint() {
+    setupPrintModal();
+    const buttons = $$('.report-table-print');
+    if (!buttons.length) return;
+    let toolbarShown = false;
+    buttons.forEach((btn) => {
+      const selector = btn.getAttribute('data-table-target') || '#report-table';
+      const table = document.querySelector(selector);
+      if (!table) return;
+      if (!toolbarShown) {
+        const toolbar = document.querySelector('.report-table-toolbar');
+        if (toolbar) toolbar.style.display = 'flex';
+        toolbarShown = true;
+      }
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        openPrintModal(table);
+      });
+    });
+  }
+
   async function refreshForModel(model) {
     const { columns, date_fields, all_fields } = await fetchModelFields(model);
     const sel = $('#selected_fields');
@@ -330,13 +578,9 @@
     buildLikeFilters(columns);
   }
 
-  function setupPrint() {
-    $('#btn-print')?.addEventListener('click', () => window.print());
-  }
-
   document.addEventListener('DOMContentLoaded', async () => {
     initDataTable();
-    setupPrint();
+    setupTablePrint();
     const state = loadState();
     const f = $('#report-form');
     if (state && f) {

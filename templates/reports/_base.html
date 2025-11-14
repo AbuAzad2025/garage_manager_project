@@ -13,35 +13,7 @@
 {%- endmacro %}
 
 {% block content %}
-<!-- رأس الصفحة للطباعة فقط -->
-<div class="print-header-report">
-  <div class="company-info">
-    <div class="company-name">{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</div>
-    <div class="company-details">
-      {% if system_settings.COMPANY_ADDRESS %}📍 {{ system_settings.COMPANY_ADDRESS }}{% endif %}
-      {% if system_settings.COMPANY_PHONE %} | 📞 {{ system_settings.COMPANY_PHONE }}{% endif %}
-      {% if system_settings.COMPANY_EMAIL %} | 📧 {{ system_settings.COMPANY_EMAIL }}{% endif %}
-    </div>
-  </div>
-  <div class="report-type">
-    <h2>{{ self.page_title() }}</h2>
-    <div class="report-date">📅 {{ now()|format_datetime }}</div>
-    <div class="user-info" style="font-size: 7pt; margin-top: 1mm;">👤 {{ current_user.username if current_user.is_authenticated else 'النظام' }}</div>
-  </div>
-</div>
-
-<!-- تذييل الصفحة للطباعة فقط -->
-<div class="print-footer-report">
-  <div class="footer-line">
-    <strong>{{ system_settings.system_name or system_settings.company_name or 'كراج أزاد' }}</strong>
-  </div>
-  <div class="footer-line print-time" style="font-size: 7pt; color: #999;">
-    طُبع بواسطة: {{ current_user.username if current_user.is_authenticated else 'النظام' }} | 
-    {{ now()|format_datetime }}
-  </div>
-</div>
-
-<div class="container-fluid" dir="rtl">
+<div class="container-fluid" dir="rtl" data-report-title="{{ self.page_title() }}">
   <div class="card mb-3 shadow-sm">
     <div class="card-body p-2">
       <ul class="nav nav-pills flex-wrap gap-1">
@@ -128,17 +100,25 @@
       </ul>
     </div>
   </div>
+  {% block report_table_toolbar %}
+  <div class="d-flex justify-content-end mb-3 report-table-toolbar" style="display:none;">
+    <button type="button" class="btn btn-outline-primary btn-sm report-table-print" data-table-target="#report-table">
+      <i class="fas fa-print"></i> طباعة الجدول
+    </button>
+  </div>
+  {% endblock %}
   {% block report_content %}{% endblock %}
 </div>
 {% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/reporting.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/reports-print.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/report-print-core.css') }}">
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/export-helpers.js') }}"></script>
 <script>
 (function() {
   if (typeof Chart === 'undefined') {
@@ -152,45 +132,91 @@
     document.head.appendChild(script2);
   }
 })();
-
-(function() {
-  'use strict';
-  
-  const printBtn = document.getElementById('btn-print');
-  if (printBtn) {
-    printBtn.addEventListener('click', function() {
-      window.print();
-    });
-  }
-  
-  document.addEventListener('keydown', function(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-      e.preventDefault();
-      window.print();
-    }
-  });
-  
-  if (typeof $ !== 'undefined' && $.fn.DataTable) {
-    $(document).ready(function() {
-      const tables = $('table[id^="report"]');
-      if (tables.length > 0) {
-        tables.DataTable({
-          pageLength: 50,
-          language: {
-            url: "{{ url_for('static', filename='datatables/Arabic.json') }}"
-          },
-          dom: 'Bfrtip',
-          buttons: [
-            {
-              extend: 'print',
-              text: '<i class="fas fa-print"></i> طباعة',
-              className: 'btn btn-sm btn-outline-secondary d-none'
-            }
-          ]
-        });
-      }
-    });
-  }
-})();
 </script>
+<script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
+{% block report_print_modal %}
+<div class="modal fade" id="reportPrintModal" tabindex="-1" role="dialog" aria-labelledby="reportPrintModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <form id="reportPrintForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="reportPrintModalLabel">خيارات طباعة الجدول</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="إغلاق">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <div class="font-weight-bold mb-2">نطاق الطباعة</div>
+            <div class="custom-control custom-radio custom-control-inline">
+              <input type="radio" id="printModeAll" name="print_mode" value="all" class="custom-control-input" checked>
+              <label class="custom-control-label" for="printModeAll">كامل الجدول</label>
+            </div>
+            <div class="custom-control custom-radio custom-control-inline">
+              <input type="radio" id="printModeRows" name="print_mode" value="rows" class="custom-control-input">
+              <label class="custom-control-label" for="printModeRows">صفوف محددة</label>
+            </div>
+            <div class="custom-control custom-radio custom-control-inline">
+              <input type="radio" id="printModePages" name="print_mode" value="pages" class="custom-control-input">
+              <label class="custom-control-label" for="printModePages">صفحات تقريبية</label>
+            </div>
+            <div class="small text-muted mt-2">
+              إجمالي الصفوف: <span id="printRowCount">0</span> | الصفحات التقريبية: <span id="printPageCount">0</span>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>الصفوف</label>
+                <div class="form-row">
+                  <div class="col">
+                    <input type="number" class="form-control" name="start_row" min="1" value="1" disabled>
+                  </div>
+                  <div class="col">
+                    <input type="number" class="form-control" name="end_row" min="1" value="1" disabled>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>الصفحات</label>
+                <div class="form-row">
+                  <div class="col">
+                    <input type="number" class="form-control" name="start_page" min="1" value="1" disabled>
+                  </div>
+                  <div class="col">
+                    <input type="number" class="form-control" name="end_page" min="1" value="1" disabled>
+                  </div>
+                  <div class="col">
+                    <input type="number" class="form-control" name="rows_per_page" min="5" value="35" disabled>
+                  </div>
+                </div>
+                <small class="form-text text-muted">عدد الصفوف لكل صفحة</small>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>أعمدة الجدول</label>
+            <div class="report-print-columns border rounded p-2" id="printColumnsContainer">
+              <div class="text-muted small">لا يوجد أعمدة متاحة.</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="printOrientation">اتجاه الورقة</label>
+            <select class="form-control" name="orientation" id="printOrientation">
+              <option value="portrait">طولي (Portrait)</option>
+              <option value="landscape">عرضي (Landscape)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">طباعة</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
 {% endblock %}

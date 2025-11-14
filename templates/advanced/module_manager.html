@@ -11,6 +11,36 @@
     <i class="fas fa-puzzle-piece"></i> <strong>تحكم بالوحدات:</strong> فعّل أو عطّل الوحدات حسب احتياجك
   </div>
 
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <span class="text-muted">إجمالي الوحدات</span>
+          <h3 class="mb-1">{{ stats.total }}</h3>
+          <small class="text-muted">مفعل: {{ stats.active }}</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <span class="text-muted">وحدات بحالة ممتازة</span>
+          <h3 class="mb-1">{{ stats.total - stats.blocked }}</h3>
+          <small class="text-success">بلا اعتماديات مفقودة</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <span class="text-muted">وحدات تتطلب اعتماديات</span>
+          <h3 class="mb-1 text-warning">{{ stats.blocked }}</h3>
+          <small class="text-muted">فعّل الاعتماديات أولاً</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row g-3">
     {% for module in modules %}
     <div class="col-md-4">
@@ -31,10 +61,12 @@
                 </div>
               </div>
               
-              <div class="form-check form-switch">
+              {% set disable_toggle = (not module.deps_ready and not module.enabled) %}
+              <div class="form-check form-switch" title="{% if disable_toggle %}فعّل الاعتماديات أولاً{% endif %}">
                 <input type="checkbox" name="enabled" class="form-check-input" 
                        style="width: 3rem; height: 1.5rem;"
                        {% if module.enabled %}checked{% endif %}
+                       {% if disable_toggle %}disabled{% endif %}
                        onchange="this.form.submit()">
               </div>
             </div>
@@ -46,7 +78,32 @@
             {% else %}
               <span class="badge bg-secondary">معطّل</span>
             {% endif %}
+            {% if not module.deps_ready %}
+              <span class="badge bg-warning text-dark">اعتماديات ناقصة</span>
+            {% endif %}
           </div>
+
+          <div class="mt-3">
+            <small class="text-muted">آخر تعديل:
+              {{ module.updated_at.strftime('%Y-%m-%d %H:%M') if module.updated_at else 'لم يتم التعديل' }}
+            </small>
+          </div>
+
+          {% if module.dependencies_detail %}
+          <div class="mt-3">
+            <strong>الاعتماديات:</strong>
+            <ul class="list-unstyled small mb-0">
+              {% for dep in module.dependencies_detail %}
+              <li>
+                <i class="fas fa-link"></i> {{ dep.name }}
+                <span class="badge bg-{{ 'success' if dep.enabled else 'secondary' }}">
+                  {{ 'مفعل' if dep.enabled else 'معطل' }}
+                </span>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>

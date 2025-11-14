@@ -193,6 +193,17 @@
 </div>
 
 <script>
+const SwalSafe = typeof Swal !== 'undefined' ? Swal : {
+  fire: (arg1, arg2, arg3) => {
+    if (typeof arg1 === 'object' && arg1 !== null) {
+      alert((arg1.title || 'تنبيه') + (arg1.text ? `\n${arg1.text}` : ''));
+    } else {
+      alert([arg1, arg2].filter(Boolean).join('\n'));
+    }
+  },
+  showLoading: () => {},
+  close: () => {}
+};
 let trainingInterval = null;
 
 async function resetKnowledge() {
@@ -201,7 +212,7 @@ async function resetKnowledge() {
   }
   
   // إظهار نافذة التقدم
-  Swal.fire({
+  SwalSafe.fire({
     title: 'جاري التدريب...',
     html: `
       <div id="training-progress" class="text-right" dir="rtl">
@@ -217,7 +228,7 @@ async function resetKnowledge() {
     showConfirmButton: false,
     allowOutsideClick: false,
     didOpen: () => {
-      Swal.showLoading();
+      SwalSafe.showLoading();
     }
   });
   
@@ -234,8 +245,8 @@ async function resetKnowledge() {
     const data = await response.json();
     
     if (!data.success) {
-      Swal.close();
-      Swal.fire('خطأ', data.error, 'error');
+      SwalSafe.close();
+      SwalSafe.fire('خطأ', data.error, 'error');
       return;
     }
     
@@ -243,8 +254,8 @@ async function resetKnowledge() {
     startTrainingProgress();
     
   } catch (error) {
-    Swal.close();
-    Swal.fire('خطأ', error.toString(), 'error');
+    SwalSafe.close();
+    SwalSafe.fire('خطأ', error.toString(), 'error');
   }
 }
 
@@ -278,7 +289,7 @@ function startTrainingProgress() {
           clearInterval(trainingInterval);
           trainingInterval = null;
           
-          Swal.fire({
+          SwalSafe.fire({
             icon: 'success',
             title: '✅ تم التدريب بنجاح!',
             html: `
@@ -297,7 +308,7 @@ function startTrainingProgress() {
           clearInterval(trainingInterval);
           trainingInterval = null;
           
-          Swal.fire({
+          SwalSafe.fire({
             icon: 'error',
             title: '❌ خطأ في التدريب',
             text: status.error,
@@ -319,19 +330,19 @@ window.addEventListener('beforeunload', () => {
 });
 
 function checkAIHealth() {
-  Swal.fire({
+  SwalSafe.fire({
     icon: 'info',
     title: 'فحص صحة المساعد',
     html: '<p>جارٍ الفحص...</p>',
     allowOutsideClick: false,
     didOpen: () => {
-      Swal.showLoading();
+      SwalSafe.showLoading();
     }
   });
   
   // TODO: API call
   setTimeout(() => {
-    Swal.fire({
+    SwalSafe.fire({
       icon: 'success',
       title: '✅ المساعد بصحة ممتازة',
       html: `

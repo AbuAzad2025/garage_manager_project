@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Dict, List, Optional
 from werkzeug.exceptions import BadRequest
 from flask import Blueprint, Response, flash, jsonify, render_template, request, current_app, redirect, url_for
@@ -17,7 +18,7 @@ import inspect as pyinspect
 from models import (
     Customer, Supplier, Partner, Product, Warehouse, StockLevel, Expense,
     OnlinePreOrder, OnlinePayment, OnlineCart, Sale, SaleStatus, ServiceRequest, ServiceStatus, InvoiceStatus, Invoice, Payment,
-    Shipment, PaymentDirection, PaymentStatus, PaymentSplit, PreOrder, ServicePart, ServiceTask, Employee
+    Shipment, PaymentDirection, PaymentStatus, PaymentSplit, PreOrder, ServicePart, ServiceTask, Employee, User, convert_amount
 )
 reports_bp = Blueprint('reports_bp', __name__, url_prefix='/reports')
 
@@ -98,6 +99,180 @@ MODEL_LABELS = {
     "Warehouse": "المستودعات",
     "StockLevel": "المخزون",
 }
+
+REPORT_CARDS = [
+    {
+        "key": "dynamic",
+        "title": "تقرير ديناميكي",
+        "description": "ابنِ تقريرك حسب الحقول والفلاتر",
+        "icon": "fas fa-sliders-h",
+        "endpoint": "reports_bp.dynamic_report",
+        "css_class": "dynamic",
+        "category": "analytics",
+    },
+    {
+        "key": "customers",
+        "title": "تقارير العملاء",
+        "description": "إجمالي الفواتير / المدفوع / الرصيد",
+        "icon": "fas fa-user-friends",
+        "endpoint": "reports_bp.customers_report",
+        "css_class": "customers",
+        "category": "financial",
+    },
+    {
+        "key": "suppliers",
+        "title": "الموردون",
+        "description": "الرصيد / المدفوع / الصافي",
+        "icon": "fas fa-truck-loading",
+        "endpoint": "reports_bp.suppliers_report",
+        "css_class": "suppliers",
+        "category": "financial",
+    },
+    {
+        "key": "partners",
+        "title": "الشركاء",
+        "description": "الحصة / الرصيد / المدفوع",
+        "icon": "fas fa-handshake",
+        "endpoint": "reports_bp.partners_report",
+        "css_class": "partners",
+        "category": "financial",
+    },
+    {
+        "key": "sales",
+        "title": "المبيعات",
+        "description": "ملخص وفواصل زمنية",
+        "icon": "fas fa-cash-register",
+        "endpoint": "reports_bp.sales",
+        "css_class": "sales",
+        "category": "financial",
+    },
+    {
+        "key": "payments",
+        "title": "ملخص المدفوعات",
+        "description": "حسب طريقة الدفع",
+        "icon": "fas fa-wallet",
+        "endpoint": "reports_bp.payments_summary",
+        "css_class": "payments",
+        "category": "financial",
+    },
+    {
+        "key": "top_products",
+        "title": "أفضل المنتجات",
+        "description": "كمية وإيراد",
+        "icon": "fas fa-crown",
+        "endpoint": "reports_bp.top_products",
+        "css_class": "products",
+        "category": "analytics",
+    },
+    {
+        "key": "expenses",
+        "title": "المصاريف",
+        "description": "حسب النوع / الموظف",
+        "icon": "fas fa-wallet",
+        "endpoint": "reports_bp.expenses_report",
+        "css_class": "expenses",
+        "category": "financial",
+    },
+    {
+        "key": "inventory",
+        "title": "المخزون",
+        "description": "منتج × مستودع",
+        "icon": "fas fa-boxes",
+        "endpoint": "reports_bp.inventory",
+        "css_class": "inventory",
+        "category": "inventory",
+    },
+    {
+        "key": "below_min",
+        "title": "تحت الحد الأدنى",
+        "description": "الأصناف منخفضة المخزون",
+        "icon": "fas fa-exclamation-triangle",
+        "endpoint": "reports_bp.below_min_stock_report",
+        "css_class": "below-min",
+        "category": "inventory",
+    },
+    {
+        "key": "shipments",
+        "title": "الشحنات",
+        "description": "قيمة وإجماليات",
+        "icon": "fas fa-shipping-fast",
+        "endpoint": "reports_bp.shipments",
+        "css_class": "shipments",
+        "category": "inventory",
+    },
+    {
+        "key": "online",
+        "title": "الأونلاين",
+        "description": "طلبات / مدفوعات / سلال",
+        "icon": "fas fa-globe",
+        "endpoint": "reports_bp.online",
+        "css_class": "online",
+        "category": "analytics",
+    },
+    {
+        "key": "ar_aging",
+        "title": "أعمار الذمم (عملاء)",
+        "description": "تفصيل حسب الفترات",
+        "icon": "fas fa-user-clock",
+        "endpoint": "reports_bp.ar_aging",
+        "css_class": "ar",
+        "category": "analytics",
+    },
+    {
+        "key": "ap_aging",
+        "title": "أعمار الذمم (موردون)",
+        "description": "تفصيل حسب الفترات",
+        "icon": "fas fa-truck-loading",
+        "endpoint": "reports_bp.ap_aging",
+        "css_class": "ap",
+        "category": "analytics",
+    },
+    {
+        "key": "service",
+        "title": "تقارير الصيانة",
+        "description": "عدد / إيراد / قطع / أجور",
+        "icon": "fas fa-tools",
+        "endpoint": "reports_bp.service_reports",
+        "css_class": "service",
+        "category": "analytics",
+    },
+    {
+        "key": "invoices",
+        "title": "الفواتير",
+        "description": "شاملة / مدفوع / متأخرة",
+        "icon": "fas fa-file-invoice-dollar",
+        "endpoint": "reports_bp.invoices_report",
+        "css_class": "invoices",
+        "category": "financial",
+    },
+    {
+        "key": "preorders",
+        "title": "الطلبيات المسبقة",
+        "description": "طلبيات / مدفوع / متبقي",
+        "icon": "fas fa-clipboard-list",
+        "endpoint": "reports_bp.preorders_report",
+        "css_class": "preorders",
+        "category": "financial",
+    },
+    {
+        "key": "profit_loss",
+        "title": "الأرباح والخسائر",
+        "description": "P&L / هامش الربح",
+        "icon": "fas fa-chart-line",
+        "endpoint": "reports_bp.profit_loss_report",
+        "css_class": "profit",
+        "category": "financial",
+    },
+    {
+        "key": "cash_flow",
+        "title": "التدفقات النقدية",
+        "description": "Cash Flow / وارد / صادر",
+        "icon": "fas fa-money-bill-wave",
+        "endpoint": "reports_bp.cash_flow_report",
+        "css_class": "cashflow",
+        "category": "financial",
+    },
+]
 
 FIELD_LABELS: Dict[str, str] = {
     "id": "المعرف",
@@ -236,10 +411,33 @@ def _clamp_limit(v: Optional[int], default: int = 1000, max_v: int = 10000) -> i
         n = default
     return max(1, min(n, max_v))
 
+def _to_ils(amount, currency, ref_date):
+    value = Decimal(str(amount or 0))
+    if currency and currency != "ILS":
+        try:
+            return convert_amount(value, currency, "ILS", ref_date)
+        except Exception:
+            return value
+    return value
+
 @reports_bp.route("/", methods=["GET"], endpoint="universal")
 @reports_bp.route("", methods=["GET"], endpoint="index")
 def reports_index():
-    return render_template("reports/index.html", model_names=list(_MODEL_LOOKUP.keys()), defaults=_DEFAULT_DATE_FIELD, FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
+    summary_counts = {
+        "total": len(REPORT_CARDS),
+        "financial": sum(1 for card in REPORT_CARDS if card["category"] == "financial"),
+        "inventory": sum(1 for card in REPORT_CARDS if card["category"] == "inventory"),
+        "analytics": sum(1 for card in REPORT_CARDS if card["category"] == "analytics"),
+    }
+    return render_template(
+        "reports/index.html",
+        model_names=list(_MODEL_LOOKUP.keys()),
+        defaults=_DEFAULT_DATE_FIELD,
+        FIELD_LABELS=FIELD_LABELS,
+        MODEL_LABELS=MODEL_LABELS,
+        report_cards=REPORT_CARDS,
+        reports_summary=summary_counts,
+    )
 
 @reports_bp.route("/dynamic", methods=["GET", "POST"])
 def dynamic_report():
@@ -251,6 +449,9 @@ def dynamic_report():
         start_date = _parse_date(request.form.get("start_date"))
         end_date = _parse_date(request.form.get("end_date"))
         limit = _clamp_limit(request.form.get("limit"))
+        if limit > 2000:
+            flash("تم تقليص الحد الأقصى للصفوف إلى 2000 للحفاظ على الأداء.", "warning")
+            limit = 2000
         try:
             model = _ensure_model(table)
         except BadRequest as e:
@@ -423,9 +624,15 @@ def invoices_report():
     
     today = datetime.now().date()
     for inv in invoices:
-        total_amount += Decimal(str(inv.computed_total or 0))
-        total_paid += Decimal(str(inv.total_paid or 0))
-        balance_due += Decimal(str(inv.computed_total or 0)) - Decimal(str(inv.total_paid or 0))
+        amount = Decimal(str(inv.computed_total or 0))
+        paid = Decimal(str(inv.total_paid or 0))
+        amount_ils = _to_ils(amount, getattr(inv, "currency", "ILS"), inv.invoice_date)
+        paid_ils = _to_ils(paid, getattr(inv, "currency", "ILS"), inv.invoice_date)
+        inv.amount_ils = float(amount_ils)
+        inv.paid_ils = float(paid_ils)
+        total_amount += amount_ils
+        total_paid += paid_ils
+        balance_due += amount_ils - paid_ils
         
         if inv.due_date and inv.due_date.date() < today and inv.status != 'PAID':
             overdue_count += 1
@@ -721,19 +928,20 @@ def payments_advanced_report():
     method_stats_dict = defaultdict(lambda: Decimal('0.00'))
     
     for payment in payments:
-        amount = Decimal(str(payment.total_amount or 0))
-        total_amount += amount
+        amount_ils = _to_ils(payment.total_amount or 0, getattr(payment, "currency", "ILS"), payment.payment_date)
+        payment.amount_ils = float(amount_ils)
+        total_amount += amount_ils
         
         if payment.status == PaymentStatus.COMPLETED:
             completed_count += 1
             
         if payment.direction == PaymentDirection.IN:
-            total_in += amount
+            total_in += amount_ils
         else:
-            total_out += amount
+            total_out += amount_ils
         
         method_key = payment.method.value if payment.method else 'OTHER'
-        method_stats_dict[method_key] += amount
+        method_stats_dict[method_key] += amount_ils
     
     method_labels = {
         'CASH': 'نقدي',
@@ -806,9 +1014,32 @@ def ar_aging():
 def inventory_report():
     from models import Warehouse, StockLevel, Product
     from sqlalchemy.orm import joinedload
+    import csv
+    import io
+
     search = (request.args.get("q") or "").strip()
+    selected_warehouse_id = request.args.get("warehouse_id", type=int)
+    low_only = request.args.get("low_only") == "1"
+    export_format = (request.args.get("format") or "").lower()
+
     whs = Warehouse.query.order_by(Warehouse.name).all()
+    if not whs:
+        empty_context = {
+            "warehouses": [],
+            "all_warehouses": [],
+            "rows": [],
+            "search": search,
+            "selected_warehouse_id": None,
+            "low_only": low_only,
+            "stats": {"products": 0, "on_hand": 0, "reserved": 0, "available": 0, "low_count": 0},
+            "FIELD_LABELS": FIELD_LABELS,
+        }
+        if export_format == "csv":
+            return Response("", mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=inventory_report.csv"})
+        return render_template("reports/inventory.html", **empty_context)
+
     wh_ids = [w.id for w in whs]
+    display_warehouses = whs
     q = (
         db.session.query(StockLevel)
         .join(Product, StockLevel.product_id == Product.id)
@@ -816,6 +1047,13 @@ def inventory_report():
         .options(joinedload(StockLevel.product))
         .order_by(Product.name.asc())
     )
+
+    if selected_warehouse_id and selected_warehouse_id in wh_ids:
+        q = q.filter(StockLevel.warehouse_id == selected_warehouse_id)
+        display_warehouses = [w for w in whs if w.id == selected_warehouse_id]
+    else:
+        selected_warehouse_id = None
+
     if search:
         like = f"%{search}%"
         q = q.filter(
@@ -823,8 +1061,10 @@ def inventory_report():
                 Product.name.ilike(like),
                 Product.sku.ilike(like),
                 Product.part_number.ilike(like),
+                Product.barcode.ilike(like),
             )
         )
+
     rows = q.all()
     pivot = {}
     for sl in rows:
@@ -835,17 +1075,69 @@ def inventory_report():
                 "product": p,
                 "by": {wid: {"on": 0, "res": 0} for wid in wh_ids},
                 "total": 0,
+                "reserved_total": 0,
             }
         on = int(sl.quantity or 0)
         res = int(getattr(sl, "reserved_quantity", 0) or 0)
         pivot[pid]["by"][sl.warehouse_id] = {"on": on, "res": res}
         pivot[pid]["total"] += on
+        pivot[pid]["reserved_total"] += res
+
     rows_data = sorted(pivot.values(), key=lambda d: (d["product"].name or "").lower())
+    if low_only:
+        rows_data = [
+            row
+            for row in rows_data
+            if row["product"].min_qty and row["total"] < row["product"].min_qty
+        ]
+
+    stats = {
+        "products": len(rows_data),
+        "on_hand": sum(row["total"] for row in rows_data),
+        "reserved": sum(row["reserved_total"] for row in rows_data),
+        "available": sum((row["total"] - row["reserved_total"]) for row in rows_data),
+        "low_count": sum(
+            1 for row in rows_data if row["product"].min_qty and row["total"] < row["product"].min_qty
+        ),
+    }
+
+    if export_format == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+        header = ["Product", "SKU", "Barcode", "Total On Hand", "Reserved", "Available"]
+        for wh in display_warehouses:
+            header.extend([f"{wh.name} On Hand", f"{wh.name} Reserved"])
+        writer.writerow(header)
+        for row in rows_data:
+            product = row["product"]
+            available_total = row["total"] - row["reserved_total"]
+            base = [
+                product.name or product.id,
+                product.sku or "",
+                product.barcode or "",
+                row["total"],
+                row["reserved_total"],
+                available_total,
+            ]
+            for wh in display_warehouses:
+                stock = row["by"].get(wh.id, {"on": 0, "res": 0})
+                base.extend([stock.get("on", 0), stock.get("res", 0)])
+            writer.writerow(base)
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=inventory_report.csv"},
+        )
+
     return render_template(
         "reports/inventory.html",
-        warehouses=whs,
+        warehouses=display_warehouses,
+        all_warehouses=whs,
         rows=rows_data,
         search=search,
+        selected_warehouse_id=selected_warehouse_id,
+        low_only=low_only,
+        stats=stats,
         FIELD_LABELS=FIELD_LABELS,
     )
 
@@ -858,14 +1150,27 @@ def top_products():
     except Exception:
         limit = 20
     limit = _clamp_limit(limit, default=20, max_v=1000)
-    warehouse_id = request.args.get("warehouse_id")
-    group_by_warehouse = (request.args.get("group_by") == "warehouse")
-    rpt = top_products_report(
-        start, end,
-        limit=limit,
-        warehouse_id=int(warehouse_id) if warehouse_id else None,
-        group_by_warehouse=group_by_warehouse,
-    )
+    selected_warehouse_id = request.args.get("warehouse_id", type=int)
+    requested_group = (request.args.get("group_by") == "warehouse")
+    group_by_warehouse = requested_group or bool(selected_warehouse_id)
+
+    def _build_report(gbw, wh_id):
+        return top_products_report(
+            start,
+            end,
+            limit=limit,
+            warehouse_id=wh_id,
+            group_by_warehouse=gbw,
+        )
+
+    rpt = _build_report(group_by_warehouse, selected_warehouse_id)
+    forced = bool(selected_warehouse_id) and not requested_group
+    if selected_warehouse_id and not rpt.get("can_group_by_warehouse", False):
+        flash("لا يمكن التجميع حسب المستودع في هذا التقرير، تم عرض جميع المستودعات.", "warning")
+        selected_warehouse_id = None
+        group_by_warehouse = False
+        rpt = _build_report(group_by_warehouse, selected_warehouse_id)
+
     warehouses = Warehouse.query.order_by(Warehouse.name.asc()).all()
     return render_template(
         "reports/top_products.html",
@@ -874,8 +1179,9 @@ def top_products():
         end=request.args.get("end", ""),
         limit=limit,
         warehouses=warehouses,
-        selected_warehouse_id=(int(warehouse_id) if warehouse_id else None),
+        selected_warehouse_id=selected_warehouse_id,
         group_by_warehouse=group_by_warehouse,
+        forced_grouping=forced,
         can_group_by_warehouse=rpt.get("can_group_by_warehouse", False),
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
@@ -883,12 +1189,32 @@ def top_products():
 
 @reports_bp.route("/suppliers", methods=["GET"], endpoint="suppliers_report")
 def suppliers_report():
-    q = Supplier.query.order_by(Supplier.name.asc()).all()
-    
+    search = (request.args.get("q") or "").strip()
+    balance_filter = (request.args.get("balance") or "").strip()
+    export_format = (request.args.get("format") or "").lower()
+
+    q = Supplier.query.order_by(Supplier.name.asc())
+    if search:
+        like = f"%{search}%"
+        q = q.filter(
+            or_(
+                Supplier.name.ilike(like),
+                Supplier.phone.ilike(like),
+                Supplier.email.ilike(like),
+            )
+        )
+
+    suppliers = q.all()
     data = []
-    total_balance = 0
-    for supplier in q:
+    total_balance = 0.0
+    for supplier in suppliers:
         balance = float(supplier.balance_in_ils or 0)
+        if balance_filter == "positive" and balance <= 0:
+            continue
+        if balance_filter == "negative" and balance >= 0:
+            continue
+        if balance_filter == "zero" and balance != 0:
+            continue
         data.append(
             {
                 "id": supplier.id,
@@ -897,44 +1223,116 @@ def suppliers_report():
             }
         )
         total_balance += balance
-    
-    totals = {
-        "balance": total_balance,
-    }
+
+    totals = {"balance": total_balance}
+
+    if export_format == "csv":
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["ID", "Name", "Balance"])
+        for row in data:
+            writer.writerow([row["id"], row["name"], row["balance"]])
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=suppliers_report.csv"},
+        )
+
     return render_template(
         "reports/suppliers.html",
         data=data,
         totals=totals,
+        search=search,
+        balance_filter=balance_filter,
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
     )
 
 @reports_bp.route("/partners", methods=["GET"], endpoint="partners_report")
 def partners_report():
-    q = Partner.query.order_by(Partner.name.asc()).all()
-    
+    from datetime import datetime
+
+    search = (request.args.get("q") or "").strip()
+    balance_filter = (request.args.get("balance") or "").strip()
+    export_format = (request.args.get("format") or "").lower()
+
+    q = Partner.query.order_by(Partner.name.asc())
+    if search:
+        like = f"%{search}%"
+        q = q.filter(
+            or_(
+                Partner.name.ilike(like),
+                Partner.phone_number.ilike(like),
+                Partner.identity_number.ilike(like),
+            )
+        )
+
+    partners = q.all()
     data = []
-    total_balance = 0
-    for partner in q:
-        balance = float(partner.balance_in_ils or 0)
-        share = float(partner.share_percentage or 0)
+    total_balance = 0.0
+    smart_start = datetime(datetime.utcnow().year, 1, 1)
+    smart_end = datetime.utcnow()
+
+    try:
+        from routes.partner_settlements import _calculate_smart_partner_balance
+    except Exception:
+        _calculate_smart_partner_balance = None
+
+    for partner in partners:
+        smart_balance = None
+        if _calculate_smart_partner_balance:
+            try:
+                smart_data = _calculate_smart_partner_balance(partner.id, smart_start, smart_end)
+                if smart_data.get("success"):
+                    smart_balance = float(smart_data.get("balance", {}).get("amount", 0) or 0)
+            except Exception:
+                smart_balance = None
+        balance = smart_balance if smart_balance is not None else float(partner.balance_in_ils or 0)
+
+        if balance_filter == "positive" and balance <= 0:
+            continue
+        if balance_filter == "negative" and balance >= 0:
+            continue
+        if balance_filter == "zero" and balance != 0:
+            continue
+
         data.append(
             {
                 "id": partner.id,
                 "name": partner.name,
                 "balance": balance,
-                "share_percentage": share,
+                "share_percentage": float(partner.share_percentage or 0),
+                "source": "smart" if smart_balance is not None else "stored",
             }
         )
         total_balance += balance
-    
-    totals = {
-        "balance": total_balance,
-    }
+
+    totals = {"balance": total_balance}
+
+    if export_format == "csv":
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["ID", "Name", "Balance", "Share %", "Source"])
+        for row in data:
+            writer.writerow([row["id"], row["name"], row["balance"], row["share_percentage"], row["source"]])
+        return Response(
+            output.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=partners_report.csv"},
+        )
+
     return render_template(
         "reports/partners.html",
         data=data,
         totals=totals,
+        search=search,
+        balance_filter=balance_filter,
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
     )
@@ -1149,12 +1547,13 @@ def sales_advanced_report():
     product_sales_dict = defaultdict(lambda: {'quantity': 0, 'revenue': Decimal('0.00')})
     
     for sale in sales:
-        total_revenue += Decimal(str(sale.total_amount or 0))
+        sale_total = _to_ils(sale.total_amount or 0, getattr(sale, "currency", "ILS"), sale.sale_date)
+        total_revenue += sale_total
         total_items += len(sale.lines)
         
         for line in sale.lines:
             total_quantity += line.quantity or 0
-            line_amount = Decimal(str(line.net_amount or 0))
+            line_amount = _to_ils(line.net_amount or 0, getattr(sale, "currency", "ILS"), sale.sale_date)
             
             if sale.sale_date:
                 date_key = sale.sale_date.date().isoformat()
@@ -1201,27 +1600,28 @@ def sales_advanced_report():
 
 @reports_bp.route("/expenses", methods=["GET"], endpoint="expenses_report")
 def expenses_report():
+    from decimal import Decimal
+    from models import Employee, Warehouse, Partner, ExpenseType, convert_amount
+
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     tab = (request.args.get("tab") or "expenses").strip()
-    
-    # فلاتر إضافية
-    expense_type = (request.args.get("type") or "").strip()  # نوع المصروف (id أو اسم)
-    employee_id = request.args.get("employee_id")  # الموظف (Employee.id)
-    warehouse_id = request.args.get("warehouse_id")  # المستودع (Warehouse.id)
-    partner_id = request.args.get("partner_id")  # الشريك (Partner.id)
-    is_paid = request.args.get("is_paid")  # حالة الدفع
-    
+
+    expense_type = (request.args.get("type") or "").strip()
+    employee_id = request.args.get("employee_id")
+    warehouse_id = request.args.get("warehouse_id")
+    partner_id = request.args.get("partner_id")
+    is_paid = request.args.get("is_paid")
+
     q = Expense.query
     if start:
         q = q.filter(Expense.date >= start)
     if end:
         q = q.filter(Expense.date <= end)
-    
-    # تطبيق الفلاتر الإضافية
+
     if expense_type:
-        # دعم الفلترة بالمعرّف أو الاسم
         from models import ExpenseType as _ET
+
         try:
             et_id = int(expense_type)
             q = q.filter(Expense.type_id == et_id)
@@ -1242,37 +1642,41 @@ def expenses_report():
             q = q.filter(Expense.partner_id == int(partner_id))
         except Exception:
             pass
-    if is_paid in ['true', '1']:
-        q = q.filter(Expense.is_paid == True)
-    elif is_paid in ['false', '0']:
-        q = q.filter(Expense.is_paid == False)
-    
+    if is_paid in ["true", "1"]:
+        q = q.filter(Expense.is_paid.is_(True))
+    elif is_paid in ["false", "0"]:
+        q = q.filter(Expense.is_paid.is_(False))
+
     q = q.order_by(Expense.date.desc())
     rows = q.all()
-    total = sum(float(e.amount or 0) for e in rows)
-    
-    # تجميع حسب النوع
-    type_labels, type_values = [], []
+
+    def _to_ils(amount, currency, ref_date):
+        value = Decimal(str(amount or 0))
+        if currency and currency != "ILS":
+            try:
+                value = convert_amount(value, currency, "ILS", ref_date)
+            except Exception:
+                pass
+        return value
+
+    total = Decimal("0.00")
     by_type = {}
-    for e in rows:
-        k = e.type_id or "غير محدد"
-        by_type[k] = by_type.get(k, 0) + float(e.amount or 0)
-    for k, v in by_type.items():
-        type_labels.append(str(k))
-        type_values.append(v)
-    
-    # تجميع حسب الموظف
-    emp_labels, emp_values = [], []
     by_emp = {}
     for e in rows:
-        k = e.employee_id or "غير محدد"
-        by_emp[k] = by_emp.get(k, 0) + float(e.amount or 0)
-    for k, v in by_emp.items():
-        emp_labels.append(str(k))
-        emp_values.append(v)
-    
-    # جلب قوائم للفلاتر
-    from models import Employee, Warehouse, Partner, ExpenseType
+        amount_ils = _to_ils(e.amount, e.currency, getattr(e, "date", None))
+        setattr(e, "amount_ils", float(amount_ils))
+        total += amount_ils
+        type_label = e.type.name if e.type else "غير محدد"
+        by_type[type_label] = by_type.get(type_label, Decimal("0.00")) + amount_ils
+        emp_label = e.employee.name if e.employee else "غير محدد"
+        by_emp[emp_label] = by_emp.get(emp_label, Decimal("0.00")) + amount_ils
+
+    type_labels = list(by_type.keys())
+    type_values = [float(v) for v in by_type.values()]
+    emp_labels = list(by_emp.keys())
+    emp_values = [float(v) for v in by_emp.values()]
+    total_amount = float(total)
+
     employees = Employee.query.order_by(Employee.name).all()
     warehouses = Warehouse.query.order_by(Warehouse.name).all()
     partners = Partner.query.order_by(Partner.name).all()
@@ -1331,11 +1735,12 @@ def expenses_report():
         # بناء صفوف مشابهة لجدول العرض
         csv_rows = []
         for e in rows:
+            amount_ils = getattr(e, "amount_ils", float(_to_ils(e.amount, e.currency, getattr(e, "date", None))))
             csv_rows.append({
                 "id": e.id,
                 "date": (e.date.strftime('%Y-%m-%d') if getattr(e, 'date', None) else ''),
                 "type": (e.type.name if getattr(e, 'type', None) else e.type_id),
-                "amount": float(e.amount or 0),
+                "amount_ils": amount_ils,
                 "currency": e.currency or '',
                 "employee": (e.employee.name if getattr(e, 'employee', None) else ''),
                 "warehouse": (e.warehouse.name if getattr(e, 'warehouse', None) else ''),
@@ -1349,7 +1754,7 @@ def expenses_report():
     return render_template(
         "reports/expenses.html",
         data=rows,
-        total_amount=total,
+        total_amount=total_amount,
         start=request.args.get("start", ""),
         end=request.args.get("end", ""),
         tab=tab,
@@ -1398,8 +1803,57 @@ def model_fields():
 def service_reports():
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
-    rpt = service_reports_report(start, end)
-    return render_template("reports/service_reports.html", total=rpt.get("total", 0), completed=rpt.get("completed", 0), revenue=rpt.get("revenue", 0.0), parts=rpt.get("parts", 0.0), labor=rpt.get("labor", 0.0), data=rpt.get("data", []), start=request.args.get("start", ""), end=request.args.get("end", ""), FIELD_LABELS=FIELD_LABELS, MODEL_LABELS=MODEL_LABELS)
+    status_filter = (request.args.get("status") or "").strip().upper()
+    mechanic_id = request.args.get("mechanic_id", type=int)
+    customer_id = request.args.get("customer_id", type=int)
+    valid_statuses = {s.value for s in ServiceStatus}
+    if status_filter and status_filter not in valid_statuses:
+        status_filter = None
+
+    rpt = service_reports_report(start, end, status=status_filter, mechanic_id=mechanic_id, customer_id=customer_id)
+    if (request.args.get("format") or "").lower() == "csv":
+        csv_rows = [
+            {
+                "number": row.get("number"),
+                "status": row.get("status"),
+                "priority": row.get("priority"),
+                "received_at": row.get("received_at"),
+                "customer": row.get("customer_name"),
+                "mechanic": row.get("mechanic_name"),
+                "total": row.get("total"),
+            }
+            for row in rpt.get("data", [])
+        ]
+        csv_text = _csv_from_rows(csv_rows)
+        return Response(
+            csv_text,
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=service_reports.csv"},
+        )
+
+    mechanics = User.query.order_by(User.username.asc()).all()
+    customers = Customer.query.order_by(Customer.name.asc()).all()
+    status_choices = [(s.value, s.label) for s in ServiceStatus]
+
+    return render_template(
+        "reports/service_reports.html",
+        total=rpt.get("total", 0),
+        completed=rpt.get("completed", 0),
+        revenue=rpt.get("revenue", 0.0),
+        parts=rpt.get("parts", 0.0),
+        labor=rpt.get("labor", 0.0),
+        data=rpt.get("data", []),
+        start=request.args.get("start", ""),
+        end=request.args.get("end", ""),
+        mechanics=mechanics,
+        customers=customers,
+        status_choices=status_choices,
+        selected_status=status_filter or "",
+        selected_mechanic_id=mechanic_id,
+        selected_customer_id=customer_id,
+        FIELD_LABELS=FIELD_LABELS,
+        MODEL_LABELS=MODEL_LABELS,
+    )
 
 @reports_bp.route("/api/dynamic", methods=["POST"])
 def api_dynamic():

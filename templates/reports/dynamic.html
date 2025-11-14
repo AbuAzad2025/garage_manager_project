@@ -1,4 +1,3 @@
-{# templates/reports/dynamic.html #}
 {% extends 'reports/_base.html' %}
 {% block title %}تقرير ديناميكي{% endblock %}
 {% block page_title %}تقرير ديناميكي{% endblock %}
@@ -27,10 +26,6 @@
               class="btn btn-success btn-sm">
         <i class="fas fa-file-csv"></i> تصدير CSV
       </button>
-      <button type="button" class="btn btn-outline-dark btn-sm" id="btn-print">
-        <i class="fas fa-print"></i> طباعة
-      </button>
-
 ```
   <div class="ms-auto d-flex align-items-center gap-2">
     <span class="text-muted small d-none d-md-inline">نتائج:</span>
@@ -41,7 +36,16 @@
 
   </div>
 
-  <div class="card shadow-sm mb-4 mt-toolbar">
+  <div class="alert alert-info mt-3">
+    <div class="fw-bold mb-1"><i class="fas fa-lightbulb"></i> نصائح الاستخدام</div>
+    <ul class="mb-0">
+      <li>اختر الجدول ثم الحقول التي تحتاجها، ويمكن ترك حقل التاريخ فارغاً لعرض كل السجلات.</li>
+      <li>يمكنك إضافة فلاتر “يحتوي على” من القسم المتقدم لتضييق النتائج بسرعة.</li>
+      <li>الحد الأقصى للصفوف المعروضة 2000 صف في المرة الواحدة لضمان سرعة التحميل.</li>
+    </ul>
+  </div>
+
+  <div class="card shadow-sm mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>إعدادات التقرير</span>
       <button class="btn btn-link btn-sm p-0" type="button" data-toggle="collapse" data-target="#advFilters">
@@ -111,6 +115,7 @@
     <div class="col-md-2">
       <label class="form-label fw-semibold">الحد</label>
       <input type="number" name="limit" min="1" max="10000" value="{{ limit or 1000 }}" class="form-control">
+      <div class="form-text">يتم تقليص القيم الأكبر من 2000 تلقائياً.</div>
     </div>
 
     <div class="col-12 d-flex gap-2 mt-2">
@@ -151,7 +156,6 @@
 {% endblock %}
 
 {% block scripts %}
-
 <script>
   window.FIELD_LABELS = {{ FIELD_LABELS|tojson }};
   window.MODEL_LABELS = {{ MODEL_LABELS|tojson }};
@@ -160,7 +164,5 @@
   window.__selectedColumns = {{ (columns or [])|tojson }};
   window.EXCLUDED_FIELDS = ["warranty_until"];
 </script>
-
-<script src="{{ url_for('static', filename='js/reporting.js') }}"></script>
-
+{{ super() }}
 {% endblock %}

@@ -72,7 +72,7 @@ def ai_settings():
                 SystemSettings.set_setting(
                     key=key,
                     value=str(value),
-                    dtype='boolean',
+                    data_type='boolean',
                     is_public=False
                 )
             
@@ -85,15 +85,21 @@ def ai_settings():
             db.session.rollback()
             flash(f'❌ خطأ: {str(e)}', 'danger')
     
-    # GET - عرض الإعدادات الحالية
+    def to_bool(value, default):
+        if value is None:
+            value = default
+        if isinstance(value, str):
+            return value.lower() == 'true'
+        return bool(value)
+    
     current_settings = {
-        'ai_enabled': SystemSettings.get_setting('ai_enabled', 'true').lower() == 'true',
-        'ai_visible_to_managers': SystemSettings.get_setting('ai_visible_to_managers', 'true').lower() == 'true',
-        'ai_visible_to_staff': SystemSettings.get_setting('ai_visible_to_staff', 'false').lower() == 'true',
-        'ai_visible_to_customers': SystemSettings.get_setting('ai_visible_to_customers', 'false').lower() == 'true',
-        'ai_can_execute_actions': SystemSettings.get_setting('ai_can_execute_actions', 'true').lower() == 'true',
-        'ai_realtime_alerts_enabled': SystemSettings.get_setting('ai_realtime_alerts_enabled', 'true').lower() == 'true',
-        'ai_auto_learning_enabled': SystemSettings.get_setting('ai_auto_learning_enabled', 'true').lower() == 'true'
+        'ai_enabled': to_bool(SystemSettings.get_setting('ai_enabled', True), True),
+        'ai_visible_to_managers': to_bool(SystemSettings.get_setting('ai_visible_to_managers', True), True),
+        'ai_visible_to_staff': to_bool(SystemSettings.get_setting('ai_visible_to_staff', False), False),
+        'ai_visible_to_customers': to_bool(SystemSettings.get_setting('ai_visible_to_customers', False), False),
+        'ai_can_execute_actions': to_bool(SystemSettings.get_setting('ai_can_execute_actions', True), True),
+        'ai_realtime_alerts_enabled': to_bool(SystemSettings.get_setting('ai_realtime_alerts_enabled', True), True),
+        'ai_auto_learning_enabled': to_bool(SystemSettings.get_setting('ai_auto_learning_enabled', True), True)
     }
     
     return render_template(
@@ -117,7 +123,7 @@ def toggle_visibility():
         data = request.get_json()
         visible = data.get('visible', True)
         
-        SystemSettings.set_setting('ai_enabled', str(visible), dtype='boolean')
+        SystemSettings.set_setting('ai_enabled', str(visible), data_type='boolean')
         db.session.commit()
         
         return jsonify({

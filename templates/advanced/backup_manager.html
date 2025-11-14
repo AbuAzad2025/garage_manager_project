@@ -2,6 +2,23 @@
 
 {% block title %}مدير النسخ الاحتياطية{% endblock %}
 
+{% block head_extra %}
+{{ super() }}
+<style>
+.backup-action-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+.backup-action-form input {
+  max-width: 160px;
+}
+.backup-status-card small {
+  display: block;
+}
+</style>
+{% endblock %}
+
 {% block page_title %}💾 مدير النسخ الاحتياطية المتقدم{% endblock %}
 
 {% block content %}
@@ -42,13 +59,13 @@
     </div>
     
     <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm bg-info text-white h-100">
+      <div class="card border-0 shadow-sm bg-{{ schedule_status.color }} text-white h-100 backup-status-card">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h6 class="text-white-50 mb-1">الجدولة التلقائية</h6>
-              <h3 class="mb-0 fw-bold">{{ schedule_status|default('معطلة') }}</h3>
-              <small class="opacity-75">الحالة</small>
+              <h3 class="mb-0 fw-bold">{{ schedule_status.text }}</h3>
+              <small class="opacity-75">التشغيل التالي: {{ schedule_status.next_run or '---' }}</small>
             </div>
             <i class="fas fa-clock fa-2x opacity-50"></i>
           </div>
@@ -57,13 +74,19 @@
     </div>
     
     <div class="col-lg-3 col-md-6">
-      <div class="card border-0 shadow-sm bg-warning text-white h-100">
+      <div class="card border-0 shadow-sm bg-{{ backup_summary.color }} text-white h-100 backup-status-card">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h6 class="text-white-50 mb-1">آخر نسخة</h6>
-              <h3 class="mb-0 fw-bold">{{ backups[0].date if backups else 'لا يوجد' }}</h3>
-              <small class="opacity-75">{{ backups[0].name if backups else '-' }}</small>
+              <h3 class="mb-0 fw-bold">
+                {% if backup_summary.last_backup %}
+                  {{ backup_summary.last_backup.date }}
+                {% else %}
+                  لا يوجد
+                {% endif %}
+              </h3>
+              <small class="opacity-75">{{ backup_summary.last_backup.name if backup_summary.last_backup else '-' }}</small>
             </div>
             <i class="fas fa-history fa-2x opacity-50"></i>
           </div>
@@ -72,9 +95,62 @@
     </div>
   </div>
   
-  <div class="alert alert-info border-0 shadow-sm mb-4">
-    <h5><i class="fas fa-database"></i> <strong>مدير النسخ المتقدم</strong></h5>
-    <p class="mb-0">نسخ احتياطي + تحويل قواعد البيانات + جدولة تلقائية</p>
+  <div class="row g-3 mb-4">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+          <span><i class="fas fa-history"></i> أحدث النسخ</span>
+          <span class="badge bg-secondary">{{ recent_backups|length }}</span>
+        </div>
+        <div class="card-body p-0">
+          <ul class="list-group list-group-flush">
+            {% for backup in recent_backups %}
+            <li class="list-group-item d-flex justify-content-between align-items-start">
+              <div>
+                <strong>{{ backup.name }}</strong>
+                <div class="small text-muted">{{ backup.date }}</div>
+              </div>
+              <span class="badge bg-info">{{ backup.size }}</span>
+            </li>
+            {% else %}
+            <li class="list-group-item text-center text-muted">لا توجد نسخ بعد</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+          <span><i class="fas fa-exclamation-circle"></i> تنبيهات الفشل</span>
+          <span class="badge bg-light text-dark">{{ backup_failures|length }}</span>
+        </div>
+        <div class="card-body">
+          {% if backup_failures %}
+            {% for failure in backup_failures %}
+            <div class="alert alert-warning">
+              <strong>{{ failure.timestamp[:16] }}</strong><br>
+              {{ failure.message }}
+            </div>
+            {% endfor %}
+          {% else %}
+          <div class="alert alert-success mb-0">
+            لا توجد عمليات فاشلة مؤخراً
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="alert alert-{{ backup_summary.color }} border-0 shadow-sm mb-4">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h5 class="mb-1"><i class="fas fa-database"></i> الحالة الحالية</h5>
+        <p class="mb-0">{{ backup_summary.message }}</p>
+      </div>
+      <span class="fw-bold">{{ backup_summary.recommendation }}</span>
+    </div>
   </div>
 
   <!-- Tabs Navigation -->
@@ -149,6 +225,7 @@
                       <th>اسم الملف</th>
                       <th>الحجم</th>
                       <th>التاريخ</th>
+                      <th>العمر (ساعة)</th>
                       <th>الإجراءات</th>
                     </tr>
                   </thead>
@@ -158,24 +235,24 @@
                       <td><code>{{ backup.name }}</code></td>
                       <td><span class="badge bg-info">{{ backup.size }}</span></td>
                       <td>{{ backup.date }}</td>
+                      <td>{{ backup.age_hours }}</td>
                       <td>
-                        <div class="btn-group btn-group-sm">
-                          <!-- استعادة -->
-                          <form method="POST" action="{{ url_for('advanced.restore_backup', filename=backup.name) }}" style="display:inline;" onsubmit="return confirm('⚠️ هل أنت متأكد من استعادة هذه النسخة؟');">
+                        <div>
+                          <form method="POST" action="{{ url_for('advanced.restore_backup', filename=backup.name) }}" class="backup-action-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="confirm_token" class="form-control form-control-sm" placeholder="اكتب {{ backup.name }}" required>
                             <button type="submit" class="btn btn-success btn-sm">
                               <i class="fas fa-undo"></i> استعادة
                             </button>
                           </form>
-                          
-                          <!-- تحميل -->
-                          <a href="{{ url_for('advanced.download_backup', filename=backup.name) }}" class="btn btn-primary btn-sm">
+                          <div class="d-flex" style="gap:0.5rem;">
+                            <a href="{{ url_for('advanced.download_backup', filename=backup.name) }}" class="btn btn-primary btn-sm flex-fill">
                             <i class="fas fa-download"></i> تحميل
                           </a>
-                          
-                          <!-- حذف -->
-                          <form method="POST" action="{{ url_for('advanced.delete_backup', filename=backup.name) }}" style="display:inline;" onsubmit="return confirm('⚠️ هل أنت متأكد من حذف هذه النسخة؟');">
+                          </div>
+                          <form method="POST" action="{{ url_for('advanced.delete_backup', filename=backup.name) }}" class="backup-action-form">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="confirm_token" class="form-control form-control-sm" placeholder="اكتب {{ backup.name }}" required>
                             <button type="submit" class="btn btn-danger btn-sm">
                               <i class="fas fa-trash"></i> حذف
                             </button>
@@ -211,13 +288,14 @@
             <div class="card-body">
               
               <!-- حالة التفعيل -->
-              <div class="d-flex justify-content-between align-items-center mb-4 p-3 border rounded">
+              <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
                 <div>
                   {% if auto_backup_enabled %}
                   <div class="text-success">
                     <i class="fas fa-check-circle fa-2x"></i>
                     <h6 class="mt-2 mb-0">مفعّل</h6>
-                    <small>النوع: {{ schedule_info.type or 'يومي' }} - الوقت: {{ schedule_info.time or '03:00' }}</small>
+                    <small>النوع: {{ schedule_info.type or 'daily' }} - الوقت: {{ schedule_info.time or '03:00' }}</small>
+                    <small>التشغيل التالي: {{ schedule_status.next_run or '---' }}</small>
                   </div>
                   {% else %}
                   <div class="text-warning">

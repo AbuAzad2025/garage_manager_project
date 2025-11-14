@@ -1,4 +1,3 @@
-{# templates/reports/shipments.html #}
 {% extends 'reports/_base.html' %}
 
 {% block title %}{{ FIELD_LABELS.get("shipments", "تقرير الشحنات") }}{% endblock %}
@@ -11,12 +10,14 @@
 {% block report_content %}
 <div class="container-fluid" dir="rtl">
 
-  <!-- العنوان -->
+  
+
   <div class="mb-3">
     <h4 class="fw-bold"><i class="fas fa-shipping-fast"></i> {{ FIELD_LABELS.get("shipments", "الشحنات") }}</h4>
   </div>
 
-  <!-- فلاتر -->
+  
+
   <div class="card shadow-sm mb-4">
     <div class="card-header bg-primary text-white">
       {{ FIELD_LABELS.get("date_range", "نطاق التاريخ") }}
@@ -41,7 +42,8 @@
     </div>
   </div>
 
-  <!-- إحصائيات -->
+  
+
   <div class="row g-3 mb-3">
     <div class="col-md-3">
       <div class="card shadow-sm">
@@ -69,7 +71,8 @@
     </div>
   </div>
 
-  <!-- جدول -->
+  
+
   <div class="card shadow-sm">
     <div class="card-header">{{ FIELD_LABELS.get("shipments_table", "جدول الشحنات") }}</div>
     <div class="card-body">

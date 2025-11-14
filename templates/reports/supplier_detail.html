@@ -64,14 +64,11 @@
                 <i class="fas fa-arrow-right ml-1"></i>
                 العودة
             </a>
-            <button onclick="printFullReport()" class="btn btn-outline-primary">
-                <i class="fas fa-print ml-1"></i>
-                طباعة الكل
-            </button>
         </div>
     </div>
 
-    <!-- معلومات المورد -->
+    
+
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="card border-0 shadow-sm">
@@ -104,7 +101,7 @@
                 </div>
                 <div class="card-body">
                     {% if balance_data and balance_data.get('success') %}
-                    {# البيانات الذكية #}
+                    
                     <div class="row text-center">
                         <div class="col-6 col-md-4 mb-3">
                             <strong class="text-success">🟢 قطع أخذناها</strong><br>
@@ -133,7 +130,7 @@
                         </div>
                     </div>
                     {% else %}
-                    {# القديم #}
+                    
                     <div class="row text-center">
                         <div class="col-6 col-md-3 mb-2">
                             <strong class="text-primary">توريدات</strong><br>
@@ -158,7 +155,8 @@
         </div>
     </div>
 
-    <!-- فلتر التاريخ -->
+    
+
     <div class="card border-0 shadow-sm mb-4 no-print">
         <div class="card-body">
             <form method="GET" class="row g-3">
@@ -183,7 +181,8 @@
         </div>
     </div>
 
-    <!-- 📦 حركات التوريد (IN) -->
+    
+
     {% if exchange_transactions %}
     {% set exchange_in = exchange_transactions|selectattr('direction', 'in', ['IN', 'PURCHASE', 'CONSIGN_IN'])|list %}
     {% if exchange_in %}
@@ -196,9 +195,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_exchange_in|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('exchangeInSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -248,7 +244,8 @@
     {% endif %}
     {% endif %}
 
-    <!-- 📤 حركات المرتجعات (OUT) -->
+    
+
     {% if exchange_transactions %}
     {% set exchange_out = exchange_transactions|selectattr('direction', 'in', ['OUT', 'RETURN', 'CONSIGN_OUT'])|list %}
     {% if exchange_out %}
@@ -261,9 +258,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_exchange_out|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('exchangeOutSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -310,7 +304,8 @@
     {% endif %}
     {% endif %}
 
-    <!-- 🛒 المبيعات -->
+    
+
     {% if sales %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-sales text-white collapsible-section collapsed" data-toggle="collapse" data-target="#salesSection">
@@ -321,9 +316,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_sales|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('salesSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -376,7 +368,8 @@
     </div>
     {% endif %}
 
-    <!-- 🔧 الصيانة -->
+    
+
     {% if services %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-services text-white collapsible-section collapsed" data-toggle="collapse" data-target="#servicesSection">
@@ -387,9 +380,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_services|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('servicesSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -453,7 +443,8 @@
     </div>
     {% endif %}
 
-    <!-- 📅 الحجوزات المسبقة -->
+    
+
     {% if preorders %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-preorders text-white collapsible-section collapsed" data-toggle="collapse" data-target="#preordersSection">
@@ -464,9 +455,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_preorders|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('preordersSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -512,7 +500,8 @@
     </div>
     {% endif %}
 
-    <!-- 💰 الدفعات الواردة (IN) -->
+    
+
     {% if payments_in %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-payments-in text-white collapsible-section collapsed" data-toggle="collapse" data-target="#paymentsInSection">
@@ -523,9 +512,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_payments_in|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('paymentsInSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -569,7 +555,8 @@
     </div>
     {% endif %}
 
-    <!-- 💸 الدفعات الصادرة (OUT) -->
+    
+
     {% if payments_out %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-payments-out text-white collapsible-section collapsed" data-toggle="collapse" data-target="#paymentsOutSection">
@@ -580,9 +567,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_payments_out|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('paymentsOutSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -626,7 +610,8 @@
     </div>
     {% endif %}
 
-    <!-- 💼 المصاريف -->
+    
+
     {% if expenses %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-expenses text-white collapsible-section collapsed" data-toggle="collapse" data-target="#expensesSection">
@@ -637,9 +622,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_expenses|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('expensesSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -681,7 +663,8 @@
     </div>
     {% endif %}
 
-    <!-- رسالة في حالة عدم وجود بيانات -->
+    
+
     {% if not exchange_transactions and not sales and not services and not preorders and not payments_in and not payments_out and not expenses %}
     <div class="card border-0 shadow-sm">
         <div class="card-body text-center py-5">
@@ -694,318 +677,6 @@
 </div>
 
 <script>
-// دالة لطباعة التقرير الكامل
-function printFullReport() {
-    const printWindow = window.open('', '', 'height=800,width=1000');
-    printWindow.document.write('<html><head><title>كشف مفصل - {{ supplier.name }}</title>');
-    printWindow.document.write('<meta charset="UTF-8">');
-    printWindow.document.write('<style>');
-    printWindow.document.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
-    printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; padding: 10px; font-size: 7pt; line-height: 1.2; }');
-    printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 8px; border-bottom: 2px solid #000; padding-bottom: 5px; font-size: 12pt; }');
-    printWindow.document.write('h3 { font-size: 9pt; margin: 8px 0 4px 0; padding: 3px 5px; background-color: #e0e0e0; border-right: 4px solid #667eea; }');
-    printWindow.document.write('.supplier-info { border: 1px solid #000; padding: 6px; margin: 8px 0; background-color: #f8f9fa; font-size: 6.5pt; }');
-    printWindow.document.write('.supplier-info table { width: 100%; border-collapse: collapse; }');
-    printWindow.document.write('.supplier-info td { padding: 2px 4px; border: none; vertical-align: top; }');
-    printWindow.document.write('.supplier-info strong { font-weight: bold; }');
-    printWindow.document.write('.balance-box { background-color: #e0ffe0; border: 1px solid #000; padding: 3px; margin-top: 3px; font-size: 7pt; }');
-    printWindow.document.write('.balance-box.negative { background-color: #ffe0e0; }');
-    printWindow.document.write('table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 6.5pt; }');
-    printWindow.document.write('th, td { border: 1px solid #999; padding: 2px 3px; text-align: right; line-height: 1.1; }');
-    printWindow.document.write('th { background-color: #e0e0e0; font-weight: bold; text-align: center; font-size: 7pt; }');
-    printWindow.document.write('tfoot th, tfoot td { background-color: #f0f0f0; font-weight: bold; padding: 3px; }');
-    printWindow.document.write('.badge { display: inline-block; padding: 1px 4px; font-size: 6pt; border-radius: 2px; }');
-    printWindow.document.write('.bg-primary { background-color: #007bff; color: white; }');
-    printWindow.document.write('.bg-success { background-color: #28a745; color: white; }');
-    printWindow.document.write('.bg-danger { background-color: #dc3545; color: white; }');
-    printWindow.document.write('.bg-warning { background-color: #ffc107; color: black; }');
-    printWindow.document.write('.bg-info { background-color: #17a2b8; color: white; }');
-    printWindow.document.write('.section { margin-bottom: 10px; page-break-inside: avoid; }');
-    printWindow.document.write('.footer { text-align: center; font-size: 6pt; color: #666; margin-top: 10px; border-top: 1px solid #ccc; padding-top: 5px; }');
-    printWindow.document.write('@page { margin: 0.8cm; size: A4 portrait; }');
-    printWindow.document.write('</style></head><body>');
-    
-    // الترويسة
-    printWindow.document.write('<h2>كشف مفصل للمورد: {{ supplier.name }}</h2>');
-    
-    // معلومات المورد
-    printWindow.document.write('<div class="supplier-info">');
-    printWindow.document.write('<table><tr>');
-    printWindow.document.write('<td style="width: 50%;">');
-    printWindow.document.write('<div><strong>الاسم:</strong> {{ supplier.name }}</div>');
-    printWindow.document.write('<div><strong>الهاتف:</strong> {{ supplier.phone or "غير محدد" }}</div>');
-    printWindow.document.write('<div><strong>البريد:</strong> {{ supplier.email or "غير محدد" }}</div>');
-    printWindow.document.write('</td>');
-    printWindow.document.write('<td style="width: 50%; border-right: 1px solid #000;">');
-    {% if start_date and end_date %}
-    printWindow.document.write('<div><strong>الفترة:</strong> من {{ start_date }} إلى {{ end_date }}</div>');
-    {% endif %}
-    printWindow.document.write('<div class="balance-box {% if current_balance < 0 %}negative{% endif %}"><strong>الرصيد:</strong> {{ current_balance|format_currency }}');
-    {% if current_balance > 0 %}
-    printWindow.document.write(' <strong>(له علينا)</strong>');
-    {% elif current_balance < 0 %}
-    printWindow.document.write(' <strong>(لنا عليه)</strong>');
-    {% endif %}
-    printWindow.document.write('</div>');
-    printWindow.document.write('<div style="font-size: 6pt; margin-top: 2px;"><strong>طُبع:</strong> ' + new Date().toLocaleDateString('ar-EG') + '</div>');
-    printWindow.document.write('</td>');
-    printWindow.document.write('</tr></table>');
-    printWindow.document.write('</div>');
-    
-    {% if exchange_transactions %}
-    {% set exchange_in = exchange_transactions|selectattr('direction', 'in', ['IN', 'PURCHASE', 'CONSIGN_IN'])|list %}
-    {% if exchange_in %}
-    // حركات التوريد
-    printWindow.document.write('<div class="section">');
-    printWindow.document.write('<h3>📦 حركات التوريد ({{ exchange_in|length }} حركة) - {{ total_exchange_in|format_currency }}</h3>');
-    printWindow.document.write('<table>');
-    printWindow.document.write('<thead><tr><th>#</th><th>التاريخ</th><th>المنتج</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>');
-    printWindow.document.write('<tbody>');
-    {% for tx in exchange_in %}
-    printWindow.document.write('<tr>');
-    printWindow.document.write('<td>{{ tx.id }}</td>');
-    printWindow.document.write('<td>{{ tx.created_at.strftime("%Y-%m-%d") if tx.created_at else "-" }}</td>');
-    printWindow.document.write('<td>{{ tx.product.name if tx.product else "غير محدد" }}</td>');
-    printWindow.document.write('<td>{{ tx.quantity }}</td>');
-    printWindow.document.write('<td>{{ tx.unit_cost|format_currency }}</td>');
-    printWindow.document.write('<td>{{ (tx.quantity * tx.unit_cost)|format_currency }}</td>');
-    printWindow.document.write('</tr>');
-    {% endfor %}
-    printWindow.document.write('</tbody>');
-    printWindow.document.write('<tfoot><tr><th colspan="5">الإجمالي:</th><th>{{ total_exchange_in|format_currency }}</th></tr></tfoot>');
-    printWindow.document.write('</table>');
-    printWindow.document.write('</div>');
-    {% endif %}
-    {% endif %}
-    
-    {% if sales %}
-    // المبيعات
-    printWindow.document.write('<div class="section">');
-    printWindow.document.write('<h3>🛒 المبيعات ({{ sales|length }} فاتورة) - {{ total_sales|format_currency }}</h3>');
-    printWindow.document.write('<table>');
-    printWindow.document.write('<thead><tr><th>رقم البيع</th><th>التاريخ</th><th>المنتج</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>');
-    printWindow.document.write('<tbody>');
-    {% for sale in sales %}
-    {% if sale.lines %}
-    {% for line in sale.lines %}
-    printWindow.document.write('<tr>');
-    printWindow.document.write('<td>{{ sale.sale_number }}</td>');
-    printWindow.document.write('<td>{{ sale.sale_date.strftime("%Y-%m-%d") if sale.sale_date else "-" }}</td>');
-    printWindow.document.write('<td>{{ line.product.name if line.product else "-" }}</td>');
-    printWindow.document.write('<td>{{ line.quantity }}</td>');
-    printWindow.document.write('<td>{{ line.unit_price|format_currency }}</td>');
-    printWindow.document.write('<td>{{ (line.quantity * line.unit_price)|format_currency }}</td>');
-    printWindow.document.write('</tr>');
-    {% endfor %}
-    {% endif %}
-    {% endfor %}
-    printWindow.document.write('</tbody>');
-    printWindow.document.write('<tfoot><tr><th colspan="5">الإجمالي:</th><th>{{ total_sales|format_currency }}</th></tr></tfoot>');
-    printWindow.document.write('</table>');
-    printWindow.document.write('</div>');
-    {% endif %}
-    
-    {% if payments_out %}
-    // الدفعات الصادرة
-    printWindow.document.write('<div class="section">');
-    printWindow.document.write('<h3>💸 الدفعات الصادرة ({{ payments_out|length }} دفعة) - {{ total_payments_out|format_currency }}</h3>');
-    printWindow.document.write('<table>');
-    printWindow.document.write('<thead><tr><th>رقم الدفعة</th><th>التاريخ</th><th>طريقة الدفع</th><th>المبلغ</th><th>ملاحظات</th></tr></thead>');
-    printWindow.document.write('<tbody>');
-    {% for payment in payments_out %}
-    printWindow.document.write('<tr>');
-    printWindow.document.write('<td>{{ payment.payment_number or payment.id }}</td>');
-    printWindow.document.write('<td>{{ payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "-" }}</td>');
-    printWindow.document.write('<td>{{ payment.method or "نقدي" }}</td>');
-    printWindow.document.write('<td>{{ payment.total_amount|format_currency }}</td>');
-    printWindow.document.write('<td>{{ payment.notes or "-" }}</td>');
-    printWindow.document.write('</tr>');
-    {% endfor %}
-    printWindow.document.write('</tbody>');
-    printWindow.document.write('<tfoot><tr><th colspan="3">الإجمالي:</th><th colspan="2">{{ total_payments_out|format_currency }}</th></tr></tfoot>');
-    printWindow.document.write('</table>');
-    printWindow.document.write('</div>');
-    {% endif %}
-    
-    {% if payments_in %}
-    // الدفعات الواردة
-    printWindow.document.write('<div class="section">');
-    printWindow.document.write('<h3>💰 الدفعات الواردة ({{ payments_in|length }} دفعة) - {{ total_payments_in|format_currency }}</h3>');
-    printWindow.document.write('<table>');
-    printWindow.document.write('<thead><tr><th>رقم الدفعة</th><th>التاريخ</th><th>طريقة الدفع</th><th>المبلغ</th><th>ملاحظات</th></tr></thead>');
-    printWindow.document.write('<tbody>');
-    {% for payment in payments_in %}
-    printWindow.document.write('<tr>');
-    printWindow.document.write('<td>{{ payment.payment_number or payment.id }}</td>');
-    printWindow.document.write('<td>{{ payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "-" }}</td>');
-    printWindow.document.write('<td>{{ payment.method or "نقدي" }}</td>');
-    printWindow.document.write('<td>{{ payment.total_amount|format_currency }}</td>');
-    printWindow.document.write('<td>{{ payment.notes or "-" }}</td>');
-    printWindow.document.write('</tr>');
-    {% endfor %}
-    printWindow.document.write('</tbody>');
-    printWindow.document.write('<tfoot><tr><th colspan="3">الإجمالي:</th><th colspan="2">{{ total_payments_in|format_currency }}</th></tr></tfoot>');
-    printWindow.document.write('</table>');
-    printWindow.document.write('</div>');
-    {% endif %}
-    
-    {% if services %}
-    // الصيانة
-    printWindow.document.write('<div class="section">');
-    printWindow.document.write('<h3>🔧 الصيانة ({{ services|length }} طلب) - {{ total_services|format_currency }}</h3>');
-    printWindow.document.write('<table>');
-    printWindow.document.write('<thead><tr><th>رقم الصيانة</th><th>التاريخ</th><th>النوع</th><th>الوصف</th><th>المبلغ</th></tr></thead>');
-    printWindow.document.write('<tbody>');
-    {% for service in services %}
-    printWindow.document.write('<tr>');
-    printWindow.document.write('<td>{{ service.service_number or service.id }}</td>');
-    printWindow.document.write('<td>{{ service.received_at.strftime("%Y-%m-%d") if service.received_at else "-" }}</td>');
-    printWindow.document.write('<td colspan="2">خدمة صيانة</td>');
-    printWindow.document.write('<td>{{ service.total_amount|format_currency }}</td>');
-    printWindow.document.write('</tr>');
-    {% endfor %}
-    printWindow.document.write('</tbody>');
-    printWindow.document.write('<tfoot><tr><th colspan="4">الإجمالي:</th><th>{{ total_services|format_currency }}</th></tr></tfoot>');
-    printWindow.document.write('</table>');
-    printWindow.document.write('</div>');
-    {% endif %}
-    
-    {% if preorders %}
-    // الحجوزات المسبقة
-    printWindow.document.write('<div class="section">');
-    printWindow.document.write('<h3>📅 الحجوزات المسبقة ({{ preorders|length }} حجز) - {{ total_preorders|format_currency }}</h3>');
-    printWindow.document.write('<table>');
-    printWindow.document.write('<thead><tr><th>#</th><th>التاريخ</th><th>المنتج</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr></thead>');
-    printWindow.document.write('<tbody>');
-    {% for preorder in preorders %}
-    printWindow.document.write('<tr>');
-    printWindow.document.write('<td>{{ preorder.id }}</td>');
-    printWindow.document.write('<td>{{ preorder.preorder_date.strftime("%Y-%m-%d") if preorder.preorder_date else "-" }}</td>');
-    printWindow.document.write('<td>{{ preorder.product.name if preorder.product else "غير محدد" }}</td>');
-    printWindow.document.write('<td>{{ preorder.quantity }}</td>');
-    printWindow.document.write('<td>{{ preorder.unit_price|format_currency }}</td>');
-    printWindow.document.write('<td>{{ preorder.total_amount|format_currency }}</td>');
-    printWindow.document.write('</tr>');
-    {% endfor %}
-    printWindow.document.write('</tbody>');
-    printWindow.document.write('<tfoot><tr><th colspan="5">الإجمالي:</th><th>{{ total_preorders|format_currency }}</th></tr></tfoot>');
-    printWindow.document.write('</table>');
-    printWindow.document.write('</div>');
-    {% endif %}
-    
-    {% if exchange_transactions %}
-    {% set exchange_out = exchange_transactions|selectattr('direction', 'in', ['OUT', 'RETURN', 'CONSIGN_OUT'])|list %}
-    {% if exchange_out %}
-    // المرتجعات
-    printWindow.document.write('<div class="section">');
-    printWindow.document.write('<h3>📤 المرتجعات ({{ exchange_out|length }} حركة) - {{ total_exchange_out|format_currency }}</h3>');
-    printWindow.document.write('<table>');
-    printWindow.document.write('<thead><tr><th>#</th><th>التاريخ</th><th>المنتج</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th></tr></thead>');
-    printWindow.document.write('<tbody>');
-    {% for tx in exchange_out %}
-    printWindow.document.write('<tr>');
-    printWindow.document.write('<td>{{ tx.id }}</td>');
-    printWindow.document.write('<td>{{ tx.created_at.strftime("%Y-%m-%d") if tx.created_at else "-" }}</td>');
-    printWindow.document.write('<td>{{ tx.product.name if tx.product else "غير محدد" }}</td>');
-    printWindow.document.write('<td>{{ tx.quantity }}</td>');
-    printWindow.document.write('<td>{{ tx.unit_cost|format_currency }}</td>');
-    printWindow.document.write('<td>{{ (tx.quantity * tx.unit_cost)|format_currency }}</td>');
-    printWindow.document.write('</tr>');
-    {% endfor %}
-    printWindow.document.write('</tbody>');
-    printWindow.document.write('<tfoot><tr><th colspan="5">الإجمالي:</th><th>{{ total_exchange_out|format_currency }}</th></tr></tfoot>');
-    printWindow.document.write('</table>');
-    printWindow.document.write('</div>');
-    {% endif %}
-    {% endif %}
-    
-    {% if expenses %}
-    // المصاريف
-    printWindow.document.write('<div class="section">');
-    printWindow.document.write('<h3>💼 المصاريف ({{ expenses|length }} مصروف) - {{ total_expenses|format_currency }}</h3>');
-    printWindow.document.write('<table>');
-    printWindow.document.write('<thead><tr><th>#</th><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الوصف</th></tr></thead>');
-    printWindow.document.write('<tbody>');
-    {% for expense in expenses %}
-    printWindow.document.write('<tr>');
-    printWindow.document.write('<td>{{ expense.id }}</td>');
-    printWindow.document.write('<td>{{ expense.date.strftime("%Y-%m-%d") if expense.date else "-" }}</td>');
-    printWindow.document.write('<td>{{ expense.type_id or "غير محدد" }}</td>');
-    printWindow.document.write('<td>{{ expense.amount|format_currency }}</td>');
-    printWindow.document.write('<td>{{ expense.desc or "-" }}</td>');
-    printWindow.document.write('</tr>');
-    {% endfor %}
-    printWindow.document.write('</tbody>');
-    printWindow.document.write('<tfoot><tr><th colspan="3">الإجمالي:</th><th colspan="2">{{ total_expenses|format_currency }}</th></tr></tfoot>');
-    printWindow.document.write('</table>');
-    printWindow.document.write('</div>');
-    {% endif %}
-    
-    // التذييل
-    printWindow.document.write('<div class="footer">');
-    printWindow.document.write('طُبع بتاريخ: ' + new Date().toLocaleString('en-US'));
-    printWindow.document.write('</div>');
-    
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-    
-    setTimeout(function() {
-        printWindow.print();
-    }, 250);
-}
-
-// دالة لطباعة قسم محدد فقط
-function printSection(sectionId) {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
-    
-    // فتح القسم إذا كان مطوياً
-    // استخدام jQuery للـ collapse
-    bsCollapse.show();
-    
-    // انتظار فتح القسم ثم الطباعة
-    setTimeout(() => {
-        const printWindow = window.open('', '_blank');
-        const content = `
-            <!DOCTYPE html>
-            <html dir="rtl" lang="ar">
-            <head>
-                <meta charset="UTF-8">
-                <title>طباعة - {{ supplier.name }}</title>
-                <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
-                <style>
-                    body { font-family: 'Tajawal', Arial, sans-serif; direction: rtl; }
-                    .table { width: 100%; margin-top: 20px; }
-                    .table th { background-color: #f8f9fa; }
-                    @media print {
-                        .no-print { display: none; }
-                        body { font-size: 12pt; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container-fluid p-4">
-                    <div class="text-center mb-4">
-                        <h2>{{ supplier.name }}</h2>
-                        <p>تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
-                    </div>
-                    ${section.innerHTML}
-                </div>
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        setTimeout(() => window.close(), 100);
-                    };
-                <\/script>
-            </body>
-            </html>
-        `;
-        printWindow.document.write(content);
-        printWindow.document.close();
-    }, 300);
-}
-
-// Toggle collapse icons
 document.addEventListener('DOMContentLoaded', function() {
     const collapsibles = document.querySelectorAll('.collapsible-section');
     collapsibles.forEach(section => {

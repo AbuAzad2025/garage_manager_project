@@ -63,14 +63,11 @@
                 <i class="fas fa-arrow-right ml-1"></i>
                 العودة
             </a>
-            <button onclick="printPartnerFullReport()" class="btn btn-outline-primary">
-                <i class="fas fa-print ml-1"></i>
-                طباعة الكل
-            </button>
         </div>
     </div>
 
-    <!-- معلومات الشريك -->
+    
+
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="card border-0 shadow-sm">
@@ -103,7 +100,7 @@
                 </div>
                 <div class="card-body">
                     {% if balance_data and balance_data.get('success') %}
-                    {# البيانات الذكية #}
+                    
                     <div class="row text-center">
                         <div class="col-6 col-md-4 mb-3">
                             <strong class="text-success">🟢 المخزون</strong><br>
@@ -137,7 +134,7 @@
                         </div>
                     </div>
                     {% else %}
-                    {# القديم #}
+                    
                     <div class="row text-center">
                         <div class="col-6 col-md-4 mb-2">
                             <strong class="text-info">مبيعات</strong><br>
@@ -166,7 +163,8 @@
         </div>
     </div>
 
-    <!-- فلتر التاريخ -->
+    
+
     <div class="card border-0 shadow-sm mb-4 no-print">
         <div class="card-body">
             <form method="GET" class="row g-3">
@@ -191,7 +189,8 @@
         </div>
     </div>
 
-    <!-- 🛒 المبيعات -->
+    
+
     {% if sales %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-sales text-white collapsible-section collapsed" data-toggle="collapse" data-target="#salesSection">
@@ -202,9 +201,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_sales|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('salesSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -257,7 +253,8 @@
     </div>
     {% endif %}
 
-    <!-- 🔧 الصيانة -->
+    
+
     {% if services %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-services text-white collapsible-section collapsed" data-toggle="collapse" data-target="#servicesSection">
@@ -268,9 +265,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_services|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('servicesSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -334,7 +328,8 @@
     </div>
     {% endif %}
 
-    <!-- 📅 الحجوزات المسبقة (حصة الشريك) -->
+    
+
     {% if preorders %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-preorders text-white collapsible-section collapsed" data-toggle="collapse" data-target="#preordersSection">
@@ -345,9 +340,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_preorders|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('preordersSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -395,7 +387,8 @@
     </div>
     {% endif %}
 
-    <!-- 🔩 قطع الغيار في الصيانة (حصة الشريك) -->
+    
+
     {% if service_parts %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-service-parts text-white collapsible-section collapsed" data-toggle="collapse" data-target="#servicePartsSection">
@@ -406,9 +399,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_service_parts|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('servicePartsSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -454,7 +444,8 @@
     </div>
     {% endif %}
 
-    <!-- 💰 الدفعات الواردة (IN) -->
+    
+
     {% if payments_in %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-payments-in text-white collapsible-section collapsed" data-toggle="collapse" data-target="#paymentsInSection">
@@ -465,9 +456,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_payments_in|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('paymentsInSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -511,7 +499,8 @@
     </div>
     {% endif %}
 
-    <!-- 💸 الدفعات الصادرة (OUT) -->
+    
+
     {% if payments_out %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-payments-out text-white collapsible-section collapsed" data-toggle="collapse" data-target="#paymentsOutSection">
@@ -522,9 +511,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_payments_out|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('paymentsOutSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -568,7 +554,8 @@
     </div>
     {% endif %}
 
-    <!-- 📦 المخزون (نصيب الشريك) -->
+    
+
     {% if inventory %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-info text-white collapsible-section collapsed" data-toggle="collapse" data-target="#inventorySection">
@@ -579,9 +566,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_inventory|format_currency }} ₪</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('inventorySection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -623,7 +607,8 @@
     </div>
     {% endif %}
 
-    <!-- 💼 المصاريف -->
+    
+
     {% if expenses %}
     <div class="card border-0 shadow-sm mb-4 print-section">
         <div class="card-header bg-expenses text-white collapsible-section collapsed" data-toggle="collapse" data-target="#expensesSection">
@@ -634,9 +619,6 @@
                 </h5>
                 <div>
                     <span class="badge bg-light text-dark ml-2">{{ total_expenses|format_currency }}</span>
-                    <button class="btn btn-sm btn-light no-print" onclick="printSection('expensesSection')">
-                        <i class="fas fa-print"></i>
-                    </button>
                     <i class="fas fa-chevron-down collapse-icon ms-2"></i>
                 </div>
             </div>
@@ -678,7 +660,8 @@
     </div>
     {% endif %}
 
-    <!-- رسالة في حالة عدم وجود بيانات -->
+    
+
     {% if not sales and not services and not preorders and not service_parts and not payments_in and not payments_out and not expenses and not inventory %}
     <div class="card border-0 shadow-sm">
         <div class="card-body text-center py-5">
@@ -691,57 +674,6 @@
 </div>
 
 <script>
-// دالة لطباعة قسم محدد فقط
-function printSection(sectionId) {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
-    
-    // فتح القسم إذا كان مطوياً
-    // استخدام jQuery للـ collapse
-    bsCollapse.show();
-    
-    // انتظار فتح القسم ثم الطباعة
-    setTimeout(() => {
-        const printWindow = window.open('', '_blank');
-        const content = `
-            <!DOCTYPE html>
-            <html dir="rtl" lang="ar">
-            <head>
-                <meta charset="UTF-8">
-                <title>طباعة - {{ partner.name }}</title>
-                <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/css/adminlte.min.css') }}">
-                <style>
-                    body { font-family: 'Tajawal', Arial, sans-serif; direction: rtl; }
-                    .table { width: 100%; margin-top: 20px; }
-                    .table th { background-color: #f8f9fa; }
-                    @media print {
-                        .no-print { display: none; }
-                        body { font-size: 12pt; }
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container-fluid p-4">
-                    <div class="text-center mb-4">
-                        <h2>{{ partner.name }}</h2>
-                        <p>تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
-                    </div>
-                    ${section.innerHTML}
-                </div>
-                <script>
-                    window.onload = function() {
-                        window.print();
-                        setTimeout(() => window.close(), 100);
-                    };
-                <\/script>
-            </body>
-            </html>
-        `;
-        printWindow.document.write(content);
-        printWindow.document.close();
-    }, 300);
-}
-
 // Toggle collapse icons
 document.addEventListener('DOMContentLoaded', function() {
     const collapsibles = document.querySelectorAll('.collapsible-section');

@@ -200,23 +200,34 @@
         <div class="card-body">
           <div class="row">
             <div class="col-md-3">
-              <a href="#" class="btn btn-outline-primary w-100 mb-2">
+              <a href="{{ url_for('budgets.index') if budget_settings.enable_budget_module else '#' }}"
+                 class="btn btn-outline-primary w-100 mb-2 {% if not budget_settings.enable_budget_module %}disabled opacity-50{% endif %}"
+                 {% if not budget_settings.enable_budget_module %}aria-disabled="true"{% endif %}>
                 <i class="fas fa-chart-bar"></i> لوحة الميزانية
               </a>
+              {% if not budget_settings.enable_budget_module %}
+              <small class="text-muted">فعّل وحدة الميزانية للوصول</small>
+              {% endif %}
             </div>
             <div class="col-md-3">
-              <a href="#" class="btn btn-outline-primary w-100 mb-2">
+              <a href="{{ url_for('budgets.budget_vs_actual') if budget_settings.enable_budget_module else '#' }}"
+                 class="btn btn-outline-primary w-100 mb-2 {% if not budget_settings.enable_budget_module %}disabled opacity-50{% endif %}"
+                 {% if not budget_settings.enable_budget_module %}aria-disabled="true"{% endif %}>
                 <i class="fas fa-file-invoice"></i> تقارير الميزانية
               </a>
             </div>
             <div class="col-md-3">
-              <a href="#" class="btn btn-outline-success w-100 mb-2">
+              <a href="{{ url_for('assets.index') if asset_settings.enable_fixed_assets else '#' }}"
+                 class="btn btn-outline-success w-100 mb-2 {% if not asset_settings.enable_fixed_assets %}disabled opacity-50{% endif %}"
+                 {% if not asset_settings.enable_fixed_assets %}aria-disabled="true"{% endif %}>
                 <i class="fas fa-warehouse"></i> سجل الأصول
               </a>
             </div>
             <div class="col-md-3">
-              <a href="#" class="btn btn-outline-success w-100 mb-2">
-                <i class="fas fa-tools"></i> صيانة الأصول
+              <a href="{{ url_for('assets.asset_register') if asset_settings.enable_fixed_assets else '#' }}"
+                 class="btn btn-outline-success w-100 mb-2 {% if not asset_settings.enable_fixed_assets %}disabled opacity-50{% endif %}"
+                 {% if not asset_settings.enable_fixed_assets %}aria-disabled="true"{% endif %}>
+                <i class="fas fa-tools"></i> تقارير الأصول
               </a>
             </div>
           </div>

@@ -1,0 +1,13 @@
+.report-table-toolbar {
+  display: none;
+}
+
+.report-print-columns {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.report-print-columns .custom-control {
+  margin-bottom: 0.35rem;
+}
+

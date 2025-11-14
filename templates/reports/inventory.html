@@ -1,4 +1,3 @@
-{# templates/reports/inventory.html #}
 {% extends 'reports/_base.html' %}
 
 {% block title %}{{ FIELD_LABELS.get("inventory", "المخزون") }}{% endblock %}
@@ -11,56 +10,73 @@
 {% block report_content %}
 <div class="container-fluid" dir="rtl">
 
-  <!-- العنوان وزر الطباعة -->
+  
+
   <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
     <h4 class="fw-bold m-0">
       <i class="fas fa-boxes"></i>
       {{ FIELD_LABELS.get("inventory", "المخزون (منتج × مستودع)") }}
     </h4>
-    <button type="button" class="btn btn-outline-primary btn-sm" id="btn-print">
-      <i class="fas fa-print"></i> طباعة
-    </button>
   </div>
 
-  <!-- فلتر البحث -->
+  
+
   <div class="card shadow-sm mb-3">
     <div class="card-header bg-info text-white">
       <i class="fas fa-filter"></i> فلاتر التقرير
     </div>
     <div class="card-body">
       <form method="get" action="{{ url_for('reports_bp.inventory') }}" class="row g-3">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-        <div class="col-md-10">
+        <div class="col-md-6">
           <label class="form-label fw-semibold">
             <i class="fas fa-search"></i> البحث (اسم المنتج، SKU، رقم القطعة)
           </label>
           <input type="text" name="q" value="{{ search or '' }}" class="form-control" placeholder="ابحث عن منتج...">
-          <small class="text-muted">يمكنك البحث بأي جزء من اسم المنتج أو رمزه</small>
+          <small class="text-muted">يمكنك البحث باسم المنتج أو الكود أو الباركود</small>
         </div>
-        <div class="col-md-2 align-self-end">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="fas fa-sync-alt"></i> بحث
-          </button>
-          {% if search %}
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">
+            <i class="fas fa-warehouse"></i> المستودع
+          </label>
+          <select name="warehouse_id" class="form-select">
+            <option value="">كل المستودعات</option>
+            {% for wh in all_warehouses %}
+            <option value="{{ wh.id }}" {% if selected_warehouse_id == wh.id %}selected{% endif %}>{{ wh.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold d-block">
+            <i class="fas fa-filter"></i> خيارات إضافية
+          </label>
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" value="1" id="lowOnly" name="low_only" {% if low_only %}checked{% endif %}>
+            <label class="form-check-label" for="lowOnly">عرض المنخفض فقط</label>
+          </div>
+          <div class="btn-group w-100">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-sync-alt"></i> بحث
+            </button>
+            <button type="submit" class="btn btn-outline-success" name="format" value="csv">
+              <i class="fas fa-file-csv"></i> تصدير
+            </button>
+          </div>
           <a href="{{ url_for('reports_bp.inventory') }}" class="btn btn-outline-secondary w-100 mt-2">
-            <i class="fas fa-times"></i> إلغاء
+            <i class="fas fa-times"></i> إعادة ضبط
           </a>
-          {% endif %}
         </div>
       </form>
     </div>
   </div>
 
-  <!-- ملخصات إحصائية -->
-  {% set total_products = rows|length %}
-  {% set total_quantity = rows|sum(attribute='total') %}
   
+
   <div class="row g-3 mb-3">
     <div class="col-md-3">
       <div class="card shadow-sm border-primary">
         <div class="card-body text-center">
           <div class="text-primary mb-2"><i class="fas fa-box fa-2x"></i></div>
-          <h5 class="text-primary mb-0">{{ total_products }}</h5>
+          <h5 class="text-primary mb-0">{{ stats.products }}</h5>
           <small class="text-muted">عدد المنتجات</small>
         </div>
       </div>
@@ -69,40 +85,33 @@
       <div class="card shadow-sm border-success">
         <div class="card-body text-center">
           <div class="text-success mb-2"><i class="fas fa-cubes fa-2x"></i></div>
-          <h5 class="text-success mb-0">{{ "{:,}".format(total_quantity) }}</h5>
-          <small class="text-muted">إجمالي الكمية</small>
+          <h5 class="text-success mb-0">{{ "{:,}".format(stats.on_hand) }}</h5>
+          <small class="text-muted">إجمالي الكمية على الرف</small>
         </div>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card shadow-sm border-warning">
         <div class="card-body text-center">
-          <div class="text-warning mb-2"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
-          <h5 class="text-warning mb-0">
-            {% set low_count = 0 %}
-            {% for r in rows %}
-              {% if r.product.min_qty and r.total < r.product.min_qty %}
-                {% set low_count = low_count + 1 %}
-              {% endif %}
-            {% endfor %}
-            {{ low_count }}
-          </h5>
-          <small class="text-muted">منتجات منخفضة المخزون</small>
+          <div class="text-warning mb-2"><i class="fas fa-box-open fa-2x"></i></div>
+          <h5 class="text-warning mb-0">{{ "{:,}".format(stats.available) }}</h5>
+          <small class="text-muted">متاح بعد الحجز</small>
         </div>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card shadow-sm border-info">
         <div class="card-body text-center">
-          <div class="text-info mb-2"><i class="fas fa-warehouse fa-2x"></i></div>
-          <h5 class="text-info mb-0">{{ warehouses|length }}</h5>
-          <small class="text-muted">عدد المستودعات</small>
+          <div class="text-info mb-2"><i class="fas fa-exclamation-triangle fa-2x"></i></div>
+          <h5 class="text-info mb-0">{{ stats.low_count }}</h5>
+          <small class="text-muted">منتجات منخفضة المخزون</small>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- جدول المخزون -->
+  
+
   <div class="card shadow-sm">
     <div class="card-header">{{ FIELD_LABELS.get("inventory_table", "جدول المخزون") }}</div>
     <div class="card-body">
@@ -115,6 +124,8 @@
               <th class="text-center">{{ wh.name }}</th>
               {% endfor %}
               <th class="text-center">الإجمالي</th>
+              <th class="text-center">محجوز</th>
+              <th class="text-center">متاح</th>
               <th>الحد الأدنى</th>
             </tr>
           </thead>
@@ -144,9 +155,9 @@
                   {% endif %}
                 </td>
                 {% endfor %}
-                <td class="text-center">
-                  <strong class="badge badge-primary">{{ r.total }}</strong>
-                </td>
+                <td class="text-center"><strong class="badge bg-primary">{{ r.total }}</strong></td>
+                <td class="text-center"><span class="badge bg-warning text-dark">{{ r.reserved_total }}</span></td>
+                <td class="text-center"><span class="badge bg-success">{{ r.total - r.reserved_total }}</span></td>
                 <td class="text-center">
                   {% if r.product.min_qty %}
                     {{ r.product.min_qty }}
@@ -160,7 +171,7 @@
               </tr>
             {% else %}
               <tr>
-                <td colspan="{{ warehouses|length + 3 }}" class="text-center text-muted">
+                <td colspan="{{ warehouses|length + 4 }}" class="text-center text-muted">
                   لا توجد بيانات مخزون
                 </td>
               </tr>
@@ -172,13 +183,4 @@
   </div>
 
 </div>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script>
-  document.getElementById('btn-print')?.addEventListener('click', function () {
-    window.print();
-  });
-</script>
 {% endblock %}

@@ -373,13 +373,15 @@
 document.addEventListener('DOMContentLoaded', function() {
     // رسم بياني للمبيعات الشهرية
     const salesCtx = document.getElementById('salesChart').getContext('2d');
+    const salesLabels = {{ monthly_sales_labels|default([], true)|tojson }};
+    const salesValues = {{ monthly_sales_values|default([], true)|tojson }};
     const salesChart = new Chart(salesCtx, {
         type: 'line',
         data: {
-            labels: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو'],
+            labels: salesLabels.length ? salesLabels : ['لا بيانات'],
             datasets: [{
                 label: 'المبيعات (شيكل)',
-                data: [12000, 19000, 15000, 25000, 22000, 30000],
+                data: salesValues.length ? salesValues : [0],
                 borderColor: 'rgb(75, 192, 192)',
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
                 tension: 0.4,
@@ -410,12 +412,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // رسم بياني لتوزيع العملاء
     const customersCtx = document.getElementById('customersChart').getContext('2d');
+    const customerLabels = {{ customer_segment_labels|default([], true)|tojson }};
+    const customerValues = {{ customer_segment_values|default([], true)|tojson }};
     const customersChart = new Chart(customersCtx, {
         type: 'doughnut',
         data: {
-            labels: ['عملاء جدد', 'عملاء نشطين', 'عملاء غير نشطين'],
+            labels: customerLabels.length ? customerLabels : ['لا بيانات'],
             datasets: [{
-                data: [30, 50, 20],
+                data: customerValues.length ? customerValues : [0],
                 backgroundColor: [
                     'rgba(54, 162, 235, 0.8)',
                     'rgba(75, 192, 192, 0.8)',
@@ -474,10 +478,11 @@ document.addEventListener('DOMContentLoaded', function() {
     background: rgba(0,0,0,0.05);
   }
   .alert-amount {
-    font-size: .85rem;
-    background: rgba(0,0,0,0.05);
-    color: #111;
-    border-radius: 999px;
+    font-size: 1rem;
+    color: #c62828;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-shadow: none;
   }
 </style>
 

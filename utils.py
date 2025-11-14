@@ -1777,7 +1777,6 @@ def cache_result(timeout=300):
 # System Constants Helpers
 # ========================================================================
 
-@cache_result(timeout=60)  # Cache for 1 minute
 def get_system_constant(key: str, default: Any = None) -> Any:
     """
     الحصول على ثابت من إعدادات النظام
@@ -1803,30 +1802,66 @@ def get_system_constant(key: str, default: Any = None) -> Any:
         return default
 
 
+BUSINESS_GROUP_DEFAULTS = {
+    'tax': True,
+    'payroll': True,
+    'assets': True,
+    'accounting': True,
+    'notifications': True,
+    'business_rules': True,
+    'multi_tenancy': True,
+}
+
+
+def is_business_group_enabled(group: str, default: bool = None) -> bool:
+    """التحقق من تفعيل مجموعة ثوابت معينة"""
+    if default is None:
+        default = BUSINESS_GROUP_DEFAULTS.get(group, True)
+    return bool(get_system_constant(f'enable_{group}_constants', default))
+
+
 def get_vat_rate() -> float:
     """الحصول على نسبة VAT الافتراضية من إعدادات النظام"""
-    return float(get_system_constant('default_vat_rate', 16.0))
+    default = 16.0
+    if not is_business_group_enabled('tax'):
+        return default
+    return float(get_system_constant('default_vat_rate', default))
 
 
 def is_vat_enabled() -> bool:
     """التحقق من تفعيل VAT في النظام"""
+    if not is_business_group_enabled('tax'):
+        return False
     return bool(get_system_constant('vat_enabled', True))
 
 
 def get_income_tax_rate() -> float:
     """نسبة ضريبة الدخل على الشركات"""
-    return float(get_system_constant('income_tax_rate', 15.0))
+    default = 15.0
+    if not is_business_group_enabled('tax'):
+        return default
+    return float(get_system_constant('income_tax_rate', default))
 
 
 def get_withholding_tax_rate() -> float:
     """نسبة الخصم من المنبع"""
-    return float(get_system_constant('withholding_tax_rate', 5.0))
+    default = 5.0
+    if not is_business_group_enabled('tax'):
+        return default
+    return float(get_system_constant('withholding_tax_rate', default))
 
 
 def get_social_insurance_rates() -> dict:
     """نسب التأمينات الاجتماعية"""
+    group_enabled = is_business_group_enabled('payroll')
+    if not group_enabled:
+        return {
+            'enabled': False,
+            'company_rate': 7.5,
+            'employee_rate': 7.0
+        }
     return {
-        'enabled': bool(get_system_constant('social_insurance_enabled', False)),
+        'enabled': group_enabled and bool(get_system_constant('social_insurance_enabled', False)),
         'company_rate': float(get_system_constant('social_insurance_company', 7.5)),
         'employee_rate': float(get_system_constant('social_insurance_employee', 7.0))
     }
@@ -1834,12 +1869,18 @@ def get_social_insurance_rates() -> dict:
 
 def get_overtime_rate() -> float:
     """معدل العمل الإضافي"""
-    return float(get_system_constant('overtime_rate_normal', 1.5))
+    default = 1.5
+    if not is_business_group_enabled('payroll'):
+        return default
+    return float(get_system_constant('overtime_rate_normal', default))
 
 
 def get_working_hours_per_day() -> int:
     """ساعات العمل اليومية"""
-    return int(get_system_constant('working_hours_per_day', 8))
+    default = 8
+    if not is_business_group_enabled('payroll'):
+        return default
+    return int(get_system_constant('working_hours_per_day', default))
 
 
 def calculate_vat_amount(base_amount: float, vat_rate: Optional[float] = None) -> dict:
@@ -1882,47 +1923,64 @@ def calculate_vat_amount(base_amount: float, vat_rate: Optional[float] = None) -
 
 def get_all_business_constants() -> dict:
     """الحصول على جميع ثوابت الأعمال"""
+    tax_enabled = is_business_group_enabled('tax')
+    payroll_enabled = is_business_group_enabled('payroll')
+    assets_enabled = is_business_group_enabled('assets')
+    accounting_enabled = is_business_group_enabled('accounting')
+    notifications_enabled = is_business_group_enabled('notifications')
+    rules_enabled = is_business_group_enabled('business_rules')
+    tenancy_enabled = is_business_group_enabled('multi_tenancy', False)
+    
+    payroll_constants = get_social_insurance_rates()
+    
     return {
         # Tax
         'tax': {
+            'group_enabled': tax_enabled,
             'default_vat_rate': get_vat_rate(),
             'vat_enabled': is_vat_enabled(),
             'income_tax_rate': get_income_tax_rate(),
             'withholding_tax_rate': get_withholding_tax_rate()
         },
         # Payroll
-        'payroll': get_social_insurance_rates() | {
+        'payroll': payroll_constants | {
+            'group_enabled': payroll_enabled,
             'overtime_rate': get_overtime_rate(),
             'working_hours_per_day': get_working_hours_per_day()
         },
         # Assets
         'assets': {
-            'auto_depreciation': bool(get_system_constant('asset_auto_depreciation', True)),
+            'group_enabled': assets_enabled,
+            'auto_depreciation': bool(get_system_constant('asset_auto_depreciation', True)) if assets_enabled else False,
             'threshold_amount': float(get_system_constant('asset_threshold_amount', 500))
         },
         # Accounting
         'accounting': {
-            'cost_centers_enabled': bool(get_system_constant('cost_centers_enabled', False)),
-            'budgeting_enabled': bool(get_system_constant('budgeting_enabled', False)),
+            'group_enabled': accounting_enabled,
+            'cost_centers_enabled': bool(get_system_constant('cost_centers_enabled', False)) if accounting_enabled else False,
+            'budgeting_enabled': bool(get_system_constant('budgeting_enabled', False)) if accounting_enabled else False,
             'fiscal_year_start_month': int(get_system_constant('fiscal_year_start_month', 1))
         },
         # Notifications
         'notifications': {
-            'service_complete': bool(get_system_constant('notify_on_service_complete', True)),
-            'payment_due': bool(get_system_constant('notify_on_payment_due', True)),
-            'low_stock': bool(get_system_constant('notify_on_low_stock', True)),
+            'group_enabled': notifications_enabled,
+            'service_complete': bool(get_system_constant('notify_on_service_complete', True)) if notifications_enabled else False,
+            'payment_due': bool(get_system_constant('notify_on_payment_due', True)) if notifications_enabled else False,
+            'low_stock': bool(get_system_constant('notify_on_low_stock', True)) if notifications_enabled else False,
             'payment_reminder_days': int(get_system_constant('payment_reminder_days', 3))
         },
         # Business Rules
         'business_rules': {
-            'allow_negative_stock': bool(get_system_constant('allow_negative_stock', False)),
+            'group_enabled': rules_enabled,
+            'allow_negative_stock': bool(get_system_constant('allow_negative_stock', False)) if rules_enabled else False,
             'require_approval_above': float(get_system_constant('require_approval_for_sales_above', 10000)),
             'discount_max_percent': float(get_system_constant('discount_max_percent', 50)),
-            'credit_limit_check': bool(get_system_constant('credit_limit_check', True))
+            'credit_limit_check': bool(get_system_constant('credit_limit_check', True)) if rules_enabled else False
         },
         # Multi-Tenancy
         'multi_tenancy': {
-            'enabled': bool(get_system_constant('multi_tenancy_enabled', False)),
+            'group_enabled': tenancy_enabled,
+            'enabled': bool(get_system_constant('multi_tenancy_enabled', False)) if tenancy_enabled else False,
             'trial_period_days': int(get_system_constant('trial_period_days', 30))
         }
     }
@@ -2114,7 +2172,7 @@ def notify_service_completed(service_id: int) -> dict:
     from models import Service
     
     # التحقق من التفعيل
-    if not get_system_constant('notify_on_service_complete', True):
+    if not is_business_group_enabled('notifications') or not get_system_constant('notify_on_service_complete', True):
         return {'success': False, 'reason': 'Notifications disabled'}
     
     try:
@@ -2192,7 +2250,7 @@ def notify_payment_reminder(days_before: int = None) -> dict:
     from datetime import datetime, timedelta
     
     # التحقق من التفعيل
-    if not get_system_constant('notify_on_payment_due', True):
+    if not is_business_group_enabled('notifications') or not get_system_constant('notify_on_payment_due', True):
         return {'success': False, 'reason': 'Notifications disabled'}
     
     try:

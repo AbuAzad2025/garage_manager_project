@@ -594,27 +594,40 @@ def payment_summary_report(start_date, end_date):
     grand_total = round(sum(totals), 2)
     return {"methods": methods, "totals": totals, "grand_total": grand_total}
 
-def service_reports_report(start_date: date | None, end_date: date | None) -> dict:
+def service_reports_report(
+    start_date: date | None,
+    end_date: date | None,
+    status: str | None = None,
+    mechanic_id: int | None = None,
+    customer_id: int | None = None,
+) -> dict:
     start_date = _parse_date_like(start_date) or date.min
     end_date = _parse_date_like(end_date) or date.max
     if end_date < start_date:
         start_date, end_date = end_date, start_date
-    
+
     from datetime import datetime as dt
     start_dt = dt.combine(start_date, dt.min.time())
     end_dt = dt.combine(end_date, dt.max.time())
-    
-    date_cond = ServiceRequest.received_at.between(start_dt, end_dt)
-    total = db.session.query(func.count(ServiceRequest.id)).filter(date_cond).scalar() or 0
-    completed = (
-        db.session.query(func.count(ServiceRequest.id))
-        .filter(date_cond, ServiceRequest.status == ServiceStatus.COMPLETED.value)
-        .scalar()
-        or 0
-    )
+
+    filters = [ServiceRequest.received_at.between(start_dt, end_dt)]
+    if status:
+        filters.append(ServiceRequest.status == status)
+    if mechanic_id:
+        filters.append(ServiceRequest.mechanic_id == mechanic_id)
+    if customer_id:
+        filters.append(ServiceRequest.customer_id == customer_id)
+
     from decimal import Decimal
-    
-    services_filtered = db.session.query(ServiceRequest).filter(date_cond).all()
+
+    services_filtered = db.session.query(ServiceRequest).filter(*filters).all()
+    total = len(services_filtered)
+    completed = sum(
+        1
+        for srv in services_filtered
+        if (getattr(srv.status, "value", srv.status) or "").upper()
+        == ServiceStatus.COMPLETED.value
+    )
     revenue = Decimal('0.00')
     parts = Decimal('0.00')
     labor = Decimal('0.00')
@@ -645,7 +658,7 @@ def service_reports_report(start_date: date | None, end_date: date | None) -> di
             ServiceRequest.mechanic_id.label("mechanic_id"),
             func.coalesce(ServiceRequest.total_amount, 0).label("total"),
         )
-        .filter(date_cond)
+        .filter(*filters)
         .order_by(ServiceRequest.received_at.desc(), ServiceRequest.id.desc())
     )
     data = []
@@ -1167,17 +1180,27 @@ def top_products_report(
         if isinstance(r, dict):
             qty = int(r.get("qty", 0) or 0)
             rev = float(r.get("revenue_ils", 0) or 0)
-            gross = 0.0
-            discount = 0.0
+            gross = float(r.get("gross", 0) or 0)
+            discount = float(r.get("discount", 0) or 0)
             orders_count = int(r.get("orders_count", 0) or 0)
             avg_price = float(r.get("avg_unit_price", 0) or 0)
+            prod_id = r.get("product_id")
+            prod_name = r.get("name")
+            wh_name = r.get("warehouse_name") or "—" if want_group else None
+            first_sale = r.get("first_sale")
+            last_sale = r.get("last_sale")
         else:
             qty = int(getattr(r, "qty", 0) or 0)
-            rev = float(getattr(r, "revenue", 0) or 0)
+            rev = float(getattr(r, "revenue_ils", getattr(r, "revenue", 0)) or 0)
             gross = float(getattr(r, "gross", 0) or 0)
             discount = float(getattr(r, "discount", 0) or 0)
             orders_count = int(getattr(r, "orders_count", 0) or 0)
             avg_price = float(getattr(r, "avg_unit_price", 0) or 0)
+            prod_id = getattr(r, "product_id", None)
+            prod_name = getattr(r, "name", None)
+            wh_name = getattr(r, "warehouse_name", None) if want_group else None
+            first_sale = getattr(r, "first_sale", None)
+            last_sale = getattr(r, "last_sale", None)
         share = (rev / total_revenue * 100.0) if total_revenue > 0 else 0.0
         if i <= 3 and rev > 0:
             reason = "ضمن الأعلى إيرادًا"
@@ -1192,8 +1215,8 @@ def top_products_report(
         item = {
             "id": i,
             "rank_label": _rank_label(i),
-            "product_id": getattr(r, "product_id", None),
-            "name": getattr(r, "name", None),
+            "product_id": prod_id,
+            "name": prod_name,
             "qty": qty,
             "revenue": round(rev, 2),
             "revenue_share": round(share, 2),
@@ -1201,15 +1224,12 @@ def top_products_report(
             "discount": round(discount, 2),
             "avg_unit_price": round(avg_price, 2),
             "orders_count": orders_count,
-            "first_sale": (getattr(r, "first_sale", None).isoformat() if getattr(r, "first_sale", None) else None),
-            "last_sale": (getattr(r, "last_sale", None).isoformat() if getattr(r, "last_sale", None) else None),
+            "first_sale": (first_sale.isoformat() if first_sale else None),
+            "last_sale": (last_sale.isoformat() if last_sale else None),
             "reason": reason,
         }
         if want_group:
-            if isinstance(r, dict):
-                item["warehouse_name"] = r.get("warehouse_name") or "—"
-            else:
-                item["warehouse_name"] = getattr(r, "warehouse_name", None) or "—"
+            item["warehouse_name"] = wh_name or "—"
         data.append(item)
     return {
         "data": data,

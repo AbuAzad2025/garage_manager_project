@@ -118,9 +118,6 @@
   <button type="submit" class="btn btn-primary">
     <i class="fas fa-sync-alt"></i> تحديث
   </button>
-  <button type="button" class="btn btn-outline-primary" onclick="window.print()">
-    <i class="fas fa-print"></i> طباعة
-  </button>
 </div>
 </form>
 </div>
@@ -179,7 +176,10 @@
     {% endif %}
   </td>
   <td class="text-end">
-    <strong>{{ "{:,.2f}".format(payment.total_amount) }} ₪</strong>
+    <strong>{{ "{:,.2f}".format(payment.amount_ils if payment.amount_ils is not none else payment.total_amount) }} ₪</strong>
+    {% if payment.currency and payment.currency != 'ILS' %}
+    <div class="small text-muted">{{ "{:,.2f}".format(payment.total_amount or 0) }} {{ payment.currency }}</div>
+    {% endif %}
   </td>
   <td>
     {% if payment.method.value == 'CASH' %}

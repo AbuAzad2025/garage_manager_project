@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}قائمة فحص المالك{% endblock %}
+{% block page_title %}🧪 قائمة فحص المالك{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include 'advanced/_navigation.html' %}
+
+  <div class="alert alert-info border-0 shadow-sm mb-4">
+    <i class="fas fa-clipboard-list"></i>
+    قائمة تحقق تنفيذية لضمان سلامة النظام بعد التعديلات الكبرى.
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-8">
+      <form method="post" class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-gradient-primary text-white d-flex justify-content-between align-items-center">
+          <span>المهام الأساسية</span>
+          <span class="badge bg-light text-dark">{{ progress.completed }}/{{ progress.total }}</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="list-group list-group-flush">
+            {% for task in tasks %}
+            <label class="list-group-item d-flex align-items-start gap-3">
+              <input class="form-check-input mt-2" type="checkbox" name="{{ task.key }}"
+                     {% if task.key in state.completed %}checked{% endif %}>
+              <div>
+                <strong>{{ task.title }}</strong>
+                <div class="text-muted small">{{ task.description }}</div>
+              </div>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+          <div>
+            <small class="text-muted">آخر تحديث:</small>
+            {% if last_run %}
+            <strong>{{ last_run[:16] }}</strong>
+            {% else %}
+            <span class="text-muted">لم يتم التنفيذ بعد</span>
+            {% endif %}
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> حفظ الحالة
+          </button>
+        </div>
+      </form>
+    </div>
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-light">
+          <span><i class="fas fa-life-ring"></i> خطوات المراجعة</span>
+        </div>
+        <div class="card-body">
+          <ul class="list-unstyled mb-4">
+            <li class="mb-2"><i class="fas fa-check text-success"></i> راجع تنبيهات Owner Hub بعد كل خطوة.</li>
+            <li class="mb-2"><i class="fas fa-check text-success"></i> دوّن أي ملاحظة في سجل المالك لو توفرت.</li>
+            <li class="mb-2"><i class="fas fa-check text-success"></i> تأكد من خلو السجلات من تحذيرات غير معروفة.</li>
+          </ul>
+          <div class="alert alert-secondary mb-0">
+            يوصى بتنفيذ القائمة بعد كل نشر أو تعديل جذري لضمان التكامل بين النسخ، الأمن، والوحدات.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

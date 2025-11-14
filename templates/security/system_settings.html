@@ -81,7 +81,7 @@
         <div class="tab-pane fade {% if active_tab == 'general' %}show active{% endif %}" 
              id="general" 
              role="tabpanel">
-          <form method="POST">
+          <form method="POST" novalidate>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="active_tab" value="general">
             
@@ -155,7 +155,7 @@
             <i class="fas fa-radiation"></i> <strong>تحذير:</strong> تعديل هذه الإعدادات يؤثر على سلوك النظام!
           </div>
           
-          <form method="POST">
+          <form method="POST" novalidate>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="active_tab" value="advanced">
             
@@ -264,7 +264,7 @@
             <i class="fas fa-building"></i> <strong>معلومات الشركة:</strong> هذه البيانات تظهر في الفواتير والتقارير
           </div>
           
-          <form method="POST">
+          <form method="POST" novalidate>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="active_tab" value="company">
             
@@ -366,9 +366,168 @@
             <br><small class="text-muted">هذه الثوابت تُستخدم في الوحدات المالية والمحاسبية</small>
           </div>
           
-          <form method="POST">
+          <form method="POST" novalidate>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="active_tab" value="business">
+            <style>
+              .constants-section {
+                transition: opacity 0.2s ease;
+              }
+              .constants-section.constants-disabled {
+                opacity: 0.5;
+                pointer-events: none;
+              }
+              .constants-card {
+                border: 1px solid #e9ecef;
+                border-radius: 14px;
+                padding: 16px;
+                height: 100%;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+                background: #fff;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+              }
+              .constants-card h6 {
+                font-weight: 700;
+                font-size: 0.95rem;
+              }
+              .constants-card p {
+                margin-bottom: 0;
+                font-size: 0.85rem;
+              }
+              .constants-toggle-wrapper {
+                display: none;
+              }
+            </style>
+            
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-4">
+              <div class="col">
+                <div class="constants-card border border-primary">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6><i class="fas fa-percentage text-primary me-1"></i> الضرائب</h6>
+                      <p class="text-muted">VAT, دخل الشركات، الخصم من المنبع</p>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                      <input class="form-check-input constants-toggle" type="checkbox"
+                             data-target="#tax-constants-section"
+                             name="enable_tax_constants"
+                             {% if data.business.enable_tax_constants %}checked{% endif %}>
+                      <label class="form-check-label">مفعل</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col">
+                <div class="constants-card border border-success">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6><i class="fas fa-user-clock text-success me-1"></i> الرواتب</h6>
+                      <p class="text-muted">التأمينات، ساعات العمل، الأوفر تايم</p>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                      <input class="form-check-input constants-toggle" type="checkbox"
+                             data-target="#payroll-constants-section"
+                             name="enable_payroll_constants"
+                             {% if data.business.enable_payroll_constants %}checked{% endif %}>
+                      <label class="form-check-label">مفعل</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col">
+                <div class="constants-card border border-info">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6><i class="fas fa-building text-info me-1"></i> الأصول الثابتة</h6>
+                      <p class="text-muted">الاستهلاك التلقائي وحد الترسمل</p>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                      <input class="form-check-input constants-toggle" type="checkbox"
+                             data-target="#assets-constants-section"
+                             name="enable_asset_constants"
+                             {% if data.business.enable_asset_constants %}checked{% endif %}>
+                      <label class="form-check-label">مفعل</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col">
+                <div class="constants-card border border-warning">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6><i class="fas fa-balance-scale text-warning me-1"></i> المحاسبة</h6>
+                      <p class="text-muted">مراكز التكلفة، الموازنات، بداية السنة</p>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                      <input class="form-check-input constants-toggle" type="checkbox"
+                             data-target="#accounting-constants-section"
+                             name="enable_accounting_constants"
+                             {% if data.business.enable_accounting_constants %}checked{% endif %}>
+                      <label class="form-check-label">مفعل</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col">
+                <div class="constants-card border border-danger">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6><i class="fas fa-bell text-danger me-1"></i> الإشعارات</h6>
+                      <p class="text-muted">التذكير بالدفع، اكتمال الخدمة، المخزون</p>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                      <input class="form-check-input constants-toggle" type="checkbox"
+                             data-target="#notification-constants-section"
+                             name="enable_notification_constants"
+                             {% if data.business.enable_notification_constants %}checked{% endif %}>
+                      <label class="form-check-label">مفعل</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col">
+                <div class="constants-card border border-dark">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6><i class="fas fa-cogs text-dark me-1"></i> قواعد العمل</h6>
+                      <p class="text-muted">المخزون السالب، سقف الخصم، الموافقات</p>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                      <input class="form-check-input constants-toggle" type="checkbox"
+                             data-target="#business-rules-constants-section"
+                             name="enable_business_rules_constants"
+                             {% if data.business.enable_business_rules_constants %}checked{% endif %}>
+                      <label class="form-check-label">مفعل</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col">
+                <div class="constants-card border border-secondary">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                      <h6><i class="fas fa-cloud text-secondary me-1"></i> التعددية (SaaS)</h6>
+                      <p class="text-muted">وضع المستأجرين، الفترة التجريبية</p>
+                    </div>
+                    <div class="form-check form-switch m-0">
+                      <input class="form-check-input constants-toggle" type="checkbox"
+                             data-target="#multi-tenancy-constants-section"
+                             name="enable_multi_tenancy_constants"
+                             {% if data.business.enable_multi_tenancy_constants %}checked{% endif %}>
+                      <label class="form-check-label">مفعل</label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
             
             <!-- Accordion للثوابت -->
             <div class="accordion" id="businessConstantsAccordion">
@@ -382,7 +541,8 @@
                 </h2>
                 <div id="collapseTax" class="accordion-collapse collapse show" data-parent="#businessConstantsAccordion">
                   <div class="accordion-body">
-                    <div class="row">
+                    <div id="tax-constants-section" class="constants-section {% if not data.business.enable_tax_constants %}constants-disabled{% endif %}">
+                      <div class="row">
                       <div class="col-md-6">
                         <div class="mb-3">
                           <label class="form-label"><strong>نسبة VAT الافتراضية (%)</strong></label>
@@ -421,6 +581,7 @@
                           <small class="text-muted">الافتراضي: 5.0%</small>
                         </div>
                       </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -435,7 +596,8 @@
                 </h2>
                 <div id="collapsePayroll" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
                   <div class="accordion-body">
-                    <div class="row">
+                    <div id="payroll-constants-section" class="constants-section {% if not data.business.enable_payroll_constants %}constants-disabled{% endif %}">
+                      <div class="row">
                       <div class="col-md-12">
                         <div class="mb-3">
                           <div class="form-check form-switch">
@@ -483,6 +645,7 @@
                           <small class="text-muted">الافتراضي: 8 ساعات</small>
                         </div>
                       </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -497,7 +660,19 @@
                 </h2>
                 <div id="collapseAssets" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
                   <div class="accordion-body">
-                    <div class="row">
+                    <div class="constants-toggle-wrapper d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>تفعيل ثوابت الأصول الثابتة</strong>
+                        <small class="text-muted d-block">تعطيلها يوقف الاستهلاك التلقائي وحد المبلغ</small>
+                      </div>
+                      <div class="form-check form-switch m-0">
+                        <input class="form-check-input constants-toggle" type="checkbox" data-target="#assets-constants-section"
+                               name="enable_asset_constants" {% if data.business.enable_asset_constants %}checked{% endif %}>
+                        <label class="form-check-label">مفعّل</label>
+                      </div>
+                    </div>
+                    <div id="assets-constants-section" class="constants-section {% if not data.business.enable_asset_constants %}constants-disabled{% endif %}">
+                      <div class="row">
                       <div class="col-md-6">
                         <div class="mb-3">
                           <div class="form-check form-switch">
@@ -519,6 +694,7 @@
                           <small class="text-muted">أقل من هذا المبلغ = مصروف مباشر (افتراضي: 500)</small>
                         </div>
                       </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -533,7 +709,8 @@
                 </h2>
                 <div id="collapseAccounting" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
                   <div class="accordion-body">
-                    <div class="row">
+                    <div id="accounting-constants-section" class="constants-section {% if not data.business.enable_accounting_constants %}constants-disabled{% endif %}">
+                      <div class="row">
                       <div class="col-md-4">
                         <div class="mb-3">
                           <div class="form-check form-switch">
@@ -570,6 +747,7 @@
                           </select>
                         </div>
                       </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -587,8 +765,8 @@
                     <div class="alert alert-info">
                       <i class="fas fa-info-circle"></i> <small>إعدادات SMTP موجودة في config.py - هذه فقط للتفعيل والقواعد</small>
                     </div>
-                    
-                    <div class="row">
+                    <div id="notification-constants-section" class="constants-section {% if not data.business.enable_notification_constants %}constants-disabled{% endif %}">
+                      <div class="row">
                       <div class="col-md-4">
                         <div class="mb-3">
                           <div class="form-check form-switch">
@@ -636,6 +814,7 @@
                           <small class="text-muted">الافتراضي: 3 أيام</small>
                         </div>
                       </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -650,7 +829,19 @@
                 </h2>
                 <div id="collapseRules" class="accordion-collapse collapse" data-parent="#businessConstantsAccordion">
                   <div class="accordion-body">
-                    <div class="row">
+                    <div class="constants-toggle-wrapper d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>تفعيل قواعد العمل</strong>
+                        <small class="text-muted d-block">تعطيلها يعطل فحص المخزون والخصومات</small>
+                      </div>
+                      <div class="form-check form-switch m-0">
+                        <input class="form-check-input constants-toggle" type="checkbox" data-target="#business-rules-constants-section"
+                               name="enable_business_rules_constants" {% if data.business.enable_business_rules_constants %}checked{% endif %}>
+                        <label class="form-check-label">مفعّل</label>
+                      </div>
+                    </div>
+                    <div id="business-rules-constants-section" class="constants-section {% if not data.business.enable_business_rules_constants %}constants-disabled{% endif %}">
+                      <div class="row">
                       <div class="col-md-6">
                         <div class="mb-3">
                           <div class="form-check form-switch">
@@ -694,6 +885,7 @@
                           <small class="text-muted">الافتراضي: 50%</small>
                         </div>
                       </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -711,8 +903,19 @@
                     <div class="alert alert-warning">
                       <i class="fas fa-exclamation-triangle"></i> <strong>تحذير:</strong> تفعيل Multi-Tenancy يحتاج migration للقاعدة!
                     </div>
-                    
-                    <div class="row">
+                    <div class="constants-toggle-wrapper d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>تفعيل ثوابت التعددية</strong>
+                        <small class="text-muted d-block">تعطيلها يخفي خيارات SaaS</small>
+                      </div>
+                      <div class="form-check form-switch m-0">
+                        <input class="form-check-input constants-toggle" type="checkbox" data-target="#multi-tenancy-constants-section"
+                               name="enable_multi_tenancy_constants" {% if data.business.enable_multi_tenancy_constants %}checked{% endif %}>
+                        <label class="form-check-label">مفعّل</label>
+                      </div>
+                    </div>
+                    <div id="multi-tenancy-constants-section" class="constants-section {% if not data.business.enable_multi_tenancy_constants %}constants-disabled{% endif %}">
+                      <div class="row">
                       <div class="col-md-6">
                         <div class="mb-3">
                           <div class="form-check form-switch">
@@ -733,6 +936,7 @@
                                  value="{{ data.business.trial_period_days }}" min="0" max="365">
                           <small class="text-muted">الافتراضي: 30 يوم</small>
                         </div>
+                      </div>
                       </div>
                     </div>
                   </div>
@@ -776,6 +980,30 @@ document.addEventListener('DOMContentLoaded', function() {
       $(tabTrigger).tab('show');
     }
   }
+  
+  document.querySelectorAll('.constants-toggle-wrapper .constants-toggle').forEach(el => {
+    el.disabled = true;
+    el.name = '';
+    el.classList.remove('constants-toggle');
+  });
+  
+  const updateConstantSection = (toggle) => {
+    const targetSelector = toggle.getAttribute('data-target');
+    const section = document.querySelector(targetSelector);
+    if (!section) {
+      return;
+    }
+    const enabled = toggle.checked;
+    section.classList.toggle('constants-disabled', !enabled);
+    section.querySelectorAll('input, select, textarea').forEach(el => {
+      el.disabled = !enabled;
+    });
+  };
+  
+  document.querySelectorAll('.constants-toggle').forEach(toggle => {
+    updateConstantSection(toggle);
+    toggle.addEventListener('change', () => updateConstantSection(toggle));
+  });
 });
 </script>
 {% endblock %}

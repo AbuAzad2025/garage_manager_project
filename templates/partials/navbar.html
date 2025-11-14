@@ -22,15 +22,22 @@
     {% endif %}
     
     {% if current_user.is_authenticated %}
-      {% set ai_enabled = get_setting('ai_enabled', 'true').lower() == 'true' %}
+      {% set ai_enabled_value = get_setting('ai_enabled', True) %}
+      {% set ai_enabled = (ai_enabled_value|string).lower() == 'true' %}
       {% if ai_enabled %}
         {% set show_ai = False %}
         {% if current_user.is_system_account or current_user.username == '__OWNER__' %}
           {% set show_ai = True %}
-        {% elif current_user.role and current_user.role.name in ['manager', 'مدير', 'admin'] and get_setting('ai_visible_to_managers', 'true').lower() == 'true' %}
-          {% set show_ai = True %}
-        {% elif current_user.role and current_user.role.name in ['staff', 'موظف'] and get_setting('ai_visible_to_staff', 'false').lower() == 'true' %}
-          {% set show_ai = True %}
+        {% elif current_user.role and current_user.role.name in ['manager', 'مدير', 'admin'] %}
+          {% set managers_setting = get_setting('ai_visible_to_managers', True) %}
+          {% if (managers_setting|string).lower() == 'true' %}
+            {% set show_ai = True %}
+          {% endif %}
+        {% elif current_user.role and current_user.role.name in ['staff', 'موظف'] %}
+          {% set staff_setting = get_setting('ai_visible_to_staff', False) %}
+          {% if (staff_setting|string).lower() == 'true' %}
+            {% set show_ai = True %}
+          {% endif %}
         {% endif %}
         
         {% if show_ai %}

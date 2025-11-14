@@ -3,8 +3,9 @@ from flask_login import login_required, current_user
 from extensions import db
 from models import SystemSettings
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
+from routes.advanced_control import _log_owner_action
 
 security_control_bp = Blueprint('security_control', __name__, url_prefix='/advanced')
 
@@ -48,6 +49,11 @@ def security_control():
             SystemSettings.set_setting('ip_whitelist', json.dumps(whitelist_list), 'json')
             SystemSettings.set_setting('ip_blacklist', json.dumps(blacklist_list), 'json')
             SystemSettings.set_setting('blocked_countries', json.dumps(blocked_countries), 'json')
+            _log_owner_action('security.ip_settings', 'update', {
+                'whitelist_count': len(whitelist_list),
+                'blacklist_count': len(blacklist_list),
+                'countries': len(blocked_countries),
+            })
             
             db.session.commit()
             
@@ -134,5 +140,12 @@ def security_control():
 def api_check_ip(ip):
     from utils import check_ip_allowed
     result = check_ip_allowed(ip)
+    if not result.get('allowed'):
+        SystemSettings.set_setting('security_last_denied', {
+            'ip': ip,
+            'reason': result.get('reason'),
+            'time': datetime.now(timezone.utc).isoformat()
+        }, data_type='json')
+    _log_owner_action('security.api_check', ip, result)
     return jsonify(result)
 

@@ -14,7 +14,8 @@
         </div>
         
         <div class="card-body">
-            <!-- فلتر التواريخ -->
+            
+
             <div class="row mb-4">
                 <div class="col-md-4">
                     <label>من تاريخ:</label>
@@ -33,7 +34,8 @@
             </div>
             
             <table class="table table-bordered">
-                <!-- التدفقات التشغيلية -->
+                
+
                 <thead class="table-success">
                     <tr>
                         <th colspan="2"><h5 class="mb-0">💼 التدفقات التشغيلية</h5></th>
@@ -58,7 +60,8 @@
                     </tr>
                 </tfoot>
                 
-                <!-- التدفقات الاستثمارية -->
+                
+
                 <thead class="table-info mt-3">
                     <tr>
                         <th colspan="2"><h5 class="mb-0">🏭 التدفقات الاستثمارية</h5></th>
@@ -83,7 +86,8 @@
                     </tr>
                 </tfoot>
                 
-                <!-- التدفقات التمويلية -->
+                
+
                 <thead class="table-warning mt-3">
                     <tr>
                         <th colspan="2"><h5 class="mb-0">🏦 التدفقات التمويلية</h5></th>
@@ -108,7 +112,8 @@
                     </tr>
                 </tfoot>
                 
-                <!-- صافي التغير في النقدية -->
+                
+
                 <tfoot class="table-dark fw-bold fs-5">
                     <tr>
                         <td>صافي التغير في النقدية</td>
@@ -119,7 +124,8 @@
                 </tfoot>
             </table>
             
-            <!-- أزرار -->
+            
+
             <div class="row mt-3">
                 <div class="col-md-6">
                     <button class="btn btn-success w-100" onclick="exportToExcel()">
@@ -127,9 +133,6 @@
                     </button>
                 </div>
                 <div class="col-md-6">
-                    <button class="btn btn-info w-100" onclick="window.print()">
-                        <i class="fas fa-print"></i> طباعة
-                    </button>
                 </div>
             </div>
         </div>
@@ -154,4 +157,3 @@ function exportToExcel() {
 }
 </script>
 {% endblock %}
-

@@ -30,6 +30,13 @@
                         placeholder="ما الجديد في هذا الإصدار؟"></textarea>
             </div>
             
+            <div class="mb-3">
+              <label class="form-label fw-bold">ملخص التغييرات (Diff)</label>
+              <textarea name="version_diff" class="form-control" rows="3"
+                        placeholder="- تحسين UI\n- إصلاح خطأ النسخ"></textarea>
+              <small class="text-muted">ملاحظات إضافية تظهر في السجل</small>
+            </div>
+            
             <button type="submit" class="btn btn-primary w-100">
               <i class="fas fa-save"></i> إنشاء إصدار
             </button>
@@ -54,6 +61,9 @@
                     <small class="text-muted">{{ version.date[:19] }}</small>
                   </h6>
                   <p class="mb-0">{{ version.notes or 'لا توجد ملاحظات' }}</p>
+                {% if version.diff %}
+                <pre class="bg-white border rounded p-2 mt-2 small">{{ version.diff }}</pre>
+                {% endif %}
                 </div>
                 <form method="POST" style="display:inline;" onsubmit="return confirm('⚠️ هل أنت متأكد من حذف هذا الإصدار؟');">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

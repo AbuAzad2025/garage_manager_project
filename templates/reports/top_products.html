@@ -81,9 +81,6 @@
       {{ FIELD_LABELS.get("top_products", "أفضل المنتجات") }}
     </h4>
     <div class="d-flex gap-2">
-      <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()">
-        <i class="fas fa-print"></i> طباعة
-      </button>
       <button type="button" class="btn btn-outline-primary btn-sm" id="btn-export" onclick="exportTableToCSV('top_products_report.csv')">
         <i class="fas fa-file-csv"></i> تصدير CSV
       </button>
@@ -91,7 +88,6 @@
   </div>
 
   <form class="card mb-3 no-print" method="get">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
     <div class="card-body row g-3 align-items-end">
       <div class="col-12 col-md-3">
         <label class="form-label">{{ FIELD_LABELS.get("start_date", "من") }}</label>
@@ -113,6 +109,9 @@
           <option value="{{ w.id }}" {% if selected_warehouse_id and w.id == selected_warehouse_id %}selected{% endif %}>{{ w.name }}</option>
           {% endfor %}
         </select>
+        {% if not can_group_by_warehouse %}
+        <small class="text-muted d-block mt-1">التجميع حسب المستودع غير مدعوم حالياً</small>
+        {% endif %}
       </div>
       <div class="col-12 col-md-2">
         <label class="form-label d-block">تجميع حسب المستودع</label>
@@ -120,6 +119,9 @@
           <input class="form-check-input" type="checkbox" id="gbw" name="group_by" value="warehouse" {% if group_by_warehouse %}checked{% endif %} {% if not can_group_by_warehouse %}disabled{% endif %}>
           <label class="form-check-label" for="gbw">{% if can_group_by_warehouse %}تفعيل{% else %}غير متاح{% endif %}</label>
         </div>
+        {% if forced_grouping and can_group_by_warehouse %}
+        <small class="text-muted">تم تفعيل التجميع تلقائياً لعرض مستودع محدد.</small>
+        {% endif %}
       </div>
       <div class="col-12 d-flex gap-2 justify-content-end">
         <button type="submit" class="btn btn-primary">

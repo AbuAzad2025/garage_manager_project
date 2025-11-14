@@ -1,4 +1,3 @@
-{# templates/reports/online.html #}
 {% extends 'reports/_base.html' %}
 
 {% block title %}{{ FIELD_LABELS.get("online_report", "تقرير الأونلاين") }}{% endblock %}
@@ -11,12 +10,14 @@
 {% block report_content %}
 <div class="container-fluid" dir="rtl">
 
-  <!-- العنوان -->
+  
+
   <div class="mb-3">
     <h4 class="fw-bold"><i class="fas fa-globe"></i> {{ FIELD_LABELS.get("online", "الأونلاين") }}</h4>
   </div>
 
-  <!-- البطاقات -->
+  
+
   <div class="row g-3">
     <div class="col-md-3 col-sm-6">
       <div class="card shadow-sm h-100">

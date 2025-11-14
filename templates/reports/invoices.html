@@ -119,9 +119,6 @@
   <button type="submit" class="btn btn-primary">
     <i class="fas fa-sync-alt"></i> تحديث
   </button>
-  <button type="button" class="btn btn-outline-primary" onclick="window.print()">
-    <i class="fas fa-print"></i> طباعة
-  </button>
 </div>
 </form>
 </div>
@@ -189,10 +186,17 @@
       <span class="text-muted">-</span>
     {% endif %}
   </td>
-  <td class="text-end">{{ "{:,.2f}".format(inv.computed_total) }} ₪</td>
-  <td class="text-end">{{ "{:,.2f}".format(inv.total_paid) }} ₪</td>
   <td class="text-end">
-    {% set remaining = inv.computed_total|float - inv.total_paid|float %}
+    <strong>{{ "{:,.2f}".format(inv.amount_ils if inv.amount_ils is not none else inv.computed_total) }} ₪</strong>
+    {% if inv.currency and inv.currency != 'ILS' %}
+    <div class="small text-muted">{{ "{:,.2f}".format(inv.computed_total or 0) }} {{ inv.currency }}</div>
+    {% endif %}
+  </td>
+  <td class="text-end">
+    <strong>{{ "{:,.2f}".format(inv.paid_ils if inv.paid_ils is not none else inv.total_paid) }} ₪</strong>
+  </td>
+  <td class="text-end">
+    {% set remaining = (inv.amount_ils if inv.amount_ils is not none else inv.computed_total|float) - (inv.paid_ils if inv.paid_ils is not none else inv.total_paid|float) %}
     <span class="{% if remaining > 0 %}text-danger fw-bold{% else %}text-success{% endif %}">
       {{ "{:,.2f}".format(remaining) }} ₪
     </span>

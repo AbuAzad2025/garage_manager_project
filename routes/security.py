@@ -3853,67 +3853,102 @@ def system_settings():
         elif tab == 'business':
             # حفظ ثوابت الأعمال (Business Constants)
             try:
+                group_flags = {
+                    'tax': request.form.get('enable_tax_constants') == 'on',
+                    'payroll': request.form.get('enable_payroll_constants') == 'on',
+                    'assets': request.form.get('enable_asset_constants') == 'on',
+                    'accounting': request.form.get('enable_accounting_constants') == 'on',
+                    'notifications': request.form.get('enable_notification_constants') == 'on',
+                    'business_rules': request.form.get('enable_business_rules_constants') == 'on',
+                    'multi_tenancy': request.form.get('enable_multi_tenancy_constants') == 'on',
+                }
+                
+                descriptions = {
+                    'tax': 'تفعيل ثوابت الضرائب',
+                    'payroll': 'تفعيل ثوابت الرواتب',
+                    'assets': 'تفعيل ثوابت الأصول الثابتة',
+                    'accounting': 'تفعيل ثوابت المحاسبة',
+                    'notifications': 'تفعيل ثوابت الإشعارات',
+                    'business_rules': 'تفعيل ثوابت قواعد العمل',
+                    'multi_tenancy': 'تفعيل ثوابت التعددية',
+                }
+                
+                for group, enabled in group_flags.items():
+                    SystemSettings.set_setting(
+                        f'enable_{group}_constants',
+                        enabled,
+                        descriptions.get(group),
+                        'boolean'
+                    )
+                
                 # Tax Settings
-                SystemSettings.set_setting('default_vat_rate', request.form.get('default_vat_rate', 16.0), 
-                                         'نسبة VAT الافتراضية', 'number')
-                SystemSettings.set_setting('vat_enabled', request.form.get('vat_enabled') == 'on', 
-                                         'تفعيل VAT', 'boolean')
-                SystemSettings.set_setting('income_tax_rate', request.form.get('income_tax_rate', 15.0), 
-                                         'ضريبة دخل الشركات', 'number')
-                SystemSettings.set_setting('withholding_tax_rate', request.form.get('withholding_tax_rate', 5.0), 
-                                         'الخصم من المنبع', 'number')
+                if group_flags['tax']:
+                    SystemSettings.set_setting('default_vat_rate', request.form.get('default_vat_rate', 16.0), 
+                                             'نسبة VAT الافتراضية', 'number')
+                    SystemSettings.set_setting('vat_enabled', request.form.get('vat_enabled') == 'on', 
+                                             'تفعيل VAT', 'boolean')
+                    SystemSettings.set_setting('income_tax_rate', request.form.get('income_tax_rate', 15.0), 
+                                             'ضريبة دخل الشركات', 'number')
+                    SystemSettings.set_setting('withholding_tax_rate', request.form.get('withholding_tax_rate', 5.0), 
+                                             'الخصم من المنبع', 'number')
                 
                 # Payroll Settings
-                SystemSettings.set_setting('social_insurance_enabled', request.form.get('social_insurance_enabled') == 'on', 
-                                         'تفعيل التأمينات', 'boolean')
-                SystemSettings.set_setting('social_insurance_company', request.form.get('social_insurance_company', 7.5), 
-                                         'نسبة التأمين - الشركة', 'number')
-                SystemSettings.set_setting('social_insurance_employee', request.form.get('social_insurance_employee', 7.0), 
-                                         'نسبة التأمين - الموظف', 'number')
-                SystemSettings.set_setting('overtime_rate_normal', request.form.get('overtime_rate_normal', 1.5), 
-                                         'معدل العمل الإضافي', 'number')
-                SystemSettings.set_setting('working_hours_per_day', request.form.get('working_hours_per_day', 8), 
-                                         'ساعات العمل اليومية', 'number')
+                if group_flags['payroll']:
+                    SystemSettings.set_setting('social_insurance_enabled', request.form.get('social_insurance_enabled') == 'on', 
+                                             'تفعيل التأمينات', 'boolean')
+                    SystemSettings.set_setting('social_insurance_company', request.form.get('social_insurance_company', 7.5), 
+                                             'نسبة التأمين - الشركة', 'number')
+                    SystemSettings.set_setting('social_insurance_employee', request.form.get('social_insurance_employee', 7.0), 
+                                             'نسبة التأمين - الموظف', 'number')
+                    SystemSettings.set_setting('overtime_rate_normal', request.form.get('overtime_rate_normal', 1.5), 
+                                             'معدل العمل الإضافي', 'number')
+                    SystemSettings.set_setting('working_hours_per_day', request.form.get('working_hours_per_day', 8), 
+                                             'ساعات العمل اليومية', 'number')
                 
                 # Fixed Assets Settings
-                SystemSettings.set_setting('asset_auto_depreciation', request.form.get('asset_auto_depreciation') == 'on', 
-                                         'استهلاك تلقائي', 'boolean')
-                SystemSettings.set_setting('asset_threshold_amount', request.form.get('asset_threshold_amount', 500), 
-                                         'حد مبلغ الأصول', 'number')
+                if group_flags['assets']:
+                    SystemSettings.set_setting('asset_auto_depreciation', request.form.get('asset_auto_depreciation') == 'on', 
+                                             'استهلاك تلقائي', 'boolean')
+                    SystemSettings.set_setting('asset_threshold_amount', request.form.get('asset_threshold_amount', 500), 
+                                             'حد مبلغ الأصول', 'number')
                 
                 # Accounting Settings
-                SystemSettings.set_setting('cost_centers_enabled', request.form.get('cost_centers_enabled') == 'on', 
-                                         'تفعيل مراكز التكلفة', 'boolean')
-                SystemSettings.set_setting('budgeting_enabled', request.form.get('budgeting_enabled') == 'on', 
-                                         'تفعيل الموازنات', 'boolean')
-                SystemSettings.set_setting('fiscal_year_start_month', request.form.get('fiscal_year_start_month', 1), 
-                                         'بداية السنة المالية', 'number')
+                if group_flags['accounting']:
+                    SystemSettings.set_setting('cost_centers_enabled', request.form.get('cost_centers_enabled') == 'on', 
+                                             'تفعيل مراكز التكلفة', 'boolean')
+                    SystemSettings.set_setting('budgeting_enabled', request.form.get('budgeting_enabled') == 'on', 
+                                             'تفعيل الموازنات', 'boolean')
+                    SystemSettings.set_setting('fiscal_year_start_month', request.form.get('fiscal_year_start_month', 1), 
+                                             'بداية السنة المالية', 'number')
                 
                 # Notification Settings
-                SystemSettings.set_setting('notify_on_service_complete', request.form.get('notify_on_service_complete') == 'on', 
-                                         'إشعار اكتمال الصيانة', 'boolean')
-                SystemSettings.set_setting('notify_on_payment_due', request.form.get('notify_on_payment_due') == 'on', 
-                                         'إشعار استحقاق الدفعات', 'boolean')
-                SystemSettings.set_setting('notify_on_low_stock', request.form.get('notify_on_low_stock') == 'on', 
-                                         'تنبيه انخفاض المخزون', 'boolean')
-                SystemSettings.set_setting('payment_reminder_days', request.form.get('payment_reminder_days', 3), 
-                                         'التذكير قبل الاستحقاق', 'number')
+                if group_flags['notifications']:
+                    SystemSettings.set_setting('notify_on_service_complete', request.form.get('notify_on_service_complete') == 'on', 
+                                             'إشعار اكتمال الصيانة', 'boolean')
+                    SystemSettings.set_setting('notify_on_payment_due', request.form.get('notify_on_payment_due') == 'on', 
+                                             'إشعار استحقاق الدفعات', 'boolean')
+                    SystemSettings.set_setting('notify_on_low_stock', request.form.get('notify_on_low_stock') == 'on', 
+                                             'تنبيه انخفاض المخزون', 'boolean')
+                    SystemSettings.set_setting('payment_reminder_days', request.form.get('payment_reminder_days', 3), 
+                                             'التذكير قبل الاستحقاق', 'number')
                 
                 # Business Rules
-                SystemSettings.set_setting('allow_negative_stock', request.form.get('allow_negative_stock') == 'on', 
-                                         'السماح بالمخزون السالب', 'boolean')
-                SystemSettings.set_setting('require_approval_for_sales_above', request.form.get('require_approval_for_sales_above', 10000), 
-                                         'طلب موافقة للمبيعات الكبيرة', 'number')
-                SystemSettings.set_setting('discount_max_percent', request.form.get('discount_max_percent', 50), 
-                                         'الحد الأقصى للخصم', 'number')
-                SystemSettings.set_setting('credit_limit_check', request.form.get('credit_limit_check') == 'on', 
-                                         'فحص حد الائتمان', 'boolean')
+                if group_flags['business_rules']:
+                    SystemSettings.set_setting('allow_negative_stock', request.form.get('allow_negative_stock') == 'on', 
+                                             'السماح بالمخزون السالب', 'boolean')
+                    SystemSettings.set_setting('require_approval_for_sales_above', request.form.get('require_approval_for_sales_above', 10000), 
+                                             'طلب موافقة للمبيعات الكبيرة', 'number')
+                    SystemSettings.set_setting('discount_max_percent', request.form.get('discount_max_percent', 50), 
+                                             'الحد الأقصى للخصم', 'number')
+                    SystemSettings.set_setting('credit_limit_check', request.form.get('credit_limit_check') == 'on', 
+                                             'فحص حد الائتمان', 'boolean')
                 
                 # Multi-Tenancy Settings  
-                SystemSettings.set_setting('multi_tenancy_enabled', request.form.get('multi_tenancy_enabled') == 'on', 
-                                         'تفعيل تعدد المستأجرين', 'boolean')
-                SystemSettings.set_setting('trial_period_days', request.form.get('trial_period_days', 30), 
-                                         'مدة التجريبي', 'number')
+                if group_flags['multi_tenancy']:
+                    SystemSettings.set_setting('multi_tenancy_enabled', request.form.get('multi_tenancy_enabled') == 'on', 
+                                             'تفعيل تعدد المستأجرين', 'boolean')
+                    SystemSettings.set_setting('trial_period_days', request.form.get('trial_period_days', 30), 
+                                             'مدة التجريبي', 'number')
                 
                 db.session.commit()
                 flash('✅ تم حفظ ثوابت الأعمال', 'success')
@@ -3952,6 +3987,13 @@ def system_settings():
             'TIME_FORMAT': _get_system_setting('TIME_FORMAT', '%H:%M:%S'),
         },
         'business': {
+            'enable_tax_constants': SystemSettings.get_setting('enable_tax_constants', True),
+            'enable_payroll_constants': SystemSettings.get_setting('enable_payroll_constants', True),
+            'enable_asset_constants': SystemSettings.get_setting('enable_asset_constants', True),
+            'enable_accounting_constants': SystemSettings.get_setting('enable_accounting_constants', True),
+            'enable_notification_constants': SystemSettings.get_setting('enable_notification_constants', True),
+            'enable_business_rules_constants': SystemSettings.get_setting('enable_business_rules_constants', True),
+            'enable_multi_tenancy_constants': SystemSettings.get_setting('enable_multi_tenancy_constants', True),
             # Tax
             'default_vat_rate': SystemSettings.get_setting('default_vat_rate', 16.0),
             'vat_enabled': SystemSettings.get_setting('vat_enabled', True),

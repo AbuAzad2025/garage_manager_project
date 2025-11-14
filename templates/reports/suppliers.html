@@ -1,4 +1,3 @@
-{# templates/reports/suppliers.html #}
 {% extends 'reports/_base.html' %}
 
 {% block title %}{{ FIELD_LABELS.get("suppliers", "الموردون") }}{% endblock %}
@@ -11,18 +10,64 @@
 {% block report_content %}
 <div class="container-fluid" dir="rtl">
 
-  <!-- العنوان وزر الطباعة -->
   <div class="mb-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
     <h4 class="fw-bold m-0">
       <i class="fas fa-truck-loading"></i>
       {{ FIELD_LABELS.get("suppliers", "الموردون") }}
     </h4>
-    <button type="button" class="btn btn-outline-primary btn-sm" id="btn-print">
-      <i class="fas fa-print"></i> طباعة
-    </button>
   </div>
 
-  <!-- الجدول -->
+  <form class="card shadow-sm mb-3" method="get">
+    <div class="card-body row g-3 align-items-end">
+      <div class="col-md-6">
+        <label class="form-label fw-semibold"><i class="fas fa-search"></i> بحث عن مورد</label>
+        <input type="text" class="form-control" name="q" value="{{ search or '' }}" placeholder="الاسم، الهاتف، البريد">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold"><i class="fas fa-filter"></i> حالة الرصيد</label>
+        <select name="balance" class="form-select">
+          <option value="">الكل</option>
+          <option value="positive" {% if balance_filter == 'positive' %}selected{% endif %}>له علينا</option>
+          <option value="negative" {% if balance_filter == 'negative' %}selected{% endif %}>عليه لنا</option>
+          <option value="zero" {% if balance_filter == 'zero' %}selected{% endif %}>رصيد متوازن</option>
+        </select>
+      </div>
+      <div class="col-md-3 d-flex flex-column gap-2">
+        <div class="btn-group">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-sync-alt"></i> تحديث
+          </button>
+          <button type="submit" class="btn btn-outline-success" name="format" value="csv">
+            <i class="fas fa-file-csv"></i> تصدير
+          </button>
+        </div>
+        <a href="{{ url_for('reports_bp.suppliers_report') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-times"></i> إعادة ضبط
+        </a>
+      </div>
+    </div>
+  </form>
+
+  {% if totals %}
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="card shadow-sm border-primary h-100">
+        <div class="card-body text-center">
+          <div class="text-muted small">إجمالي الرصيد</div>
+          <div class="fs-3 fw-bold {% if totals.balance > 0 %}text-success{% elif totals.balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+            {{ "{:,.2f}".format(totals.balance or 0) }} ₪
+          </div>
+          <small class="text-muted">
+            {% if totals.balance > 0 %}موردون لهم علينا{% elif totals.balance < 0 %}موردون عليهم لنا{% else %}متوازن{% endif %}
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  
+
   <div class="card shadow-sm">
     <div class="card-body">
       <div class="table-responsive">
@@ -40,14 +85,19 @@
                 <td>{{ r.id }}</td>
                 <td>{{ r.name }}</td>
                 <td class="text-end">
-                  {% if r.balance > 0 %}
-                    <span class="text-success">{{ "{:,.2f}".format(r.balance) }}</span>
-                  {% elif r.balance < 0 %}
-                    <span class="text-danger">{{ "{:,.2f}".format(r.balance|abs) }}</span>
-                  {% else %}
-                    {{ "{:,.2f}".format(r.balance) }}
-                  {% endif %}
+                  {% set balance = r.balance or 0 %}
+                  <span class="fw-bold {% if balance > 0 %}text-success{% elif balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                    {{ "{:,.2f}".format(balance) }} ₪
+                  </span>
+                  <br>
+                  <small class="text-muted">
+                    {% if balance > 0 %}له علينا{% elif balance < 0 %}عليه لنا{% else %}متوازن{% endif %}
+                  </small>
                 </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="3" class="text-center text-muted">لا توجد بيانات مطابقة.</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -57,13 +107,4 @@
   </div>
 
 </div>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script>
-  document.getElementById('btn-print')?.addEventListener('click', function () {
-    window.print();
-  });
-</script>
 {% endblock %}

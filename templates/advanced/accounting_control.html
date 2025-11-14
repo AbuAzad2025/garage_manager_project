@@ -259,7 +259,7 @@ input:checked + .slider:before {
                     <div class="stat-number" id="bank-count">{{ stats.total_bank_accounts or 0 }}</div>
                     <div class="stat-label">حسابات بنكية</div>
                     <small class="d-block mt-2">
-                        <i class="fas fa-check-circle"></i> نشطة: <span id="active-banks">-</span>
+                        <i class="fas fa-check-circle"></i> نشطة: <span id="active-banks">{{ stats.active_bank_accounts or 0 }}</span>
                     </small>
                 </div>
             </div>
@@ -270,7 +270,7 @@ input:checked + .slider:before {
                     <div class="stat-number" id="cc-count">{{ stats.total_cost_centers or 0 }}</div>
                     <div class="stat-label">مراكز التكلفة</div>
                     <small class="d-block mt-2">
-                        <i class="fas fa-chart-pie"></i> ميزانية: <span id="total-budget">-</span>
+                        <i class="fas fa-chart-pie"></i> نشطة: <span id="active-cc">{{ stats.active_cost_centers or 0 }}</span> • الميزانية: <span id="total-budget">{{ (stats.total_budget or 0)|int }} ₪</span>
                     </small>
                 </div>
             </div>
@@ -281,7 +281,7 @@ input:checked + .slider:before {
                     <div class="stat-number" id="proj-count">{{ stats.total_projects or 0 }}</div>
                     <div class="stat-label">مشاريع</div>
                     <small class="d-block mt-2">
-                        <i class="fas fa-hourglass-half"></i> قيد التنفيذ: <span id="active-projects">-</span>
+                        <i class="fas fa-hourglass-half"></i> نشط: <span id="active-projects">{{ stats.active_projects or 0 }}</span>
                     </small>
                 </div>
             </div>
@@ -289,7 +289,7 @@ input:checked + .slider:before {
             <div class="col-lg-3 col-md-6">
                 <div class="stat-box gradient-bg-4">
                     <i class="fas fa-exclamation-triangle fa-3x mb-2"></i>
-                    <div class="stat-number" id="alerts-count">0</div>
+                    <div class="stat-number" id="alerts-count">{{ stats.alert_count or 0 }}</div>
                     <div class="stat-label">تنبيهات</div>
                     <small class="d-block mt-2">
                         <i class="fas fa-clock"></i> آخر 24 ساعة
@@ -317,19 +317,19 @@ input:checked + .slider:before {
                             <li class="nav-item">
                                 <a class="nav-link active" data-toggle="pill" href="#bank-settings">
                                     <i class="fas fa-university"></i> البنوك
-                                    <span class="module-status bg-success"></span>
+                                    <span class="module-status bg-{{ 'success' if bank_settings.enable_bank_reconciliation else 'warning' }}"></span>
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" data-toggle="pill" href="#cc-settings">
                                     <i class="fas fa-project-diagram"></i> مراكز التكلفة
-                                    <span class="module-status bg-success"></span>
+                                    <span class="module-status bg-{{ 'success' if cost_center_settings.enable_cost_centers else 'warning' }}"></span>
                                 </a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" data-toggle="pill" href="#proj-settings">
                                     <i class="fas fa-tasks"></i> المشاريع
-                                    <span class="module-status bg-success"></span>
+                                    <span class="module-status bg-{{ 'success' if project_settings.enable_projects else 'warning' }}"></span>
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -349,9 +349,15 @@ input:checked + .slider:before {
                                 <h5 class="mb-3">
                                     <i class="fas fa-university text-primary"></i> إعدادات البنوك والتسويات
                                 </h5>
+                                {% if not bank_settings.enable_bank_reconciliation %}
+                                <div class="alert alert-warning alert-box" style="border-left-color:#ffc107;">
+                                    <i class="fas fa-exclamation-circle"></i> التسويات البنكية معطلة حالياً.
+                                </div>
+                                {% endif %}
 
                                 <form method="post" id="bank-settings-form">
                                     <input type="hidden" name="action" value="save_bank_settings">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     
                                     <div class="setting-toggle">
                                         <div>
@@ -359,18 +365,20 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">السماح بإدارة الحسابات البنكية والتسويات</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="enable_bank_reconciliation" checked>
+                                            <input type="checkbox" name="enable_bank_reconciliation"
+                                                   {% if bank_settings.enable_bank_reconciliation %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
 
                                     <div class="setting-toggle">
                                         <div>
-                                            <strong>المطابقة التلقائية</strong>
-                                            <br><small class="text-muted">مطابقة المعاملات البنكية مع الدفاتر تلقائياً</small>
+                                            <strong>يتطلب موافقة</strong>
+                                            <br><small class="text-muted">عدم اعتماد التسويات إلا بعد موافقة</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="auto_match_enabled">
+                                            <input type="checkbox" name="require_bank_approval"
+                                                   {% if bank_settings.require_bank_approval %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -381,7 +389,9 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-percentage"></i> نسبة التسامح في المطابقة
                                                 </label>
-                                                <input type="number" class="form-control" name="auto_match_tolerance" value="0.01" step="0.01" min="0" max="1">
+                                                <input type="number" class="form-control" name="auto_match_tolerance"
+                                                       value="{{ bank_settings.auto_match_tolerance }}"
+                                                       step="0.01" min="0" max="1">
                                                 <small class="text-muted">الفرق المقبول بين المبالغ (0.01 = 1%)</small>
                                             </div>
                                         </div>
@@ -390,7 +400,7 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-calendar-alt"></i> فترة المطابقة (بالأيام)
                                                 </label>
-                                                <input type="number" class="form-control" name="match_date_range" value="3" min="1" max="30">
+                                                <input type="number" class="form-control" name="match_date_range" value="{{ bank_settings.match_date_range }}" min="1" max="30">
                                                 <small class="text-muted">الفرق الأقصى بين تواريخ المعاملات</small>
                                             </div>
                                         </div>
@@ -402,7 +412,7 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-book"></i> حساب رسوم البنوك
                                                 </label>
-                                                <input type="text" class="form-control" name="bank_charges_account" value="601000">
+                                                <input type="text" class="form-control" name="bank_charges_account" value="{{ bank_settings.bank_charges_account }}">
                                             </div>
                                         </div>
                                         <div class="col-md-6">
@@ -410,7 +420,7 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-book"></i> حساب فوائد البنوك
                                                 </label>
-                                                <input type="text" class="form-control" name="bank_interest_account" value="401500">
+                                                <input type="text" class="form-control" name="bank_interest_account" value="{{ bank_settings.bank_interest_account }}">
                                             </div>
                                         </div>
                                     </div>
@@ -421,7 +431,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">جميع التسويات تحتاج موافقة قبل الاعتماد</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="require_bank_approval" checked>
+                                            <input type="checkbox" name="owner_approval_required"
+                                                   {% if bank_settings.owner_approval_required %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -432,7 +443,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">تنبيه تلقائي عند معاملة تتجاوز حد معين</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="alert_large_transactions" checked>
+                                            <input type="checkbox" name="alert_large_transactions"
+                                                   {% if bank_settings.alert_large_transactions %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -441,7 +453,7 @@ input:checked + .slider:before {
                                         <label>
                                             <i class="fas fa-dollar-sign"></i> حد التنبيه للمعاملات الكبيرة
                                         </label>
-                                        <input type="number" class="form-control" name="large_transaction_threshold" value="50000" step="1000">
+                                        <input type="number" class="form-control" name="large_transaction_threshold" value="{{ bank_settings.large_transaction_threshold }}" step="1000">
                                         <small class="text-muted">القيمة بالشيكل</small>
                                     </div>
 
@@ -455,9 +467,15 @@ input:checked + .slider:before {
                                 <h5 class="mb-3">
                                     <i class="fas fa-project-diagram text-success"></i> إعدادات مراكز التكلفة
                                 </h5>
+                                {% if not cost_center_settings.enable_cost_centers %}
+                                <div class="alert alert-warning alert-box" style="border-left-color:#ff9800;">
+                                    <i class="fas fa-info-circle"></i> لم يتم تفعيل مراكز التكلفة بعد.
+                                </div>
+                                {% endif %}
 
                                 <form method="post" id="cc-settings-form">
                                     <input type="hidden" name="action" value="save_cost_center_settings">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     
                                     <div class="setting-toggle">
                                         <div>
@@ -465,7 +483,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">السماح بإنشاء وإدارة مراكز التكلفة</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="enable_cost_centers" checked>
+                                            <input type="checkbox" name="enable_cost_centers"
+                                                   {% if cost_center_settings.enable_cost_centers %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -476,7 +495,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">يجب اختيار مركز تكلفة لكل معاملة</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="require_cost_center">
+                                            <input type="checkbox" name="require_cost_center"
+                                                   {% if cost_center_settings.require_cost_center %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -487,7 +507,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">إنشاء مراكز تكلفة فرعية (متعددة المستويات)</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="allow_hierarchy" checked>
+                                            <input type="checkbox" name="allow_hierarchy"
+                                                   {% if cost_center_settings.allow_hierarchy %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -498,7 +519,7 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-exclamation-triangle text-warning"></i> حد التحذير (%)
                                                 </label>
-                                                <input type="number" class="form-control" name="budget_warning_threshold" value="80" min="50" max="100">
+                                                <input type="number" class="form-control" name="budget_warning_threshold" value="{{ cost_center_settings.budget_warning_threshold }}" min="50" max="100">
                                                 <small class="text-muted">تنبيه أصفر عند الوصول لهذه النسبة</small>
                                             </div>
                                         </div>
@@ -507,7 +528,7 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-exclamation-circle text-danger"></i> حد الخطر (%)
                                                 </label>
-                                                <input type="number" class="form-control" name="budget_danger_threshold" value="95" min="80" max="100">
+                                                <input type="number" class="form-control" name="budget_danger_threshold" value="{{ cost_center_settings.budget_danger_threshold }}" min="80" max="100">
                                                 <small class="text-muted">تنبيه أحمر عند الوصول لهذه النسبة</small>
                                             </div>
                                         </div>
@@ -516,7 +537,7 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-ban text-danger"></i> حد المنع (%)
                                                 </label>
-                                                <input type="number" class="form-control" name="budget_block_threshold" value="100" min="90" max="120">
+                                                <input type="number" class="form-control" name="budget_block_threshold" value="{{ cost_center_settings.budget_block_threshold }}" min="90" max="120">
                                                 <small class="text-muted">منع الصرف عند الوصول لهذه النسبة</small>
                                             </div>
                                         </div>
@@ -528,7 +549,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">السماح بالصرف حتى بعد نفاد الميزانية</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="allow_over_budget">
+                                            <input type="checkbox" name="allow_over_budget"
+                                                   {% if cost_center_settings.allow_over_budget %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -539,7 +561,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">توزيع المصاريف تلقائياً على المراكز</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="auto_allocate" checked>
+                                            <input type="checkbox" name="auto_allocate"
+                                                   {% if cost_center_settings.auto_allocate %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -548,7 +571,7 @@ input:checked + .slider:before {
                                         <label>
                                             <i class="fas fa-book"></i> حساب GL الافتراضي للتكاليف
                                         </label>
-                                        <input type="text" class="form-control" name="default_expense_account" value="501000">
+                                        <input type="text" class="form-control" name="default_expense_account" value="{{ cost_center_settings.default_expense_account }}">
                                     </div>
 
                                     <button type="submit" class="btn btn-success btn-lg btn-block">
@@ -561,9 +584,15 @@ input:checked + .slider:before {
                                 <h5 class="mb-3">
                                     <i class="fas fa-tasks text-info"></i> إعدادات المشاريع
                                 </h5>
+                                {% if not project_settings.enable_projects %}
+                                <div class="alert alert-warning alert-box" style="border-left-color:#f44336;">
+                                    <i class="fas fa-info-circle"></i> وحدة المشاريع معطلة حالياً.
+                                </div>
+                                {% endif %}
 
                                 <form method="post" id="proj-settings-form">
                                     <input type="hidden" name="action" value="save_project_settings">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     
                                     <div class="setting-toggle">
                                         <div>
@@ -571,7 +600,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">السماح بإنشاء وإدارة المشاريع</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="enable_projects" checked>
+                                            <input type="checkbox" name="enable_projects"
+                                                   {% if project_settings.enable_projects %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -582,7 +612,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">ربط الفواتير والدفعات بالمشاريع تلقائياً</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="auto_link_transactions" checked>
+                                            <input type="checkbox" name="auto_link_transactions"
+                                                   {% if project_settings.auto_link_transactions %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -593,7 +624,8 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-hashtag"></i> بادئة ترقيم المشاريع
                                                 </label>
-                                                <input type="text" class="form-control" name="project_numbering_prefix" value="PRJ">
+                                        <input type="text" class="form-control" name="project_numbering_prefix"
+                                               value="{{ project_settings.project_numbering_prefix }}">
                                                 <small class="text-muted">مثال: PRJ-001, PRJ-002</small>
                                             </div>
                                         </div>
@@ -602,7 +634,7 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-percent"></i> حد الانحراف المقبول (%)
                                                 </label>
-                                                <input type="number" class="form-control" name="project_variance_threshold" value="10" min="5" max="50">
+                                                <input type="number" class="form-control" name="project_variance_threshold" value="{{ project_settings.project_variance_threshold }}" min="5" max="50">
                                                 <small class="text-muted">نسبة الانحراف عن الموازنة</small>
                                             </div>
                                         </div>
@@ -614,7 +646,7 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-book"></i> حساب إيرادات المشاريع
                                                 </label>
-                                                <input type="text" class="form-control" name="projects_revenue_account" value="401000">
+                                                <input type="text" class="form-control" name="projects_revenue_account" value="{{ project_settings.projects_revenue_account }}">
                                             </div>
                                         </div>
                                         <div class="col-md-6">
@@ -622,7 +654,7 @@ input:checked + .slider:before {
                                                 <label>
                                                     <i class="fas fa-book"></i> حساب تكاليف المشاريع
                                                 </label>
-                                                <input type="text" class="form-control" name="projects_cost_account" value="501000">
+                                                <input type="text" class="form-control" name="projects_cost_account" value="{{ project_settings.projects_cost_account }}">
                                             </div>
                                         </div>
                                     </div>
@@ -633,7 +665,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">تحديث حالة المراحل تلقائياً</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="auto_phase_tracking" checked>
+                                            <input type="checkbox" name="auto_phase_tracking"
+                                                   {% if project_settings.auto_phase_tracking %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -644,7 +677,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">إرسال تنبيه عند تجاوز التكلفة المقدرة</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="cost_overrun_alerts" checked>
+                                            <input type="checkbox" name="cost_overrun_alerts"
+                                                   {% if project_settings.cost_overrun_alerts %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -655,7 +689,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">إرسال تنبيه عند تأخر المشروع عن الجدول</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="delay_alerts" checked>
+                                            <input type="checkbox" name="delay_alerts"
+                                                   {% if project_settings.delay_alerts %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -673,6 +708,7 @@ input:checked + .slider:before {
 
                                 <form method="post">
                                     <input type="hidden" name="action" value="save_automation_settings">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     
                                     <div class="setting-toggle">
                                         <div>
@@ -680,7 +716,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">ترحيل القيود تلقائياً عند إنشاء المعاملات</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="auto_gl_posting" checked>
+                                            <input type="checkbox" name="auto_gl_posting"
+                                                   {% if automation_settings.auto_gl_posting %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -691,7 +728,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">استخدام AI لتصنيف المعاملات تلقائياً</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="ai_transaction_analysis">
+                                            <input type="checkbox" name="ai_transaction_analysis"
+                                                   {% if automation_settings.ai_transaction_analysis %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -702,7 +740,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">اقتراحات AI لمطابقة المعاملات الغامضة</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="smart_matching_suggestions" checked>
+                                            <input type="checkbox" name="smart_matching_suggestions"
+                                                   {% if automation_settings.smart_matching_suggestions %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -713,7 +752,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">نسخ احتياطي تلقائي للبيانات كل 24 ساعة</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="auto_daily_backup" checked>
+                                            <input type="checkbox" name="auto_daily_backup"
+                                                   {% if automation_settings.auto_daily_backup %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -722,7 +762,7 @@ input:checked + .slider:before {
                                         <label>
                                             <i class="fas fa-clock"></i> وقت النسخ الاحتياطي
                                         </label>
-                                        <input type="time" class="form-control" name="backup_time" value="02:00">
+                                        <input type="time" class="form-control" name="backup_time" value="{{ automation_settings.backup_time }}">
                                         <small class="text-muted">الوقت المفضل لإجراء النسخ الاحتياطي</small>
                                     </div>
 
@@ -739,6 +779,8 @@ input:checked + .slider:before {
 
                                 <form method="post">
                                     <input type="hidden" name="action" value="save_security_settings">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="full_audit_trail" value="on">
                                     
                                     <div class="setting-toggle">
                                         <div>
@@ -757,7 +799,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">حفظ نسخة من كل تعديل (قبل/بعد)</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="track_modifications" checked>
+                                            <input type="checkbox" name="track_modifications"
+                                                   {% if security_settings.track_modifications %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -768,7 +811,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">إرسال تنبيه للمالك عند أي إجراء حساس</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="security_alerts" checked>
+                                            <input type="checkbox" name="security_alerts"
+                                                   {% if security_settings.security_alerts %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -779,7 +823,8 @@ input:checked + .slider:before {
                                             <br><small class="text-muted">منع التعديل على السجلات الأقدم من فترة معينة</small>
                                         </div>
                                         <label class="toggle-switch">
-                                            <input type="checkbox" name="lock_old_records">
+                                            <input type="checkbox" name="lock_old_records"
+                                                   {% if security_settings.lock_old_records %}checked{% endif %}>
                                             <span class="slider"></span>
                                         </label>
                                     </div>
@@ -788,7 +833,7 @@ input:checked + .slider:before {
                                         <label>
                                             <i class="fas fa-calendar-alt"></i> فترة القفل (بالأيام)
                                         </label>
-                                        <input type="number" class="form-control" name="lock_period_days" value="30" min="7" max="365">
+                                        <input type="number" class="form-control" name="lock_period_days" value="{{ security_settings.lock_period_days }}" min="7" max="365">
                                         <small class="text-muted">السجلات الأقدم من هذه المدة لن يمكن تعديلها</small>
                                     </div>
 
@@ -796,7 +841,7 @@ input:checked + .slider:before {
                                         <label>
                                             <i class="fas fa-trash-alt"></i> مدة الاحتفاظ بسجل التدقيق (أيام)
                                         </label>
-                                        <input type="number" class="form-control" name="audit_retention_days" value="365" min="30" max="3650">
+                                        <input type="number" class="form-control" name="audit_retention_days" value="{{ security_settings.audit_retention_days }}" min="30" max="3650">
                                         <small class="text-muted">سيتم حذف السجلات الأقدم من هذه المدة</small>
                                     </div>
 
@@ -1003,8 +1048,42 @@ input:checked + .slider:before {
 <script src="{{ url_for('static', filename='js/print.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-function loadLiveStats() {
-    fetch('/api/advanced-accounting-stats')
+const hasToastr = typeof toastr !== 'undefined';
+function notify(type, message, title, options) {
+    if (hasToastr) {
+        toastr[type](message, title || '', options || {});
+    } else if (type === 'error') {
+        alert(message);
+    } else {
+        console.log(`${type}: ${message}`);
+    }
+}
+
+function secureFetch(url, options = {}) {
+    const opts = Object.assign({
+        credentials: 'same-origin',
+        headers: {}
+    }, options || {});
+    opts.headers = opts.headers || {};
+    const method = (opts.method || 'GET').toUpperCase();
+    opts.headers['Accept'] = opts.headers['Accept'] || 'application/json';
+    if (method !== 'GET' && method !== 'HEAD') {
+        const token = typeof getCSRFToken === 'function' ? getCSRFToken() : null;
+        if (token) {
+            opts.headers['X-CSRFToken'] = token;
+        }
+        if (!opts.headers['Content-Type'] && !(opts.body instanceof FormData)) {
+            opts.headers['Content-Type'] = 'application/json';
+            if (!opts.body) {
+                opts.body = '{}';
+            }
+        }
+    }
+    return fetch(url, opts);
+}
+
+window.loadLiveStats = function loadLiveStats() {
+    secureFetch('/advanced/api/advanced-accounting-stats')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -1012,6 +1091,9 @@ function loadLiveStats() {
                 document.getElementById('cc-count').textContent = data.stats.cost_centers || 0;
                 document.getElementById('proj-count').textContent = data.stats.projects || 0;
                 document.getElementById('active-banks').textContent = data.stats.active_banks || 0;
+                if (document.getElementById('active-cc')) {
+                    document.getElementById('active-cc').textContent = data.stats.active_cost_centers || 0;
+                }
                 document.getElementById('total-budget').textContent = (data.stats.total_budget || 0).toLocaleString() + ' ₪';
                 document.getElementById('active-projects').textContent = data.stats.active_projects || 0;
                 document.getElementById('alerts-count').textContent = data.stats.alerts || 0;
@@ -1020,39 +1102,53 @@ function loadLiveStats() {
         .catch(error => console.error('Error loading stats:', error));
 }
 
-function exportSettings() {
-    const settings = {
-        bank: Array.from(document.querySelectorAll('#bank-settings-form input')).reduce((obj, input) => {
-            obj[input.name] = input.type === 'checkbox' ? input.checked : input.value;
-            return obj;
-        }, {}),
-        timestamp: new Date().toISOString(),
-        version: '1.0.0'
-    };
-    
-    const blob = new Blob([JSON.stringify(settings, null, 2)], {type: 'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `accounting_settings_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    
-    toastr.success('تم تصدير الإعدادات بنجاح');
+window.exportSettings = async function exportSettings() {
+    try {
+        const response = await secureFetch('/advanced/accounting-control/export-settings');
+        if (!response.ok) {
+            throw new Error('export_failed');
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `accounting_settings_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        notify('success', 'تم تصدير الإعدادات بنجاح');
+    } catch (error) {
+        console.error('export error', error);
+        notify('error', 'تعذر تصدير الإعدادات');
+    }
 }
 
-function importSettings() {
+window.importSettings = function importSettings() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
     input.onchange = e => {
         const file = e.target.files[0];
+        if (!file) {
+            return;
+        }
         const reader = new FileReader();
-        reader.onload = event => {
+        reader.onload = async event => {
             try {
-                const settings = JSON.parse(event.target.result);
-                toastr.info('تم قراءة الملف - جاري التطبيق...');
+                const payload = JSON.parse(event.target.result);
+                notify('info', 'جاري تطبيق الإعدادات...');
+                const response = await secureFetch('/advanced/accounting-control/import-settings', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.message || 'import_failed');
+                }
+                notify('success', 'تم استيراد الإعدادات وسيتم تحديث الصفحة');
+                setTimeout(() => window.location.reload(), 1200);
             } catch (error) {
-                toastr.error('خطأ في قراءة الملف');
+                console.error('import error', error);
+                notify('error', 'فشل استيراد الإعدادات');
             }
         };
         reader.readAsText(file);
@@ -1060,26 +1156,53 @@ function importSettings() {
     input.click();
 }
 
-function runSystemCheck() {
-    toastr.info('جاري فحص النظام...');
-    setTimeout(() => {
-        toastr.success('النظام يعمل بشكل صحيح ✓');
-    }, 2000);
+window.runSystemCheck = async function runSystemCheck() {
+    notify('info', 'جاري فحص النظام...');
+    try {
+        const response = await secureFetch('/advanced/accounting-control/system-check');
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'system_check_failed');
+        }
+        const report = data.report || {};
+        const lines = [
+            `المعاملات غير المطابقة: ${report.unmatched_transactions ?? 0}`,
+            `مراكز متجاوزة للميزانية: ${report.over_budget_centers ?? 0}`,
+            `مشاريع متأخرة: ${report.delayed_projects ?? 0}`,
+            `تسويات قيد الموافقة: ${report.pending_reconciliations ?? 0}`
+        ];
+        notify('success', 'اكتمل فحص النظام');
+        notify('info', lines.join('\n'), 'النتيجة', {
+            timeOut: 6000,
+            extendedTimeOut: 2000
+        });
+    } catch (error) {
+        console.error('system check error', error);
+        notify('error', 'تعذر تنفيذ فحص النظام');
+    }
 }
 
-function generateReport() {
-    toastr.info('جاري إنشاء التقرير الشامل...');
-    setTimeout(() => {
-        window.open('/advanced/accounting-control/report.pdf', '_blank');
-    }, 1500);
+window.generateReport = function generateReport() {
+    window.open('/advanced/accounting-control/report.pdf', '_blank');
 }
 
-function backupNow() {
-    if (confirm('هل تريد إجراء نسخ احتياطي فوري للبيانات؟')) {
-        toastr.info('جاري النسخ الاحتياطي...');
-        setTimeout(() => {
-            toastr.success('تم النسخ الاحتياطي بنجاح');
-        }, 3000);
+window.backupNow = async function backupNow() {
+    if (!confirm('هل تريد إجراء نسخ احتياطي فوري للبيانات؟')) {
+        return;
+    }
+    notify('info', 'جاري النسخ الاحتياطي...');
+    try {
+        const response = await secureFetch('/advanced/accounting-control/manual-backup', { method: 'POST', body: '{}' });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'backup_failed');
+        }
+        const hasSize = typeof data.size_mb === 'number';
+        const sizeText = hasSize ? ` (${data.size_mb.toFixed(2)} MB)` : '';
+        notify('success', `تم إنشاء النسخة ${data.filename || ''}${sizeText}`);
+    } catch (error) {
+        console.error('backup error', error);
+        notify('error', 'فشل النسخ الاحتياطي');
     }
 }
 
@@ -1089,14 +1212,17 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.querySelectorAll('form').forEach(form => {
         form.addEventListener('submit', function(e) {
-            toastr.info('جاري حفظ الإعدادات...');
+            notify('info', 'جاري حفظ الإعدادات...');
         });
     });
     
-    if (typeof toastr !== 'undefined') {
+    if (hasToastr) {
         toastr.options = {
             "positionClass": "toast-top-left",
-            "timeOut": "3000"
+            "timeOut": 3000,
+            "extendedTimeOut": 1000,
+            "closeButton": true,
+            "escapeHtml": false
         };
     }
 });

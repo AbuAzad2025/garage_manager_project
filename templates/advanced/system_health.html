@@ -70,21 +70,11 @@
     </div>
   </div>
   
-  <div class="row mb-4">
-    <div class="col-md-12">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body text-center">
-          <h1 style="font-size: 4rem; font-weight: 700; 
-                     background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-                     -webkit-background-clip: text;
-                     -webkit-text-fill-color: transparent;">
-            {{ '%.0f'|format(overall) }}%
-          </h1>
-          <h5>الصحة العامة للنظام</h5>
-        </div>
-      </div>
-    </div>
+  {% if last_run.time %}
+  <div class="alert alert-info border-0 shadow-sm mb-4">
+    <i class="fas fa-history"></i> آخر تشغيل تلقائي: {{ last_run.time[:16] }} – النتيجة {{ last_run.score }}%
   </div>
+  {% endif %}
 
   <div class="row g-3">
     {% for check in checks %}
@@ -127,7 +117,7 @@
   </div>
 
   <div class="row g-3 mt-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-body text-center">
           <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
@@ -144,7 +134,7 @@
       </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-body text-center">
           <i class="fas fa-broom fa-3x text-warning mb-3"></i>
@@ -161,7 +151,7 @@
       </div>
     </div>
 
-    <div class="col-md-4">
+    <div class="col-md-3">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-body text-center">
           <i class="fas fa-database fa-3x text-success mb-3"></i>
@@ -174,6 +164,25 @@
               <i class="fas fa-cogs"></i> تحسين
             </button>
           </form>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <i class="fas fa-sync-alt fa-3x text-info mb-3"></i>
+          <h6>تشغيل تلقائي</h6>
+          <p class="small text-muted">تشغيل كل الفحوصات وتحديث السجل</p>
+          <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="auto_run">
+            <button type="submit" class="btn btn-info w-100 text-white">
+              <i class="fas fa-play-circle"></i> تشغيل الآن
+            </button>
+          </form>
+          {% if last_run.time %}
+          <small class="d-block mt-2 text-muted">آخر تشغيل: {{ last_run.time[:16] }}</small>
+          {% endif %}
         </div>
       </div>
     </div>

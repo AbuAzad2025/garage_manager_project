@@ -173,31 +173,82 @@ def dashboard():
         for amt, currency, fx_used, sale_dt in today_sales_rows:
             today_revenue += _to_ils(amt, currency, fx_used, sale_dt)
 
-    total_customer_balance = 0.0
-    total_supplier_balance = 0.0
-    total_partner_balance = 0.0
-    try:
-        total_customer_balance = float(db.session.query(func.coalesce(func.sum(Customer.balance), 0)).scalar() or 0)
-    except Exception:
-        total_customer_balance = 0.0
-    try:
-        total_supplier_balance = float(db.session.query(func.coalesce(func.sum(Supplier.balance), 0)).scalar() or 0)
-    except Exception:
-        total_supplier_balance = 0.0
-    try:
-        total_partner_balance = float(db.session.query(func.coalesce(func.sum(Partner.balance), 0)).scalar() or 0)
-    except Exception:
-        total_partner_balance = 0.0
+    # helper لجمع الأرصدة من الخصائص الهجينة (لا يمكن جمعها عبر SQL مباشرة)
+    def _sum_entity_balance(model):
+        total = Decimal('0.00')
+        try:
+            for entity in model.query.options(load_only(model.id)).all():
+                try:
+                    total += Decimal(str(getattr(entity, "balance", 0) or 0))
+                except Exception:
+                    continue
+        except Exception as exc:  # pragma: no cover - فقط للتسجيل
+            current_app.logger.warning(f"Dashboard balance aggregation failed for {model.__tablename__}: {exc}")
+            return 0.0
+        return float(total)
 
+    def _sum_partner_smart_balance():
+        try:
+            from routes.partner_settlements import _calculate_smart_partner_balance
+        except Exception:
+            _calculate_smart_partner_balance = None
+        partners = Partner.query.filter(Partner.is_archived.is_(False)).options(load_only(Partner.id)).all()
+        total = Decimal('0.00')
+        smart_start = datetime(date.today().year, 1, 1)
+        smart_end = datetime.utcnow()
+        for partner in partners:
+            balance_value = None
+            if _calculate_smart_partner_balance:
+                try:
+                    smart_data = _calculate_smart_partner_balance(partner.id, smart_start, smart_end)
+                    if smart_data.get("success"):
+                        balance_value = Decimal(str(smart_data.get("balance", {}).get("amount", 0) or 0))
+                except Exception:
+                    balance_value = None
+            if balance_value is None:
+                try:
+                    balance_value = Decimal(str(getattr(partner, "balance_in_ils", 0) or 0))
+                except Exception:
+                    balance_value = Decimal('0.00')
+            total += balance_value
+        return float(total)
+
+    total_customer_balance = _sum_entity_balance(Customer)
+    total_supplier_balance = _sum_entity_balance(Supplier)
+    total_partner_balance = _sum_partner_smart_balance()
+
+    # حساب الدفعات اليومية/الأسبوعية (وارد/صادر)
+    def _aggregate_payments(start_dt, end_dt):
+        incoming = Decimal('0.00')
+        outgoing = Decimal('0.00')
+        payments = (
+            db.session.query(
+                Payment.total_amount,
+                Payment.currency,
+                Payment.fx_rate_used,
+                Payment.payment_date,
+                Payment.direction,
+            )
+            .filter(
+                Payment.payment_date >= start_dt,
+                Payment.payment_date < end_dt,
+                Payment.status == PaymentStatus.COMPLETED.value,
+            )
+            .all()
+        )
+        for amount, currency, fx_used, pay_dt, direction in payments:
+            amt_ils = _to_ils(amount, currency, fx_used, pay_dt or start_dt)
+            if direction == PaymentDirection.IN.value:
+                incoming += amt_ils
+            else:
+                outgoing += amt_ils
+        return float(incoming), float(outgoing)
+
+    today_incoming, today_outgoing = _aggregate_payments(day_start_dt, day_end_dt)
+    week_incoming, week_outgoing = _aggregate_payments(week_start_dt, week_end_dt)
     today_revenue = float(today_revenue)
-    today_incoming = float(total_customer_balance)
-    today_outgoing = float(total_supplier_balance + total_partner_balance)
-    today_net = float(today_incoming - today_outgoing)
-
-    # 3️⃣ عرض الذمم الأسبوعية بنفس أرقام الرصيد الإجمالي
-    week_incoming = today_incoming
-    week_outgoing = today_outgoing
-    week_net = float(week_incoming - week_outgoing)
+    today_net = today_incoming - today_outgoing
+    week_net = week_incoming - week_outgoing
 
     # حساب الدفعات اليومية مع تحويل العملات
     from collections import defaultdict
@@ -233,6 +284,75 @@ def dashboard():
     payments_out_values = [float(daily_payments[datetime.strptime(d, '%Y-%m-%d').date()]['outgoing']) for d in payments_day_labels]
     payments_net_values = [i - o for i, o in zip(payments_in_values, payments_out_values)]
 
+    month_start_today = today.replace(day=1)
+    def _shift_month(base, offset):
+        year = base.year + (base.month - 1 + offset) // 12
+        month = (base.month - 1 + offset) % 12 + 1
+        return date(year, month, 1)
+    month_keys = []
+    monthly_labels = []
+    monthly_totals = {}
+    for offset in range(-5, 1):
+        start_month = _shift_month(month_start_today, offset)
+        key = start_month.strftime("%Y-%m")
+        month_keys.append(key)
+        monthly_labels.append(start_month.strftime("%b %Y"))
+        monthly_totals[key] = Decimal('0.00')
+    sales_period_start = _shift_month(month_start_today, -5)
+    sales_period_end = _shift_month(month_start_today, 1)
+    monthly_sales_rows = (
+        Sale.query.options(
+            load_only(
+                Sale.sale_date,
+                Sale.total_amount,
+                Sale.currency,
+                Sale.fx_rate_used,
+            )
+        )
+        .filter(
+            Sale.status == SaleStatus.CONFIRMED.value,
+            Sale.sale_date >= datetime.combine(sales_period_start, time.min),
+            Sale.sale_date < datetime.combine(sales_period_end, time.min),
+        )
+        .all()
+    )
+    for sale in monthly_sales_rows:
+        key = sale.sale_date.strftime("%Y-%m")
+        if key in monthly_totals:
+            monthly_totals[key] += _to_ils(sale.total_amount, sale.currency, sale.fx_rate_used, sale.sale_date)
+    monthly_sales_labels = monthly_labels
+    monthly_sales_values = [float(monthly_totals[key]) for key in month_keys]
+    thirty_days_ago = today - timedelta(days=30)
+    ninety_days_ago = today - timedelta(days=90)
+    new_customer_ids = {
+        cid
+        for (cid,) in db.session.query(Customer.id)
+        .filter(
+            Customer.created_at.isnot(None),
+            Customer.created_at >= datetime.combine(thirty_days_ago, time.min),
+        )
+        .all()
+    }
+    active_customer_ids = {
+        cid
+        for (cid,) in db.session.query(Sale.customer_id)
+        .filter(
+            Sale.customer_id.isnot(None),
+            Sale.sale_date >= datetime.combine(ninety_days_ago, time.min),
+            Sale.status == SaleStatus.CONFIRMED.value,
+        )
+        .distinct()
+        .all()
+    }
+    total_customers_count = Customer.query.count()
+    active_existing = max(len(active_customer_ids - new_customer_ids), 0)
+    inactive_count = max(total_customers_count - (len(new_customer_ids) + active_existing), 0)
+    customer_segment_labels = ["عملاء جدد", "عملاء نشطين", "عملاء غير نشطين"]
+    customer_segment_values = [
+        len(new_customer_ids),
+        active_existing,
+        inactive_count,
+    ]
     dashboard_alerts: List[dict] = []
     now = datetime.utcnow()
     today = now.date()
@@ -466,6 +586,10 @@ def dashboard():
         dashboard_alerts=dashboard_alerts,
         check_alerts=check_alerts,
         general_alerts=general_alerts,
+        monthly_sales_labels=monthly_sales_labels,
+        monthly_sales_values=monthly_sales_values,
+        customer_segment_labels=customer_segment_labels,
+        customer_segment_values=customer_segment_values,
     )
 
 @main_bp.route("/backup_db", methods=["GET"], endpoint="backup_db")

@@ -685,7 +685,7 @@ class SystemSettings(db.Model):
             return setting.value or default
 
     @classmethod
-    def set_setting(cls, key, value, description=None, data_type='string', is_public=False):
+    def set_setting(cls, key, value, description=None, data_type='string', is_public=False, commit=True):
         """Set a system setting value"""
         setting = cls.query.filter_by(key=key).first()
         if not setting:
@@ -706,7 +706,8 @@ class SystemSettings(db.Model):
         setting.data_type = data_type
         setting.is_public = is_public
         setting.updated_at = datetime.now(timezone.utc)
-        db.session.commit()
+        if commit:
+            db.session.commit()
         return setting
 
 

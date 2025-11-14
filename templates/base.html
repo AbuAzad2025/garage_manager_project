@@ -477,6 +477,7 @@
       color: #495057;
     }
   </style>
+  {% block extra_css %}{% endblock %}
 </head>
 <body class="hold-transition sidebar-mini layout-fixed text-sm layout-navbar-fixed sidebar-collapse-left {% block body_class %}{% endblock %}">
 <div class="wrapper">
@@ -559,6 +560,8 @@
 <script src="{{ url_for('static', filename='js/security_mega_enhancements.js') }}"></script>
 <script src="{{ url_for('static', filename='js/realtime_logs.js') }}"></script>
 <script src="{{ url_for('static', filename='js/module_specific_enhancements.js') }}"></script>
+
+{% block extra_js %}{% endblock %}
 
 <script>
 (function() {

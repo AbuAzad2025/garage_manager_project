@@ -1,0 +1,59 @@
+[
+  {
+    "timestamp": "2025-11-14T19:39:52.926788",
+    "step": "database_scan",
+    "details": {
+      "tables_count": 0,
+      "total_fields": 0
+    }
+  },
+  {
+    "timestamp": "2025-11-14T19:39:52.956553",
+    "step": "models_scan",
+    "details": {
+      "models_count": 116
+    }
+  },
+  {
+    "timestamp": "2025-11-14T19:39:53.756156",
+    "step": "routes_scan",
+    "details": {
+      "routes_count": 719
+    }
+  },
+  {
+    "timestamp": "2025-11-14T19:39:53.800183",
+    "step": "forms_scan",
+    "details": {
+      "forms_count": 97
+    }
+  },
+  {
+    "timestamp": "2025-11-14T19:39:54.079928",
+    "step": "templates_scan",
+    "details": {
+      "templates_count": 354
+    }
+  },
+  {
+    "timestamp": "2025-11-14T19:39:54.082400",
+    "step": "relationships_analysis",
+    "details": {
+      "relationships_count": 0
+    }
+  },
+  {
+    "timestamp": "2025-11-14T19:39:54.092128",
+    "step": "enums_scan",
+    "details": {
+      "enums_count": 25
+    }
+  },
+  {
+    "timestamp": "2025-11-14T19:39:54.129009",
+    "step": "knowledge_saved",
+    "details": {
+      "file": "AI/data/complete_system_knowledge.json"
+    }
+  }
+]
