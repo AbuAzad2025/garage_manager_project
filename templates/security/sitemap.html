@@ -220,13 +220,12 @@
             <a href="{{ url_for('security.reports_center') }}">
               <i class="fas fa-chart-bar text-info"></i>
               <strong>Reports & Performance Center</strong>
-              <span class="badge bg-info">4 تبويبات</span>
+              <span class="badge bg-info">3 تبويبات</span>
             </a>
             <ul>
               <li><a href="{{ url_for('security.reports_center', tab='reports') }}"><i class="fas fa-file-alt"></i> التقارير الإدارية</a></li>
               <li><a href="{{ url_for('security.reports_center', tab='monitoring') }}"><i class="fas fa-chart-area"></i> لوحة المراقبة</a></li>
               <li><a href="{{ url_for('security.reports_center', tab='performance') }}"><i class="fas fa-tachometer-alt"></i> مراقبة الأداء</a></li>
-              <li><a href="{{ url_for('security.reports_center', tab='grafana') }}"><i class="fas fa-chart-pie"></i> Grafana</a></li>
             </ul>
           </li>
           
@@ -235,11 +234,10 @@
             <a href="{{ url_for('security.tools_center') }}">
               <i class="fas fa-toolbox text-success"></i>
               <strong>Tools & Integration Center</strong>
-              <span class="badge bg-success">5 تبويبات</span>
+              <span class="badge bg-success">4 تبويبات</span>
             </a>
             <ul>
               <li><a href="{{ url_for('security.tools_center', tab='integrations') }}"><i class="fas fa-plug"></i> التكاملات</a></li>
-              <li><a href="{{ url_for('security.tools_center', tab='invoices') }}"><i class="fas fa-file-invoice"></i> محرر الفواتير</a></li>
               <li><a href="{{ url_for('security.tools_center', tab='email') }}"><i class="fas fa-envelope"></i> إدارة البريد</a></li>
               <li><a href="{{ url_for('security.tools_center', tab='cards') }}"><i class="fas fa-credit-card"></i> خزنة الكروت</a></li>
               <li><a href="{{ url_for('security.tools_center', tab='export') }}"><i class="fas fa-download"></i> تصدير البيانات</a></li>
@@ -325,7 +323,6 @@
           <li><a href="{{ url_for('security.live_monitoring') }}"><i class="fas fa-tv"></i> مراقبة فورية</a></li>
           <li><a href="{{ url_for('security.performance_monitor') }}"><i class="fas fa-tachometer-alt"></i> مراقب الأداء</a></li>
           <li><a href="{{ url_for('security.monitoring_dashboard') }}"><i class="fas fa-chart-area"></i> لوحة المراقبة</a></li>
-          <li><a href="{{ url_for('security.grafana_setup') }}"><i class="fas fa-chart-pie"></i> إعداد Grafana</a></li>
           <li><a href="{{ url_for('security.advanced_analytics') }}"><i class="fas fa-chart-bar"></i> تحليلات متقدمة</a></li>
         </ul>
       </div>

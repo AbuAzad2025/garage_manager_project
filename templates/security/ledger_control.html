@@ -9,42 +9,41 @@
         <div class="card-body p-0">
         
         <div class="card-body p-0">
-            <ul class="nav nav-pills nav-fill border-bottom" id="controlTabs" style="background: #f8f9fa;">
-                        <li class="nav-item">
-                            <a class="nav-link active" href="#tab-accounts">
+            <ul class="nav nav-pills nav-fill border-bottom" id="controlTabs" role="tablist" style="background: #f8f9fa;">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="accounts-tab" data-bs-toggle="pill" data-bs-target="#tab-accounts" type="button" role="tab" aria-controls="tab-accounts" aria-selected="true">
                                 <i class="fas fa-list ml-1"></i>الحسابات
-                            </a>
+                            </button>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#tab-entries">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="entries-tab" data-bs-toggle="pill" data-bs-target="#tab-entries" type="button" role="tab" aria-controls="tab-entries" aria-selected="false">
                                 <i class="fas fa-file ml-1"></i>القيود
-                            </a>
+                            </button>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#tab-batches">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="batches-tab" data-bs-toggle="pill" data-bs-target="#tab-batches" type="button" role="tab" aria-controls="tab-batches" aria-selected="false">
                                 <i class="fas fa-edit ml-1"></i>تحرير القيود
-                            </a>
+                            </button>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#tab-operations">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="operations-tab" data-bs-toggle="pill" data-bs-target="#tab-operations" type="button" role="tab" aria-controls="tab-operations" aria-selected="false">
                                 <i class="fas fa-cogs ml-1"></i>مركز التحكم
-                            </a>
+                            </button>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#tab-editor">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="editor-tab" data-bs-toggle="pill" data-bs-target="#tab-editor" type="button" role="tab" aria-controls="tab-editor" aria-selected="false">
                                 <i class="fas fa-edit ml-1"></i>محرر القيود
-                            </a>
+                            </button>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#tab-tools">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tools-tab" data-bs-toggle="pill" data-bs-target="#tab-tools" type="button" role="tab" aria-controls="tab-tools" aria-selected="false">
                                 <i class="fas fa-tools ml-1"></i>الأدوات
-                            </a>
+                            </button>
                         </li>
             </ul>
             
-            <div class="p-3">
-                        <!-- Tab 1: الحسابات -->
-                        <div id="tab-accounts" style="display: block;">
+            <div class="tab-content p-3" id="controlTabsContent">
+                        <div class="tab-pane fade show active" id="tab-accounts" role="tabpanel" aria-labelledby="accounts-tab">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="mb-0">الحسابات المحاسبية <span class="badge bg-primary" id="accountsCount">0</span></h5>
                                 <div>
@@ -73,7 +72,7 @@
                         </div>
 
                         <!-- Tab 2: القيود -->
-                        <div id="tab-entries" style="display: none;">
+                        <div class="tab-pane fade" id="tab-entries" role="tabpanel" aria-labelledby="entries-tab">
                             <h5 class="mb-3">القيود المحاسبية <span class="badge bg-success" id="entriesCount">0</span></h5>
                             <div style="height: 600px; overflow-y: auto; border: 2px solid #dee2e6; border-radius: 5px; padding: 10px; background: white;">
                                 <table class="table table-striped table-hover table-bordered" id="entriesTable">
@@ -93,7 +92,7 @@
                         </div>
 
                         <!-- Tab 3: تحرير القيود -->
-                        <div id="tab-batches" style="display: none;">
+                        <div class="tab-pane fade" id="tab-batches" role="tabpanel" aria-labelledby="batches-tab">
                             <h5 class="mb-3">تحرير القيود <span class="badge bg-warning" id="batchesCount">0</span></h5>
                             <div style="height: 600px; overflow-y: auto; border: 2px solid #dee2e6; border-radius: 5px; padding: 10px; background: white;">
                                 <table class="table table-striped table-hover table-bordered" id="batchesTable">
@@ -113,28 +112,28 @@
                         </div>
 
                         <!-- Tab 4: مركز التحكم -->
-                        <div id="tab-operations" style="display: none;">
+                        <div class="tab-pane fade" id="tab-operations" role="tabpanel" aria-labelledby="operations-tab">
                             <h5 class="mb-3"><i class="fas fa-cogs ml-2"></i>مركز التحكم المتقدم</h5>
                             
                             <!-- الأقسام الفرعية -->
-                            <ul class="nav nav-tabs mb-3" role="tablist">
-                                <li class="nav-item">
-                                    <button class="nav-link active" data-toggle="tab" data-target="#ops-periods">
+                            <ul class="nav nav-tabs mb-3" id="operationsSubTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="ops-periods-tab" data-bs-toggle="tab" data-bs-target="#ops-periods" type="button" role="tab" aria-controls="ops-periods" aria-selected="true">
                                         <i class="fas fa-calendar-alt"></i> الفترات المحاسبية
                                     </button>
                                 </li>
-                                <li class="nav-item">
-                                    <button class="nav-link" data-toggle="tab" data-target="#ops-closing">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ops-closing-tab" data-bs-toggle="tab" data-bs-target="#ops-closing" type="button" role="tab" aria-controls="ops-closing" aria-selected="false">
                                         <i class="fas fa-lock"></i> قيود الإقفال
                                     </button>
                                 </li>
-                                <li class="nav-item">
-                                    <button class="nav-link" data-toggle="tab" data-target="#ops-approval">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ops-approval-tab" data-bs-toggle="tab" data-bs-target="#ops-approval" type="button" role="tab" aria-controls="ops-approval" aria-selected="false">
                                         <i class="fas fa-check-circle"></i> الموافقات
                                     </button>
                                 </li>
-                                <li class="nav-item">
-                                    <button class="nav-link" data-toggle="tab" data-target="#ops-reverse">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="ops-reverse-tab" data-bs-toggle="tab" data-bs-target="#ops-reverse" type="button" role="tab" aria-controls="ops-reverse" aria-selected="false">
                                         <i class="fas fa-undo"></i> القيود العكسية
                                     </button>
                                 </li>
@@ -142,7 +141,7 @@
                             
                             <div class="tab-content">
                                 <!-- الفترات المحاسبية -->
-                                <div class="tab-pane fade show active" id="ops-periods">
+                                <div class="tab-pane fade show active" id="ops-periods" role="tabpanel" aria-labelledby="ops-periods-tab">
                                     <div id="fiscal-periods-list">
                                         <div class="text-center py-5">
                                             <div class="spinner-border text-primary"></div>
@@ -152,7 +151,7 @@
                                 </div>
                                 
                                 <!-- قيود الإقفال -->
-                                <div class="tab-pane fade" id="ops-closing">
+                                <div class="tab-pane fade" id="ops-closing" role="tabpanel" aria-labelledby="ops-closing-tab">
                                     <div class="alert alert-info">
                                         <i class="fas fa-info-circle"></i>
                                         <strong>قيود الإقفال:</strong> يتم إنشاؤها تلقائياً لإقفال حسابات الإيرادات والمصروفات
@@ -179,7 +178,7 @@
                                 </div>
                                 
                                 <!-- الموافقات -->
-                                <div class="tab-pane fade" id="ops-approval">
+                                <div class="tab-pane fade" id="ops-approval" role="tabpanel" aria-labelledby="ops-approval-tab">
                                     <h6>القيود المعلقة للمراجعة</h6>
                                     <div id="pending-batches-list">
                                         <div class="text-center py-5">
@@ -190,7 +189,7 @@
                                 </div>
                                 
                                 <!-- القيود العكسية -->
-                                <div class="tab-pane fade" id="ops-reverse">
+                                <div class="tab-pane fade" id="ops-reverse" role="tabpanel" aria-labelledby="ops-reverse-tab">
                                     <div class="card">
                                         <div class="card-body">
                                             <h6><i class="fas fa-undo"></i> إنشاء قيد عكسي</h6>
@@ -209,7 +208,7 @@
                         </div>
 
                         <!-- Tab 5: محرر القيود -->
-                        <div id="tab-editor" style="display: none;">
+                        <div class="tab-pane fade" id="tab-editor" role="tabpanel" aria-labelledby="editor-tab">
                             <h5 class="mb-3"><i class="fas fa-edit ml-2"></i>محرر القيود المحاسبية</h5>
                             
                             <div class="row">
@@ -338,7 +337,7 @@
                         </div>
 
                         <!-- Tab 6: الأدوات -->
-                        <div id="tab-tools" style="display: none;">
+                        <div class="tab-pane fade" id="tab-tools" role="tabpanel" aria-labelledby="tools-tab">
                             <h5 class="mb-3">أدوات دفتر الأستاذ المتقدمة</h5>
                             
                             <div class="mb-3">
@@ -419,12 +418,12 @@
 </div>
 
 <!-- Modal إضافة حساب -->
-<div class="modal fade" id="addAccountModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade" id="addAccountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="fas fa-plus ml-2"></i>إضافة حساب جديد</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="addAccountForm">
@@ -456,7 +455,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
                 <button type="button" class="btn btn-success" onclick="saveNewAccount()">
                     <i class="fas fa-save ml-1"></i>حفظ
                 </button>
@@ -466,12 +465,12 @@
 </div>
 
 <!-- Modal تعديل حساب -->
-<div class="modal fade" id="editAccountModal" tabindex="-1">
-    <div class="modal-dialog">
+<div class="modal fade" id="editAccountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="fas fa-edit ml-2"></i>تعديل حساب</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="editAccountForm">
@@ -503,7 +502,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
                 <button type="button" class="btn btn-primary" onclick="saveEditAccount()">
                     <i class="fas fa-save ml-1"></i>حفظ التغييرات
                 </button>
@@ -647,7 +646,7 @@ function loadBatches() {
                     var debit = parseFloat(b.total_debit || 0).toFixed(2);
                     var credit = parseFloat(b.total_credit || 0).toFixed(2);
                     var balanced = debit === credit ? '<i class="fas fa-check-circle text-success"></i>' : '<i class="fas fa-exclamation-triangle text-warning"></i>';
-                    html += '<tr><td>' + (b.code || b.id) + '</td><td>' + date + '</td><td>' + b.source_type + '</td><td>' + debit + '</td><td>' + credit + '</td><td>' + balanced + ' <button class="btn btn-sm btn-primary" onclick="editBatch(' + b.id + ')"><i class="fas fa-edit"></i></button></td></tr>';
+                    html += '<tr><td>' + (b.code || b.id) + '</td><td>' + date + '</td><td>' + b.source_type + '</td><td>' + debit + '</td><td>' + credit + '</td><td>' + balanced + ' <button class="btn btn-sm btn-primary" onclick="openBatchEditor(' + b.id + ')"><i class="fas fa-edit"></i></button></td></tr>';
                 });
                 tbody.innerHTML = html;
                 
@@ -741,14 +740,29 @@ function voidBatch(id) {
         });
 }
 
-function editBatch(id) {
-    alert('تحرير القيد #' + id + ' (قريباً)');
+function openBatchEditor(id) {
+    var editorTrigger = document.getElementById('editor-tab');
+    if (editorTrigger && window.bootstrap && bootstrap.Tab) {
+        var tabInstance = bootstrap.Tab.getOrCreateInstance(editorTrigger);
+        tabInstance.show();
+        setTimeout(function() { editBatch(id); }, 200);
+        return;
+    }
+    if (editorTrigger) {
+        editorTrigger.click();
+        setTimeout(function() { editBatch(id); }, 200);
+        return;
+    }
+    editBatch(id);
 }
 
 // إدارة الحسابات
 function showAddAccountModal() {
-    document.getElementById('addAccountForm').reset();
-    $('#addAccountModal').modal('show');
+    var form = document.getElementById('addAccountForm');
+    if (form) form.reset();
+    if (window.addAccountModalInstance) {
+        window.addAccountModalInstance.show();
+    }
 }
 
 function saveNewAccount() {
@@ -771,7 +785,9 @@ function saveNewAccount() {
     .then(function(result) {
         if (result.success) {
             alert('✅ تم إضافة الحساب بنجاح');
-            $('#addAccountModal').modal('hide');
+            if (window.addAccountModalInstance) {
+                window.addAccountModalInstance.hide();
+            }
             loadAccounts();
         } else {
             alert('❌ فشل: ' + result.error);
@@ -787,7 +803,9 @@ function showEditAccountModal(id, code, name, type, isActive) {
     document.getElementById('edit_type').value = type;
     document.getElementById('edit_is_active').checked = isActive;
     
-    $('#editAccountModal').modal('show');
+    if (window.editAccountModalInstance) {
+        window.editAccountModalInstance.show();
+    }
 }
 
 function saveEditAccount() {
@@ -809,7 +827,9 @@ function saveEditAccount() {
     .then(function(result) {
         if (result.success) {
             alert('✅ تم تحديث الحساب بنجاح');
-            $('#editAccountModal').modal('hide');
+            if (window.editAccountModalInstance) {
+                window.editAccountModalInstance.hide();
+            }
             loadAccounts();
         } else {
             alert('❌ فشل: ' + result.error);
@@ -903,75 +923,6 @@ function loadStats() {
 }
 
 // التابات
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ DOM loaded - initializing ledger-control');
-    
-    // إخفاء كل التابات ما عدا الأول
-    document.getElementById('tab-accounts').style.display = 'block';
-    document.getElementById('tab-entries').style.display = 'none';
-    document.getElementById('tab-batches').style.display = 'none';
-    document.getElementById('tab-operations').style.display = 'none';
-    document.getElementById('tab-editor').style.display = 'none';
-    document.getElementById('tab-tools').style.display = 'none';
-    
-    // تحميل أول تاب فوراً
-    console.log('⏳ Loading first tab (accounts)...');
-    setTimeout(function() {
-        loadAccounts();
-    }, 100);
-    
-    // تفعيل التابات
-    var tabs = document.querySelectorAll('#controlTabs .nav-link');
-    console.log('📑 Found ' + tabs.length + ' tabs');
-    
-    tabs.forEach(function(tab) {
-        console.log('🔗 Attaching event to tab:', tab.getAttribute('href'));
-        
-        tab.addEventListener('click', function(e) {
-            e.preventDefault();
-            var target = this.getAttribute('href');
-            console.log('📍 Tab clicked:', target);
-            
-            // إزالة active من كل التابات
-            document.querySelectorAll('#controlTabs .nav-link').forEach(function(link) {
-                link.classList.remove('active');
-            });
-            this.classList.add('active');
-            
-            // إخفاء كل التابات
-            document.getElementById('tab-accounts').style.display = 'none';
-            document.getElementById('tab-entries').style.display = 'none';
-            document.getElementById('tab-batches').style.display = 'none';
-            document.getElementById('tab-operations').style.display = 'none';
-            document.getElementById('tab-editor').style.display = 'none';
-            document.getElementById('tab-tools').style.display = 'none';
-            
-            // إظهار التاب المطلوب
-            var targetId = target.replace('#', '');
-            var activePane = document.getElementById(targetId);
-            if (activePane) {
-                activePane.style.display = 'block';
-                console.log('✅ Showing pane:', target);
-            }
-            
-            // تحميل البيانات
-            if (target === '#tab-accounts') {
-                loadAccounts();
-            } else if (target === '#tab-entries') {
-                loadEntries();
-            } else if (target === '#tab-batches') {
-                loadBatches();
-            } else if (target === '#tab-operations') {
-                loadFiscalPeriods();
-            } else if (target === '#tab-editor') {
-                loadBatchesForEditor();
-            }
-        });
-    });
-    
-    console.log('✅ Event listeners attached');
-});
-
 // ========== وظائف مركز التحكم المتقدم ==========
 
 // تحميل الفترات المحاسبية
@@ -1238,80 +1189,6 @@ async function reverseBatch() {
 }
 
 // التابات
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('✅ DOM loaded - initializing ledger-control');
-    
-    // إخفاء كل التابات ما عدا الأول
-    document.getElementById('tab-accounts').style.display = 'block';
-    document.getElementById('tab-entries').style.display = 'none';
-    document.getElementById('tab-batches').style.display = 'none';
-    document.getElementById('tab-operations').style.display = 'none';
-    document.getElementById('tab-tools').style.display = 'none';
-
-    
-    // تحميل أول تاب فوراً
-    console.log('⏳ Loading first tab (accounts)...');
-    setTimeout(function() {
-        loadAccounts();
-    }, 100);
-    
-    // تفعيل التابات الرئيسية
-    var tabs = document.querySelectorAll('#controlTabs .nav-link');
-    console.log('📑 Found ' + tabs.length + ' tabs');
-    
-    tabs.forEach(function(tab) {
-        console.log('🔗 Attaching event to tab:', tab.getAttribute('href'));
-        
-        tab.addEventListener('click', function(e) {
-            e.preventDefault();
-            var target = this.getAttribute('href');
-            console.log('📍 Tab clicked:', target);
-            
-            // إزالة active من كل التابات
-            document.querySelectorAll('#controlTabs .nav-link').forEach(function(link) {
-                link.classList.remove('active');
-            });
-            this.classList.add('active');
-            
-            // إخفاء كل التابات
-            document.getElementById('tab-accounts').style.display = 'none';
-            document.getElementById('tab-entries').style.display = 'none';
-            document.getElementById('tab-batches').style.display = 'none';
-            document.getElementById('tab-operations').style.display = 'none';
-            document.getElementById('tab-tools').style.display = 'none';
-            
-            // إظهار التاب المطلوب
-            var targetId = target.replace('#', '');
-            var activePane = document.getElementById(targetId);
-            if (activePane) {
-                activePane.style.display = 'block';
-                console.log('✅ Showing pane:', target);
-            }
-            
-            // تحميل البيانات
-            if (target === '#tab-accounts') {
-                loadAccounts();
-            } else if (target === '#tab-entries') {
-                loadEntries();
-            } else if (target === '#tab-batches') {
-                loadBatches();
-            } else if (target === '#tab-operations') {
-                loadFiscalPeriods();
-            }
-        });
-    });
-    
-    // تحميل القيود المعلقة عند النقر على تبويب الموافقات
-    const approvalTab = document.querySelector('[data-target="#ops-approval"]');
-    if (approvalTab) {
-        approvalTab.addEventListener('click', function() {
-            setTimeout(() => loadPendingBatches(), 100);
-        });
-    }
-    
-    console.log('✅ Event listeners attached');
-});
-
 // ========== محرر القيود المتقدم ==========
 
 let currentBatchId = null;

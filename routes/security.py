@@ -1253,13 +1253,14 @@ def settings_center():
 @owner_only
 def reports_center():
     """
-    📊 Reports & Performance Center - 4 في 1
+    📊 Reports & Performance Center - 3 في 1
     - التقارير الإدارية
     - لوحة المراقبة الشاملة
     - مراقبة الأداء
-    - Grafana + Prometheus
     """
     tab = request.args.get('tab', 'reports')
+    if tab not in ('reports', 'monitoring', 'performance'):
+        tab = 'reports'
     stats = get_cached_security_stats()
     return render_template('security/reports_center.html', active_tab=tab, stats=stats)
 
@@ -1268,14 +1269,16 @@ def reports_center():
 @owner_only
 def tools_center():
     """
-    🔧 Tools & Integration Center - 5 في 1
+    🔧 Tools & Integration Center - 4 في 1
     - التكامل (Integrations)
-    - محرر الفواتير (Invoice Designer)
     - إدارة البريد (Email Manager)
     - إدارة الكروت (Card Vault)
     - تصدير البيانات (Data Export)
     """
+    allowed_tabs = {'integrations', 'email', 'cards', 'export'}
     tab = request.args.get('tab', 'integrations')
+    if tab not in allowed_tabs:
+        tab = 'integrations'
     
     integrations_data = None
     if tab == 'integrations':
@@ -1300,8 +1303,79 @@ def tools_center():
             },
         }
     
+    email_stats = None
+    email_logs = []
+    if tab == 'email':
+        from models import NotificationLog
+        from datetime import datetime, timedelta
+        
+        email_query = NotificationLog.query.filter_by(type='email')
+        total_sent = email_query.count()
+        sent_last_day = email_query.filter(NotificationLog.created_at >= datetime.utcnow() - timedelta(days=1)).count()
+        failed_count = email_query.filter_by(status='failed').count()
+        last_entry = email_query.order_by(NotificationLog.created_at.desc()).first()
+        
+        email_stats = {
+            'total': total_sent,
+            'sent_last_day': sent_last_day,
+            'failed': failed_count,
+            'last': last_entry,
+        }
+        email_logs = email_query.order_by(NotificationLog.created_at.desc()).limit(5).all()
+    
+    card_stats = None
+    recent_cards = []
+    if tab == 'cards':
+        from models import OnlinePayment
+        
+        card_stats = {
+            'total': OnlinePayment.query.count(),
+            'successful': OnlinePayment.query.filter_by(status='SUCCESS').count(),
+            'pending': OnlinePayment.query.filter_by(status='PENDING').count(),
+            'failed': OnlinePayment.query.filter_by(status='FAILED').count(),
+        }
+        recent_cards = OnlinePayment.query.order_by(OnlinePayment.created_at.desc()).limit(5).all()
+    
+    export_links = None
+    dynamic_tables = None
+    if tab == 'export':
+        export_links = [
+            {
+                'name': 'أعمار الذمم (عملاء)',
+                'format': 'CSV',
+                'icon': 'fas fa-user-clock',
+                'description': 'كشف الرصيد المجمع لكل عميل حسب الفترات الزمنية.',
+                'url': url_for('reports_bp.export_ar_aging_csv'),
+            },
+            {
+                'name': 'أعمار الذمم (موردون)',
+                'format': 'CSV',
+                'icon': 'fas fa-truck-loading',
+                'description': 'متابعة مستحقات الموردين والأعمار الزمنية.',
+                'url': url_for('reports_bp.export_ap_aging_csv'),
+            },
+        ]
+        dynamic_tables = [
+            {'value': 'Sale', 'label': 'المبيعات'},
+            {'value': 'Invoice', 'label': 'الفواتير'},
+            {'value': 'Payment', 'label': 'المدفوعات'},
+            {'value': 'Customer', 'label': 'العملاء'},
+            {'value': 'Supplier', 'label': 'الموردون'},
+        ]
+    
     stats = get_cached_security_stats()
-    return render_template('security/tools_center.html', active_tab=tab, integrations=integrations_data, stats=stats)
+    return render_template(
+        'security/tools_center.html',
+        active_tab=tab,
+        integrations=integrations_data,
+        stats=stats,
+        email_stats=email_stats,
+        email_logs=email_logs,
+        card_stats=card_stats,
+        recent_cards=recent_cards,
+        export_links=export_links,
+        dynamic_tables=dynamic_tables,
+    )
 
 
 def _unused_ai_config_function():
