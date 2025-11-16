@@ -2562,6 +2562,7 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
     warehouse_id       = AjaxSelectField('المستودع', endpoint='api.search_warehouses',    get_label='name', validators=[Optional()], coerce=int, allow_blank=True)
     partner_id         = AjaxSelectField('الشريك', endpoint='api.search_partners',         get_label='name', validators=[Optional()], coerce=int, allow_blank=True)
     supplier_id        = AjaxSelectField('المورد', endpoint='api.search_suppliers',        get_label='name', validators=[Optional()], coerce=int, allow_blank=True)
+    customer_id        = AjaxSelectField('العميل', endpoint='api.search_customers',        get_label='name', validators=[Optional()], coerce=int, allow_blank=True)
     
     installments_count = IntegerField('عدد الأقساط', validators=[Optional(), NumberRange(min=1, max=60)], default=1)
     create_deduction = BooleanField('خصم شهري تلقائي', default=False)
@@ -2793,6 +2794,23 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
             self.period_end.errors.append('نهاية الفترة يجب أن تكون بعد بدايتها')
             return False
 
+        def _field_selected(field):
+            data = getattr(field, "data", None)
+            return data not in (None, '', 0, '0')
+
+        entity_fields = [
+            ('supplier', self.supplier_id),
+            ('partner', self.partner_id),
+            ('customer', self.customer_id),
+            ('employee', self.employee_id),
+        ]
+        selected_entities = [(label, field) for label, field in entity_fields if _field_selected(field)]
+        if len(selected_entities) > 1:
+            msg = 'اختر جهة واحدة فقط من الحقول (مورد/شريك/عميل/موظف)'
+            for _, field in selected_entities:
+                field.errors.append(msg)
+            return False
+
         if kind == 'SALARY':
             require_employee = type_meta.get('require_employee')
             if require_employee is None:
@@ -2851,7 +2869,7 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
             require_beneficiary = type_meta.get('require_beneficiary')
             if require_beneficiary is None:
                 require_beneficiary = not type_meta
-            if require_beneficiary and not (self.beneficiary_name.data or self.paid_to.data or self.employee_id.data or self.warehouse_id.data):
+            if require_beneficiary and not (self.beneficiary_name.data or self.paid_to.data or self.employee_id.data or self.warehouse_id.data or self.customer_id.data):
                 self.beneficiary_name.errors.append('أدخل اسم الجهة المستفيدة')
                 return False
 
@@ -2939,6 +2957,29 @@ class ExpenseForm(PaymentDetailsMixin, FlaskForm):
         exp.warehouse_id = int(self.warehouse_id.data) if getattr(self.warehouse_id, "data", None) else None
         exp.partner_id = int(self.partner_id.data) if getattr(self.partner_id, "data", None) else None
         exp.supplier_id = int(self.supplier_id.data) if getattr(self.supplier_id, "data", None) else None
+        customer_value = getattr(self, "customer_id", None)
+        customer_id = None
+        if customer_value and customer_value.data not in (None, '', '0', 0):
+            try:
+                customer_id = int(customer_value.data)
+            except (TypeError, ValueError):
+                customer_id = None
+        exp.customer_id = customer_id
+        if customer_id:
+            exp.payee_type = 'CUSTOMER'
+            exp.payee_entity_id = customer_id
+            if not exp.payee_name:
+                try:
+                    from models import Customer
+                    customer = Customer.query.get(customer_id)
+                    if customer:
+                        exp.payee_name = customer.name
+                except Exception:
+                    pass
+        elif getattr(exp, 'payee_type', None) == 'CUSTOMER':
+            exp.payee_type = 'OTHER'
+            exp.payee_entity_id = None
+            exp.customer_id = None
         exp.shipment_id = int(self.shipment_id.data) if getattr(self.shipment_id, "data", None) else None
         exp.utility_account_id = int(self.utility_account_id.data) if getattr(self.utility_account_id, "data", None) else None
         exp.stock_adjustment_id = int(self.stock_adjustment_id.data) if getattr(self.stock_adjustment_id, "data", None) else None

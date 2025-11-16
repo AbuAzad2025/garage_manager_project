@@ -1,6 +1,9 @@
+from dataclasses import dataclass, field
+from typing import Optional
+
 from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
 from flask_login import current_user, login_required
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from sqlalchemy import and_, or_, desc, func
 from sqlalchemy.orm import joinedload
 from extensions import db
@@ -10,7 +13,8 @@ except ImportError:
     limiter = None
 from models import (
     Payment, PaymentSplit, Expense, PaymentMethod, PaymentStatus, PaymentDirection, 
-    Check, CheckStatus, Customer, Supplier, Partner, GLBatch, GLEntry, Account
+    Check, CheckStatus, Customer, Supplier, Partner, GLBatch, GLEntry, Account,
+    _ALLOWED_TRANSITIONS,
 )
 import utils
 from decimal import Decimal
@@ -21,6 +25,80 @@ checks_bp = Blueprint('checks', __name__, url_prefix='/checks')
 
 
 from sqlalchemy import event
+
+
+def create_check_record(
+    *,
+    amount,
+    check_number,
+    check_bank,
+    payment=None,
+    currency=None,
+    direction=None,
+    check_date=None,
+    check_due_date=None,
+    customer_id=None,
+    supplier_id=None,
+    partner_id=None,
+    reference_number=None,
+    notes=None,
+    payee_name=None,
+    created_by_id=None,
+    status=None
+):
+    if amount is None:
+        return None, False
+    check_number = (check_number or "").strip()
+    check_bank = (check_bank or "").strip()
+    if not check_number or not check_bank:
+        return None, False
+    def _to_datetime(value):
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time())
+        try:
+            return datetime.fromisoformat(str(value))
+        except Exception:
+            return None
+    check_date_obj = _to_datetime(check_date) or datetime.utcnow()
+    check_due_date_obj = _to_datetime(check_due_date) or check_date_obj
+    if check_due_date_obj < check_date_obj:
+        check_due_date_obj = check_date_obj
+    if payment and getattr(payment, "id", None):
+        existing = Check.query.filter_by(payment_id=payment.id, check_number=check_number).first()
+        if existing:
+            return existing, False
+    resolved_currency = currency or getattr(payment, "currency", None) or "ILS"
+    resolved_direction = direction or getattr(payment, "direction", None) or PaymentDirection.OUT.value
+    resolved_status = status or CheckStatus.PENDING.value
+    resolved_customer = customer_id if customer_id is not None else getattr(payment, "customer_id", None)
+    resolved_supplier = supplier_id if supplier_id is not None else getattr(payment, "supplier_id", None)
+    resolved_partner = partner_id if partner_id is not None else getattr(payment, "partner_id", None)
+    resolved_reference = reference_number or (f"PMT-{payment.id}" if payment and getattr(payment, "id", None) else None)
+    resolved_created_by = created_by_id or getattr(payment, "created_by", None) or (current_user.id if current_user.is_authenticated else None)
+    check = Check(
+        payment_id=getattr(payment, "id", None),
+        check_number=check_number,
+        check_bank=check_bank,
+        check_date=check_date_obj,
+        check_due_date=check_due_date_obj,
+        amount=Decimal(str(amount)),
+        currency=resolved_currency,
+        direction=resolved_direction,
+        status=resolved_status,
+        customer_id=resolved_customer,
+        supplier_id=resolved_supplier,
+        partner_id=resolved_partner,
+        reference_number=resolved_reference,
+        notes=notes,
+        payee_name=payee_name,
+        created_by_id=resolved_created_by
+    )
+    db.session.add(check)
+    return check, True
 
 @event.listens_for(Check, 'before_delete')
 def _check_gl_batch_reverse(mapper, connection, target):
@@ -350,12 +428,557 @@ CHECK_LIFECYCLE = {
     'CANCELLED': []  # نهائية
 }
 
+def _current_user_is_owner() -> bool:
+    try:
+        if not getattr(current_user, 'is_authenticated', False):
+            return False
+        if getattr(current_user, 'is_system_account', False):
+            return True
+        username = (getattr(current_user, 'username', None) or '').strip().lower()
+        if username in {'owner', '__owner__'}:
+            return True
+        role = getattr(current_user, 'role', None)
+        role_name = (getattr(role, 'name', '') or '').strip().lower()
+        return role_name in {'owner', 'developer'}
+    except Exception:
+        return False
+
+@dataclass
+class CheckActionContext:
+    token: str
+    kind: str
+    payment: Optional[Payment] = None
+    split: Optional[PaymentSplit] = None
+    expense: Optional[Expense] = None
+    manual: Optional[Check] = None
+    direction: str = PaymentDirection.IN.value
+    amount: Decimal = field(default_factory=lambda: Decimal("0"))
+    currency: str = "ILS"
+    entity_type: Optional[str] = None
+    entity_id: Optional[int] = None
+    entity_name: Optional[str] = None
+
+
+class CheckActionService:
+    STATUS_SET = {'PENDING', 'CASHED', 'RETURNED', 'BOUNCED', 'RESUBMITTED', 'CANCELLED', 'ARCHIVED'}
+    LEDGER_STATUSES = {'CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED'}
+    PAYMENT_STATUS_MAP = {
+        'PENDING': PaymentStatus.PENDING.value,
+        'RESUBMITTED': PaymentStatus.PENDING.value,
+        'CASHED': PaymentStatus.COMPLETED.value,
+        'RETURNED': PaymentStatus.FAILED.value,
+        'BOUNCED': PaymentStatus.FAILED.value,
+        'CANCELLED': PaymentStatus.CANCELLED.value,
+        'ARCHIVED': PaymentStatus.CANCELLED.value,
+    }
+    STATUS_MARKERS = {
+        'PENDING': '\u23f3',
+        'RESUBMITTED': '\u21bb',
+        'CASHED': '\u2705',
+        'RETURNED': '\u27f2',
+        'BOUNCED': '\u274c',
+        'CANCELLED': '\u26d4',
+        'ARCHIVED': '\U0001f4e6',
+    }
+
+    def __init__(self, actor):
+        self.actor = actor
+
+    def run(self, identifier, target_status, note_text):
+        ctx = self._resolve(identifier)
+        status = (target_status or '').strip().upper()
+        if status not in self.STATUS_SET:
+            raise ValueError('حالة غير صالحة')
+        previous = self._current_status(ctx)
+        if previous == status:
+            raise ValueError('الحالة الحالية مطابقة بالفعل')
+        if previous and CHECK_LIFECYCLE.get(previous):
+            allowed = CHECK_LIFECYCLE[previous]
+            if status not in allowed:
+                raise ValueError('الانتقال غير مسموح من هذه الحالة')
+        if status == 'RESUBMITTED' and self._has_state_record(ctx, 'RESUBMITTED'):
+            raise ValueError('لا يمكن إعادة تقديم الشيك أكثر من مرة')
+        result = self._apply(ctx, status, note_text or '', previous)
+        result['previous_status'] = previous
+        return result
+
+    def _apply(self, ctx, status, note_text, previous):
+        if ctx.kind == 'payment':
+            self._apply_payment(ctx, status, note_text)
+        elif ctx.kind == 'payment_split':
+            self._apply_split(ctx, status, note_text)
+        elif ctx.kind == 'expense':
+            self._apply_expense(ctx, status, note_text)
+        elif ctx.kind == 'manual':
+            self._apply_manual(ctx, status, note_text)
+        else:
+            raise ValueError('نوع شيك غير مدعوم')
+        balance_value = None
+        if ctx.entity_type and ctx.entity_id:
+            balance_value = self._update_balance(ctx.entity_type, ctx.entity_id)
+        gl_batch = self._maybe_create_gl(ctx, status, previous, note_text)
+        return {
+            'token': ctx.token,
+            'kind': ctx.kind,
+            'new_status': status,
+            'new_status_ar': CHECK_STATUS.get(status, {}).get('ar', status),
+            'balance': balance_value,
+            'gl_batch_id': getattr(gl_batch, 'id', None),
+        }
+
+    def _apply_payment(self, ctx, status, note_text):
+        self._touch_payment(ctx.payment, status, note_text, None)
+
+    def _apply_split(self, ctx, status, note_text):
+        split = ctx.split
+        details = self._load_split_details(split)
+        history = details.get('check_history')
+        if not isinstance(history, list):
+            history = []
+        history.append(self._history_entry(status))
+        details['check_history'] = history
+        details['check_status'] = status
+        if note_text:
+            details['check_note'] = note_text
+        split.details = details
+        self._touch_payment(ctx.payment, status, note_text, f"Split #{split.id}")
+
+    def _apply_expense(self, ctx, status, note_text):
+        exp = ctx.expense
+        exp.notes = (exp.notes or '') + self._compose_note(status, note_text, None)
+
+    def _apply_manual(self, ctx, status, note_text):
+        manual = ctx.manual
+        manual.status = status
+        try:
+            manual.add_status_change(status, note_text, self.actor)
+        except Exception:
+            pass
+        manual.notes = (manual.notes or '') + self._compose_note(status, note_text, None)
+
+    def _touch_payment(self, payment, status, note_text, label):
+        if not payment:
+            return
+        mapped = self.PAYMENT_STATUS_MAP.get(status)
+        if mapped:
+            old_status_val = getattr(payment, 'status', None)
+            old = getattr(old_status_val, 'value', old_status_val) or 'PENDING'
+            new = mapped or ''
+            o = str(old).upper()
+            n = str(new).upper()
+            if o != n:
+                allowed = _ALLOWED_TRANSITIONS.get(o, set())
+                if n not in allowed:
+                    raise ValueError("payment.invalid_status_transition")
+            payment.status = mapped
+        payment.notes = (payment.notes or '') + self._compose_note(status, note_text, label)
+
+    def _maybe_create_gl(self, ctx, status, previous, note_text):
+        if status not in self.LEDGER_STATUSES:
+            return None
+        amount = ctx.amount or Decimal('0')
+        if amount <= 0:
+            return None
+        direction = 'IN' if ctx.direction == PaymentDirection.IN.value else 'OUT'
+        return create_gl_entry_for_check(
+            check_id=self._ledger_source_id(ctx),
+            check_type=ctx.kind,
+            amount=float(amount),
+            currency=ctx.currency or 'ILS',
+            direction=direction,
+            new_status=status,
+            old_status=previous,
+            entity_name=ctx.entity_name or '',
+            notes=note_text or ''
+        )
+
+    def _ledger_source_id(self, ctx):
+        if ctx.manual:
+            return ctx.manual.id
+        if ctx.split:
+            return ctx.split.id
+        if ctx.payment:
+            return ctx.payment.id
+        if ctx.expense:
+            return ctx.expense.id
+        return ctx.token
+
+    def _update_balance(self, entity_type, entity_id):
+        try:
+            return utils.update_entity_balance(entity_type.lower(), entity_id)
+        except Exception:
+            return None
+
+    def _history_entry(self, status):
+        entry = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'status': status,
+        }
+        if self.actor:
+            entry['user'] = self.actor.username
+        return entry
+
+    def _compose_note(self, status, note_text, label):
+        label_part = f"{label} " if label else ''
+        marker = self.STATUS_MARKERS.get(status, '\u21bb')
+        status_label = CHECK_STATUS.get(status, {}).get('ar', status)
+        line = f"\n[{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}] {marker} {label_part}حالة الشيك: {status_label}"
+        if note_text:
+            line += f"\n   💬 {note_text}"
+        if self.actor:
+            line += f"\n   👤 {self.actor.username}"
+        line += f"\n   [STATE={status}]"
+        return line
+
+    def _has_state_record(self, ctx, status):
+        status = (status or '').upper()
+        if not status:
+            return False
+        if ctx.kind == 'payment_split' and ctx.split:
+            details = self._load_split_details(ctx.split)
+            history = details.get('check_history') or []
+            return any((entry.get('status') or '').upper() == status for entry in history)
+        if ctx.kind == 'payment' and ctx.payment:
+            return self._notes_state_marker(ctx.payment.notes, status)
+        if ctx.kind == 'expense' and ctx.expense:
+            return self._notes_state_marker(ctx.expense.notes, status)
+        if ctx.kind == 'manual' and ctx.manual:
+            try:
+                history = ctx.manual.get_status_history()
+            except Exception:
+                history = []
+            if history:
+                return any((entry.get('new_status') or '').upper() == status for entry in history)
+            return self._notes_state_marker(ctx.manual.notes, status)
+        return False
+
+    def _notes_state_marker(self, notes, status):
+        marker = f"[STATE={status}]"
+        return marker in (notes or '')
+
+    def _current_status(self, ctx):
+        if ctx.kind == 'manual' and ctx.manual:
+            return self._normalize_status(getattr(ctx.manual, 'status', None))
+        if ctx.kind == 'payment_split' and ctx.split:
+            details = self._load_split_details(ctx.split)
+            value = details.get('check_status')
+            if value:
+                return self._normalize_status(value)
+        if ctx.kind == 'expense' and ctx.expense:
+            text_status = self._guess_status_from_notes(ctx.expense.notes)
+            if text_status:
+                return text_status
+        if ctx.payment:
+            mapped = self._normalize_status(getattr(ctx.payment, 'status', None))
+            return self._status_from_payment(mapped)
+        return 'PENDING'
+
+    def _status_from_payment(self, payment_status):
+        if payment_status == PaymentStatus.COMPLETED.value:
+            return 'CASHED'
+        if payment_status == PaymentStatus.FAILED.value:
+            return 'RETURNED'
+        if payment_status == PaymentStatus.CANCELLED.value:
+            return 'CANCELLED'
+        if payment_status == PaymentStatus.PENDING.value:
+            return 'PENDING'
+        return 'PENDING'
+
+    def _normalize_status(self, value):
+        if value is None:
+            return None
+        if hasattr(value, 'value'):
+            value = value.value
+        return str(value).upper()
+
+    def _resolve(self, identifier):
+        token = str(identifier).strip()
+        prefix, numeric = self._decode_token(token)
+        if prefix == 'payment':
+            return self._ctx_from_payment(token, self._fetch_payment(numeric))
+        if prefix == 'split':
+            return self._ctx_from_split(token, self._fetch_split(numeric))
+        if prefix == 'expense':
+            return self._ctx_from_expense(token, self._fetch_expense(numeric))
+        if prefix == 'check':
+            return self._ctx_from_manual(token, self._fetch_manual(numeric))
+        return self._resolve_numeric(token)
+
+    def _resolve_numeric(self, token):
+        numeric = self._safe_int(token)
+        if numeric is None:
+            raise ValueError('معرف غير صالح')
+        split = PaymentSplit.query.get(numeric)
+        if split and self._is_cheque_split(split):
+            return self._ctx_from_split(token, split)
+        expense = Expense.query.get(numeric)
+        if expense and self._is_cheque_expense(expense):
+            return self._ctx_from_expense(token, expense)
+        manual = Check.query.get(numeric)
+        if manual:
+            return self._ctx_from_manual(token, manual)
+        payment = Payment.query.get(numeric)
+        if payment and self._is_cheque_payment(payment):
+            return self._ctx_from_payment(token, payment)
+        raise ValueError('لم يتم العثور على الشيك المطلوب')
+
+    def _ctx_from_payment(self, token, payment):
+        entity_type, entity_id, entity_name = self._entity_from_payment(payment)
+        direction = getattr(payment.direction, 'value', payment.direction)
+        amount = Decimal(str(payment.total_amount or 0))
+        currency = payment.currency or 'ILS'
+        return CheckActionContext(
+            token=token,
+            kind='payment',
+            payment=payment,
+            direction=direction or PaymentDirection.IN.value,
+            amount=amount,
+            currency=currency,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            entity_name=entity_name,
+        )
+
+    def _ctx_from_split(self, token, split):
+        payment = split.payment
+        entity_type, entity_id, entity_name = self._entity_from_payment(payment)
+        direction = getattr(payment.direction, 'value', payment.direction)
+        amount = Decimal(str(split.amount or 0))
+        currency = split.currency or payment.currency or 'ILS'
+        return CheckActionContext(
+            token=token,
+            kind='payment_split',
+            payment=payment,
+            split=split,
+            direction=direction or PaymentDirection.IN.value,
+            amount=amount,
+            currency=currency,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            entity_name=entity_name,
+        )
+
+    def _ctx_from_expense(self, token, expense):
+        entity_type = None
+        entity_id = None
+        entity_name = expense.payee_name or expense.paid_to or ''
+        if expense.supplier_id:
+            entity_type = 'SUPPLIER'
+            entity_id = expense.supplier_id
+            if expense.supplier:
+                entity_name = expense.supplier.name
+        elif expense.partner_id:
+            entity_type = 'PARTNER'
+            entity_id = expense.partner_id
+            if expense.partner:
+                entity_name = expense.partner.name
+        elif expense.customer_id:
+            entity_type = 'CUSTOMER'
+            entity_id = expense.customer_id
+            if expense.customer:
+                entity_name = expense.customer.name
+        amount = Decimal(str(expense.amount or 0))
+        currency = expense.currency or 'ILS'
+        return CheckActionContext(
+            token=token,
+            kind='expense',
+            expense=expense,
+            direction=PaymentDirection.OUT.value,
+            amount=amount,
+            currency=currency,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            entity_name=entity_name,
+        )
+
+    def _ctx_from_manual(self, token, manual):
+        direction = getattr(manual.direction, 'value', manual.direction)
+        amount = Decimal(str(manual.amount or 0))
+        currency = manual.currency or 'ILS'
+        entity_type = manual.entity_type
+        entity_id = manual.entity_id
+        entity_name = manual.entity_name
+        if entity_type:
+            entity_type = entity_type.upper()
+        return CheckActionContext(
+            token=token,
+            kind='manual',
+            manual=manual,
+            direction=direction or PaymentDirection.IN.value,
+            amount=amount,
+            currency=currency,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            entity_name=entity_name,
+        )
+
+    def _entity_from_payment(self, payment):
+        if payment.customer_id:
+            name = payment.customer.name if payment.customer else ''
+            return 'CUSTOMER', payment.customer_id, name
+        if payment.supplier_id:
+            name = payment.supplier.name if payment.supplier else ''
+            return 'SUPPLIER', payment.supplier_id, name
+        if payment.partner_id:
+            name = payment.partner.name if payment.partner else ''
+            return 'PARTNER', payment.partner_id, name
+        sale = getattr(payment, 'sale', None)
+        if sale and sale.customer_id:
+            name = sale.customer.name if getattr(sale, 'customer', None) else ''
+            return 'CUSTOMER', sale.customer_id, name
+        invoice = getattr(payment, 'invoice', None)
+        if invoice and invoice.customer_id:
+            customer = getattr(invoice, 'customer', None)
+            name = customer.name if customer else ''
+            return 'CUSTOMER', invoice.customer_id, name
+        preorder = getattr(payment, 'preorder', None)
+        if preorder and preorder.customer_id:
+            customer = getattr(preorder, 'customer', None)
+            name = customer.name if customer else ''
+            return 'CUSTOMER', preorder.customer_id, name
+        service = getattr(payment, 'service', None)
+        if service and service.customer_id:
+            customer = getattr(service, 'customer', None)
+            name = customer.name if customer else ''
+            return 'CUSTOMER', service.customer_id, name
+        return None, None, ''
+
+    def _load_split_details(self, split):
+        details = split.details or {}
+        if isinstance(details, str):
+            try:
+                details = json.loads(details)
+            except Exception:
+                details = {}
+        if not isinstance(details, dict):
+            details = {}
+        return dict(details)
+
+    def _guess_status_from_notes(self, notes_text):
+        if not notes_text:
+            return None
+        lower = notes_text.lower()
+        if 'تم الصرف' in lower or 'مسحوب' in lower or 'cashed' in lower:
+            return 'CASHED'
+        if 'مرتجع' in lower or 'returned' in lower:
+            return 'RETURNED'
+        if 'مرفوض' in lower or 'bounced' in lower:
+            return 'BOUNCED'
+        if 'أعيد' in lower or 'resubmitted' in lower:
+            return 'RESUBMITTED'
+        if 'ملغي' in lower or 'cancelled' in lower:
+            return 'CANCELLED'
+        if 'مؤرشف' in lower or 'archived' in lower:
+            return 'ARCHIVED'
+        return None
+
+    def _decode_token(self, token):
+        lowered = token.lower()
+        if lowered.startswith('payment-split-'):
+            return 'split', self._safe_int(token.split('-')[-1])
+        if lowered.startswith('split-'):
+            return 'split', self._safe_int(token.split('-')[-1])
+        if lowered.startswith('expense-'):
+            return 'expense', self._safe_int(token.split('-')[-1])
+        if lowered.startswith('check-'):
+            return 'check', self._safe_int(token.split('-')[-1])
+        if lowered.startswith('payment-'):
+            return 'payment', self._safe_int(token.split('-')[-1])
+        return None, None
+
+    def _fetch_payment(self, pid):
+        if pid is None:
+            raise ValueError('دفعة غير معروفة')
+        payment = Payment.query.get(pid)
+        if not payment or not self._is_cheque_payment(payment):
+            raise ValueError('الدفعة ليست شيكاً')
+        return payment
+
+    def _fetch_split(self, sid):
+        if sid is None:
+            raise ValueError('الجزء غير معروف')
+        split = PaymentSplit.query.get(sid)
+        if not split or not self._is_cheque_split(split):
+            raise ValueError('هذا الجزء ليس شيكاً')
+        return split
+
+    def _fetch_expense(self, eid):
+        if eid is None:
+            raise ValueError('المصروف غير معروف')
+        exp = Expense.query.get(eid)
+        if not exp or not self._is_cheque_expense(exp):
+            raise ValueError('المصروف ليس شيكاً')
+        return exp
+
+    def _fetch_manual(self, cid):
+        if cid is None:
+            raise ValueError('شيك غير معروف')
+        chk = Check.query.get(cid)
+        if not chk:
+            raise ValueError('لم يتم العثور على الشيك اليدوي')
+        return chk
+
+    def _is_cheque_payment(self, payment):
+        method = getattr(payment.method, 'value', payment.method)
+        if method and method.upper() == PaymentMethod.CHEQUE.value:
+            return True
+        if any(getattr(s.method, 'value', s.method) == PaymentMethod.CHEQUE.value for s in payment.splits or []):
+            return True
+        return False
+
+    def _is_cheque_split(self, split):
+        method = getattr(split.method, 'value', split.method)
+        return method == PaymentMethod.CHEQUE.value
+
+    def _is_cheque_expense(self, expense):
+        method = (expense.payment_method or '').lower()
+        return method in ('cheque', 'check')
+
+    def _safe_int(self, value):
+        try:
+            return int(str(value))
+        except Exception:
+            return None
+
+
+def _build_check_groups(checks):
+    def _add(bucket, key, amount):
+        entry = bucket.setdefault(key, {"count": 0, "amount": 0.0})
+        entry["count"] += 1
+        entry["amount"] += amount
+
+    direction_totals = {"in": {"count": 0, "amount": 0.0}, "out": {"count": 0, "amount": 0.0}}
+    status_totals = {}
+    source_totals = {}
+
+    for item in checks:
+        amount = float(item.get("converted_amount") or item.get("amount") or 0)
+        direction_key = (item.get("direction_en") or "").lower()
+        if direction_key in direction_totals:
+            direction_totals[direction_key]["count"] += 1
+            direction_totals[direction_key]["amount"] += amount
+        status_key = (item.get("status") or "").lower()
+        if status_key:
+            _add(status_totals, status_key, amount)
+        source_key = (item.get("type") or "").lower() or "unknown"
+        _add(source_totals, source_key, amount)
+
+    for bucket in (direction_totals, status_totals, source_totals):
+        for info in bucket.values():
+            info["amount"] = round(info["amount"], 2)
+
+    return {
+        "direction": direction_totals,
+        "status": status_totals,
+        "source": source_totals,
+}
+
 
 @checks_bp.route('/')
 # @permission_required('view_payments')  # Commented out
 def index():
     """صفحة عرض الشيكات"""
-    return render_template('checks/index.html')
+    return render_template('checks/index.html', is_owner=_current_user_is_owner())
 
 
 @checks_bp.route('/api/checks')
@@ -442,30 +1065,30 @@ def get_checks():
             def _resolve_entity(payment):
                 if payment.customer:
                     name = payment.customer.name
-                    return name, 'عميل', f"/customers/{payment.customer.id}"
+                    return name, 'عميل', f"/customers/{payment.customer.id}", 'CUSTOMER', payment.customer.id
                 sale = getattr(payment, 'sale', None)
                 if sale and getattr(sale, 'customer', None):
                     name = sale.customer.name
-                    return name, 'عميل', f"/customers/{sale.customer.id}"
+                    return name, 'عميل', f"/customers/{sale.customer.id}", 'CUSTOMER', sale.customer.id
                 invoice = getattr(payment, 'invoice', None)
                 if invoice and getattr(invoice, 'customer', None):
                     name = invoice.customer.name
-                    return name, 'عميل', f"/customers/{invoice.customer.id}"
+                    return name, 'عميل', f"/customers/{invoice.customer.id}", 'CUSTOMER', invoice.customer.id
                 preorder = getattr(payment, 'preorder', None)
                 if preorder and getattr(preorder, 'customer', None):
                     name = preorder.customer.name
-                    return name, 'عميل', f"/customers/{preorder.customer.id}"
+                    return name, 'عميل', f"/customers/{preorder.customer.id}", 'CUSTOMER', preorder.customer.id
                 service_request = getattr(payment, 'service', None)
                 if service_request and getattr(service_request, 'customer', None):
                     name = service_request.customer.name
-                    return name, 'عميل', f"/customers/{service_request.customer.id}"
+                    return name, 'عميل', f"/customers/{service_request.customer.id}", 'CUSTOMER', service_request.customer.id
                 if payment.supplier:
                     name = payment.supplier.name
-                    return name, 'مورد', f"/vendors/{payment.supplier.id}"
+                    return name, 'مورد', f"/vendors/{payment.supplier.id}", 'SUPPLIER', payment.supplier.id
                 if payment.partner:
                     name = payment.partner.name
-                    return name, 'شريك', f"/partners/{payment.partner.id}"
-                return '', '', ''
+                    return name, 'شريك', f"/partners/{payment.partner.id}", 'PARTNER', payment.partner.id
+                return '', '', '', None, None
 
             def _split_due_date(payment, split):
                 details = getattr(split, 'details', {}) or {}
@@ -533,7 +1156,7 @@ def get_checks():
 
             processed_split_count = 0
             for payment in payments:
-                entity_name, entity_type, entity_link = _resolve_entity(payment)
+                entity_name, entity_type, entity_link, entity_type_code, entity_id = _resolve_entity(payment)
                 status_value = payment.status.value if hasattr(payment.status, 'value') else str(payment.status or '')
                 direction_value = payment.direction.value if hasattr(payment.direction, 'value') else str(payment.direction or '')
                 is_incoming = direction_value == PaymentDirection.IN.value
@@ -546,7 +1169,13 @@ def get_checks():
 
                 manual_status = _extract_manual_status(payment.notes)
 
-                if payment.method == PaymentMethod.CHEQUE.value:
+                has_cheque_splits = any(
+                    getattr(s.method, 'value', s.method) == PaymentMethod.CHEQUE.value
+                    for s in (payment.splits or [])
+                )
+
+                # عرض شيك الدفعة الرئيسي فقط إذا لم يكن هناك شيكات جزئية
+                if payment.method == PaymentMethod.CHEQUE.value and not has_cheque_splits:
                     due_date = base_due or today
                     days_until_due = (due_date - today).days if due_date else None
                     check_status, status_ar, badge_color = _status_snapshot(manual_status, status_value, days_until_due)
@@ -569,6 +1198,7 @@ def get_checks():
                             continue
                         check_ids.add(key)
                         checks.append({
+                            'token': f'payment-{payment.id}',
                             'id': payment.id,
                             'type': 'payment',
                             'source': 'دفعة',
@@ -595,8 +1225,10 @@ def get_checks():
                             'entity_name': entity_name,
                             'entity_type': entity_type,
                             'entity_link': entity_link,
-                            'drawer_name': entity_name if not is_incoming else 'شركتنا',
-                            'payee_name': 'شركتنا' if not is_incoming else entity_name,
+                            'entity_type_code': entity_type_code or None,
+                            'entity_id': entity_id,
+                            'drawer_name': 'شركتنا' if not is_incoming else entity_name,
+                            'payee_name': entity_name if not is_incoming else 'شركتنا',
                             'description': f"دفعة {'من' if is_incoming else 'إلى'} {entity_name}" + (f" ({entity_type})" if entity_type else ''),
                             'purpose': 'دفعة مالية',
                             'notes': payment.notes or '',
@@ -650,6 +1282,7 @@ def get_checks():
                     check_ids.add(split_key)
 
                     checks.append({
+                        'token': f"split-{getattr(split, 'id', 0)}",
                         'id': getattr(split, 'id', 0),
                         'payment_id': payment.id,
                         'type': 'payment_split',
@@ -676,8 +1309,10 @@ def get_checks():
                         'entity_name': entity_name,
                         'entity_type': entity_type,
                         'entity_link': entity_link,
-                        'drawer_name': entity_name if not is_incoming else 'شركتنا',
-                        'payee_name': 'شركتنا' if not is_incoming else entity_name,
+                        'entity_type_code': entity_type_code or None,
+                        'entity_id': entity_id,
+                        'drawer_name': 'شركتنا' if not is_incoming else entity_name,
+                        'payee_name': entity_name if not is_incoming else 'شركتنا',
                         'description': f"جزء من سند {'من' if is_incoming else 'إلى'} {entity_name}" + (f" ({entity_type})" if entity_type else ''),
                         'purpose': 'دفعة جزئية',
                         'notes': payment.notes or '',
@@ -752,7 +1387,20 @@ def get_checks():
                     continue
                 check_ids.add(check_key)
                 
+                entity_type_code = None
+                entity_id = None
+                if expense.supplier_id:
+                    entity_type_code = 'SUPPLIER'
+                    entity_id = expense.supplier_id
+                elif expense.partner_id:
+                    entity_type_code = 'PARTNER'
+                    entity_id = expense.partner_id
+                elif expense.customer_id:
+                    entity_type_code = 'CUSTOMER'
+                    entity_id = expense.customer_id
+                
                 checks.append({
+                    'token': f'expense-{expense.id}',
                     'id': expense.id,
                     'type': 'expense',
                     'source': 'مصروف',
@@ -779,13 +1427,15 @@ def get_checks():
                     'entity_name': expense.paid_to or expense.payee_name or '',
                     'entity_type': 'مصروف',
                     'entity_link': '',
+                    'entity_type_code': entity_type_code,
+                    'entity_id': entity_id,
                     'notes': expense.description or '',
                     'created_at': expense.date.strftime('%Y-%m-%d') if expense.date else '',
                     'receipt_number': expense.tax_invoice_number or ''
                 })
         
         if not source_filter or source_filter in ['all', 'manual']:
-            manual_checks_query = Check.query
+            manual_checks_query = Check.query.filter(Check.payment_id.is_(None))
 
             if direction == 'in':
                 manual_checks_query = manual_checks_query.filter(Check.direction == PaymentDirection.IN.value)
@@ -834,21 +1484,22 @@ def get_checks():
                 check_status, status_ar, badge_color = _status_snapshot(manual_status, status_value, days_until_due)
 
                 entity_name = check.entity_name
-                entity_type_code = check.entity_type
+                entity_type_code_raw = (check.entity_type or '').lower()
                 entity_link = ''
                 entity_type = ''
 
-                if entity_type_code == 'customer':
+                if entity_type_code_raw == 'customer':
                     entity_type = 'عميل'
                     entity_link = f'/customers/{check.entity_id}'
-                elif entity_type_code == 'supplier':
+                elif entity_type_code_raw == 'supplier':
                     entity_type = 'مورد'
                     entity_link = f'/vendors/suppliers/{check.entity_id}'
-                elif entity_type_code == 'partner':
+                elif entity_type_code_raw == 'partner':
                     entity_type = 'شريك'
                     entity_link = f'/vendors/partners/{check.entity_id}'
                 else:
                     entity_type = 'ساحب' if check.direction == PaymentDirection.IN.value else 'مستفيد'
+                resolved_entity_type_code = entity_type_code_raw.upper() if entity_type_code_raw else None
 
                 check_key = f"check-{check.id}"
                 if check_key in check_ids:
@@ -856,6 +1507,7 @@ def get_checks():
                 check_ids.add(check_key)
 
                 checks.append({
+                    'token': f'check-{check.id}',
                     'id': check.id,
                     'type': 'manual',
                     'source': 'يدوي',
@@ -882,6 +1534,8 @@ def get_checks():
                     'entity_name': entity_name,
                     'entity_type': entity_type,
                     'entity_link': entity_link,
+                    'entity_type_code': resolved_entity_type_code,
+                    'entity_id': check.entity_id,
                     'notes': check.notes or '',
                     'created_at': check.created_at.strftime('%Y-%m-%d') if check.created_at else '',
                     'receipt_number': check.reference_number or ''
@@ -892,7 +1546,8 @@ def get_checks():
         return jsonify({
             'success': True,
             'checks': checks,
-            'total': len(checks)
+            'total': len(checks),
+            'groups': _build_check_groups(checks),
         })
     
     except Exception as e:
@@ -1068,6 +1723,99 @@ def get_statistics():
         }), 500
 
 
+@checks_bp.route('/api/first-incomplete', methods=['GET'])
+@login_required
+def get_first_incomplete_check():
+    try:
+        split_candidates = (
+            PaymentSplit.query
+            .options(joinedload(PaymentSplit.payment))
+            .filter(PaymentSplit.method == PaymentMethod.CHEQUE.value)
+            .order_by(PaymentSplit.id.asc())
+            .all()
+        )
+        for split in split_candidates:
+            details = getattr(split, 'details', {}) or {}
+            if isinstance(details, str):
+                try:
+                    details = json.loads(details)
+                except Exception:
+                    details = {}
+            check_number = (details.get('check_number') or '').strip()
+            check_bank = (details.get('check_bank') or '').strip()
+            due_raw = details.get('check_due_date')
+            if not due_raw and split.payment:
+                due_raw = getattr(split.payment, 'check_due_date', None) or getattr(split.payment, 'payment_date', None)
+            if not check_number or not check_bank or not due_raw:
+                token = f"split-{getattr(split, 'id', 0)}"
+                return jsonify({
+                    'success': True,
+                    'type': 'payment_split',
+                    'token': token,
+                    'id': getattr(split, 'id', 0),
+                    'payment_id': getattr(split, 'payment_id', None),
+                })
+        manual_check = (
+            Check.query
+            .filter(
+                or_(
+                    Check.check_number.is_(None),
+                    Check.check_number == '',
+                    Check.check_bank.is_(None),
+                    Check.check_bank == '',
+                    Check.check_due_date.is_(None),
+                )
+            )
+            .order_by(Check.id.asc())
+            .first()
+        )
+        if manual_check:
+            token = f"check-{manual_check.id}"
+            return jsonify({
+                'success': True,
+                'type': 'manual',
+                'token': token,
+                'id': manual_check.id,
+            })
+        expense_check = (
+            Expense.query
+            .filter(Expense.payment_method == 'cheque')
+            .filter(
+                or_(
+                    Expense.check_number.is_(None),
+                    Expense.check_number == '',
+                    Expense.check_bank.is_(None),
+                    Expense.check_bank == '',
+                    Expense.check_due_date.is_(None),
+                )
+            )
+            .order_by(Expense.id.asc())
+            .first()
+        )
+        if expense_check:
+            token = f"expense-{expense_check.id}"
+            return jsonify({
+                'success': True,
+                'type': 'expense',
+                'token': token,
+                'id': expense_check.id,
+            })
+        return jsonify({
+            'success': True,
+            'type': None,
+            'token': None,
+            'id': None,
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error fetching first incomplete check: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @checks_bp.route('/api/check-lifecycle/<int:check_id>/<check_type>')
 # @permission_required('view_payments')  # Commented out
 def get_check_lifecycle(check_id, check_type):
@@ -1144,235 +1892,98 @@ def get_current_check_status(check, check_type):
 @checks_bp.route('/api/update-status/<check_id>', methods=['POST'])
 @login_required
 def update_check_status(check_id):
-    """
-    تحديث حالة الشيك (من جميع المصادر)
-    """
     try:
         data = request.get_json() or {}
-        new_status = data.get('status')  # CASHED, RETURNED, BOUNCED, CANCELLED, RESUBMITTED
-        notes = data.get('notes', '')
-        
-        check_type = 'check'  # default
-        actual_id = check_id
-        
-        current_app.logger.info(f"🔍 تحليل check_id: {check_id}")
-        
-        if isinstance(check_id, str):
-            if check_id.startswith('split-'):
-                check_type = 'split'
-                actual_id = int(check_id.replace('split-', ''))
-                current_app.logger.info(f"✅ تم التعرف: PaymentSplit ID={actual_id}")
-            elif check_id.startswith('expense-'):
-                check_type = 'expense'
-                actual_id = int(check_id.replace('expense-', ''))
-                current_app.logger.info(f"✅ تم التعرف: Expense ID={actual_id}")
-            elif check_id.isdigit():
-                actual_id = int(check_id)
-                if Check.query.get(actual_id):
-                    check_type = 'check'
-                    current_app.logger.info(f"✅ تم التعرف: Check (Manual) ID={actual_id}")
-                elif Payment.query.get(actual_id):
-                    check_type = 'payment'
-                    current_app.logger.info(f"✅ تم التعرف: Payment ID={actual_id}")
-                else:
-                    check_type = 'check'
-                    current_app.logger.warning(f"⚠️  افتراض Check ID={actual_id}")
-            else:
-                current_app.logger.warning(f"⚠️  check_id غير معروف: {check_id}")
-                check_type = 'check'
-                actual_id = int(check_id) if check_id.isdigit() else check_id
-        else:
-            actual_id = int(check_id)
-            if Check.query.get(actual_id):
-                check_type = 'check'
-            elif Payment.query.get(actual_id):
-                check_type = 'payment'
-            else:
-                check_type = 'check'
-            current_app.logger.info(f"✅ تم التعرف: {check_type.upper()} ID={actual_id}")
-        
+        new_status = (data.get('status') or '').strip().upper()
         if not new_status:
-            return jsonify({
-                'success': False,
-                'message': 'بيانات ناقصة'
-            }), 400
-        
-        allowed_statuses = ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED', 'RESUBMITTED', 'ARCHIVED', 'PENDING']
-        if new_status not in allowed_statuses:
-            return jsonify({
-                'success': False,
-                'message': 'حالة غير صالحة'
-            }), 400
-        
-        if check_type == 'payment' or check_type == 'split':
-            if check_type == 'split':
-                split = PaymentSplit.query.get_or_404(actual_id)
-                check = split.payment
-            else:
-                check = Payment.query.get_or_404(actual_id)
-            
-            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            
-            status_icons = {
-                'CASHED': '✅',
-                'RETURNED': '🔄',
-                'BOUNCED': '❌',
-                'RESUBMITTED': '🔁',
-                'CANCELLED': '⛔',
-                'ARCHIVED': '📦',
-                'PENDING': '⏳'
-            }
-            icon = status_icons.get(new_status, '🔄')
-            
-            status_note = f"\n[{timestamp}] {icon} حالة الشيك: {CHECK_STATUS[new_status]['ar']}"
-            
-            if notes:
-                status_note += f"\n   💬 {notes}"
-            if current_user:
-                status_note += f"\n   👤 {current_user.username}"
-            
-            check.notes = (check.notes or '') + status_note
-            
-            if new_status == 'CASHED':
-                if check.status == PaymentStatus.PENDING:
-                    check.status = PaymentStatus.COMPLETED
-            elif new_status in ['BOUNCED', 'RETURNED']:
-                check.status = PaymentStatus.FAILED
-            elif new_status == 'RESUBMITTED':
-                check.status = PaymentStatus.PENDING
-            elif new_status == 'CANCELLED':
-                if check.status == PaymentStatus.PENDING:
-                    check.status = PaymentStatus.CANCELLED
-            
-            try:
-                entity_name = ''
-                if check.customer:
-                    entity_name = check.customer.name
-                elif check.supplier:
-                    entity_name = check.supplier.name
-                elif check.partner:
-                    entity_name = check.partner.name
-                
-                create_gl_entry_for_check(
-                    check_id=actual_id,
-                    check_type=check_type,
-                    amount=float(check.total_amount or 0),
-                    currency=check.currency or 'ILS',
-                    direction='IN' if check.direction == PaymentDirection.IN else 'OUT',
-                    new_status=new_status,
-                    entity_name=entity_name,
-                    notes=notes or ''
-                )
-            except Exception as e:
-                current_app.logger.error(f"❌ خطأ في إنشاء القيد المحاسبي: {str(e)}")
-            
-        elif check_type == 'expense':
-            check = Expense.query.get_or_404(actual_id)
-            
-            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            status_icons = {
-                'CASHED': '✅',
-                'RETURNED': '🔄',
-                'BOUNCED': '❌',
-                'RESUBMITTED': '🔁',
-                'CANCELLED': '⛔',
-                'ARCHIVED': '📦'
-            }
-            icon = status_icons.get(new_status, '🔄')
-            
-            status_note = f"\n[{timestamp}] {icon} حالة الشيك: {CHECK_STATUS[new_status]['ar']}"
-            if notes:
-                status_note += f"\n   💬 {notes}"
-            if current_user:
-                status_note += f"\n   👤 {current_user.username}"
-            
-            check.notes = (check.notes or '') + status_note
-            
-            try:
-                entity_name = check.supplier.name if check.supplier else ''
-                
-                create_gl_entry_for_check(
-                    check_id=actual_id,
-                    check_type='expense',
-                    amount=float(check.amount or 0),
-                    currency='ILS',
-                    direction='OUT',
-                    new_status=new_status,
-                    entity_name=entity_name,
-                    notes=notes or ''
-                )
-            except Exception as e:
-                current_app.logger.error(f"❌ خطأ في إنشاء القيد المحاسبي للنفقة: {str(e)}")
-        
-        elif check_type == 'check':
-            manual_check = Check.query.get_or_404(actual_id)
-            manual_check.status = new_status
-            
-            timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-            status_icons = {
-                'CASHED': '✅',
-                'RETURNED': '🔄',
-                'BOUNCED': '❌',
-                'RESUBMITTED': '🔁',
-                'CANCELLED': '⛔',
-                'ARCHIVED': '📦',
-                'PENDING': '⏳'
-            }
-            icon = status_icons.get(new_status, '🔄')
-            
-            status_note = f"\n[{timestamp}] {icon} حالة الشيك: {CHECK_STATUS[new_status]['ar']}"
-            if notes:
-                status_note += f"\n   💬 {notes}"
-            if current_user:
-                status_note += f"\n   👤 {current_user.username}"
-            
-            manual_check.notes = (manual_check.notes or '') + status_note
-            
-            try:
-                entity_name = ''
-                if manual_check.drawer_name:
-                    entity_name = manual_check.drawer_name
-                elif manual_check.payee_name:
-                    entity_name = manual_check.payee_name
-                
-                create_gl_entry_for_check(
-                    check_id=actual_id,
-                    check_type='check',
-                    amount=float(manual_check.amount or 0),
-                    currency=manual_check.currency or 'ILS',
-                    direction='IN' if manual_check.direction.value == 'IN' else 'OUT',
-                    new_status=new_status,
-                    entity_name=entity_name,
-                    notes=notes or ''
-                )
-            except Exception as e:
-                current_app.logger.error(f"❌ خطأ في إنشاء القيد المحاسبي للشيك اليدوي: {str(e)}")
-            
-            db.session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': 'تم تحديث حالة الشيك بنجاح'
-            })
-        
+            return jsonify({'success': False, 'message': 'بيانات ناقصة'}), 400
+        notes = (data.get('notes') or '').strip()
+        service = CheckActionService(current_user)
+        result = service.run(check_id, new_status, notes)
         db.session.commit()
-        
         return jsonify({
             'success': True,
-            'message': f'تم تحديث حالة الشيك إلى: {CHECK_STATUS[new_status]["ar"]}',
-            'new_status': new_status,
-            'new_status_ar': CHECK_STATUS[new_status]['ar']
+            'message': f"تم تحديث حالة الشيك إلى: {result['new_status_ar']}",
+            'new_status': result['new_status'],
+            'new_status_ar': result['new_status_ar'],
+            'previous_status': result.get('previous_status'),
+            'balance': result.get('balance'),
+            'gl_batch_id': result.get('gl_batch_id'),
+            'token': result['token'],
+            'kind': result['kind'],
         })
-    
-    except Exception as e:
+    except ValueError as err:
         db.session.rollback()
-        current_app.logger.error(f"Error updating check status: {str(e)}")
+        return jsonify({'success': False, 'message': str(err)}), 400
+    except Exception as err:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating check status: {err}")
         import traceback
         current_app.logger.error(traceback.format_exc())
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({'success': False, 'error': str(err)}), 500
+
+
+@checks_bp.route('/api/update-details/<check_token>', methods=['POST'])
+@login_required
+def update_check_details(check_token):
+    if not _current_user_is_owner():
+        return jsonify({'success': False, 'message': 'مسموح للمالك فقط'}), 403
+    try:
+        payload = request.get_json() or {}
+        service = CheckActionService(current_user)
+        ctx = service._resolve(check_token)
+        _update_check_details(ctx, payload, service)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم تحديث بيانات الشيك بنجاح'})
+    except ValueError as err:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(err)}), 400
+    except Exception as err:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating check details: {err}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(err)}), 500
+
+
+@checks_bp.route('/api/mark-settled/<check_token>', methods=['POST'])
+@login_required
+def mark_check_settled(check_token):
+    if not _current_user_is_owner():
+        return jsonify({'success': False, 'message': 'مسموح للمالك فقط'}), 403
+    try:
+        service = CheckActionService(current_user)
+        ctx = service._resolve(check_token)
+        note_suffix = "\n[SETTLED=true] تم تسوية الشيك مرتجع عن طريق دفع بديل"
+        if ctx.kind == 'payment' and ctx.payment:
+            if '[SETTLED=true]' in (ctx.payment.notes or ''):
+                return jsonify({'success': True, 'message': 'تمت التسوية مسبقاً'})
+            ctx.payment.notes = (ctx.payment.notes or '') + note_suffix
+        elif ctx.kind == 'payment_split' and ctx.payment:
+            if '[SETTLED=true]' in (ctx.payment.notes or ''):
+                return jsonify({'success': True, 'message': 'تمت التسوية مسبقاً'})
+            ctx.payment.notes = (ctx.payment.notes or '') + note_suffix
+        elif ctx.kind == 'expense' and ctx.expense:
+            if '[SETTLED=true]' in (ctx.expense.notes or ''):
+                return jsonify({'success': True, 'message': 'تمت التسوية مسبقاً'})
+            ctx.expense.notes = (ctx.expense.notes or '') + note_suffix
+        elif ctx.kind == 'manual' and ctx.manual:
+            if '[SETTLED=true]' in (ctx.manual.notes or ''):
+                return jsonify({'success': True, 'message': 'تمت التسوية مسبقاً'})
+            ctx.manual.notes = (ctx.manual.notes or '') + note_suffix
+        else:
+            raise ValueError("نوع الشيك غير مدعوم للتسوية")
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'تم تعليم الشيك كمُسوّى بنجاح'})
+    except ValueError as err:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(err)}), 400
+    except Exception as err:
+        db.session.rollback()
+        current_app.logger.error(f"Error marking check settled: {err}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(err)}), 500
 
 
 @checks_bp.route('/api/alerts')
@@ -1794,4 +2405,170 @@ def reports():
                          CheckStatus=CheckStatus,
                          PaymentDirection=PaymentDirection,
                          CHECK_STATUS=CHECK_STATUS)
+
+
+def _parse_due_date_value(raw_value):
+    if not raw_value:
+        return None
+    if isinstance(raw_value, datetime):
+        return raw_value
+    if isinstance(raw_value, date):
+        return datetime.combine(raw_value, datetime.min.time())
+    if isinstance(raw_value, str):
+        candidate = raw_value.strip()
+        if not candidate:
+            return None
+        try:
+            return datetime.fromisoformat(candidate)
+        except ValueError:
+            for fmt in ("%Y-%m-%d", "%d/%m/%Y"):
+                try:
+                    return datetime.strptime(candidate, fmt)
+                except ValueError:
+                    continue
+    raise ValueError("تاريخ الاستحقاق غير صالح")
+
+
+def _normalize_entity_inputs(entity_type, entity_id):
+    if not entity_type:
+        return None, None
+    normalized_type = str(entity_type).strip().upper()
+    if normalized_type not in {"CUSTOMER", "SUPPLIER", "PARTNER"}:
+        raise ValueError("نوع الجهة غير صالح")
+    if entity_id is None or str(entity_id).strip() == "":
+        raise ValueError("يجب تحديد معرف الجهة")
+    try:
+        normalized_id = int(entity_id)
+    except (TypeError, ValueError):
+        raise ValueError("معرف الجهة غير صالح")
+    if normalized_id <= 0:
+        raise ValueError("معرف الجهة غير صالح")
+    return normalized_type, normalized_id
+
+
+def _assign_payment_entity(payment, entity_type, entity_id):
+    payment.customer_id = None
+    payment.supplier_id = None
+    payment.partner_id = None
+    if not entity_type:
+        payment.entity_type = None
+        return
+    if entity_type == "CUSTOMER":
+        payment.customer_id = entity_id
+    elif entity_type == "SUPPLIER":
+        payment.supplier_id = entity_id
+    elif entity_type == "PARTNER":
+        payment.partner_id = entity_id
+    payment.entity_type = entity_type
+
+
+def _assign_expense_entity(expense, entity_type, entity_id):
+    expense.customer_id = None
+    expense.supplier_id = None
+    expense.partner_id = None
+    if not entity_type:
+        expense.payee_type = "OTHER"
+        expense.payee_entity_id = None
+        return
+    if entity_type == "CUSTOMER":
+        expense.customer_id = entity_id
+    elif entity_type == "SUPPLIER":
+        expense.supplier_id = entity_id
+    elif entity_type == "PARTNER":
+        expense.partner_id = entity_id
+    expense.payee_type = entity_type
+    expense.payee_entity_id = entity_id
+
+
+def _assign_manual_entity(check, entity_type, entity_id):
+    check.customer_id = None
+    check.supplier_id = None
+    check.partner_id = None
+    if not entity_type:
+        return
+    if entity_type == "CUSTOMER":
+        check.customer_id = entity_id
+    elif entity_type == "SUPPLIER":
+        check.supplier_id = entity_id
+    elif entity_type == "PARTNER":
+        check.partner_id = entity_id
+
+
+def _update_check_details(ctx: CheckActionContext, payload: dict, service: CheckActionService):
+    if not payload:
+        raise ValueError("بيانات ناقصة")
+    entity_type_raw = payload.get("entity_type")
+    entity_id_raw = payload.get("entity_id")
+    entity_type, entity_id = _normalize_entity_inputs(entity_type_raw, entity_id_raw)
+    amount_val = payload.get("amount")
+    if amount_val is None:
+        raise ValueError("المبلغ مطلوب")
+    try:
+        amount_decimal = Decimal(str(amount_val))
+    except Exception:
+        raise ValueError("قيمة المبلغ غير صحيحة")
+    if amount_decimal <= 0:
+        raise ValueError("المبلغ يجب أن يكون أكبر من صفر")
+    currency_val = (payload.get("currency") or ctx.currency or "ILS").strip().upper()
+    bank_val = (payload.get("bank") or "").strip()
+    due_date_val = payload.get("due_date")
+    due_dt = _parse_due_date_value(due_date_val) if due_date_val else None
+
+    if ctx.kind == 'payment':
+        if not ctx.payment:
+            raise ValueError("تعذر العثور على الدفعة المرتبطة")
+        payment = ctx.payment
+        _assign_payment_entity(payment, entity_type, entity_id)
+        payment.total_amount = amount_decimal
+        payment.currency = currency_val
+        if due_dt:
+            payment.check_due_date = due_dt
+        if bank_val or bank_val == "":
+            payment.check_bank = bank_val or None
+        ctx.amount = amount_decimal
+        ctx.currency = currency_val
+    elif ctx.kind == 'payment_split':
+        if not ctx.split or not ctx.payment:
+            raise ValueError("تعذر العثور على بيانات الدفعة الجزئية")
+        split = ctx.split
+        split.amount = amount_decimal
+        split.currency = currency_val
+        details = service._load_split_details(split)
+        if due_dt:
+            details['check_due_date'] = due_dt.date().isoformat()
+        if bank_val or bank_val == "":
+            details['check_bank'] = bank_val
+        split.details = details
+        if entity_type:
+            _assign_payment_entity(ctx.payment, entity_type, entity_id)
+        ctx.amount = amount_decimal
+        ctx.currency = currency_val
+    elif ctx.kind == 'expense':
+        if not ctx.expense:
+            raise ValueError("تعذر العثور على المصروف المرتبط")
+        expense = ctx.expense
+        _assign_expense_entity(expense, entity_type, entity_id)
+        expense.amount = amount_decimal
+        expense.currency = currency_val
+        if due_dt:
+            expense.check_due_date = due_dt.date()
+        if bank_val or bank_val == "":
+            expense.check_bank = bank_val or None
+        ctx.amount = amount_decimal
+        ctx.currency = currency_val
+    elif ctx.kind == 'manual':
+        if not ctx.manual:
+            raise ValueError("تعذر العثور على الشيك")
+        manual = ctx.manual
+        _assign_manual_entity(manual, entity_type, entity_id)
+        manual.amount = amount_decimal
+        manual.currency = currency_val
+        if due_dt:
+            manual.check_due_date = due_dt
+        if bank_val or bank_val == "":
+            manual.check_bank = bank_val or None
+        ctx.amount = amount_decimal
+        ctx.currency = currency_val
+    else:
+        raise ValueError("نوع الشيك غير مدعوم للتعديل")
 

@@ -1280,88 +1280,69 @@ def tools_center():
     if tab not in allowed_tabs:
         tab = 'integrations'
     
-    integrations_data = None
-    if tab == 'integrations':
-        integrations_data = {
-            'stripe': {
-                'enabled': _get_setting('stripe_enabled', False),
-                'public_key': _get_setting('stripe_public_key', ''),
-                'secret_key': _get_setting('stripe_secret_key', ''),
-            },
-            'paypal': {
-                'enabled': _get_setting('paypal_enabled', False),
-                'mode': _get_setting('paypal_mode', 'sandbox'),
-                'client_id': _get_setting('paypal_client_id', ''),
-            },
-            'sms': {
-                'enabled': _get_setting('sms_enabled', False),
-                'twilio_phone_number': _get_setting('twilio_phone_number', ''),
-            },
-            'email': {
-                'enabled': _get_setting('email_enabled', True),
-                'smtp_host': _get_setting('smtp_host', ''),
-            },
-        }
+    integrations_data = {
+        'stripe': {
+            'enabled': _get_setting('stripe_enabled', False),
+            'public_key': _get_setting('stripe_public_key', ''),
+            'secret_key': _get_setting('stripe_secret_key', ''),
+        },
+        'paypal': {
+            'enabled': _get_setting('paypal_enabled', False),
+            'mode': _get_setting('paypal_mode', 'sandbox'),
+            'client_id': _get_setting('paypal_client_id', ''),
+        },
+        'sms': {
+            'enabled': _get_setting('sms_enabled', False),
+            'twilio_phone_number': _get_setting('twilio_phone_number', ''),
+        },
+        'email': {
+            'enabled': _get_setting('email_enabled', True),
+            'smtp_host': _get_setting('smtp_host', ''),
+        },
+    }
     
-    email_stats = None
-    email_logs = []
-    if tab == 'email':
-        from models import NotificationLog
-        from datetime import datetime, timedelta
-        
-        email_query = NotificationLog.query.filter_by(type='email')
-        total_sent = email_query.count()
-        sent_last_day = email_query.filter(NotificationLog.created_at >= datetime.utcnow() - timedelta(days=1)).count()
-        failed_count = email_query.filter_by(status='failed').count()
-        last_entry = email_query.order_by(NotificationLog.created_at.desc()).first()
-        
-        email_stats = {
-            'total': total_sent,
-            'sent_last_day': sent_last_day,
-            'failed': failed_count,
-            'last': last_entry,
-        }
-        email_logs = email_query.order_by(NotificationLog.created_at.desc()).limit(5).all()
+    from datetime import datetime, timedelta
+    from models import NotificationLog, OnlinePayment
     
-    card_stats = None
-    recent_cards = []
-    if tab == 'cards':
-        from models import OnlinePayment
-        
-        card_stats = {
-            'total': OnlinePayment.query.count(),
-            'successful': OnlinePayment.query.filter_by(status='SUCCESS').count(),
-            'pending': OnlinePayment.query.filter_by(status='PENDING').count(),
-            'failed': OnlinePayment.query.filter_by(status='FAILED').count(),
-        }
-        recent_cards = OnlinePayment.query.order_by(OnlinePayment.created_at.desc()).limit(5).all()
+    email_query = NotificationLog.query.filter_by(type='email')
+    email_stats = {
+        'total': email_query.count(),
+        'sent_last_day': email_query.filter(NotificationLog.created_at >= datetime.utcnow() - timedelta(days=1)).count(),
+        'failed': email_query.filter_by(status='failed').count(),
+    }
+    email_logs = email_query.order_by(NotificationLog.created_at.desc()).limit(5).all()
     
-    export_links = None
-    dynamic_tables = None
-    if tab == 'export':
-        export_links = [
-            {
-                'name': 'أعمار الذمم (عملاء)',
-                'format': 'CSV',
-                'icon': 'fas fa-user-clock',
-                'description': 'كشف الرصيد المجمع لكل عميل حسب الفترات الزمنية.',
-                'url': url_for('reports_bp.export_ar_aging_csv'),
-            },
-            {
-                'name': 'أعمار الذمم (موردون)',
-                'format': 'CSV',
-                'icon': 'fas fa-truck-loading',
-                'description': 'متابعة مستحقات الموردين والأعمار الزمنية.',
-                'url': url_for('reports_bp.export_ap_aging_csv'),
-            },
-        ]
-        dynamic_tables = [
-            {'value': 'Sale', 'label': 'المبيعات'},
-            {'value': 'Invoice', 'label': 'الفواتير'},
-            {'value': 'Payment', 'label': 'المدفوعات'},
-            {'value': 'Customer', 'label': 'العملاء'},
-            {'value': 'Supplier', 'label': 'الموردون'},
-        ]
+    card_stats = {
+        'total': OnlinePayment.query.count(),
+        'successful': OnlinePayment.query.filter_by(status='SUCCESS').count(),
+        'pending': OnlinePayment.query.filter_by(status='PENDING').count(),
+        'failed': OnlinePayment.query.filter_by(status='FAILED').count(),
+    }
+    recent_cards = OnlinePayment.query.order_by(OnlinePayment.created_at.desc()).limit(5).all()
+    
+    export_links = [
+        {
+            'name': 'أعمار الذمم (عملاء)',
+            'format': 'CSV',
+            'icon': 'fas fa-user-clock',
+            'description': 'كشف الرصيد المجمع لكل عميل حسب الفترات الزمنية.',
+            'url': url_for('reports_bp.export_ar_aging_csv'),
+        },
+        {
+            'name': 'أعمار الذمم (موردون)',
+            'format': 'CSV',
+            'icon': 'fas fa-truck-loading',
+            'description': 'متابعة مستحقات الموردين والأعمار الزمنية.',
+            'url': url_for('reports_bp.export_ap_aging_csv'),
+        },
+    ]
+    dynamic_tables = [
+        {'value': 'Sale', 'label': 'المبيعات'},
+        {'value': 'Invoice', 'label': 'الفواتير'},
+        {'value': 'Payment', 'label': 'المدفوعات'},
+        {'value': 'Customer', 'label': 'العملاء'},
+        {'value': 'Supplier', 'label': 'الموردون'},
+    ]
     
     stats = get_cached_security_stats()
     return render_template(
@@ -3958,71 +3939,71 @@ def system_settings():
                 # Tax Settings
                 if group_flags['tax']:
                     SystemSettings.set_setting('default_vat_rate', request.form.get('default_vat_rate', 16.0), 
-                                             'نسبة VAT الافتراضية', 'number')
+                                               'نسبة VAT الافتراضية', 'number')
                     SystemSettings.set_setting('vat_enabled', request.form.get('vat_enabled') == 'on', 
-                                             'تفعيل VAT', 'boolean')
+                                               'تفعيل VAT', 'boolean')
                     SystemSettings.set_setting('income_tax_rate', request.form.get('income_tax_rate', 15.0), 
-                                             'ضريبة دخل الشركات', 'number')
+                                               'ضريبة دخل الشركات', 'number')
                     SystemSettings.set_setting('withholding_tax_rate', request.form.get('withholding_tax_rate', 5.0), 
-                                             'الخصم من المنبع', 'number')
+                                               'الخصم من المنبع', 'number')
                 
                 # Payroll Settings
                 if group_flags['payroll']:
                     SystemSettings.set_setting('social_insurance_enabled', request.form.get('social_insurance_enabled') == 'on', 
-                                             'تفعيل التأمينات', 'boolean')
+                                               'تفعيل التأمينات', 'boolean')
                     SystemSettings.set_setting('social_insurance_company', request.form.get('social_insurance_company', 7.5), 
-                                             'نسبة التأمين - الشركة', 'number')
+                                               'نسبة التأمين - الشركة', 'number')
                     SystemSettings.set_setting('social_insurance_employee', request.form.get('social_insurance_employee', 7.0), 
-                                             'نسبة التأمين - الموظف', 'number')
+                                               'نسبة التأمين - الموظف', 'number')
                     SystemSettings.set_setting('overtime_rate_normal', request.form.get('overtime_rate_normal', 1.5), 
-                                             'معدل العمل الإضافي', 'number')
+                                               'معدل العمل الإضافي', 'number')
                     SystemSettings.set_setting('working_hours_per_day', request.form.get('working_hours_per_day', 8), 
-                                             'ساعات العمل اليومية', 'number')
+                                               'ساعات العمل اليومية', 'number')
                 
                 # Fixed Assets Settings
                 if group_flags['assets']:
                     SystemSettings.set_setting('asset_auto_depreciation', request.form.get('asset_auto_depreciation') == 'on', 
-                                             'استهلاك تلقائي', 'boolean')
+                                               'استهلاك تلقائي', 'boolean')
                     SystemSettings.set_setting('asset_threshold_amount', request.form.get('asset_threshold_amount', 500), 
-                                             'حد مبلغ الأصول', 'number')
+                                               'حد مبلغ الأصول', 'number')
                 
                 # Accounting Settings
                 if group_flags['accounting']:
                     SystemSettings.set_setting('cost_centers_enabled', request.form.get('cost_centers_enabled') == 'on', 
-                                             'تفعيل مراكز التكلفة', 'boolean')
+                                               'تفعيل مراكز التكلفة', 'boolean')
                     SystemSettings.set_setting('budgeting_enabled', request.form.get('budgeting_enabled') == 'on', 
-                                             'تفعيل الموازنات', 'boolean')
+                                               'تفعيل الموازنات', 'boolean')
                     SystemSettings.set_setting('fiscal_year_start_month', request.form.get('fiscal_year_start_month', 1), 
-                                             'بداية السنة المالية', 'number')
+                                               'بداية السنة المالية', 'number')
                 
                 # Notification Settings
                 if group_flags['notifications']:
                     SystemSettings.set_setting('notify_on_service_complete', request.form.get('notify_on_service_complete') == 'on', 
-                                             'إشعار اكتمال الصيانة', 'boolean')
+                                               'إشعار اكتمال الصيانة', 'boolean')
                     SystemSettings.set_setting('notify_on_payment_due', request.form.get('notify_on_payment_due') == 'on', 
-                                             'إشعار استحقاق الدفعات', 'boolean')
+                                               'إشعار استحقاق الدفعات', 'boolean')
                     SystemSettings.set_setting('notify_on_low_stock', request.form.get('notify_on_low_stock') == 'on', 
-                                             'تنبيه انخفاض المخزون', 'boolean')
+                                               'تنبيه انخفاض المخزون', 'boolean')
                     SystemSettings.set_setting('payment_reminder_days', request.form.get('payment_reminder_days', 3), 
-                                             'التذكير قبل الاستحقاق', 'number')
+                                               'التذكير قبل الاستحقاق', 'number')
                 
                 # Business Rules
                 if group_flags['business_rules']:
                     SystemSettings.set_setting('allow_negative_stock', request.form.get('allow_negative_stock') == 'on', 
-                                             'السماح بالمخزون السالب', 'boolean')
+                                               'السماح بالمخزون السالب', 'boolean')
                     SystemSettings.set_setting('require_approval_for_sales_above', request.form.get('require_approval_for_sales_above', 10000), 
-                                             'طلب موافقة للمبيعات الكبيرة', 'number')
+                                               'طلب موافقة للمبيعات الكبيرة', 'number')
                     SystemSettings.set_setting('discount_max_percent', request.form.get('discount_max_percent', 50), 
-                                             'الحد الأقصى للخصم', 'number')
+                                               'الحد الأقصى للخصم', 'number')
                     SystemSettings.set_setting('credit_limit_check', request.form.get('credit_limit_check') == 'on', 
-                                             'فحص حد الائتمان', 'boolean')
+                                               'فحص حد الائتمان', 'boolean')
                 
                 # Multi-Tenancy Settings  
                 if group_flags['multi_tenancy']:
                     SystemSettings.set_setting('multi_tenancy_enabled', request.form.get('multi_tenancy_enabled') == 'on', 
-                                             'تفعيل تعدد المستأجرين', 'boolean')
+                                               'تفعيل تعدد المستأجرين', 'boolean')
                     SystemSettings.set_setting('trial_period_days', request.form.get('trial_period_days', 30), 
-                                             'مدة التجريبي', 'number')
+                                               'مدة التجريبي', 'number')
                 
                 db.session.commit()
                 flash('✅ تم حفظ ثوابت الأعمال', 'success')

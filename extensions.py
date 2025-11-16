@@ -288,15 +288,22 @@ def perform_backup_db(app):
         backup_path = os.path.join(backup_dir, f"backup_{ts}.db")
         
         # نسخ احتياطي مع التحقق من التكامل
-        src = sqlite3.connect(db_path)
-        dst = sqlite3.connect(backup_path)
+        src = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=60)
+        dst = sqlite3.connect(backup_path, timeout=60)
         
         try:
             # نسخ احتياطي مع التحقق
-            src.backup(dst)
+            backup_pages = int(app.config.get("BACKUP_DB_PAGES") or 1024)
+            if backup_pages <= 0:
+                backup_pages = 1024
+            backup_sleep = float(app.config.get("BACKUP_DB_SLEEP") or 0.1)
+            if backup_sleep <= 0:
+                backup_sleep = 0.1
+            src.execute("PRAGMA busy_timeout=60000")
+            dst.execute("PRAGMA busy_timeout=60000")
+            src.backup(dst, pages=backup_pages, sleep=backup_sleep)
             
             # التحقق من صحة النسخة الاحتياطية
-            dst.execute("PRAGMA integrity_check")
             result = dst.execute("PRAGMA integrity_check").fetchone()
             if result[0] != "ok":
                 app.logger.error(f"Backup integrity check failed: {result[0]}")
@@ -866,6 +873,16 @@ def init_extensions(app):
             id="check_reminders",
             replace_existing=True,
         )
+        
+        if app.config.get("ENABLE_AUTOMATED_BACKUPS", True):
+            try:
+                from backup_automation import schedule_automated_backups
+                state = app.extensions.setdefault("auto_backup_scheduler", {})
+                if not state.get("scheduled"):
+                    schedule_automated_backups(app, scheduler)
+                    state["scheduled"] = True
+            except Exception as e:
+                app.logger.warning(f"Automated backup scheduling failed: {e}")
     except Exception as e:
         app.logger.warning(f"Scheduler job registration failed: {e}")
 

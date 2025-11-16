@@ -118,6 +118,8 @@ var partnersRequestSeq = 0;
             window.enableTableSorting("#suppliersTable");
           }
           attachSettleButtons();
+          attachSupplierServiceButtons();
+          attachPartnerServiceButtons();
           if (window.jQuery && typeof window.jQuery === "function") {
             window.jQuery('[data-toggle="tooltip"]').tooltip();
           }
@@ -126,6 +128,7 @@ var partnersRequestSeq = 0;
           if (requestId !== suppliersRequestSeq) return;
           console.error(err);
           tableWrapper.innerHTML = previous;
+          attachSupplierServiceButtons();
         });
     }
 
@@ -255,6 +258,8 @@ var partnersRequestSeq = 0;
             window.enableTableSorting("#partnersTable");
           }
           attachSettleButtons();
+          attachSupplierServiceButtons();
+          attachPartnerServiceButtons();
           if (balanceFilter) applyBalanceFilter();
           urlObj.searchParams.delete("ajax");
           var nextSearch = urlObj.searchParams.toString();
@@ -269,6 +274,7 @@ var partnersRequestSeq = 0;
             window.enableTableSorting("#partnersTable");
           }
           attachSettleButtons();
+          attachSupplierServiceButtons();
         });
     }
 
@@ -462,6 +468,479 @@ var partnersRequestSeq = 0;
     });
   }
 
+  function getCsrfToken() {
+    var el = document.getElementById("csrf_token");
+    return el ? el.value : "";
+  }
+
+  function notify(msg, level) {
+    if (typeof window.showNotification === "function") {
+      window.showNotification(msg, level || "info");
+    } else {
+      alert(msg);
+    }
+  }
+
+  var quickServiceEl = document.getElementById("supplier-service-config");
+  var quickServiceCfg = null;
+  if (quickServiceEl) {
+    try {
+      quickServiceCfg = {
+        branchId: quickServiceEl.getAttribute("data-branch-id"),
+        createUrl: quickServiceEl.getAttribute("data-create-url"),
+        payUrl: quickServiceEl.getAttribute("data-pay-url"),
+        currencies: JSON.parse(quickServiceEl.getAttribute("data-currencies") || "[]"),
+        defaultCurrency: quickServiceEl.getAttribute("data-default-currency") || "ILS",
+        today: quickServiceEl.getAttribute("data-today") || ""
+      };
+    } catch (err) {
+      quickServiceCfg = null;
+    }
+  }
+
+  var serviceModalEl = document.getElementById("supplierServiceModal");
+  var serviceForm = document.getElementById("supplierServiceForm");
+  var serviceSupplierNameEl = document.getElementById("serviceSupplierName");
+  var serviceSupplierIdInput = document.getElementById("serviceSupplierId");
+  var serviceAmountInput = document.getElementById("serviceAmount");
+  var serviceCurrencyInput = document.getElementById("serviceCurrency");
+  var serviceDescriptionInput = document.getElementById("serviceDescription");
+  var serviceDateEl = document.getElementById("serviceInvoiceDate");
+  var serviceErrorEl = document.getElementById("serviceFormError");
+  var serviceSubmitBtn = document.getElementById("serviceSubmitBtn");
+  var serviceSubmitSpinner = document.getElementById("serviceSubmitSpinner");
+
+  var payModalEl = document.getElementById("supplierServicePayModal");
+  var payForm = document.getElementById("supplierServicePayForm");
+  var payExpenseIdInput = document.getElementById("payExpenseId");
+  var paySupplierNameEl = document.getElementById("paySupplierName");
+  var payExpenseCodeEl = document.getElementById("payExpenseCode");
+  var payAmountInput = document.getElementById("payAmount");
+  var payCurrencyInput = document.getElementById("payCurrency");
+  var payMethodInput = document.getElementById("payMethod");
+  var payReferenceInput = document.getElementById("payReference");
+  var payNotesInput = document.getElementById("payNotes");
+  var payErrorEl = document.getElementById("payFormError");
+  var paySubmitBtn = document.getElementById("paySubmitBtn");
+  var paySubmitSpinner = document.getElementById("paySubmitSpinner");
+  var lastCreatedExpense = null;
+
+  var partnerCfgEl = document.getElementById("partner-service-config");
+  var partnerCfg = null;
+  if (partnerCfgEl) {
+    try {
+      partnerCfg = {
+        branchId: partnerCfgEl.getAttribute("data-branch-id"),
+        createUrl: partnerCfgEl.getAttribute("data-create-url"),
+        payUrl: partnerCfgEl.getAttribute("data-pay-url"),
+        defaultCurrency: partnerCfgEl.getAttribute("data-default-currency") || "ILS",
+        today: partnerCfgEl.getAttribute("data-today") || ""
+      };
+    } catch (e) {
+      partnerCfg = null;
+    }
+  }
+
+  var partnerServiceModalEl = document.getElementById("partnerServiceModal");
+  var partnerServiceForm = document.getElementById("partnerServiceForm");
+  var partnerServicePartnerIdInput = document.getElementById("partnerServicePartnerId");
+  var partnerServicePartnerNameEl = document.getElementById("partnerServicePartnerName");
+  var partnerServiceAmountInput = document.getElementById("partnerServiceAmount");
+  var partnerServiceCurrencyInput = document.getElementById("partnerServiceCurrency");
+  var partnerServiceDescriptionInput = document.getElementById("partnerServiceDescription");
+  var partnerServiceDateEl = document.getElementById("partnerServiceInvoiceDate");
+  var partnerServiceErrorEl = document.getElementById("partnerServiceFormError");
+  var partnerServiceSubmitBtn = document.getElementById("partnerServiceSubmitBtn");
+  var partnerServiceSubmitSpinner = document.getElementById("partnerServiceSubmitSpinner");
+
+  var partnerPayModalEl = document.getElementById("partnerServicePayModal");
+  var partnerPayForm = document.getElementById("partnerServicePayForm");
+  var partnerPayExpenseIdInput = document.getElementById("partnerPayExpenseId");
+  var partnerPayPartnerNameEl = document.getElementById("partnerPayPartnerName");
+  var partnerPayExpenseCodeEl = document.getElementById("partnerPayExpenseCode");
+  var partnerPayAmountInput = document.getElementById("partnerPayAmount");
+  var partnerPayCurrencyInput = document.getElementById("partnerPayCurrency");
+  var partnerPayMethodInput = document.getElementById("partnerPayMethod");
+  var partnerPayReferenceInput = document.getElementById("partnerPayReference");
+  var partnerPayNotesInput = document.getElementById("partnerPayNotes");
+  var partnerPayErrorEl = document.getElementById("partnerPayFormError");
+  var partnerPaySubmitBtn = document.getElementById("partnerPaySubmitBtn");
+  var partnerPaySubmitSpinner = document.getElementById("partnerPaySubmitSpinner");
+
+  function attachPartnerServiceButtons() {
+    if (!partnerCfg) return;
+    document.querySelectorAll(".js-partner-service").forEach(function (btn) {
+      if (btn.dataset.partnerServiceBound === "1") return;
+      btn.dataset.partnerServiceBound = "1";
+      btn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        if (!partnerCfg.branchId) {
+          notify("يرجى تهيئة فرع افتراضي قبل إنشاء فاتورة خدمة للشريك.", "warning");
+          return;
+        }
+        openPartnerServiceModal(btn.dataset.partnerId, btn.dataset.partnerName);
+      });
+    });
+  }
+
+  function openPartnerServiceModal(partnerId, partnerName) {
+    if (!partnerServiceModalEl || !partnerServiceForm) return;
+    partnerServiceForm.reset();
+    if (partnerServiceCurrencyInput && partnerCfg && partnerCfg.defaultCurrency) {
+      partnerServiceCurrencyInput.value = partnerCfg.defaultCurrency;
+    }
+    partnerServicePartnerIdInput.value = partnerId || "";
+    partnerServicePartnerNameEl.textContent = partnerName || "";
+    if (partnerServiceDateEl && partnerCfg) partnerServiceDateEl.textContent = partnerCfg.today || "";
+    if (partnerServiceErrorEl) {
+      partnerServiceErrorEl.classList.add("d-none");
+      partnerServiceErrorEl.textContent = "";
+    }
+    partnerServiceSubmitSpinner.classList.add("d-none");
+    partnerServiceSubmitBtn.disabled = false;
+    if (window.jQuery) window.jQuery(partnerServiceModalEl).modal("show");
+  }
+
+  function handlePartnerServiceSubmit(ev) {
+    ev.preventDefault();
+    if (!partnerCfg || !partnerCfg.createUrl) return;
+    var amount = parseFloat(partnerServiceAmountInput.value || "0");
+    if (!(amount > 0)) {
+      showPartnerServiceError("يرجى إدخال مبلغ صالح.");
+      return;
+    }
+    var payload = {
+      partner_id: partnerServicePartnerIdInput.value,
+      amount: amount,
+      currency: partnerServiceCurrencyInput.value || partnerCfg.defaultCurrency || "ILS",
+      description: partnerServiceDescriptionInput.value || "",
+      branch_id: partnerCfg.branchId,
+      date: partnerCfg.today
+    };
+    togglePartnerServiceSubmit(true);
+    fetch(partnerCfg.createUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCsrfToken(),
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) throw res;
+        return res.json();
+      })
+      .then(function (data) {
+        togglePartnerServiceSubmit(false);
+        if (!data || !data.success) {
+          showPartnerServiceError((data && data.message) || "تعذر إنشاء الفاتورة.");
+          return;
+        }
+        if (window.jQuery) window.jQuery(partnerServiceModalEl).modal("hide");
+        notify("تم إنشاء فاتورة خدمة الشريك بنجاح.", "success");
+        openPartnerPayModal(data);
+      })
+      .catch(function (err) {
+        togglePartnerServiceSubmit(false);
+        if (err && typeof err.json === "function") {
+          err.json().then(function (payload) {
+            showPartnerServiceError((payload && payload.message) || "تعذر إنشاء الفاتورة.");
+          }).catch(function () {
+            showPartnerServiceError("تعذر إنشاء الفاتورة.");
+          });
+        } else {
+          showPartnerServiceError("تعذر إنشاء الفاتورة.");
+        }
+      });
+  }
+
+  function showPartnerServiceError(msg) {
+    if (!partnerServiceErrorEl) return;
+    partnerServiceErrorEl.textContent = msg || "خطأ غير متوقع.";
+    partnerServiceErrorEl.classList.remove("d-none");
+  }
+
+  function togglePartnerServiceSubmit(state) {
+    partnerServiceSubmitBtn.disabled = !!state;
+    partnerServiceSubmitSpinner.classList.toggle("d-none", !state);
+  }
+
+  function openPartnerPayModal(payload) {
+    if (!partnerPayModalEl || !payload) return;
+    partnerPayExpenseIdInput.value = payload.expense_id || "";
+    partnerPayPartnerNameEl.textContent = payload.partner_name || "";
+    partnerPayExpenseCodeEl.textContent = payload.expense_id ? "#" + payload.expense_id : "—";
+    var amt = payload.amount || 0;
+    partnerPayAmountInput.value = Number(amt).toFixed(2);
+    partnerPayCurrencyInput.value = payload.currency || "ILS";
+    partnerPayMethodInput.value = "cash";
+    partnerPayReferenceInput.value = "";
+    partnerPayNotesInput.value = "";
+    if (partnerPayErrorEl) {
+      partnerPayErrorEl.classList.add("d-none");
+      partnerPayErrorEl.textContent = "";
+    }
+    partnerPaySubmitSpinner.classList.add("d-none");
+    partnerPaySubmitBtn.disabled = false;
+    if (window.jQuery) window.jQuery(partnerPayModalEl).modal("show");
+  }
+
+  function handlePartnerPaySubmit(ev) {
+    ev.preventDefault();
+    if (!partnerCfg || !partnerCfg.payUrl) return;
+    var payload = {
+      expense_id: partnerPayExpenseIdInput.value,
+      amount: partnerPayAmountInput.value,
+      currency: partnerPayCurrencyInput.value,
+      method: partnerPayMethodInput.value,
+      reference: partnerPayReferenceInput.value,
+      notes: partnerPayNotesInput.value
+    };
+    var amt = parseFloat(payload.amount || "0");
+    if (!(amt > 0)) {
+      showPartnerPayError("أدخل مبلغ الدفعة.");
+      return;
+    }
+    togglePartnerPaySubmit(true);
+    fetch(partnerCfg.payUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCsrfToken(),
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) throw res;
+        return res.json();
+      })
+      .then(function (data) {
+        togglePartnerPaySubmit(false);
+        if (!data || !data.success) {
+          showPartnerPayError((data && data.message) || "تعذر حفظ الدفعة.");
+          return;
+        }
+        if (window.jQuery) window.jQuery(partnerPayModalEl).modal("hide");
+        notify("تم حفظ دفعة الشريك بنجاح.", "success");
+        window.setTimeout(function () {
+          window.location.reload();
+        }, 600);
+      })
+      .catch(function (err) {
+        togglePartnerPaySubmit(false);
+        if (err && typeof err.json === "function") {
+          err.json().then(function (payload) {
+            showPartnerPayError((payload && payload.message) || "تعذر حفظ الدفعة.");
+          }).catch(function () {
+            showPartnerPayError("تعذر حفظ الدفعة.");
+          });
+        } else {
+          showPartnerPayError("تعذر حفظ الدفعة.");
+        }
+      });
+  }
+
+  function togglePartnerPaySubmit(state) {
+    partnerPaySubmitBtn.disabled = !!state;
+    partnerPaySubmitSpinner.classList.toggle("d-none", !state);
+  }
+
+  function showPartnerPayError(msg) {
+    if (!partnerPayErrorEl) return;
+    partnerPayErrorEl.textContent = msg || "خطأ غير متوقع.";
+    partnerPayErrorEl.classList.remove("d-none");
+  }
+
+  function attachSupplierServiceButtons() {
+    if (!quickServiceCfg) return;
+    document.querySelectorAll(".js-supplier-service").forEach(function (btn) {
+      if (btn.dataset.serviceBound === "1") return;
+      btn.dataset.serviceBound = "1";
+      btn.addEventListener("click", function (ev) {
+        ev.preventDefault();
+        if (!quickServiceCfg.branchId) {
+          notify("يرجى تهيئة فرع افتراضي قبل إنشاء فاتورة خدمة.", "warning");
+          return;
+        }
+        openServiceModal(btn.dataset.supplierId, btn.dataset.supplierName);
+      });
+    });
+  }
+
+  function openServiceModal(supplierId, supplierName) {
+    if (!serviceModalEl || !serviceForm) return;
+    serviceForm.reset();
+    if (serviceCurrencyInput && quickServiceCfg && quickServiceCfg.defaultCurrency) {
+      serviceCurrencyInput.value = quickServiceCfg.defaultCurrency;
+    }
+    serviceSupplierIdInput.value = supplierId || "";
+    serviceSupplierNameEl.textContent = supplierName || "";
+    if (serviceDateEl && quickServiceCfg) serviceDateEl.textContent = quickServiceCfg.today || "";
+    if (serviceErrorEl) {
+      serviceErrorEl.classList.add("d-none");
+      serviceErrorEl.textContent = "";
+    }
+    if (serviceSubmitSpinner) serviceSubmitSpinner.classList.add("d-none");
+    if (serviceSubmitBtn) serviceSubmitBtn.disabled = false;
+    if (window.jQuery && serviceModalEl) window.jQuery(serviceModalEl).modal("show");
+  }
+
+  function handleServiceSubmit(ev) {
+    ev.preventDefault();
+    if (!quickServiceCfg || !quickServiceCfg.createUrl) return;
+    var amount = parseFloat(serviceAmountInput.value || "0");
+    if (!(amount > 0)) {
+      showServiceError("يرجى إدخال مبلغ صالح.");
+      return;
+    }
+    var payload = {
+      supplier_id: serviceSupplierIdInput.value,
+      amount: amount,
+      currency: serviceCurrencyInput.value || quickServiceCfg.defaultCurrency || "ILS",
+      description: serviceDescriptionInput.value || "",
+      branch_id: quickServiceCfg.branchId,
+      date: quickServiceCfg.today
+    };
+    toggleServiceSubmit(true);
+    fetch(quickServiceCfg.createUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCsrfToken(),
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) throw res;
+        return res.json();
+      })
+      .then(function (data) {
+        toggleServiceSubmit(false);
+        if (!data || !data.success) {
+          showServiceError((data && data.message) || "تعذر إنشاء الفاتورة.");
+          return;
+        }
+        lastCreatedExpense = data;
+        if (serviceModalEl && window.jQuery) window.jQuery(serviceModalEl).modal("hide");
+        notify("تم إنشاء فاتورة الخدمة بنجاح.", "success");
+        openPayModal(data);
+      })
+      .catch(function (err) {
+        toggleServiceSubmit(false);
+        if (err && typeof err.json === "function") {
+          err.json().then(function (payload) {
+            showServiceError((payload && payload.message) || "تعذر إنشاء الفاتورة.");
+          }).catch(function () {
+            showServiceError("تعذر إنشاء الفاتورة.");
+          });
+        } else {
+          showServiceError("تعذر إنشاء الفاتورة.");
+        }
+      });
+  }
+
+  function showServiceError(msg) {
+    if (!serviceErrorEl) return;
+    serviceErrorEl.textContent = msg || "خطأ غير متوقع.";
+    serviceErrorEl.classList.remove("d-none");
+  }
+
+  function toggleServiceSubmit(state) {
+    if (!serviceSubmitBtn || !serviceSubmitSpinner) return;
+    serviceSubmitBtn.disabled = !!state;
+    serviceSubmitSpinner.classList.toggle("d-none", !state);
+  }
+
+  function openPayModal(payload) {
+    if (!payModalEl || !payload) return;
+    payExpenseIdInput.value = payload.expense_id || "";
+    paySupplierNameEl.textContent = payload.supplier_name || "";
+    payExpenseCodeEl.textContent = payload.expense_id ? "#" + payload.expense_id : "—";
+    var amt = payload.amount || 0;
+    payAmountInput.value = Number(amt).toFixed(2);
+    payCurrencyInput.value = payload.currency || "ILS";
+    payMethodInput.value = "cash";
+    payReferenceInput.value = "";
+    payNotesInput.value = "";
+    if (payErrorEl) {
+      payErrorEl.classList.add("d-none");
+      payErrorEl.textContent = "";
+    }
+    paySubmitSpinner.classList.add("d-none");
+    paySubmitBtn.disabled = false;
+    if (window.jQuery) window.jQuery(payModalEl).modal("show");
+  }
+
+  function handlePaySubmit(ev) {
+    ev.preventDefault();
+    if (!quickServiceCfg || !quickServiceCfg.payUrl) return;
+    var payload = {
+      expense_id: payExpenseIdInput.value,
+      amount: payAmountInput.value,
+      currency: payCurrencyInput.value,
+      method: payMethodInput.value,
+      reference: payReferenceInput.value,
+      notes: payNotesInput.value
+    };
+    var amt = parseFloat(payload.amount || "0");
+    if (!(amt > 0)) {
+      showPayError("أدخل مبلغ الدفعة.");
+      return;
+    }
+    togglePaySubmit(true);
+    fetch(quickServiceCfg.payUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCsrfToken(),
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        if (!res.ok) throw res;
+        return res.json();
+      })
+      .then(function (data) {
+        togglePaySubmit(false);
+        if (!data || !data.success) {
+          showPayError((data && data.message) || "تعذر حفظ الدفعة.");
+          return;
+        }
+        if (payModalEl && window.jQuery) window.jQuery(payModalEl).modal("hide");
+        notify("تم حفظ الدفعة بنجاح.", "success");
+        window.setTimeout(function () {
+          window.location.reload();
+        }, 600);
+      })
+      .catch(function (err) {
+        togglePaySubmit(false);
+        if (err && typeof err.json === "function") {
+          err.json().then(function (payload) {
+            showPayError((payload && payload.message) || "تعذر حفظ الدفعة.");
+          }).catch(function () {
+            showPayError("تعذر حفظ الدفعة.");
+          });
+        } else {
+          showPayError("تعذر حفظ الدفعة.");
+        }
+      });
+  }
+
+  function togglePaySubmit(state) {
+    paySubmitBtn.disabled = !!state;
+    paySubmitSpinner.classList.toggle("d-none", !state);
+  }
+
+  function showPayError(msg) {
+    if (!payErrorEl) return;
+    payErrorEl.textContent = msg || "خطأ غير متوقع.";
+    payErrorEl.classList.remove("d-none");
+  }
+
   function wireSimpleSearch(inputId, tableId, selectors) {
     var input = document.getElementById(inputId);
     var table = document.getElementById(tableId);
@@ -496,7 +975,21 @@ var partnersRequestSeq = 0;
       }
     }
     attachSettleButtons();
+    attachSupplierServiceButtons();
+    attachPartnerServiceButtons();
     bindPrint();
+    if (serviceForm) {
+      serviceForm.addEventListener("submit", handleServiceSubmit);
+    }
+    if (payForm) {
+      payForm.addEventListener("submit", handlePaySubmit);
+    }
+    if (partnerServiceForm) {
+      partnerServiceForm.addEventListener("submit", handlePartnerServiceSubmit);
+    }
+    if (partnerPayForm) {
+      partnerPayForm.addEventListener("submit", handlePartnerPaySubmit);
+    }
     if (window.jQuery && typeof window.jQuery === "function") {
       window.jQuery('[data-toggle="tooltip"]').tooltip();
     }

@@ -309,50 +309,19 @@ def format_currency_in_ils(value: Any) -> str:
 
 
 def get_entity_balance_in_ils(entity_type: str, entity_id: int) -> Decimal:
-    """حساب رصيد الكيان بالشيكل"""
     try:
-        from models import Customer, Supplier, Partner, Payment, PaymentDirection, PaymentStatus
-        from decimal import Decimal
-        
-        # حساب المدفوعات بالشيكل
-        payments = db.session.query(Payment).filter(
-            Payment.status == PaymentStatus.COMPLETED.value
-        )
-        
-        if entity_type.upper() == "CUSTOMER":
-            payments = payments.filter(Payment.customer_id == entity_id)
-        elif entity_type.upper() == "SUPPLIER":
-            payments = payments.filter(Payment.supplier_id == entity_id)
-        elif entity_type.upper() == "PARTNER":
-            payments = payments.filter(Payment.partner_id == entity_id)
-        else:
-            return Decimal("0.00")
-        
-        payments = payments.all()
-        
-        total_balance_ils = Decimal("0.00")
-        for payment in payments:
-            amount = Decimal(str(payment.total_amount or 0))
-            currency = payment.currency or "ILS"
-            direction = payment.direction
-            
-            # تحويل للشيكل
-            if currency == "ILS":
-                converted_amount = amount
-            else:
-                try:
-                    from models import convert_amount
-                    converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
-                except Exception:
-                    converted_amount = amount
-            
-            # تطبيق اتجاه الدفع
-            if direction == PaymentDirection.IN.value:
-                total_balance_ils += converted_amount
-            else:
-                total_balance_ils -= converted_amount
-        
-        return total_balance_ils
+        from models import Customer, Supplier, Partner
+        et = (entity_type or "").upper()
+        if et == "CUSTOMER":
+            obj = db.session.get(Customer, entity_id)
+            return Decimal(str(getattr(obj, "balance_in_ils", 0) or 0)) if obj else Decimal("0.00")
+        if et == "SUPPLIER":
+            obj = db.session.get(Supplier, entity_id)
+            return Decimal(str(getattr(obj, "balance_in_ils", 0) or 0)) if obj else Decimal("0.00")
+        if et == "PARTNER":
+            obj = db.session.get(Partner, entity_id)
+            return Decimal(str(getattr(obj, "balance_in_ils", 0) or 0)) if obj else Decimal("0.00")
+        return Decimal("0.00")
     except Exception:
         return Decimal("0.00")
 

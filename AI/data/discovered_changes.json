@@ -1,11 +1,164 @@
 {
-  "timestamp": "2025-11-14T03:00:00.356650",
+  "timestamp": "2025-11-16T03:00:00.851147",
   "changes": {
     "new_tables": [],
     "new_fields": {},
-    "new_routes": [],
+    "new_routes": [
+      {
+        "path": "/owner-hub",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
+        "path": "/owner-smoke-checklist",
+        "methods": [
+          "GET",
+          "POST"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
+        "path": "/accounting-control/export-settings",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
+        "path": "/accounting-control/import-settings",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
+        "path": "/accounting-control/system-check",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
+        "path": "/accounting-control/manual-backup",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
+        "path": "/accounting-control/report.pdf",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
+        "path": "/api/update-details/<check_token>",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\checks.py"
+      },
+      {
+        "path": "/api/mark-settled/<check_token>",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\checks.py"
+      },
+      {
+        "path": "/quick-supplier-service\", methods=[\"POST\"], endpoint=\"quick_supplier_service",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\expenses.py"
+      },
+      {
+        "path": "/quick-supplier-service/pay\", methods=[\"POST\"], endpoint=\"quick_supplier_service_pay",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\expenses.py"
+      },
+      {
+        "path": "/quick-partner-service\", methods=[\"POST\"], endpoint=\"quick_partner_service",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\expenses.py"
+      },
+      {
+        "path": "/quick-partner-service/pay\", methods=[\"POST\"], endpoint=\"quick_partner_service_pay",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\expenses.py"
+      },
+      {
+        "path": "/library",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\security_expenses.py"
+      },
+      {
+        "path": "/library/custom",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\security_expenses.py"
+      },
+      {
+        "path": "/types/<int:type_id>/fields",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\security_expenses.py"
+      },
+      {
+        "path": "/types/<int:type_id>/bulk",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\security_expenses.py"
+      },
+      {
+        "path": "/types/<int:type_id>/ledger",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\security_expenses.py"
+      },
+      {
+        "path": "/templates",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\security_expenses.py"
+      },
+      {
+        "path": "/templates/<string:template_id>/apply",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\security_expenses.py"
+      },
+      {
+        "path": "/templates/<string:template_id>",
+        "methods": [
+          "DELETE"
+        ],
+        "file": "routes\\security_expenses.py"
+      }
+    ],
     "new_models": [],
-    "new_templates": [],
+    "new_templates": [
+      "security\\expenses_control\\index.html",
+      "advanced\\owner_hub.html",
+      "advanced\\owner_checklist.html"
+    ],
     "new_forms": []
   }
 }

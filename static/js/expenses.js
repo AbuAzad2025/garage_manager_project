@@ -118,10 +118,25 @@ document.addEventListener('DOMContentLoaded', function () {
   const METHOD_FIELDS = {
     cash:   [],
     cheque: ['check_number', 'check_bank', 'check_due_date'],
-    bank:   ['bank_transfer_ref'],
+    bank:   ['bank_transfer_ref', 'bank_name', 'account_number', 'account_holder'],
     card:   ['card_number', 'card_holder', 'card_expiry'],
     online: ['online_gateway', 'online_ref'],
     other:  []
+  };
+
+  const DETAIL_FIELD_DEFS = {
+    check_number: { label: 'رقم الشيك', type: 'text' },
+    check_bank: { label: 'اسم البنك', type: 'text' },
+    check_due_date: { label: 'تاريخ الاستحقاق', type: 'date' },
+    bank_transfer_ref: { label: 'مرجع الحوالة', type: 'text' },
+    bank_name: { label: 'اسم البنك', type: 'text' },
+    account_number: { label: 'رقم الحساب', type: 'text' },
+    account_holder: { label: 'صاحب الحساب', type: 'text' },
+    card_number: { label: 'رقم البطاقة', type: 'text' },
+    card_holder: { label: 'حامل البطاقة', type: 'text' },
+    card_expiry: { label: 'انتهاء البطاقة', type: 'text', placeholder: 'MM/YY' },
+    online_gateway: { label: 'بوابة الدفع', type: 'text' },
+    online_ref: { label: 'مرجع العملية', type: 'text' },
   };
 
   function applyMethodDetails(method) {
@@ -162,6 +177,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
   initAllAjaxSelects();
   validatePeriod();
+
+  const expenseForm = document.getElementById('expenseForm');
+  const partialSection = document.getElementById('partialPaymentsSection');
+  const partialManager = partialSection ? createPartialPaymentsManager(partialSection) : null;
+
+  if (expenseForm && partialManager) {
+    expenseForm.addEventListener('submit', function (e) {
+      if (!partialManager.preparePayload()) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+      return true;
+    });
+  }
 
   const addStickyClass = id => {
     const el = document.getElementById(id);
@@ -246,6 +276,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const searchInput = document.getElementById('expenses-search');
     const searchSummary = document.getElementById('expenses-search-summary');
     let summaryWrapper = document.getElementById('expenses-summary-wrapper');
+    const paginationWrapper = document.getElementById('expenses-pagination');
     if (!tableWrapper) return false;
 
     const loadingTpl = '<div class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</div>';
@@ -282,6 +313,10 @@ document.addEventListener('DOMContentLoaded', function () {
             summaryWrapper = document.getElementById('expenses-summary-wrapper');
           } else {
             summaryWrapper = document.getElementById('expenses-summary-wrapper');
+          }
+
+          if (paginationWrapper && data.pagination) {
+            paginationWrapper.innerHTML = buildPaginationUi(data.pagination);
           }
 
           if (searchSummary && typeof data.total_filtered === 'number') {
@@ -324,6 +359,66 @@ document.addEventListener('DOMContentLoaded', function () {
             if (typeof window.enableTableSorting === 'function') window.enableTableSorting('#expenses-table');
           }
         });
+    }
+
+    function buildPaginationUi(meta) {
+      if (!meta || !meta.pages || meta.pages <= 1) return '';
+      const parts = [];
+      parts.push('<nav aria-label="التنقل بين صفحات المصاريف"><ul class="pagination justify-content-center flex-wrap mb-0">');
+      const prevDisabled = meta.has_prev ? '' : ' disabled';
+      const prevUrl = meta.prev_url || '#';
+      const prevPage = meta.prev_page || '';
+      parts.push(`<li class="page-item${prevDisabled}"><a class="page-link" href="${prevUrl}" data-expenses-page="true" data-page="${prevPage}">السابق</a></li>`);
+      if (meta.show_first_gap) {
+        parts.push(`<li class="page-item"><a class="page-link" href="${meta.first_url}" data-expenses-page="true" data-page="1">1</a></li>`);
+        parts.push('<li class="page-item disabled"><span class="page-link">…</span></li>');
+      }
+      (meta.window || []).forEach(function (item) {
+        const active = item.current ? ' active' : '';
+        parts.push(`<li class="page-item${active}"><a class="page-link" href="${item.url}" data-expenses-page="true" data-page="${item.page}">${item.page}</a></li>`);
+      });
+      if (meta.show_last_gap) {
+        parts.push('<li class="page-item disabled"><span class="page-link">…</span></li>');
+        parts.push(`<li class="page-item"><a class="page-link" href="${meta.last_url}" data-expenses-page="true" data-page="${meta.last_page}">${meta.last_page}</a></li>`);
+      }
+      const nextDisabled = meta.has_next ? '' : ' disabled';
+      const nextUrl = meta.next_url || '#';
+      const nextPage = meta.next_page || '';
+      parts.push(`<li class="page-item${nextDisabled}"><a class="page-link" href="${nextUrl}" data-expenses-page="true" data-page="${nextPage}">التالي</a></li>`);
+      parts.push('</ul></nav>');
+      return parts.join('');
+    }
+
+    function buildPageUrl(pageValue) {
+      const nextUrl = new URL(window.location.href);
+      if (pageValue && Number(pageValue) > 1) {
+        nextUrl.searchParams.set('page', pageValue);
+      } else {
+        nextUrl.searchParams.delete('page');
+      }
+      nextUrl.searchParams.delete('ajax');
+      return nextUrl.toString();
+    }
+
+    function handlePaginationClick(event) {
+      const link = event.target.closest('a[data-expenses-page]');
+      if (!link) return;
+      const parent = link.parentElement;
+      if (parent && parent.classList.contains('disabled')) {
+        event.preventDefault();
+        return;
+      }
+      const targetUrl = link.getAttribute('href') || buildPageUrl(link.dataset.page);
+      if (!targetUrl || targetUrl === '#') {
+        event.preventDefault();
+        return;
+      }
+      event.preventDefault();
+      fetchAndUpdate(targetUrl);
+    }
+
+    if (paginationWrapper) {
+      paginationWrapper.addEventListener('click', handlePaginationClick);
     }
 
     function triggerSearch() {
@@ -374,4 +469,325 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
   };
+
+  function createPartialPaymentsManager(section) {
+    const tableBody = section.querySelector('#partialPaymentsBody');
+    const emptyRow = section.querySelector('#partialEmptyRow');
+    const addBtn = section.querySelector('#addPartialPaymentRow');
+    const payloadInput = document.getElementById('partial_payments_payload');
+    const summaryPaid = document.getElementById('partialNewPaidLabel');
+    const summaryRemaining = document.getElementById('partialRemainingLabel');
+    const summaryTotal = document.getElementById('partialTotalAmountLabel');
+    const summaryExisting = document.getElementById('partialExistingPaidLabel');
+    const summaryExtraNote = document.getElementById('partialMixedCurrencyNote');
+    const generalSection = document.getElementById('generalPaymentSection');
+    const amountInput = document.getElementById('amount');
+    const baseCurrencySelect = document.getElementById('currency');
+    const methodOptions = JSON.parse(section.dataset.methodOptions || '[]');
+    const currencyOptions = JSON.parse(section.dataset.currencyOptions || '[]');
+    let baseCurrency = (section.dataset.baseCurrency || 'ILS').toUpperCase();
+    const datasetBaseAmount = parseFloat(section.dataset.baseAmount || '0') || 0;
+    const defaultDate = section.dataset.defaultDate || '';
+    const existingPaid = parseFloat(section.dataset.existingPaid || '0');
+    const currencyList = currencyOptions.length ? currencyOptions : [{ code: baseCurrency, label: baseCurrency }];
+    const rows = new Map();
+
+    function currentBaseCurrency() {
+      const selectVal = baseCurrencySelect ? baseCurrencySelect.value : null;
+      return (selectVal || baseCurrency || 'ILS').toUpperCase();
+    }
+
+    function currentBaseAmount() {
+      const live = parseFloat(amountInput?.value || '');
+      if (!Number.isNaN(live) && live > 0) {
+        return live;
+      }
+      return datasetBaseAmount;
+    }
+
+    function ensureEmptyState() {
+      const hasRows = rows.size > 0;
+      if (emptyRow) {
+        emptyRow.style.display = hasRows ? 'none' : '';
+      }
+      if (generalSection) {
+        generalSection.classList.toggle('d-none', hasRows);
+      }
+    }
+
+    function wrapCell(content) {
+      const td = document.createElement('td');
+      td.appendChild(content);
+      return td;
+    }
+
+    function buildMethodSelect(value) {
+      const select = document.createElement('select');
+      select.className = 'form-select form-select-sm';
+      methodOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        if (opt.value === value) option.selected = true;
+        select.appendChild(option);
+      });
+      return select;
+    }
+
+    function buildCurrencySelect(value) {
+      const select = document.createElement('select');
+      select.className = 'form-select form-select-sm';
+      currencyList.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.code;
+        option.textContent = opt.label || opt.code;
+        if (opt.code === value) option.selected = true;
+        select.appendChild(option);
+      });
+      return select;
+    }
+
+    function toggleDetails(rowId) {
+      const rowState = rows.get(rowId);
+      if (!rowState) return;
+      rowState.detailsRow.classList.toggle('d-none');
+    }
+
+    function applyMethodDetails(rowId, method) {
+      const rowState = rows.get(rowId);
+      if (!rowState) return;
+      const need = new Set(METHOD_FIELDS[method] || []);
+      Object.entries(rowState.detailInputs).forEach(([field, meta]) => {
+        const show = need.has(field);
+        meta.wrapper.style.display = show ? '' : 'none';
+        meta.wrapper.dataset.active = show ? '1' : '0';
+        if (!show) meta.input.value = '';
+      });
+    }
+
+    function addRow(initial = {}) {
+      if (!tableBody) return;
+      const rowId = `pp-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const row = document.createElement('tr');
+      row.className = 'partial-payment-row';
+      row.dataset.rowId = rowId;
+
+      const dateInput = document.createElement('input');
+      dateInput.type = 'date';
+      dateInput.className = 'form-control form-control-sm';
+      dateInput.value = initial.date || defaultDate || '';
+
+      const amountInputEl = document.createElement('input');
+      amountInputEl.type = 'number';
+      amountInputEl.step = '0.01';
+      amountInputEl.min = '0';
+      amountInputEl.className = 'form-control form-control-sm text-end';
+      amountInputEl.value = initial.amount || '';
+
+      const currencySelect = buildCurrencySelect((initial && initial.currency) || baseCurrency);
+      const methodSelect = buildMethodSelect(initial.method || (methodOptions[0] && methodOptions[0].value) || 'cash');
+
+      const referenceInput = document.createElement('input');
+      referenceInput.type = 'text';
+      referenceInput.className = 'form-control form-control-sm';
+      referenceInput.placeholder = 'مرجع';
+      referenceInput.value = initial.reference || '';
+
+      const notesInput = document.createElement('input');
+      notesInput.type = 'text';
+      notesInput.className = 'form-control form-control-sm';
+      notesInput.placeholder = 'ملاحظات';
+      notesInput.value = initial.notes || '';
+
+      const tools = document.createElement('div');
+      tools.className = 'btn-group btn-group-sm';
+
+      const detailsBtn = document.createElement('button');
+      detailsBtn.type = 'button';
+      detailsBtn.className = 'btn btn-outline-info';
+      detailsBtn.innerHTML = '<i class="fas fa-sliders-h"></i>';
+      detailsBtn.addEventListener('click', () => toggleDetails(rowId));
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn btn-outline-danger';
+      removeBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      removeBtn.addEventListener('click', () => {
+        const state = rows.get(rowId);
+        if (state) {
+          state.rowEl.remove();
+          state.detailsRow.remove();
+          rows.delete(rowId);
+          ensureEmptyState();
+          updateSummary();
+        }
+      });
+
+      tools.appendChild(detailsBtn);
+      tools.appendChild(removeBtn);
+
+      row.appendChild(wrapCell(dateInput));
+      row.appendChild(wrapCell(amountInputEl));
+      row.appendChild(wrapCell(currencySelect));
+      row.appendChild(wrapCell(methodSelect));
+      row.appendChild(wrapCell(referenceInput));
+      row.appendChild(wrapCell(notesInput));
+      const actionCell = document.createElement('td');
+      actionCell.className = 'text-center';
+      actionCell.appendChild(tools);
+      row.appendChild(actionCell);
+
+      const detailsRow = document.createElement('tr');
+      detailsRow.className = 'partial-details-row d-none';
+      const detailsCell = document.createElement('td');
+      detailsCell.colSpan = 7;
+      const detailsContainer = document.createElement('div');
+      detailsContainer.className = 'row g-2';
+      detailsCell.appendChild(detailsContainer);
+      detailsRow.appendChild(detailsCell);
+
+      const detailInputs = {};
+      Object.entries(DETAIL_FIELD_DEFS).forEach(([field, meta]) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'col-md-4 detail-field';
+        wrapper.dataset.detailField = field;
+        wrapper.dataset.active = '0';
+        wrapper.style.display = 'none';
+        const label = document.createElement('label');
+        label.className = 'form-label small mb-1';
+        label.textContent = meta.label;
+        const input = document.createElement('input');
+        input.type = meta.type || 'text';
+        input.className = 'form-control form-control-sm';
+        if (meta.placeholder) input.placeholder = meta.placeholder;
+        wrapper.appendChild(label);
+        wrapper.appendChild(input);
+        detailsContainer.appendChild(wrapper);
+        detailInputs[field] = { wrapper, input };
+      });
+
+      tableBody.appendChild(row);
+      tableBody.appendChild(detailsRow);
+      rows.set(rowId, {
+        rowEl: row,
+        detailsRow,
+        inputs: {
+          date: dateInput,
+          amount: amountInputEl,
+          currency: currencySelect,
+          method: methodSelect,
+          reference: referenceInput,
+          notes: notesInput,
+        },
+        detailInputs,
+      });
+
+      [dateInput, amountInputEl, currencySelect, methodSelect, referenceInput, notesInput].forEach(el => {
+        el.addEventListener('input', updateSummary, { passive: true });
+        el.addEventListener('change', () => {
+          if (el === methodSelect) applyMethodDetails(rowId, methodSelect.value);
+          updateSummary();
+        }, { passive: true });
+      });
+
+      applyMethodDetails(rowId, methodSelect.value);
+      ensureEmptyState();
+      updateSummary();
+    }
+
+    function collectRows() {
+      const data = [];
+      rows.forEach((state) => {
+        const amount = parseFloat(state.inputs.amount.value || '0');
+        if (Number.isNaN(amount) || amount <= 0) {
+          return;
+        }
+        const entry = {
+          date: (state.inputs.date.value || '').trim(),
+          amount: state.inputs.amount.value,
+          currency: (state.inputs.currency.value || baseCurrency).toUpperCase(),
+          method: (state.inputs.method.value || 'cash').trim(),
+          reference: (state.inputs.reference.value || '').trim(),
+          notes: (state.inputs.notes.value || '').trim(),
+        };
+        const details = {};
+        Object.entries(state.detailInputs).forEach(([field, meta]) => {
+          if (meta.wrapper.dataset.active === '1') {
+            const val = meta.input.value;
+            if (val) details[field] = val;
+          }
+        });
+        entry.details = details;
+        data.push(entry);
+      });
+      return data;
+    }
+
+    function updateSummary() {
+      const totals = {};
+      rows.forEach((state) => {
+        const amount = parseFloat(state.inputs.amount.value || '0');
+        if (Number.isNaN(amount) || amount <= 0) return;
+        const currency = (state.inputs.currency.value || baseCurrency).toUpperCase();
+        totals[currency] = (totals[currency] || 0) + amount;
+      });
+      const baseCur = currentBaseCurrency();
+      const baseAmt = currentBaseAmount();
+      const basePaid = totals[baseCur] || 0;
+      if (summaryTotal) summaryTotal.textContent = `${baseAmt.toFixed(2)} ${baseCur}`;
+      if (summaryExisting) summaryExisting.textContent = `${existingPaid.toFixed(2)} ${baseCur}`;
+      if (summaryPaid) summaryPaid.textContent = `${basePaid.toFixed(2)} ${baseCur}`;
+      const remaining = baseAmt - existingPaid - basePaid;
+      if (summaryRemaining) {
+        summaryRemaining.textContent = `${remaining.toFixed(2)} ${baseCur}`;
+        summaryRemaining.classList.toggle('text-danger', remaining < -0.01);
+      }
+
+      delete totals[baseCur];
+      const others = Object.entries(totals).filter(([, val]) => val > 0.0001);
+      if (summaryExtraNote) {
+        if (others.length) {
+          const txt = others.map(([cur, val]) => `${val.toFixed(2)} ${cur}`).join(' + ');
+          summaryExtraNote.textContent = `مدفوع بعملات أخرى: ${txt}`;
+          summaryExtraNote.classList.remove('d-none');
+        } else {
+          summaryExtraNote.classList.add('d-none');
+        }
+      }
+    }
+
+    if (addBtn) {
+      addBtn.addEventListener('click', () => addRow());
+    }
+
+    ensureEmptyState();
+    updateSummary();
+    if (amountInput) {
+      amountInput.addEventListener('input', updateSummary, { passive: true });
+    }
+    if (baseCurrencySelect) {
+      baseCurrencySelect.addEventListener('change', () => {
+        baseCurrency = currentBaseCurrency();
+        updateSummary();
+      });
+    }
+
+    return {
+      preparePayload() {
+        if (!payloadInput) return true;
+        const rowData = collectRows();
+        const baseCur = currentBaseCurrency();
+        const baseAmt = currentBaseAmount();
+        payloadInput.value = rowData.length ? JSON.stringify(rowData) : '';
+        const baseSum = rowData
+          .filter((entry) => entry.currency === baseCur)
+          .reduce((acc, entry) => acc + (parseFloat(entry.amount || '0') || 0), 0);
+        if (existingPaid + baseSum - baseAmt > 0.01) {
+          alert('الدفعات الجزئية تتجاوز المبلغ الكلي للمصروف بهذه العملة.');
+          return false;
+        }
+        return true;
+      },
+    };
+  }
 });

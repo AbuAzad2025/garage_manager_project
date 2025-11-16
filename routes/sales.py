@@ -457,7 +457,7 @@ def list_sales():
         fld = Sale.sale_date
     ordered_query = q.order_by(fld.asc() if order == "asc" else fld.desc())
 
-    per_page = 20
+    per_page = 10
     page = max(1, int(f.get("page", 1)))
 
     print_mode = request.args.get("print") == "1"
@@ -1011,7 +1011,7 @@ def sale_detail(id: int):
 # @permission_required("manage_sales")  # Commented out - function not available
 def sale_payments(id: int):
     page = request.args.get("page", 1, type=int)
-    per_page = request.args.get("per_page", 20, type=int)
+    per_page = request.args.get("per_page", 10, type=int)
     q = (Payment.query.options(joinedload(Payment.splits))
          .filter(Payment.sale_id == id)
          .order_by(Payment.payment_date.desc(), Payment.id.desc()))

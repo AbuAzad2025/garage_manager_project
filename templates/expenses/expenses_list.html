@@ -94,6 +94,14 @@
   .payee-chip--employee{background:rgba(13,202,240,.2);color:#04505c;border:1px solid rgba(13,202,240,.45)}
   .payee-chip--utility{background:rgba(111,66,193,.18);color:#301a68;border:1px solid rgba(111,66,193,.35)}
   .payee-chip--other{background:rgba(108,117,125,.18);color:#343a40;border:1px solid rgba(108,117,125,.35)}
+.payee-chip--supplier{background:rgba(255,193,7,.2);color:#7a4d00;border:1px solid rgba(255,193,7,.4)}
+.payee-chip--partner{background:rgba(23,162,184,.18);color:#0b4b58;border:1px solid rgba(23,162,184,.35)}
+.payee-chip--customer{background:rgba(40,167,69,.2);color:#0f5132;border:1px solid rgba(40,167,69,.4)}
+  .payee-chip-guess{border-style:dashed;opacity:.85}
+.payment-badge{border:1px solid rgba(0,0,0,.12);background:#fff;color:#212529;font-size:.85rem;font-weight:500;padding:.25rem .55rem;border-radius:999px}
+.payment-badge .method{color:#495057;margin-left:.35rem}
+.payment-badge .amount{font-weight:600;margin-left:.25rem}
+.payment-badge .currency{color:#6c757d;font-weight:500;margin-right:.25rem}
   @media print{
     body{background:#fff}
     .card,.card-body{box-shadow:none!important;border:none!important}
@@ -239,6 +247,40 @@
 {% endif %}
 {{ ', '.join(ns.items) if ns.items else '—' }}
 {% endmacro %}
+
+{% set payment_method_labels = {
+  'cash':'نقدًا',
+  'bank':'تحويل بنكي',
+  'cheque':'شيك',
+  'card':'بطاقة',
+  'credit_card':'بطاقة ائتمان',
+  'debit_card':'بطاقة خصم',
+  'online':'دفع إلكتروني',
+  'other':'أخرى'
+} %}
+
+{% macro payment_label(value) -%}
+  {% set key = (value or '')|lower %}
+  {{ payment_method_labels.get(key, value or '—') }}
+{%- endmacro %}
+
+{% macro render_payment_methods(expense) -%}
+  {% if expense.payments and expense.payments|length %}
+    <div class="d-flex flex-wrap gap-1">
+      {% for payment in expense.payments %}
+        {% set label = payment_label(payment.method) %}
+        <span class="badge payment-badge" title="{{ payment.payment_date|format_date if payment.payment_date }}{% if payment.reference %} — {{ payment.reference }}{% endif %}">
+          <span class="method">{{ label }}</span>
+          <span class="amount">{{ payment.total_amount|number_format(2) }}</span>
+          <span class="currency">{{ payment.currency or expense.currency or 'ILS' }}</span>
+        </span>
+      {% endfor %}
+    </div>
+    <small class="text-muted d-block mt-1">{{ expense.payments|length }} دفعة{% if expense.payments|length > 1 %} جزئية{% endif %}</small>
+  {% else %}
+    <span class="text-muted">{{ payment_label(expense.payment_method) }}</span>
+  {% endif %}
+{%- endmacro %}
 
 {% block content %}
   <!-- رأس الطباعة -->
@@ -427,7 +469,7 @@
               </div>
             </div>
             <div class="col-lg-6 col-md-5 text-md-left text-sm-right mt-3 mt-md-0">
-              <span class="text-muted d-inline-block" id="expenses-search-summary">إجمالي النتائج: {{ summary.expenses_count if summary else expenses|length }}</span>
+              <span class="text-muted d-inline-block" id="expenses-search-summary">إجمالي النتائج: {{ pagination.total if pagination else (summary.expenses_count if summary else expenses|length) }}</span>
             </div>
           </div>
         </div>
@@ -446,7 +488,6 @@
           <tr>
             <th>التاريخ</th>
             <th>النوع</th>
-            <th>تفاصيل النوع</th>
             <th>الجهة</th>
             <th>المبلغ</th>
             <th>العملة</th>
@@ -458,22 +499,70 @@
         </thead>
         <tbody>
           {% for e in expenses %}
-          {% set pt = e.payee_type or '' %}
           <tr>
+            {% set payee = namespace(label='الجهة', name='', chip='other', guessed=False) %}
+            {% set pt = (e.payee_type or '')|upper %}
+            {% if e.supplier %}
+              {% set payee = namespace(label='المورد', name=e.supplier.name, chip='supplier', guessed=False) %}
+            {% elif e.customer %}
+              {% set payee = namespace(label='العميل', name=e.customer.name, chip='customer', guessed=False) %}
+            {% elif e.partner %}
+              {% set payee = namespace(label='الشريك', name=e.partner.name, chip='partner', guessed=False) %}
+            {% elif e.employee %}
+              {% set payee = namespace(label='الموظف', name=e.employee.name, chip='employee', guessed=False) %}
+            {% elif pt == 'CUSTOMER' %}
+              {% set payee = namespace(label='العميل', name=e.payee_name or ('عميل #' ~ e.payee_entity_id if e.payee_entity_id else '—'), chip='customer', guessed=False) %}
+            {% elif pt == 'SUPPLIER' %}
+              {% set payee = namespace(label='المورد', name=e.payee_name or ('مورد #' ~ e.payee_entity_id if e.payee_entity_id else '—'), chip='supplier', guessed=False) %}
+            {% elif pt == 'PARTNER' %}
+              {% set payee = namespace(label='الشريك', name=e.payee_name or ('شريك #' ~ e.payee_entity_id if e.payee_entity_id else '—'), chip='partner', guessed=False) %}
+            {% elif pt == 'EMPLOYEE' %}
+              {% set payee = namespace(label='الموظف', name=e.payee_name or ('موظف #' ~ e.payee_entity_id if e.payee_entity_id else '—'), chip='employee', guessed=False) %}
+            {% elif pt == 'UTILITY' and e.utility_account %}
+              {% set payee = namespace(label='حساب المرفق', name=e.utility_account.alias or e.utility_account.provider, chip='utility', guessed=False) %}
+            {% endif %}
+            {% if not payee.name %}
+              {% if e.payee_name %}
+                {% set payee.name = e.payee_name %}
+              {% elif e.beneficiary_name %}
+                {% set payee.name = e.beneficiary_name %}
+              {% elif e.paid_to %}
+                {% set payee.name = e.paid_to %}
+              {% elif e.disbursed_by %}
+                {% set payee.name = e.disbursed_by %}
+              {% elif e.payee_entity_id %}
+                {% set payee.name = 'جهة #' ~ e.payee_entity_id %}
+              {% else %}
+                {% set payee.name = '—' %}
+              {% endif %}
+            {% endif %}
+            {% if (payee.chip == 'other' or payee.name == '—') and e.smart_entity_guess %}
+              {% set guess = e.smart_entity_guess %}
+              {% set payee.label = guess.label %}
+              {% set payee.name = guess.name %}
+              {% set payee.chip = guess.chip %}
+              {% set payee.guessed = True %}
+            {% endif %}
             <td class="text-nowrap" data-sort-value="{{ e.date.isoformat() if e.date else '' }}">{{ e.date|format_date }}</td>
-            <td>{{ e.type.name if e.type else '—' }}</td>
-            <td class="text-truncate" style="max-width:260px">{{ type_details(e) }}</td>
-            <td class="text-truncate" style="max-width:200px">
-              {% if pt == 'EMPLOYEE' %}<span class="payee-chip payee-chip--employee">موظّف</span>
-              {% elif pt == 'UTILITY' %}<span class="payee-chip payee-chip--utility">مرفق</span>
-              {% elif pt %}<span class="payee-chip payee-chip--other">أخرى</span>{% endif %}
-              <span class="fw-bold text-dark">{{ e.payee_name or e.paid_to or (e.employee.name if e.employee else '—') }}</span>
+            <td>
+              <div class="fw-semibold">{{ e.type.name if e.type else '—' }}</div>
+              {% if e.disbursed_by %}
+              <div class="text-muted small"><i class="fas fa-user ml-1"></i>سلم المال: {{ e.disbursed_by }}</div>
+              {% endif %}
+            </td>
+            <td class="text-truncate" style="max-width:220px" data-sort-value="{{ payee.name }}">
+              {% if payee.chip != 'other' %}
+                <span class="payee-chip payee-chip--{{ payee.chip }}{% if payee.guessed %} payee-chip-guess{% endif %}">{{ payee.label }}{% if payee.guessed %} <small class="text-muted">تخمين</small>{% endif %}</span>
+              {% endif %}
+              <span class="fw-bold text-dark">{{ payee.name }}</span>
             </td>
             <td class="fw-bold text-end" data-sort-value="{{ e.amount or 0 }}">
               {{ e.amount|number_format(2) }}
             </td>
             <td class="text-center"><span class="badge badge-secondary">{{ e.currency or 'ILS' }}</span></td>
-            <td class="text-nowrap">{{ e.payment_method or '—' }}</td>
+            <td class="text-truncate" style="min-width:180px">
+              {{ render_payment_methods(e) }}
+            </td>
             <td class="text-end" data-sort-value="{{ e.total_paid or 0 }}">{{ (e.total_paid or 0)|float|round(2)|number_format(2) }}</td>
             <td class="text-center" data-sort-value="{{ 0 if e.is_paid else (e.balance or 0) }}">
               {% if e.is_paid %}
@@ -520,6 +609,37 @@
       </table>
       </div>
     </div>
+  </div>
+  <div id="expenses-pagination" class="mt-3">
+    {% if pagination_data and pagination_data.pages > 1 %}
+    <nav aria-label="التنقل بين صفحات المصاريف">
+      <ul class="pagination justify-content-center flex-wrap mb-0">
+        <li class="page-item {% if not pagination_data.has_prev %}disabled{% endif %}">
+          <a class="page-link" href="{{ pagination_data.prev_url or '#' }}" data-expenses-page="true" data-page="{{ pagination_data.prev_page or '' }}">السابق</a>
+        </li>
+        {% if pagination_data.show_first_gap %}
+        <li class="page-item">
+          <a class="page-link" href="{{ pagination_data.first_url }}" data-expenses-page="true" data-page="1">1</a>
+        </li>
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+        {% for item in pagination_data.window %}
+        <li class="page-item {% if item.current %}active{% endif %}">
+          <a class="page-link" href="{{ item.url }}" data-expenses-page="true" data-page="{{ item.page }}">{{ item.page }}</a>
+        </li>
+        {% endfor %}
+        {% if pagination_data.show_last_gap %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+        <li class="page-item">
+          <a class="page-link" href="{{ pagination_data.last_url }}" data-expenses-page="true" data-page="{{ pagination_data.last_page }}">{{ pagination_data.last_page }}</a>
+        </li>
+        {% endif %}
+        <li class="page-item {% if not pagination_data.has_next %}disabled{% endif %}">
+          <a class="page-link" href="{{ pagination_data.next_url or '#' }}" data-expenses-page="true" data-page="{{ pagination_data.next_page or '' }}">التالي</a>
+        </li>
+      </ul>
+    </nav>
+    {% endif %}
   </div>
 {% endblock %}
 

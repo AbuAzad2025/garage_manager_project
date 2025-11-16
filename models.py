@@ -33,7 +33,7 @@ from sqlalchemy import (
     inspect,
 )
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Session as _SA_Session, relationship, object_session, validates
+from sqlalchemy.orm import Session as _SA_Session, relationship, object_session, validates, joinedload
 
 from extensions import db
 from barcodes import normalize_barcode
@@ -1815,6 +1815,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     service_requests = relationship("ServiceRequest", back_populates="customer")
     online_carts = relationship("OnlineCart", back_populates="customer")
     online_preorders = relationship("OnlinePreOrder", back_populates="customer")
+    expenses = relationship("Expense", back_populates="customer")
     archived_by_user = relationship("User", foreign_keys=[archived_by])
 
     __table_args__ = (
@@ -2203,6 +2204,11 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
             current_app.logger.warning(f"⚠️ خطأ في حساب رصيد العميل #{self.id}: {e}")
             return 0.0
 
+    @balance.expression
+    def balance(cls):
+        opening = func.coalesce(cls.opening_balance, 0)
+        return opening + cls.total_invoiced - cls.total_paid
+
     @hybrid_property
     def balance_in_ils(self):
         """الرصيد بالشيكل - حساب دقيق مع تحويل العملات"""
@@ -2380,6 +2386,70 @@ def _customer_opening_balance_gl(mapper, connection, target: "Customer"):
     except Exception as e:
         from flask import current_app
         current_app.logger.warning(f"⚠️ خطأ في إنشاء GLBatch للرصيد الافتتاحي للعميل #{target.id}: {e}")
+
+
+def _ensure_customer_for_counterparty(connection, *, name, phone, whatsapp=None, email=None, address=None, currency="ILS", source_label=None, source_id=None):
+    from datetime import datetime
+    from sqlalchemy import insert as sa_insert, select as sa_select, func as sa_func
+    from sqlalchemy.exc import IntegrityError
+    trimmed_name = (name or "").strip()
+    name_filter = trimmed_name.lower() if trimmed_name else None
+    mail = normalize_email(email)
+    trimmed_address = (address or "").strip() or None
+    raw_phone = normalize_phone(phone)
+    wa = normalize_phone(whatsapp) if whatsapp else None
+
+    def _fallback_phone():
+        token = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+        digits = re.sub(r"\D+", "", token)
+        if len(digits) < 7:
+            digits = digits.rjust(7, "0")
+        return digits[:15]
+
+    if not raw_phone:
+        raw_phone = _fallback_phone()
+
+    if not wa:
+        wa = raw_phone
+
+    if name_filter:
+        existing = connection.execute(
+            sa_select(Customer.id).where(sa_func.lower(Customer.name) == name_filter)
+        ).first()
+        if existing:
+            return existing[0]
+
+    attempt_phone = raw_phone
+    note_text = None
+    if source_label and source_id:
+        note_text = f"AUTO-{source_label}-{source_id}"
+
+    for _ in range(3):
+        stmt = sa_insert(Customer).values(
+            name=trimmed_name or attempt_phone,
+            phone=attempt_phone,
+            whatsapp=wa or attempt_phone,
+            email=mail or None,
+            address=trimmed_address,
+            category="عادي",
+            currency=(currency or "ILS").upper(),
+            is_active=True,
+            notes=note_text,
+        )
+        try:
+            result = connection.execute(stmt)
+            inserted = result.inserted_primary_key
+            return inserted[0] if inserted else None
+        except IntegrityError:
+            attempt_phone = _fallback_phone()
+            wa = attempt_phone
+        except Exception:
+            break
+
+    fallback_existing = connection.execute(
+        sa_select(Customer.id).where(Customer.name == (trimmed_name or attempt_phone))
+    ).first()
+    return fallback_existing[0] if fallback_existing else None
 
 
 class Supplier(db.Model, TimestampMixin, AuditMixin):
@@ -2595,10 +2665,29 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
                     Expense.supplier_id == self.id,
                     and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == self.id)
                 )
-            ).all()
-            expenses_total = sum(_to_ils(exp.amount, exp.currency, exp.date) for exp in expenses)
+            ).options(joinedload(Expense.type)).all()
+            supplier_service_total = Decimal("0.00")
+            other_expenses_total = Decimal("0.00")
+            for exp in expenses:
+                amount_ils = _to_ils(exp.amount, exp.currency, exp.date)
+                code = (getattr(exp.type, "code", "") or "").strip().upper()
+                if code == "SUPPLIER_EXPENSE":
+                    supplier_service_total += amount_ils
+                else:
+                    other_expenses_total += amount_ils
             
-            final_balance = ob + exchange_total - sales_total - services_total - preorders_total - paid_out + received_in - returns_total - expenses_total
+            final_balance = (
+                ob
+                + exchange_total
+                + supplier_service_total
+                - sales_total
+                - services_total
+                - preorders_total
+                - paid_out
+                + received_in
+                - returns_total
+                - other_expenses_total
+            )
             
             result = float(final_balance)
             cache.set(cache_key, result, timeout=300)
@@ -2642,22 +2731,28 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
                 self.customer_id = existing.id
 
 
-# Event listener لإنشاء عميل تلقائياً للمورد الجديد
 @event.listens_for(Supplier, "after_insert")  
 def supplier_after_insert_create_customer(mapper, connection, target):
-    """ربط عميل تلقائياً للمورد الجديد - يبحث بالهاتف فقط (الأدق)"""
-    if not target.customer_id and target.phone:
-        from sqlalchemy import select as sa_select, update as sa_update
-        
-        result = connection.execute(
-            sa_select(Customer.id).where(Customer.phone == target.phone)
-        ).first()
-        
-        if result:
-            existing_customer_id = result[0]
-            connection.execute(
-                sa_update(Supplier).where(Supplier.id == target.id).values(customer_id=existing_customer_id)
-            )
+    """ربط أو إنشاء عميل تلقائياً للمورد الجديد"""
+    if target.customer_id:
+        return
+    from sqlalchemy import update as sa_update
+    customer_id = _ensure_customer_for_counterparty(
+        connection,
+        name=target.name,
+        phone=target.phone,
+        whatsapp=target.phone,
+        email=target.email,
+        address=target.address,
+        currency=target.currency,
+        source_label="SUPPLIER",
+        source_id=target.id,
+    )
+    if customer_id:
+        connection.execute(
+            sa_update(Supplier).where(Supplier.id == target.id).values(customer_id=customer_id)
+        )
+        target.customer_id = customer_id
 
 
 @event.listens_for(Supplier, "before_insert")
@@ -3222,10 +3317,28 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
                     Expense.partner_id == self.id,
                     and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == self.id)
                 )
-            ).all()
-            expenses_total = sum(_to_ils(exp.amount, exp.currency, exp.date) for exp in expenses)
+            ).options(joinedload(Expense.type)).all()
+            partner_service_total = Decimal("0.00")
+            other_expenses_total = Decimal("0.00")
+            for exp in expenses:
+                amount_ils = _to_ils(exp.amount, exp.currency, exp.date)
+                code = (getattr(exp.type, "code", "") or "").strip().upper()
+                if code == "PARTNER_EXPENSE":
+                    partner_service_total += amount_ils
+                else:
+                    other_expenses_total += amount_ils
             
-            final_balance = ob + inventory_share + sales_share - sales_to_partner - services_total - paid_out + received_in - expenses_total
+            final_balance = (
+                ob
+                + inventory_share
+                + sales_share
+                + partner_service_total
+                - sales_to_partner
+                - services_total
+                - paid_out
+                + received_in
+                - other_expenses_total
+            )
             
             result = float(final_balance)
             cache.set(cache_key, result, timeout=300)
@@ -3269,22 +3382,28 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
                 self.customer_id = existing.id
 
 
-# Event listener لإنشاء عميل تلقائياً للشريك الجديد
 @event.listens_for(Partner, "after_insert")
 def partner_after_insert_create_customer(mapper, connection, target):
-    """ربط عميل تلقائياً للشريك الجديد - يبحث بالهاتف فقط (الأدق)"""
-    if not target.customer_id and target.phone_number:
-        from sqlalchemy import select as sa_select, update as sa_update
-        
-        result = connection.execute(
-            sa_select(Customer.id).where(Customer.phone == target.phone_number)
-        ).first()
-        
-        if result:
-            existing_customer_id = result[0]
-            connection.execute(
-                sa_update(Partner).where(Partner.id == target.id).values(customer_id=existing_customer_id)
-            )
+    """ربط أو إنشاء عميل تلقائياً للشريك الجديد"""
+    if target.customer_id:
+        return
+    from sqlalchemy import update as sa_update
+    customer_id = _ensure_customer_for_counterparty(
+        connection,
+        name=target.name,
+        phone=target.phone_number,
+        whatsapp=target.phone_number,
+        email=target.email,
+        address=target.address,
+        currency=target.currency,
+        source_label="PARTNER",
+        source_id=target.id,
+    )
+    if customer_id:
+        connection.execute(
+            sa_update(Partner).where(Partner.id == target.id).values(customer_id=customer_id)
+        )
+        target.customer_id = customer_id
 
 
 # ==========================================
@@ -6814,9 +6933,76 @@ def _payment_detect_entity_type(target: "Payment") -> str | None:
     return None
 
 
+_EXPENSE_LEDGER_BEHAVIORS = {"IMMEDIATE", "PARTIAL", "ON_ACCOUNT"}
+
+
+def _expense_type_meta_from_connection(connection, expense_type_id: int | None) -> dict:
+    if not expense_type_id:
+        return {}
+    try:
+        value = connection.execute(
+            select(ExpenseType.fields_meta).where(ExpenseType.id == expense_type_id)
+        ).scalar_one_or_none()
+    except Exception:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _expense_type_ledger_settings(connection, expense_type_id: int | None) -> dict:
+    meta = _expense_type_meta_from_connection(connection, expense_type_id)
+    ledger = (meta.get("ledger") or {}) if isinstance(meta, dict) else {}
+    behavior = str(meta.get("payment_behavior") or "IMMEDIATE").strip().upper()
+    if behavior not in _EXPENSE_LEDGER_BEHAVIORS:
+        behavior = "IMMEDIATE"
+
+    def _code(value):
+        return (str(value or "").strip().upper() or None)
+
+    return {
+        "expense_account": _code(ledger.get("expense_account")),
+        "counterparty_account": _code(ledger.get("counterparty_account")),
+        "cash_account": _code(ledger.get("cash_account")),
+        "behavior": behavior,
+    }
+
+
+def _payment_expense_ledger(connection, payment: "Payment"):
+    expense = getattr(payment, "expense", None)
+    type_id = getattr(expense, "type_id", None)
+    if not type_id and getattr(payment, "expense_id", None):
+        try:
+            type_id = connection.execute(
+                select(Expense.type_id).where(Expense.id == payment.expense_id)
+            ).scalar_one_or_none()
+        except Exception:
+            type_id = None
+    if not type_id:
+        return None
+    return _expense_type_ledger_settings(connection, type_id)
+
+
+def _expense_entity_pair(expense_obj):
+    if getattr(expense_obj, "customer_id", None):
+        return ("CUSTOMER", expense_obj.customer_id)
+    if getattr(expense_obj, "supplier_id", None):
+        return ("SUPPLIER", expense_obj.supplier_id)
+    if getattr(expense_obj, "partner_id", None):
+        return ("PARTNER", expense_obj.partner_id)
+    if getattr(expense_obj, "employee_id", None):
+        return ("EMPLOYEE", expense_obj.employee_id)
+    payee_type = (getattr(expense_obj, "payee_type", "") or "").upper()
+    payee_entity_id = getattr(expense_obj, "payee_entity_id", None)
+    if payee_type in {"SUPPLIER", "PARTNER", "CUSTOMER", "EMPLOYEE"} and payee_entity_id:
+        try:
+            return (payee_type, int(payee_entity_id))
+        except (TypeError, ValueError):
+            return (payee_type, None)
+    return (None, None)
+
+
 _ALLOWED_TRANSITIONS = {
     "PENDING": {"COMPLETED", "FAILED", "CANCELLED"},
-    "COMPLETED": {"REFUNDED"},
+    "COMPLETED": {"REFUNDED", "FAILED", "CANCELLED"},
     "FAILED": {"PENDING"},  # ✅ السماح بإعادة تقديم شيك مرفوض
     "CANCELLED": set(),
     "REFUNDED": set(),
@@ -6947,6 +7133,8 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
             cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
         
         # تحديد الحساب الآخر حسب نوع الكيان
+        expense_ledger_ctx = _payment_expense_ledger(connection, target) if target.expense_id else None
+
         entity_account = GL_ACCOUNTS.get("AR", "1100_AR")  # افتراضي للعملاء
         entity_name = "عميل"
         
@@ -6957,8 +7145,16 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
             entity_account = GL_ACCOUNTS.get("AP", "2000_AP")  # الشركاء يُعاملون كـ AP
             entity_name = "شريك"
         elif target.entity_type == PaymentEntityType.EXPENSE.value or target.expense_id:
-            entity_account = GL_ACCOUNTS.get("EXP", "5000_EXPENSES")
+            entity_account = GL_ACCOUNTS.get("AP", "2000_AP")
             entity_name = "مصروف"
+
+        if expense_ledger_ctx:
+            if expense_ledger_ctx.get("counterparty_account"):
+                entity_account = expense_ledger_ctx["counterparty_account"]
+            elif expense_ledger_ctx.get("behavior") == "IMMEDIATE" and expense_ledger_ctx.get("cash_account"):
+                entity_account = expense_ledger_ctx["cash_account"]
+            if not is_pending_check and expense_ledger_ctx.get("cash_account"):
+                cash_account = expense_ledger_ctx["cash_account"]
         
         # القيد المحاسبي حسب الاتجاه:
         # IN (وارد): مدين النقدية/الشيكات، دائن العميل/المورد
@@ -10085,6 +10281,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'), nullable=False, index=True)
     site_id = db.Column(db.Integer, db.ForeignKey('sites.id'), nullable=True, index=True)
     employee_id = db.Column(db.Integer, db.ForeignKey("employees.id", ondelete="SET NULL"), index=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("customers.id", ondelete="SET NULL"), index=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey("warehouses.id", ondelete="SET NULL"), index=True)
     partner_id = db.Column(db.Integer, db.ForeignKey("partners.id", ondelete="SET NULL"), index=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey("suppliers.id", ondelete="SET NULL"), index=True)
@@ -10253,6 +10450,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     cost_center_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id"), index=True)
 
     employee = relationship("Employee", back_populates="expenses")
+    customer = relationship("Customer", back_populates="expenses")
     cost_center = relationship("CostCenter", backref=db.backref("expenses", lazy="dynamic"))
     branch = relationship('Branch', back_populates='expenses')
     site = relationship('Site', back_populates='expenses')
@@ -10282,6 +10480,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
         db.Index("ix_expense_partner_date", "partner_id", "date"),
         db.Index("ix_expense_supplier_date", "supplier_id", "date"),
         db.Index("ix_expense_shipment_date", "shipment_id", "date"),
+        db.Index("ix_expense_customer_date", "customer_id", "date"),
     )
 
     @validates("amount")
@@ -10436,7 +10635,17 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
     @validates("payee_type")
     def _v_payee_type(self, _, v):
         s = (str(v or "OTHER")).strip().upper()
-        if s not in {"EMPLOYEE", "SUPPLIER", "UTILITY", "OTHER"}:
+        allowed = {
+            "EMPLOYEE",
+            "SUPPLIER",
+            "UTILITY",
+            "CUSTOMER",
+            "PARTNER",
+            "WAREHOUSE",
+            "SHIPMENT",
+            "OTHER",
+        }
+        if s not in allowed:
             raise ValueError("invalid payee_type")
         return s
 
@@ -10450,9 +10659,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
         ).all()
         total = Decimal('0.00')
         expense_currency = self.currency or "ILS"
-        has_payments = False
         for p in payments:
-            has_payments = True
             amt = Decimal(str(p.total_amount or 0))
             if p.currency == expense_currency:
                 total += amt
@@ -10461,12 +10668,6 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
                     total += convert_amount(amt, p.currency, expense_currency, p.payment_date)
                 except Exception:
                     pass
-        if not has_payments:
-            try:
-                amount_value = Decimal(str(self.amount or 0))
-            except Exception:
-                amount_value = Decimal('0.00')
-            total = amount_value
         return float(total)
 
     @total_paid.expression
@@ -10496,16 +10697,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             )
             .scalar_subquery()
         )
-        payment_count_subq = (
-            select(func.count(Payment.id))
-            .where(
-                (Payment.expense_id == cls.id)
-                & (Payment.status == PaymentStatus.COMPLETED.value)
-                & (Payment.direction == PaymentDirection.OUT.value)
-            )
-            .scalar_subquery()
-        )
-        return case((payment_count_subq == 0, 0), else_=cls.amount - paid_subq)
+        return cls.amount - paid_subq
 
     @hybrid_property
     def is_paid(self):
@@ -10522,16 +10714,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             )
             .scalar_subquery()
         )
-        payment_count_subq = (
-            select(func.count(Payment.id))
-            .where(
-                (Payment.expense_id == cls.id)
-                & (Payment.status == PaymentStatus.COMPLETED.value)
-                & (Payment.direction == PaymentDirection.OUT.value)
-            )
-            .scalar_subquery()
-        )
-        balance_expr = case((payment_count_subq == 0, 0), else_=cls.amount - paid_subq)
+        balance_expr = cls.amount - paid_subq
         return balance_expr <= 0
 
     def to_dict(self):
@@ -10555,6 +10738,7 @@ class Expense(db.Model, TimestampMixin, AuditMixin):
             "branch_id": self.branch_id,
             "site_id": self.site_id,
             "employee_id": self.employee_id,
+            "customer_id": self.customer_id,
             "warehouse_id": self.warehouse_id,
             "partner_id": self.partner_id,
             "supplier_id": self.supplier_id,
@@ -10753,93 +10937,49 @@ def _expense_normalize_update(mapper, connection, target: "Expense"):
 @event.listens_for(Expense, "after_insert")
 @event.listens_for(Expense, "after_update")
 def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
-    """إنشاء/تحديث GLBatch للمصروف تلقائياً"""
+    """إنشاء/تحديث GLBatch للمصروف تلقائياً وفق إعدادات النوع"""
     try:
-        from models import fx_rate
-        
-        amount = float(target.amount or 0)
+        if getattr(target, "is_archived", False):
+            return
+        amount = float(q(target.amount or 0))
         if amount <= 0:
             return
-        
+
+        ledger = _expense_type_ledger_settings(connection, getattr(target, "type_id", None))
+        expense_account = ledger.get("expense_account") or GL_ACCOUNTS.get("EXP", "5000_EXPENSES")
+        counterparty_account = ledger.get("counterparty_account") or GL_ACCOUNTS.get("AP", "2000_AP")
+        if ledger.get("behavior") == "IMMEDIATE" and not ledger.get("counterparty_account"):
+            counterparty_account = ledger.get("cash_account") or counterparty_account or GL_ACCOUNTS.get("CASH", "1000_CASH")
+        if not expense_account or not counterparty_account:
+            return
+
         amount_ils = amount
-        if target.currency and target.currency != 'ILS':
+        posting_currency = "ILS"
+        original_currency = (getattr(target, "currency", None) or "ILS").upper()
+        if original_currency != "ILS":
             try:
-                rate = fx_rate(target.currency, 'ILS', target.date or datetime.utcnow(), raise_on_missing=False)
+                rate = fx_rate(original_currency, "ILS", getattr(target, "date", None) or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
             except Exception:
                 pass
-        
-        expense_account = GL_ACCOUNTS.get("EXP", "5000_EXPENSES")
-        try:
-            etype_row = connection.execute(
-                select(ExpenseType.fields_meta).where(ExpenseType.id == target.type_id)
-            ).scalar()
-            if etype_row:
-                meta = etype_row if isinstance(etype_row, dict) else {}
-                gl_code = meta.get('gl_account_code', '').strip()
-                if gl_code:
-                    expense_account = gl_code
-        except Exception:
-            pass
-        
-        cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
-        if target.payment_method == 'bank':
-            cash_account = GL_ACCOUNTS.get("BANK", "1010_BANK")
-        elif target.payment_method == 'card':
-            cash_account = GL_ACCOUNTS.get("CARD", "1020_CARD_CLEARING")
-        elif target.payment_method in ('cheque', 'check'):
-            cash_account = "2050_CHECKS_PAYABLE"
-        
-        existing_batch = connection.execute(
-            sa_text("""
-                SELECT id FROM gl_batches
-                WHERE source_type = 'EXPENSE' 
-                  AND source_id = :sid 
-                  AND purpose = 'EXPENSE'
-                  AND status = 'POSTED'
-            """),
-            {"sid": target.id}
-        ).scalar()
-        
-        if existing_batch:
-            connection.execute(
-                sa_text("DELETE FROM gl_entries WHERE batch_id = :bid"),
-                {"bid": existing_batch}
-            )
-            connection.execute(
-                sa_text("DELETE FROM gl_batches WHERE id = :bid"),
-                {"bid": existing_batch}
-            )
-        
+
         entries = [
-            (expense_account, amount_ils, 0),
-            (cash_account, 0, amount_ils),
+            (expense_account, amount_ils, 0.0),
+            (counterparty_account, 0.0, amount_ils),
         ]
-        
-        expense_type_name = "مصروف عام"
-        try:
-            etype_name_row = connection.execute(
-                select(ExpenseType.name).where(ExpenseType.id == target.type_id)
-            ).scalar()
-            if etype_name_row:
-                expense_type_name = etype_name_row
-        except Exception:
-            pass
-        
-        memo = f"{expense_type_name} - {target.description or target.payee_name or target.beneficiary_name or ''}"
-        
+        entity_type, entity_id = _expense_entity_pair(target)
         _gl_upsert_batch_and_entries(
             connection,
             source_type="EXPENSE",
             source_id=target.id,
-            purpose="EXPENSE",
-            currency="ILS",
-            memo=memo,
+            purpose="ACCRUAL",
+            currency=posting_currency,
+            memo=f"قيد مصروف #{target.id}",
             entries=entries,
             ref=f"EXP-{target.id}",
-            entity_type=target.payee_type,
-            entity_id=target.payee_entity_id
+            entity_type=entity_type,
+            entity_id=entity_id,
         )
     except Exception as e:
         from flask import current_app

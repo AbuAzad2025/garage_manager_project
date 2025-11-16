@@ -9,7 +9,7 @@ from sqlalchemy import func, or_, and_
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import joinedload
 from extensions import db
-from forms import PartnerForm, SupplierForm
+from forms import PartnerForm, SupplierForm, CURRENCY_CHOICES
 import utils
 from utils import D, q2, archive_record, restore_record
 from models import (
@@ -31,6 +31,7 @@ from models import (
     ServiceRequest,
     ServiceStatus,
     _find_partner_share_percentage,
+    Branch,
 )
 
 class CSRFProtectForm(FlaskForm):
@@ -91,6 +92,17 @@ def suppliers_list():
         'average_balance': total_balance / len(suppliers) if suppliers else 0
     }
 
+    default_branch = (
+        Branch.query.filter(Branch.is_active.is_(True))
+        .order_by(Branch.id.asc())
+        .first()
+    )
+    quick_service = {
+        "branch_id": default_branch.id if default_branch else None,
+        "currency_choices": [{"code": code, "label": label} for code, label in CURRENCY_CHOICES],
+        "default_currency": "ILS",
+        "today": datetime.utcnow().strftime("%Y-%m-%d"),
+    }
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("ajax") == "1"
     if is_ajax:
         csrf_value = generate_csrf()
@@ -118,12 +130,20 @@ def suppliers_list():
         </span>
       </td>
       <td>
-        <div class="d-flex flex-wrap gap-2">
+        <div class="supplier-actions d-flex flex-wrap gap-2">
           <a href="{{ url_for('supplier_settlements_bp.supplier_settlement', supplier_id=s.id) }}"
              class="btn btn-sm btn-success d-flex align-items-center"
              title="التسوية الذكية الشاملة - قطع، مبيعات، صيانة، دفعات">
             <i class="fas fa-calculator"></i>
             <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
+          </a>
+          <a href="{{ url_for('expenses_bp.create_expense', supplier_id=s.id, mode='supplier_service') }}"
+             class="btn btn-sm btn-info d-flex align-items-center js-supplier-service"
+             data-supplier-id="{{ s.id }}"
+             data-supplier-name="{{ s.name }}"
+             title="توريد خدمات للمورد">
+            <i class="fas fa-file-signature"></i>
+            <span class="d-none d-lg-inline ms-1">توريد خدمات</span>
           </a>
           <a href="{{ url_for('payments.create_payment') }}?entity_type=SUPPLIER&entity_id={{ s.id }}&entity_name={{ s.name|urlencode }}"
              class="btn btn-sm btn-primary d-flex align-items-center" title="إضافة دفعة">
@@ -134,11 +154,6 @@ def suppliers_list():
              class="btn btn-sm btn-warning d-flex align-items-center" title="كشف حساب مبسط">
             <i class="fas fa-file-invoice"></i>
             <span class="d-none d-lg-inline ms-1">كشف حساب</span>
-          </a>
-          <a href="{{ url_for('reports_bp.supplier_detail_report', supplier_id=s.id) }}"
-             class="btn btn-sm btn-info d-flex align-items-center" title="تقرير تفصيلي شامل">
-            <i class="fas fa-chart-line"></i>
-            <span class="d-none d-lg-inline ms-1">تقرير مفصل</span>
           </a>
           {% if current_user.has_permission('manage_vendors') %}
             <a href="{{ url_for('vendors_bp.suppliers_edit', id=s.id) }}"
@@ -157,7 +172,7 @@ def suppliers_list():
               <span class="d-none d-lg-inline ms-1">أرشفة</span>
             </button>
             {% endif %}
-            <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}" class="d-inline">
+            <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}" class="d-inline-block">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <button type="submit"
                       class="btn btn-sm btn-danger d-flex align-items-center"
@@ -206,6 +221,7 @@ def suppliers_list():
         form=form,
         pay_url=url_for("payments.create_payment"),
         summary=summary,
+        quick_service=quick_service,
     )
 
 @vendors_bp.route("/suppliers/new", methods=["GET", "POST"], endpoint="suppliers_create")
@@ -936,6 +952,18 @@ def partners_list():
             partners_with_credit += 1  # الشريك مدين لنا (عليه لنا)
             total_credit += abs(balance)  # ✅ إضافة للدائن (قيمة موجبة)
     
+    default_branch = (
+        Branch.query.filter(Branch.is_active.is_(True))
+        .order_by(Branch.id.asc())
+        .first()
+    )
+    partner_quick_service = {
+        "branch_id": default_branch.id if default_branch else None,
+        "currency_choices": [{"code": code, "label": label} for code, label in CURRENCY_CHOICES],
+        "default_currency": "ILS",
+        "today": datetime.utcnow().strftime("%Y-%m-%d"),
+    }
+    
     summary = {
         'total_partners': len(partners),
         'total_balance': total_balance,
@@ -943,7 +971,7 @@ def partners_list():
         'total_credit': total_credit,  # ✅ إضافة
         'partners_with_debt': partners_with_debt,
         'partners_with_credit': partners_with_credit,
-        'average_balance': total_balance / len(partners) if partners else 0
+        'average_balance': total_balance / len(partners) if partners else 0,
     }
     
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("ajax") == "1"
@@ -982,17 +1010,20 @@ def partners_list():
              class="btn btn-sm btn-success" title="التسوية الذكية الشاملة">
             <i class="fas fa-calculator"></i><span class="d-none d-xl-inline">تسوية</span>
           </a>
-          <a href="{{ url_for('payments.create_payment') }}?entity_type=PARTNER&entity_id={{ p.id }}&entity_name={{ p.name|urlencode }}"
-             class="btn btn-sm btn-primary" title="إضافة دفعة">
-            <i class="fas fa-money-bill-wave"></i><span class="d-none d-xl-inline">دفع</span>
-          </a>
           <a href="{{ url_for('payments.index') }}?entity_type=PARTNER&entity_id={{ p.id }}"
              class="btn btn-sm btn-warning text-white" title="كشف الحساب المالي">
-            <i class="fas fa-file-invoice-dollar"></i><span class="d-none د-xl-inline">كشف حساب</span>
+            <i class="fas fa-file-invoice-dollar"></i><span class="d-none d-xl-inline">كشف حساب</span>
           </a>
-          <a href="{{ url_for('reports_bp.partner_detail_report', partner_id=p.id) }}"
-             class="btn btn-sm btn-info text-white" title="تقرير تفصيلي شامل">
-            <i class="fas fa-chart-line"></i><span class="d-none د-xl-inline">تقرير</span>
+          <a href="{{ url_for('expenses_bp.create_expense', partner_id=p.id, mode='partner_service') }}"
+             class="btn btn-sm btn-info text-white js-partner-service"
+             data-partner-id="{{ p.id }}"
+             data-partner-name="{{ p.name }}"
+             title="توريد خدمات للشريك">
+            <i class="fas fa-file-signature"></i><span class="d-none d-xl-inline">توريد خدمات</span>
+          </a>
+          <a href="{{ url_for('payments.create_payment') }}?entity_type=PARTNER&entity_id={{ p.id }}&entity_name={{ p.name|urlencode }}"
+             class="btn btn-sm btn-primary" title="إضافة دفعة">
+            <i class="fas fa-money-bill-wave"></i><span class="d-none د-xl-inline">دفع</span>
           </a>
           {% if current_user.has_permission('manage_vendors') %}
             <a href="{{ url_for('vendors_bp.partners_edit', id=p.id) }}"
@@ -1055,6 +1086,7 @@ def partners_list():
         form=form,
         pay_url=url_for("payments.create_payment"),
         summary=summary,
+        partner_quick_service=partner_quick_service,
     )
 
 @vendors_bp.get("/partners/<int:partner_id>/statement", endpoint="partners_statement")

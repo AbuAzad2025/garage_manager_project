@@ -1211,256 +1211,132 @@ def get_ledger_data():
 
 @ledger_bp.route("/accounts-summary", methods=["GET"], endpoint="get_accounts_summary")
 @login_required
-# @permission_required("manage_ledger")  # Commented out
 def get_accounts_summary():
-    """جلب ملخص الحسابات (ميزان المراجعة)"""
+    """جلب ملخص الحسابات (ميزان مراجعة مبسط) من قيود GL مباشرة"""
     try:
-        from models import fx_rate
-        
-        from_date_str = request.args.get('from_date')
-        to_date_str = request.args.get('to_date')
-        
-        from_date = datetime.strptime(from_date_str, '%Y-%m-%d') if from_date_str else None
-        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59) if to_date_str else None
-        
-        accounts = []
-        
-        # 1. حساب المبيعات
-        from models import fx_rate
-        
-        sales_query = Sale.query
-        if from_date:
-            sales_query = sales_query.filter(Sale.sale_date >= from_date)
-        if to_date:
-            sales_query = sales_query.filter(Sale.sale_date <= to_date)
-        
-        total_sales = 0.0
-        for sale in sales_query.all():
-            amount = float(sale.total_amount or 0)
-            if sale.currency and sale.currency != 'ILS':
-                try:
-                    rate = fx_rate(sale.currency, 'ILS', sale.sale_date, raise_on_missing=False)
-                    if rate > 0:
-                        amount = float(amount * float(rate))
-                    else:
-                        current_app.logger.warning(f"⚠️ سعر صرف مفقود في ميزان المراجعة: {sale.currency}/ILS للبيع #{sale.id}")
-                except Exception as e:
-                    current_app.logger.error(f"❌ خطأ في تحويل العملة في ميزان المراجعة للبيع #{sale.id}: {str(e)}")
-            total_sales += amount
-        
-        accounts.append({
-            "name": "المبيعات",
-            "debit_balance": 0.0,
-            "credit_balance": total_sales
-        })
-        
-        # 2. حساب الخدمات (الصيانة)
-        services_query = ServiceRequest.query
-        if from_date:
-            services_query = services_query.filter(ServiceRequest.created_at >= from_date)
-        if to_date:
-            services_query = services_query.filter(ServiceRequest.created_at <= to_date)
-        
-        total_services = 0.0
-        for service in services_query.all():
-            # حساب إجمالي الخدمة
-            parts_total = float(service.parts_total or 0)
-            labor_total = float(service.labor_total or 0)
-            discount = float(service.discount_total or 0)
-            tax_rate = float(service.tax_rate or 0)
-            
-            subtotal = parts_total + labor_total - discount
-            if subtotal < 0:
-                subtotal = 0
-            tax_amount = subtotal * (tax_rate / 100.0)
-            service_total = subtotal + tax_amount
-            
-            # تحويل للشيقل
-            service_currency = getattr(service, 'currency', 'ILS') or 'ILS'
-            if service_currency != 'ILS':
-                try:
-                    rate = fx_rate(service_currency, 'ILS', service.created_at or datetime.utcnow(), raise_on_missing=False)
-                    if rate > 0:
-                        service_total = float(service_total * float(rate))
-                    else:
-                        current_app.logger.warning(f"⚠️ سعر صرف مفقود في ميزان المراجعة: {service_currency}/ILS للخدمة #{service.id}")
-                except Exception as e:
-                    current_app.logger.error(f"❌ خطأ في تحويل العملة في ميزان المراجعة للخدمة #{service.id}: {str(e)}")
-            
-            total_services += service_total
-        
-        accounts.append({
-            "name": "الخدمات (الصيانة)",
-            "debit_balance": 0.0,
-            "credit_balance": total_services
-        })
-        
-        # 3. حساب تكلفة البضاعة المباعة (COGS) - مع التحذيرات
-        from models import SaleLine
-        
-        total_cogs = 0.0
-        sale_lines_query = (
-            db.session.query(SaleLine)
-            .join(Sale, Sale.id == SaleLine.sale_id)
+        from_date_str = request.args.get("from_date")
+        to_date_str = request.args.get("to_date")
+
+        from_date = datetime.strptime(from_date_str, "%Y-%m-%d") if from_date_str else None
+        to_date = (
+            datetime.strptime(to_date_str, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            if to_date_str
+            else None
         )
-        if from_date:
-            sale_lines_query = sale_lines_query.filter(Sale.sale_date >= from_date)
-        if to_date:
-            sale_lines_query = sale_lines_query.filter(Sale.sale_date <= to_date)
-        
-        for line in sale_lines_query.all():
-            if line.product:
-                qty_sold = float(line.quantity or 0)
-                product = line.product
-                unit_cost = None
-                
-                # استخدام تكلفة فعلية أو تقدير محافظ
-                if product.purchase_price and product.purchase_price > 0:
-                    unit_cost = float(product.purchase_price)
-                elif product.cost_after_shipping and product.cost_after_shipping > 0:
-                    unit_cost = float(product.cost_after_shipping)
-                elif product.cost_before_shipping and product.cost_before_shipping > 0:
-                    unit_cost = float(product.cost_before_shipping)
-                elif product.price and product.price > 0:
-                    unit_cost = float(product.price) * 0.70  # تقدير: 70% من سعر البيع
-                else:
-                    unit_cost = 0  # في ميزان المراجعة نستخدم صفر
-                
-                total_cogs += qty_sold * unit_cost
-        
-        accounts.append({
-            "name": "تكلفة البضاعة المباعة (COGS)",
-            "debit_balance": total_cogs,
-            "credit_balance": 0.0
-        })
-        
-        # 4. حساب المشتريات والنفقات
-        expenses_query = Expense.query
-        if from_date:
-            expenses_query = expenses_query.filter(Expense.date >= from_date)
-        if to_date:
-            expenses_query = expenses_query.filter(Expense.date <= to_date)
-        
-        total_expenses = 0.0
-        for expense in expenses_query.all():
-            amount = float(expense.amount or 0)
-            if expense.currency and expense.currency != 'ILS':
-                try:
-                    rate = fx_rate(expense.currency, 'ILS', expense.date, raise_on_missing=False)
-                    if rate > 0:
-                        amount = float(amount * float(rate))
-                    else:
-                        current_app.logger.warning(f"⚠️ سعر صرف مفقود في ميزان المراجعة: {expense.currency}/ILS للمصروف #{expense.id}")
-                except Exception as e:
-                    current_app.logger.error(f"❌ خطأ في تحويل العملة في ميزان المراجعة للمصروف #{expense.id}: {str(e)}")
-            total_expenses += amount
-        
-        accounts.append({
-            "name": "المشتريات والنفقات",
-            "debit_balance": total_expenses,
-            "credit_balance": 0.0
-        })
-        
-        # 3. حساب الخزينة (من الدفعات)
-        payments_in_query = Payment.query.filter(Payment.direction == 'IN')
-        payments_out_query = Payment.query.filter(Payment.direction == 'OUT')
-        
-        if from_date:
-            payments_in_query = payments_in_query.filter(Payment.payment_date >= from_date)
-            payments_out_query = payments_out_query.filter(Payment.payment_date >= from_date)
-        if to_date:
-            payments_in_query = payments_in_query.filter(Payment.payment_date <= to_date)
-            payments_out_query = payments_out_query.filter(Payment.payment_date <= to_date)
-        
-        total_payments_in = 0.0
-        for payment in payments_in_query.all():
-            amount = float(payment.total_amount or 0)
-            if payment.currency and payment.currency != 'ILS':
-                try:
-                    rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
-                    if rate > 0:
-                        amount = float(amount * float(rate))
-                    else:
-                        current_app.logger.warning(f"⚠️ سعر صرف مفقود في حساب الخزينة: {payment.currency}/ILS للدفعة #{payment.id}")
-                except Exception as e:
-                    current_app.logger.error(f"❌ خطأ في تحويل العملة في حساب الخزينة للدفعة #{payment.id}: {str(e)}")
-            total_payments_in += amount
-        
-        total_payments_out = 0.0
-        for payment in payments_out_query.all():
-            amount = float(payment.total_amount or 0)
-            if payment.currency and payment.currency != 'ILS':
-                try:
-                    rate = fx_rate(payment.currency, 'ILS', payment.payment_date, raise_on_missing=False)
-                    if rate > 0:
-                        amount = float(amount * float(rate))
-                    else:
-                        current_app.logger.warning(f"⚠️ سعر صرف مفقود في حساب الخزينة: {payment.currency}/ILS للدفعة #{payment.id}")
-                except Exception as e:
-                    current_app.logger.error(f"❌ خطأ في تحويل العملة في حساب الخزينة للدفعة #{payment.id}: {str(e)}")
-            total_payments_out += amount
-        
-        accounts.append({
-            "name": "الخزينة",
-            "debit_balance": total_payments_in,
-            "credit_balance": total_payments_out
-        })
-        
-        # 4. حساب المخزون مجمّع حسب المنتج
-        total_stock_value = 0.0
-        total_stock_qty = 0
-        
-        stock_summary = (
+
+        base_q = (
             db.session.query(
-                Product.id,
-                Product.name,
-                Product.price,
-                Product.currency,
-                func.sum(StockLevel.quantity).label('total_qty')
+                GLEntry.account,
+                Account.name,
+                Account.type,
+                func.sum(GLEntry.debit).label("td"),
+                func.sum(GLEntry.credit).label("tc"),
             )
-            .join(StockLevel, StockLevel.product_id == Product.id)
-            .filter(StockLevel.quantity > 0)
-            .group_by(Product.id, Product.name, Product.price, Product.currency)
-            .all()
+            .join(Account, Account.code == GLEntry.account)
+            .join(GLBatch)
+            .filter(GLBatch.status == "POSTED")
         )
-        
-        for row in stock_summary:
-            qty = float(row.total_qty or 0)
-            price = float(row.price or 0)
-            product_currency = row.currency
-            
-            # تحويل للشيقل - استخدام تاريخ اليوم دائماً
-            if product_currency and product_currency != 'ILS' and price > 0:
-                try:
-                    rate = fx_rate(product_currency, 'ILS', datetime.utcnow(), raise_on_missing=False)
-                    if rate and rate > 0:
-                        price = float(price * float(rate))
-                except Exception:
-                    pass
-            
-            total_stock_value += qty * price
-            total_stock_qty += int(qty)
-        
-        accounts.append({
-            "name": "المخزون",
-            "debit_balance": total_stock_value,
-            "credit_balance": 0.0,
-            "quantity": total_stock_qty,
-            "note": f"قيمة {total_stock_qty} قطعة"
-        })
-        
-        # حساب إجماليات ميزان المراجعة من الباكند
-        accounts_totals = {
-            'total_debit': sum([acc['debit_balance'] for acc in accounts]),
-            'total_credit': sum([acc['credit_balance'] for acc in accounts]),
-            'net_balance': sum([acc['debit_balance'] for acc in accounts]) - sum([acc['credit_balance'] for acc in accounts])
+        if from_date:
+            base_q = base_q.filter(GLBatch.posted_at >= from_date)
+        if to_date:
+            base_q = base_q.filter(GLBatch.posted_at <= to_date)
+
+        rows = base_q.group_by(GLEntry.account, Account.name, Account.type).all()
+
+        groups = {
+            "المبيعات": {"debit": 0.0, "credit": 0.0},
+            "الخدمات (الصيانة)": {"debit": 0.0, "credit": 0.0},
+            "تكلفة البضاعة المباعة (COGS)": {"debit": 0.0, "credit": 0.0},
+            "المشتريات والنفقات": {"debit": 0.0, "credit": 0.0},
+            "الخزينة": {"debit": 0.0, "credit": 0.0},
+            "المخزون": {"debit": 0.0, "credit": 0.0},
+            "ذمم العملاء": {"debit": 0.0, "credit": 0.0},
+            "ذمم الموردين والخصوم الأخرى": {"debit": 0.0, "credit": 0.0},
+            "الضرائب المستحقة": {"debit": 0.0, "credit": 0.0},
+            "حقوق الملكية": {"debit": 0.0, "credit": 0.0},
+            "أصول أخرى": {"debit": 0.0, "credit": 0.0},
         }
-        
-        return jsonify({
-            'accounts': accounts,
-            'totals': accounts_totals
-        })
-        
+
+        for r in rows:
+            code = (r.account or "").upper()
+            acc_type = (r.type or "").upper()
+            debit = float(r.td or 0)
+            credit = float(r.tc or 0)
+
+            if acc_type == "REVENUE":
+                if code.startswith("4000"):
+                    g = groups["المبيعات"]
+                elif code.startswith("4100"):
+                    g = groups["الخدمات (الصيانة)"]
+                else:
+                    g = groups["المبيعات"]
+            elif acc_type == "EXPENSE":
+                if code.startswith("51"):
+                    g = groups["تكلفة البضاعة المباعة (COGS)"]
+                else:
+                    g = groups["المشتريات والنفقات"]
+            elif acc_type == "ASSET":
+                if code in {"1000_CASH", "1010_BANK", "1020_CARD_CLEARING"} or code.startswith("10"):
+                    g = groups["الخزينة"]
+                elif code.startswith("11"):
+                    g = groups["ذمم العملاء"]
+                elif code.startswith("12") or code.startswith("13"):
+                    g = groups["المخزون"]
+                else:
+                    g = groups["أصول أخرى"]
+            elif acc_type == "LIABILITY":
+                if code.startswith("2100"):
+                    g = groups["الضرائب المستحقة"]
+                else:
+                    g = groups["ذمم الموردين والخصوم الأخرى"]
+            elif acc_type == "EQUITY":
+                g = groups["حقوق الملكية"]
+            else:
+                continue
+
+            g["debit"] += debit
+            g["credit"] += credit
+
+        order = [
+            "المبيعات",
+            "الخدمات (الصيانة)",
+            "تكلفة البضاعة المباعة (COGS)",
+            "المشتريات والنفقات",
+            "الخزينة",
+            "المخزون",
+            "ذمم العملاء",
+            "ذمم الموردين والخصوم الأخرى",
+            "الضرائب المستحقة",
+            "حقوق الملكية",
+            "أصول أخرى",
+        ]
+        accounts = []
+        total_debit = 0.0
+        total_credit = 0.0
+        for name in order:
+            g = groups.get(name)
+            if not g:
+                continue
+            if abs(g["debit"]) < 0.01 and abs(g["credit"]) < 0.01:
+                continue
+            accounts.append(
+                {
+                    "name": name,
+                    "debit_balance": g["debit"],
+                    "credit_balance": g["credit"],
+                }
+            )
+            total_debit += g["debit"]
+            total_credit += g["credit"]
+
+        accounts_totals = {
+            "total_debit": total_debit,
+            "total_credit": total_credit,
+            "net_balance": total_debit - total_credit,
+        }
+
+        return jsonify({"accounts": accounts, "totals": accounts_totals})
+
     except Exception as e:
         import traceback
         error_msg = f"Error in get_accounts_summary: {str(e)}"

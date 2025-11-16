@@ -463,9 +463,26 @@ def dashboard():
             .all()
         )
 
+        id_list = [row[0] for row in customer_debts]
+        customers_map = {}
+        if id_list:
+            customers_map = {
+                c.id: c
+                for c in Customer.query.filter(Customer.id.in_(id_list)).all()
+            }
+
         for cust_id, cust_name, cust_balance, sale_count, last_sale in customer_debts:
-            if cust_balance and cust_balance < 0:
-                amount_due = abs(float(cust_balance))
+            balance_value = cust_balance or 0
+            cust_obj = customers_map.get(cust_id)
+            if cust_obj:
+                try:
+                    balance_value = cust_obj.balance
+                except Exception as exc:
+                    current_app.logger.warning(
+                        f"⚠️ خطأ في حساب رصيد العميل #{cust_id}: {exc}"
+                    )
+            if balance_value and balance_value < 0:
+                amount_due = abs(float(balance_value))
                 dashboard_alerts.append({
                     "category": "الذمم",
                     "severity": "warning",

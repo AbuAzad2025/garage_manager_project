@@ -1419,6 +1419,64 @@ function cancelEdit() {
     currentEntityType = null;
 }
 
+document.addEventListener('DOMContentLoaded', function() {
+    window.SecurityLedger = window.SecurityLedger || {};
+    window.SecurityLedger.tokens = { csrf: '{{ csrf_token() }}' };
+    
+    if (window.bootstrap) {
+        var addModalEl = document.getElementById('addAccountModal');
+        var editModalEl = document.getElementById('editAccountModal');
+        if (addModalEl) window.addAccountModalInstance = bootstrap.Modal.getOrCreateInstance(addModalEl);
+        if (editModalEl) window.editAccountModalInstance = bootstrap.Modal.getOrCreateInstance(editModalEl);
+    }
+    
+    setTimeout(function() { loadAccounts(); }, 150);
+    
+    var primaryTabs = document.querySelectorAll('#controlTabs button[data-bs-toggle]');
+    primaryTabs.forEach(function(btn) {
+        btn.addEventListener('shown.bs.tab', function(event) {
+            var target = event.target.getAttribute('data-bs-target');
+            if (target === '#tab-accounts') {
+                loadAccounts();
+            } else if (target === '#tab-entries') {
+                loadEntries();
+            } else if (target === '#tab-batches') {
+                loadBatches();
+            } else if (target === '#tab-operations') {
+                loadFiscalPeriods();
+            } else if (target === '#tab-editor') {
+                loadBatchesForEditor();
+            }
+        });
+        btn.addEventListener('click', function(event) {
+            if (!window.bootstrap) {
+                var target = event.currentTarget.getAttribute('data-bs-target');
+                if (target === '#tab-accounts') {
+                    loadAccounts();
+                } else if (target === '#tab-entries') {
+                    loadEntries();
+                } else if (target === '#tab-batches') {
+                    loadBatches();
+                } else if (target === '#tab-operations') {
+                    loadFiscalPeriods();
+                } else if (target === '#tab-editor') {
+                    loadBatchesForEditor();
+                }
+            }
+        });
+    });
+    
+    var opsTabs = document.querySelectorAll('#operationsSubTabs button[data-bs-toggle]');
+    opsTabs.forEach(function(btn) {
+        btn.addEventListener('shown.bs.tab', function(event) {
+            var target = event.target.getAttribute('data-bs-target');
+            if (target === '#ops-approval') {
+                loadPendingBatches();
+            }
+        });
+    });
+});
+
 </script>
 {% endblock %}
 

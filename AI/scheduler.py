@@ -27,6 +27,7 @@ logger = logging.getLogger('AI_Scheduler')
 
 # Scheduler
 scheduler = BackgroundScheduler()
+_scheduler_started = False
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -127,6 +128,11 @@ def start_scheduler():
     يجب استدعاؤها عند بدء التطبيق
     """
     
+    global _scheduler_started
+    if _scheduler_started:
+        logger.info("AI Scheduler already running; skipping re-initialization")
+        return
+
     # مهمة 1: Code Quality Scan - يومياً الساعة 2:00 ص
     scheduler.add_job(
         func=run_daily_code_scan,
@@ -156,6 +162,7 @@ def start_scheduler():
     
     # تشغيل الـ Scheduler
     scheduler.start()
+    _scheduler_started = True
     
     logger.info("AI Scheduler started - All AI systems enabled")
     logger.info("   Daily Code Scan: 2:00 AM")

@@ -4,63 +4,87 @@
 {% block head_extra %}
   {{ super() }}
   <style>
+    .partners-container {
+      max-width: 92vw;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .partners-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    #partnersTable {
+      min-width: 1400px;
+      font-size: 0.95rem;
+    }
+
+    #partnersTable th {
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    .partners-actions-col {
+      min-width: 620px;
+    }
+
+    .partner-actions {
+      gap: 0.6rem !important;
+      flex-wrap: nowrap !important;
+      align-items: center;
+      overflow-x: auto;
+    }
+
+    .partner-actions .btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.95rem;
+      border-radius: 0.65rem;
+      white-space: nowrap;
+      min-width: 90px;
+    }
+
+    .toolbar-section .form-control {
+      min-width: 220px;
+    }
+
+    .toolbar-section .btn {
+      padding: 0.55rem 1.15rem;
+      font-size: 0.95rem;
+      border-radius: 0.75rem;
+      min-width: 150px;
+    }
+
     .metric-card {
       border-radius: 14px;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
       border: none;
     }
+
     .metric-card .metric-value {
-      font-size: 1.9rem;
-      font-weight: 700;
-    }
-    .toolbar-section .form-control {
-      min-width: 220px;
-    }
-    .toolbar-section .btn {
-      min-width: 140px;
-    }
-    #partnersTable td .btn {
-      min-width: 70px;
-      font-size: 0.82rem;
-      padding: 0.32rem 0.6rem;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
+      font-size: 1.85rem;
       font-weight: 600;
     }
-    #partnersTable td .btn i {
-      font-size: 0.8em;
-    }
-    .partner-actions {
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      align-items: center;
-    }
+
     .card.shadow-sm.rounded-4,
     .card.shadow-sm.rounded-4 .card-body {
       overflow: visible;
     }
-    .g-2 {
-      gap: 0.75rem;
-    }
-    .g-3 {
-      gap: 1rem;
-    }
-    .gap-4 {
-      gap: 1.5rem;
-    }
-    .gap-2 {
-      gap: 0.75rem;
-    }
-    .gap-3 {
-      gap: 1rem;
+
+    @media (max-width: 992px) {
+      .partner-actions {
+        flex-wrap: wrap !important;
+      }
+
+      .partners-container {
+        max-width: 100%;
+      }
     }
   </style>
 {% endblock %}
 
 {% block content %}
-<div class="container py-5">
+<div class="partners-container py-5">
   <div class="mb-4">
     <div class="row g-3">
       <div class="col-12">
@@ -201,7 +225,7 @@
 
   <div class="card shadow-sm rounded-4">
     <div class="card-body p-0">
-      <div id="partners-table-wrapper">
+      <div id="partners-table-wrapper" class="partners-table-wrapper">
       <table class="table table-striped table-hover mb-0" id="partnersTable">
         <thead class="table-dark">
           <tr>
@@ -209,7 +233,7 @@
             <th>الاسم</th>
             <th>الهاتف</th>
             <th>الرصيد</th>
-            <th style="width:520px" data-sortable="false">عمليات</th>
+            <th class="partners-actions-col" data-sortable="false">عمليات</th>
           </tr>
         </thead>
         <tbody>
@@ -229,9 +253,16 @@
             </td>
             <td>
               <div class="d-flex partner-actions">
-                <a href="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=p.id) }}"
+          <a href="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=p.id) }}"
                    class="btn btn-sm btn-success" title="التسوية الذكية الشاملة">
                   <i class="fas fa-calculator"></i><span class="d-none d-xl-inline">تسوية</span>
+                </a>
+                <a href="{{ url_for('expenses_bp.create_expense', partner_id=p.id, mode='partner_service') }}"
+                   class="btn btn-sm btn-info text-white js-partner-service"
+                   data-partner-id="{{ p.id }}"
+                   data-partner-name="{{ p.name }}"
+                   title="توريد خدمات للشريك">
+                  <i class="fas fa-file-signature"></i><span class="d-none d-xl-inline">توريد خدمات</span>
                 </a>
                 <a href="{{ url_for('payments.create_payment') }}?entity_type=PARTNER&entity_id={{ p.id }}&entity_name={{ p.name|urlencode }}"
                    class="btn btn-sm btn-primary" title="إضافة دفعة">
@@ -241,9 +272,12 @@
                    class="btn btn-sm btn-warning text-white" title="كشف الحساب المالي">
                   <i class="fas fa-file-invoice-dollar"></i><span class="d-none d-xl-inline">كشف حساب</span>
                 </a>
-                <a href="{{ url_for('reports_bp.partner_detail_report', partner_id=p.id) }}"
-                   class="btn btn-sm btn-info text-white" title="تقرير تفصيلي شامل">
-                  <i class="fas fa-chart-line"></i><span class="d-none d-xl-inline">تقرير</span>
+                <a href="{{ url_for('expenses_bp.create_expense', partner_id=p.id, mode='partner_service') }}"
+                   class="btn btn-sm btn-info text-white js-partner-service"
+                   data-partner-id="{{ p.id }}"
+                   data-partner-name="{{ p.name }}"
+                   title="توريد خدمات للشريك">
+                  <i class="fas fa-file-signature"></i><span class="d-none d-xl-inline">توريد خدمات</span>
                 </a>
                 {% if current_user.has_permission('manage_vendors') %}
                   <a href="{{ url_for('vendors_bp.partners_edit', id=p.id) }}"
@@ -289,6 +323,113 @@
 </div>
 
 <div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
+<div id="partner-service-config"
+     data-branch-id="{{ partner_quick_service.branch_id if partner_quick_service else '' }}"
+     data-create-url="{{ url_for('expenses_bp.quick_partner_service') }}"
+     data-pay-url="{{ url_for('expenses_bp.quick_partner_service_pay') }}"
+     data-currencies='{{ partner_quick_service.currency_choices|tojson|safe if partner_quick_service else "[]" }}'
+     data-default-currency="{{ partner_quick_service.default_currency if partner_quick_service else 'ILS' }}"
+     data-today="{{ partner_quick_service.today if partner_quick_service else ('now'|format_datetime('%Y-%m-%d')) }}"></div>
+
+<div class="modal fade" id="partnerServiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fas fa-file-signature ml-2"></i>توريد خدمة للشريك</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <form id="partnerServiceForm">
+        <div class="modal-body">
+          <input type="hidden" id="partnerServicePartnerId" name="partner_id">
+          <div class="mb-3">
+            <div class="text-muted small">الشريك: <span class="font-weight-bold" id="partnerServicePartnerName"></span></div>
+            <div class="text-muted small">تاريخ الفاتورة: <span class="font-weight-bold" id="partnerServiceInvoiceDate"></span></div>
+          </div>
+          <div class="form-group">
+            <label for="partnerServiceAmount" class="font-weight-bold">المبلغ</label>
+            <input type="number" class="form-control" id="partnerServiceAmount" step="0.01" min="0.01" placeholder="0.00" required>
+          </div>
+          <div class="form-group">
+            <label for="partnerServiceCurrency" class="font-weight-bold">العملة</label>
+            <select id="partnerServiceCurrency" class="custom-select">
+              {% for c in partner_quick_service.currency_choices %}
+              <option value="{{ c.code }}" {% if c.code == partner_quick_service.default_currency %}selected{% endif %}>{{ c.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="partnerServiceDescription" class="font-weight-bold">وصف الخدمة</label>
+            <textarea class="form-control" id="partnerServiceDescription" rows="2" placeholder="تفاصيل مختصرة"></textarea>
+          </div>
+          <div class="alert alert-danger d-none" id="partnerServiceFormError"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary" id="partnerServiceSubmitBtn">
+            <span class="spinner-border spinner-border-sm d-none mr-2" id="partnerServiceSubmitSpinner"></span>
+            إنشاء الفاتورة
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="partnerServicePayModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fas fa-money-check-alt ml-2"></i>تسديد فاتورة خدمة الشريك</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <form id="partnerServicePayForm">
+        <div class="modal-body">
+          <input type="hidden" id="partnerPayExpenseId">
+          <div class="mb-3">
+            <div class="text-muted small">الشريك: <span class="font-weight-bold" id="partnerPayPartnerName"></span></div>
+            <div class="text-muted small">رقم الفاتورة: <span class="font-weight-bold" id="partnerPayExpenseCode"></span></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="partnerPayAmount" class="font-weight-bold">المبلغ</label>
+              <input type="number" class="form-control" id="partnerPayAmount" step="0.01" min="0.01">
+            </div>
+            <div class="form-group col-md-6">
+              <label for="partnerPayCurrency" class="font-weight-bold">العملة</label>
+              <input type="text" class="form-control" id="partnerPayCurrency" readonly>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="partnerPayMethod" class="font-weight-bold">طريقة الدفع</label>
+            <select id="partnerPayMethod" class="custom-select">
+              <option value="cash">نقداً</option>
+              <option value="bank">تحويل بنكي</option>
+              <option value="cheque">شيك</option>
+              <option value="card">بطاقة</option>
+              <option value="online">دفع إلكتروني</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="partnerPayReference" class="font-weight-bold">مرجع/ملاحظة</label>
+            <input type="text" class="form-control" id="partnerPayReference" placeholder="رقم مرجع اختياري">
+          </div>
+          <div class="form-group">
+            <label for="partnerPayNotes" class="font-weight-bold">ملاحظات</label>
+            <textarea class="form-control" id="partnerPayNotes" rows="2"></textarea>
+          </div>
+          <div class="alert alert-danger d-none" id="partnerPayFormError"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">لاحقاً</button>
+          <button type="submit" class="btn btn-success" id="partnerPaySubmitBtn">
+            <span class="spinner-border spinner-border-sm d-none mr-2" id="partnerPaySubmitSpinner"></span>
+            حفظ الدفعة
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <div class="modal fade" id="settlementModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">

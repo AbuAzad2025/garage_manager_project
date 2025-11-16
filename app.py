@@ -66,6 +66,7 @@ from routes.project_advanced import project_advanced_bp
 from routes.recurring_invoices import recurring_bp
 from routes.health import health_bp
 from routes.security import security_bp
+from routes.security_expenses import security_expenses_bp
 from routes.advanced_control import advanced_bp
 from routes.workflows import workflows_bp
 from routes.security_control import security_control_bp
@@ -160,6 +161,8 @@ def create_app(config_object=Config) -> Flask:
     app.config.setdefault("ADMIN_USER_EMAILS", os.getenv("ADMIN_USER_EMAILS", ""))
     app.config.setdefault("ADMIN_USER_IDS", os.getenv("ADMIN_USER_IDS", ""))
     app.config.setdefault("PERMISSIONS_REQUIRE_ALL", False)
+    app.config.setdefault("AI_SYSTEMS_ENABLED", True)
+    app.config.setdefault("ENABLE_AUTOMATED_BACKUPS", True)
 
     engine_opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
     connect_args = engine_opts.setdefault("connect_args", {})
@@ -457,6 +460,27 @@ def create_app(config_object=Config) -> Flask:
     attach_acl(hard_delete_bp, read_perm="manage_system", write_perm="manage_system")
     attach_acl(checks_bp, read_perm="view_payments", write_perm="manage_payments")
     
+    def _init_ai_systems():
+        if not app.config.get("AI_SYSTEMS_ENABLED", True):
+            app.logger.info("AI systems disabled via configuration.")
+            return
+        state = app.extensions.setdefault("ai_systems", {})
+        if state.get("initialized"):
+            return
+        try:
+            from AI.scheduler import start_scheduler
+            start_scheduler()
+        except Exception as exc:
+            app.logger.warning(f"AI Scheduler start skipped: {exc}")
+        try:
+            from AI.engine.ai_event_listeners import register_ai_listeners
+            register_ai_listeners(app)
+        except Exception as exc:
+            app.logger.warning(f"AI event listeners registration skipped: {exc}")
+        state["initialized"] = True
+    
+    _init_ai_systems()
+    
     BLUEPRINTS = [
         auth_bp,
         main_bp,
@@ -495,6 +519,7 @@ def create_app(config_object=Config) -> Flask:
         checks_bp,
         health_bp,
         security_bp,
+        security_expenses_bp,
         advanced_bp,
         security_control_bp,
         archive_bp,
@@ -893,7 +918,7 @@ def bootstrap_database():
         for key, (value, desc, dtype) in default_settings.items():
             existing = SystemSettings.query.filter_by(key=key).first()
             if not existing:
-                SystemSettings.set_setting(key, value, desc, dtype, is_public=False)
+                SystemSettings.set_setting(key, value, desc, data_type=dtype, is_public=False)
                 current_app.logger.info(f'Created setting: {key}')
         
         db.session.commit()

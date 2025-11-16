@@ -1,8 +1,82 @@
 {% extends 'base.html' %}
 {% block title %}الموردون{% endblock %}
 
+{% block extra_css %}
+<style>
+.suppliers-container {
+  max-width: 92vw;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.suppliers-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+#suppliersTable {
+  min-width: 1400px;
+  font-size: 0.95rem;
+}
+
+#suppliersTable th {
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.actions-col {
+  min-width: 620px;
+}
+
+.supplier-actions {
+  gap: 0.6rem !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+}
+
+.supplier-actions .btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  border-radius: 0.65rem;
+  white-space: nowrap;
+}
+
+.suppliers-grid-toolbar .btn {
+  padding: 0.55rem 1.15rem;
+  font-size: 0.95rem;
+  border-radius: 0.75rem;
+}
+
+.suppliers-grid-toolbar {
+  flex-wrap: nowrap !important;
+  gap: 1.25rem !important;
+}
+
+.suppliers-grid-toolbar > div {
+  white-space: nowrap;
+}
+
+@media (max-width: 992px) {
+  .suppliers-grid-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem !important;
+  }
+
+  .suppliers-grid-toolbar > div {
+    white-space: normal;
+  }
+
+  .supplier-actions {
+    flex-wrap: wrap !important;
+  }
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container py-5">
+<div class="suppliers-container py-5">
+  <input type="hidden" id="csrf_token" value="{{ form.csrf_token.current_token }}">
   <!-- تنبيه معلوماتي -->
   <!-- تنبيه القطع غير المسعّرة -->
   <div id="unpricedAlert" class="alert alert-warning alert-dismissible fade show mb-4" role="alert" style="display: none;">
@@ -101,8 +175,12 @@
     </div>
   </div>
 
-  <div class="d-flex flex-wrap gap-2 align-items-center mb-3 justify-content-end">
-    <div class="d-flex gap-2">
+  <div class="suppliers-grid-toolbar d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <div class="text-muted small d-flex flex-wrap gap-3">
+      <span><i class="fas fa-truck ml-1 text-secondary"></i>الموردون النشطون: {{ summary.total_suppliers }}</span>
+      <span><i class="fas fa-balance-scale ml-1 text-secondary"></i>الرصيد الصافي: {{ '%.2f'|format(summary.total_balance) }} ₪</span>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
       <a href="{{ url_for('supplier_settlements_bp.list') }}" class="btn btn-warning">
         <i class="fas fa-file-invoice-dollar ml-1"></i>
         <span class="d-none d-sm-inline">قائمة التسويات</span>
@@ -118,7 +196,7 @@
 
   <div class="card shadow-sm rounded-4">
     <div class="card-body p-0">
-      <div id="suppliers-table-wrapper">
+      <div id="suppliers-table-wrapper" class="suppliers-table-wrapper">
       <table class="table table-striped table-hover mb-0 align-middle" id="suppliersTable">
         <thead class="table-dark">
           <tr>
@@ -126,7 +204,7 @@
             <th>الاسم</th>
             <th>الهاتف</th>
             <th>الرصيد</th>
-            <th style="min-width: 440px;" data-sortable="false">عمليات</th>
+            <th class="actions-col" data-sortable="false">عمليات</th>
           </tr>
         </thead>
         <tbody>
@@ -141,12 +219,20 @@
               </span>
             </td>
             <td>
-              <div class="d-flex flex-wrap gap-2">
+              <div class="supplier-actions d-flex flex-wrap gap-2">
                 <a href="{{ url_for('supplier_settlements_bp.supplier_settlement', supplier_id=s.id) }}"
                    class="btn btn-sm btn-success d-flex align-items-center"
                    title="التسوية الذكية الشاملة - قطع، مبيعات، صيانة، دفعات">
                   <i class="fas fa-calculator"></i>
                   <span class="d-none d-lg-inline ms-1">تسوية ذكية</span>
+                </a>
+                <a href="{{ url_for('expenses_bp.create_expense', supplier_id=s.id, mode='supplier_service') }}"
+                   class="btn btn-sm btn-info d-flex align-items-center js-supplier-service"
+                   data-supplier-id="{{ s.id }}"
+                   data-supplier-name="{{ s.name }}"
+                   title="توريد خدمات للمورد">
+                  <i class="fas fa-file-signature"></i>
+                  <span class="d-none d-lg-inline ms-1">توريد خدمات</span>
                 </a>
                 <a href="{{ url_for('payments.create_payment') }}?entity_type=SUPPLIER&entity_id={{ s.id }}&entity_name={{ s.name|urlencode }}"
                    class="btn btn-sm btn-primary d-flex align-items-center" title="إضافة دفعة">
@@ -157,11 +243,6 @@
                    class="btn btn-sm btn-warning d-flex align-items-center" title="كشف حساب مبسط">
                   <i class="fas fa-file-invoice"></i>
                   <span class="d-none d-lg-inline ms-1">كشف حساب</span>
-                </a>
-                <a href="{{ url_for('reports_bp.supplier_detail_report', supplier_id=s.id) }}"
-                   class="btn btn-sm btn-info d-flex align-items-center" title="تقرير تفصيلي شامل">
-                  <i class="fas fa-chart-line"></i>
-                  <span class="d-none d-lg-inline ms-1">تقرير مفصل</span>
                 </a>
                 {% if current_user.has_permission('manage_vendors') %}
                   <a href="{{ url_for('vendors_bp.suppliers_edit', id=s.id) }}"
@@ -180,7 +261,7 @@
                     <span class="d-none d-lg-inline ms-1">أرشفة</span>
                   </button>
                   {% endif %}
-                  <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}" class="d-inline">
+                  <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}" class="d-inline-block">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit"
                             class="btn btn-sm btn-danger d-flex align-items-center"
@@ -212,6 +293,113 @@
 </div>
 
 <div id="vendors-config" data-pay-url="{{ url_for('payments.create_payment') }}"></div>
+<div id="supplier-service-config"
+     data-branch-id="{{ quick_service.branch_id or '' }}"
+     data-create-url="{{ url_for('expenses_bp.quick_supplier_service') }}"
+     data-pay-url="{{ url_for('expenses_bp.quick_supplier_service_pay') }}"
+     data-currencies='{{ quick_service.currency_choices|tojson|safe }}'
+     data-default-currency="{{ quick_service.default_currency }}"
+     data-today="{{ quick_service.today }}"></div>
+
+<div class="modal fade" id="supplierServiceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="fas fa-file-signature ml-2"></i>توريد خدمة للمورد</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <form id="supplierServiceForm">
+        <div class="modal-body">
+          <input type="hidden" id="serviceSupplierId" name="supplier_id">
+          <div class="mb-3">
+            <div class="text-muted small">المورد: <span class="font-weight-bold" id="serviceSupplierName"></span></div>
+            <div class="text-muted small">تاريخ الفاتورة: <span class="font-weight-bold" id="serviceInvoiceDate"></span></div>
+          </div>
+          <div class="form-group">
+            <label for="serviceAmount" class="font-weight-bold">المبلغ</label>
+            <input type="number" class="form-control" id="serviceAmount" step="0.01" min="0.01" placeholder="0.00" required>
+          </div>
+          <div class="form-group">
+            <label for="serviceCurrency" class="font-weight-bold">العملة</label>
+            <select id="serviceCurrency" class="custom-select">
+              {% for c in quick_service.currency_choices %}
+              <option value="{{ c.code }}" {% if c.code == quick_service.default_currency %}selected{% endif %}>{{ c.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="serviceDescription" class="font-weight-bold">وصف الخدمة</label>
+            <textarea class="form-control" id="serviceDescription" rows="2" placeholder="تفاصيل مختصرة"></textarea>
+          </div>
+          <div class="alert alert-danger d-none" id="serviceFormError"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary" id="serviceSubmitBtn">
+            <span class="spinner-border spinner-border-sm d-none mr-2" id="serviceSubmitSpinner"></span>
+            إنشاء الفاتورة
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="supplierServicePayModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title"><i class="fas fa-money-check-alt ml-2"></i>تسديد فاتورة الخدمة</h5>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <form id="supplierServicePayForm">
+        <div class="modal-body">
+          <input type="hidden" id="payExpenseId">
+          <div class="mb-3">
+            <div class="text-muted small">المورد: <span class="font-weight-bold" id="paySupplierName"></span></div>
+            <div class="text-muted small">رقم الفاتورة: <span class="font-weight-bold" id="payExpenseCode"></span></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="payAmount" class="font-weight-bold">المبلغ</label>
+              <input type="number" class="form-control" id="payAmount" step="0.01" min="0.01">
+            </div>
+            <div class="form-group col-md-6">
+              <label for="payCurrency" class="font-weight-bold">العملة</label>
+              <input type="text" class="form-control" id="payCurrency" readonly>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="payMethod" class="font-weight-bold">طريقة الدفع</label>
+            <select id="payMethod" class="custom-select">
+              <option value="cash">نقداً</option>
+              <option value="bank">تحويل بنكي</option>
+              <option value="cheque">شيك</option>
+              <option value="card">بطاقة</option>
+              <option value="online">دفع إلكتروني</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="payReference" class="font-weight-bold">مرجع/ملاحظة</label>
+            <input type="text" class="form-control" id="payReference" placeholder="رقم مرجع اختياري">
+          </div>
+          <div class="form-group">
+            <label for="payNotes" class="font-weight-bold">ملاحظات</label>
+            <textarea class="form-control" id="payNotes" rows="2"></textarea>
+          </div>
+          <div class="alert alert-danger d-none" id="payFormError"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">لاحقاً</button>
+          <button type="submit" class="btn btn-success" id="paySubmitBtn">
+            <span class="spinner-border spinner-border-sm d-none mr-2" id="paySubmitSpinner"></span>
+            حفظ الدفعة
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <div class="modal fade" id="settlementModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">

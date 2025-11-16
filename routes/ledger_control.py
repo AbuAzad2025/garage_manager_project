@@ -29,8 +29,10 @@ from flask_login import login_required, current_user
 from functools import wraps
 from datetime import datetime, timedelta
 import json
+from sqlalchemy import or_
 
-from models import db, Account, GLBatch, GLEntry, Payment, Sale, Invoice, Check, Partner, Supplier, Customer
+from models import db, Account, GLBatch, GLEntry, Payment, PaymentMethod, PaymentStatus, Sale, Invoice, Check, CheckStatus, Partner, Supplier, Customer
+from routes.checks import create_check_record
 from routes.security import owner_only
 
 # إنشاء Blueprint
@@ -912,33 +914,39 @@ def sync_payments_checks():
     try:
         synced = 0
         created = 0
-        
-        payments = Payment.query.filter_by(method='cheque').all()
-        
+        payments = Payment.query.filter(
+            or_(
+                Payment.method == PaymentMethod.CHEQUE.value,
+                Payment.method.ilike('%check%')
+            )
+        ).all()
         for payment in payments:
-            check = Check.query.filter_by(payment_id=payment.id).first()
-            
-            if not check and payment.check_number:
-                # إنشاء شيك جديد
-                check = Check(
-                    payment_id=payment.id,
-                    check_number=payment.check_number,
-                    bank_name=payment.check_bank or 'غير محدد',
-                    due_date=payment.check_due_date or datetime.now(),
-                    amount=payment.amount,
-                    status='PENDING' if payment.status == 'PENDING' else 'CASHED',
-                    direction=payment.direction,
-                    customer_id=payment.customer_id,
-                    supplier_id=payment.supplier_id,
-                    partner_id=payment.partner_id
-                )
-                db.session.add(check)
-                created += 1
-            elif check:
+            if not payment.check_number or not payment.check_bank:
+                continue
+            existing = Check.query.filter_by(payment_id=payment.id, check_number=payment.check_number).first()
+            if existing:
                 synced += 1
-        
-        db.session.commit()
-        
+                continue
+            status_value = CheckStatus.PENDING.value if payment.status == PaymentStatus.PENDING.value else CheckStatus.CASHED.value
+            _, created_flag = create_check_record(
+                payment=payment,
+                amount=payment.total_amount,
+                check_number=payment.check_number,
+                check_bank=payment.check_bank,
+                check_date=payment.payment_date or datetime.utcnow(),
+                check_due_date=payment.check_due_date or payment.payment_date,
+                currency=payment.currency or 'ILS',
+                direction=payment.direction,
+                customer_id=payment.customer_id,
+                supplier_id=payment.supplier_id,
+                partner_id=payment.partner_id,
+                reference_number=f"PMT-{payment.id}",
+                status=status_value
+            )
+            if created_flag:
+                created += 1
+        if created:
+            db.session.commit()
         return jsonify({
             'success': True,
             'created': created,

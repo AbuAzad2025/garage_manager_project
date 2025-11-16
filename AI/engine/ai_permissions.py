@@ -10,6 +10,7 @@
 Created: 2025-11-01
 """
 
+import json
 from typing import Dict, List, Any, Optional
 from flask import current_app
 from models import SystemSettings
@@ -88,13 +89,23 @@ def get_ai_permission_setting(key: str, default: Any = None) -> Any:
         setting = SystemSettings.query.filter_by(key=key).first()
         
         if setting:
-            # تحويل القيمة حسب النوع
-            if setting.dtype == 'boolean':
-                return setting.value.lower() in ['true', '1', 'yes']
-            elif setting.dtype == 'integer':
-                return int(setting.value)
-            else:
-                return setting.value
+            value = setting.value
+            dtype = setting.data_type or 'string'
+            if dtype == 'boolean':
+                if isinstance(value, str):
+                    return value.lower() in ['true', '1', 'yes', 'on']
+                return bool(value)
+            if dtype in ['integer', 'number']:
+                try:
+                    return int(value) if dtype == 'integer' else float(value)
+                except (TypeError, ValueError):
+                    return default
+            if dtype == 'json':
+                try:
+                    return json.loads(value)
+                except Exception:
+                    return default
+            return value
         
         return default
     

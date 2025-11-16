@@ -1,0 +1,1320 @@
+{% extends 'security/base_security.html' %}
+
+{% block security_title %}لوحة تحكم المصاريف الاحترافية{% endblock %}
+{% block security_icon %}<i class="fas fa-sliders-h"></i>{% endblock %}
+{% block security_description %}إدارة أنواع المصاريف والحقول الإلزامية والاختيارية بشكل فوري{% endblock %}
+
+{% block security_breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('security.index') }}">لوحة الأمن</a></li>
+<li class="breadcrumb-item active">لوحة تحكم المصاريف</li>
+{% endblock %}
+
+{% block security_actions %}
+<div class="d-flex gap-2 flex-wrap">
+  <button class="btn btn-sm btn-light" id="refreshLibrary">
+    <i class="fas fa-sync"></i> تحديث المكتبة
+  </button>
+  <button class="btn btn-sm btn-outline-light" data-toggle="modal" data-target="#customFieldModal">
+    <i class="fas fa-plus-circle"></i> إضافة حقل مخصص
+  </button>
+  <a class="btn btn-sm btn-outline-light" href="#expensesGuide">
+    <i class="fas fa-book-open"></i> دليل الاستخدام
+  </a>
+</div>
+{% endblock %}
+
+{% block security_content %}
+<style>
+:root {
+  font-size: 16px;
+  color: #1f1f1f;
+}
+.shadow-sm,
+.shadow-lg,
+.card {
+  box-shadow: none !important;
+}
+.security-hero {
+  background: #1f3b73;
+  color: #fff;
+  border-radius: 16px;
+}
+.security-hero .hero-chip {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 0.4rem 1rem;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.security-stats .stat-card {
+  border-radius: 12px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.security-stats .stat-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+}
+.type-panel .list-group-item {
+  border: 1px solid #dadada;
+  border-radius: 12px;
+  margin-bottom: 0.6rem;
+  font-size: 0.95rem;
+  line-height: 1.3;
+  font-weight: 400;
+  color: #1f1f1f;
+}
+.type-panel .list-group-item.active {
+  background: #f4f4ff;
+  border-color: #6f7cff;
+  color: #0f1b66;
+}
+.meta-chip {
+  border-radius: 18px;
+  padding: 0.25rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #222;
+  background: #f5f5f5;
+}
+.meta-chip--primary {
+  background: #e8ecff;
+  color: #1d2f6f;
+}
+.meta-chip--safe,
+.meta-chip--cash,
+.meta-chip--counterparty {
+  background: #ededed;
+  color: #333;
+}
+.meta-chip--warn {
+  background: #fff6df;
+  color: #7b5200;
+}
+.library-card table th,
+.library-card table td {
+  font-size: 1rem;
+  padding: 0.9rem;
+}
+.library-card table td {
+  vertical-align: middle;
+}
+.quick-links a {
+  border-radius: 12px;
+  border: 1px solid #cfd4ff;
+  padding: 0.8rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  font-size: 1rem;
+}
+.quick-links a:hover {
+  border-color: #6f7cff;
+  background: #eef0ff;
+}
+.form-label,
+.badge,
+.btn {
+  font-size: 1rem;
+}
+.form-control,
+.form-select {
+  font-size: 1rem;
+  border-radius: 10px;
+  border-color: #cfd4ff;
+}
+.btn {
+  border-radius: 10px;
+}
+#requiredFieldsContainer .badge,
+#optionalFieldsContainer .badge {
+  font-size: 0.95rem;
+  padding: 0.5rem 0.8rem;
+}
+</style>
+
+<div class="card security-hero border-0 shadow-lg mb-4">
+  <div class="card-body">
+    <div class="row align-items-center">
+      <div class="col-lg-8">
+        <div class="hero-chip mb-3">
+          <i class="fas fa-link"></i>
+          متصل مباشرة بنماذج وحدة المصاريف
+        </div>
+        <h2 class="fw-bold mb-2">لوحة تحكم المصاريف الاحترافية</h2>
+        <p class="mb-3 text-white-50">
+          اضبط الحقول الإلزامية، وسلوك الدفعات، والحسابات المحاسبية لكل نوع مصروف بنقرة واحدة.
+          أي تغيير يتم تطبيقه فوراً على شاشة إدخال المصاريف لضمان تجربة موحدة وآمنة.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{{ url_for('expenses_bp.list_expenses') }}" class="btn btn-light">
+            <i class="fas fa-external-link-alt ml-1"></i>فتح وحدة المصاريف
+          </a>
+          <a href="{{ url_for('expenses_bp.types_list') }}" class="btn btn-outline-light">
+            <i class="fas fa-tags ml-1"></i>إدارة أنواع المصاريف
+          </a>
+        </div>
+      </div>
+      <div class="col-lg-4 mt-4 mt-lg-0 security-stats">
+        <div class="stat-card mb-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="stat-label text-uppercase small opacity-75">أنواع المصاريف</div>
+              <div class="stat-value">{{ stats.types_count }}</div>
+            </div>
+            <i class="fas fa-receipt fa-2x opacity-50"></i>
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <div class="stat-card">
+              <div class="stat-label small opacity-75">نشط</div>
+              <div class="stat-value fs-4">{{ stats.active_types }}</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="stat-card">
+              <div class="stat-label small opacity-75">مكتبة الحقول</div>
+              <div class="stat-value fs-4">{{ stats.library_fields }}</div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="stat-card">
+              <div class="stat-label small opacity-75">حقول مخصصة</div>
+              <div class="stat-value fs-4">{{ stats.custom_fields }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-xl-4">
+    <div class="card border-0 shadow-sm type-panel h-100">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div>
+          <h5 class="mb-0">أنواع المصاريف</h5>
+          <small class="text-muted">اختر نوعاً لمعاينة إعداداته</small>
+        </div>
+        <span class="badge bg-primary" id="typesCountBadge">{{ stats.types_count }}</span>
+      </div>
+      <div class="card-body">
+        <div class="input-group mb-3">
+          <span class="input-group-text bg-transparent"><i class="fas fa-search text-muted"></i></span>
+          <input type="text" class="form-control" placeholder="بحث باسم أو كود..." id="typeSearchInput">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col-12">
+            <label class="form-label small text-muted mb-1">وضع الدفع</label>
+            <select class="form-select form-select-sm" id="behaviorFilter">
+              <option value="">كل الأوضاع</option>
+              {% for behavior in payment_behaviors %}
+              <option value="{{ behavior }}">{{ behavior }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label small text-muted mb-1">حالة الحسابات</label>
+            <select class="form-select form-select-sm" id="ledgerFilter">
+              <option value="">كل الحالات</option>
+              <option value="complete">حسابات مكتملة</option>
+              <option value="missing_expense">ناقص مصروف</option>
+              <option value="missing_counterparty">ناقص ذمم</option>
+              <option value="missing_cash">ناقص نقد</option>
+            </select>
+          </div>
+        </div>
+        <div class="list-group" id="expenseTypeList" style="max-height: 520px; overflow-y: auto;"></div>
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm mt-4">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3">روابط سريعة</h6>
+        <div class="quick-links d-flex flex-column gap-2">
+          <a href="{{ url_for('expenses_bp.create_expense') }}">
+            <span><i class="fas fa-plus-circle ml-2 text-success"></i>إضافة مصروف جديد</span>
+            <i class="fas fa-chevron-left small text-muted"></i>
+          </a>
+          <a href="{{ url_for('expenses_bp.types_list') }}">
+            <span><i class="fas fa-layer-group ml-2 text-primary"></i>تخصيص نماذج الأنواع</span>
+            <i class="fas fa-chevron-left small text-muted"></i>
+          </a>
+          <a href="{{ url_for('expenses_bp.payroll_summary') }}">
+            <span><i class="fas fa-file-invoice-dollar ml-2 text-warning"></i>تقارير مصروفات الرواتب</span>
+            <i class="fas fa-chevron-left small text-muted"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-8">
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+          <div>
+            <h4 class="mb-0" id="selectedTypeName">اختر نوع المصروف</h4>
+            <small class="text-muted" id="selectedTypeCode"></small>
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="meta-chip meta-chip--primary" id="selectedTypeBehavior">وضع الدفع: —</span>
+            <span class="meta-chip meta-chip--safe" id="selectedTypeLedgerSummary">الحسابات مكتملة</span>
+            <span class="meta-chip meta-chip--warn d-none" id="selectedTypeLedgerWarning"></span>
+            <span class="badge bg-success" id="requiredCountBadge">0 إلزامي</span>
+            <span class="badge bg-secondary" id="optionalCountBadge">0 اختياري</span>
+          </div>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-header bg-success text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span>حقول إلزامية</span>
+                  <button class="btn btn-sm btn-light text-success" id="addRequiredBtn">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="mb-3 d-none" id="requiredSelectWrapper">
+                  <select class="form-select" id="requiredFieldSelect"></select>
+                  <div class="d-grid mt-2">
+                    <button class="btn btn-success btn-sm" id="confirmAddRequired">إضافة</button>
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2" id="requiredFieldsContainer"></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+              <div class="card-header bg-secondary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                  <span>حقول اختيارية</span>
+                  <button class="btn btn-sm btn-light text-secondary" id="addOptionalBtn">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="mb-3 d-none" id="optionalSelectWrapper">
+                  <select class="form-select" id="optionalFieldSelect"></select>
+                  <div class="d-grid mt-2">
+                    <button class="btn btn-secondary btn-sm" id="confirmAddOptional">إضافة</button>
+                  </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2" id="optionalFieldsContainer"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card border-0 shadow-sm mt-4">
+          <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-book-open ml-2"></i>إعدادات الدفتر والحسابات</span>
+            <small class="text-white-50">تطبق مباشرة على القيد المحاسبي وسندات الدفع</small>
+          </div>
+          <div class="card-body" id="ledgerSettingsContainer" data-account-options='{{ accounts|tojson|safe }}'>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label fw-bold text-primary">حساب المصروف</label>
+                <select class="form-select ledger-account-select" id="ledgerExpenseAccount">
+                  <option value="">-- بدون تحديد --</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold text-primary">حساب الذمم / الجهة</label>
+                <select class="form-select ledger-account-select" id="ledgerCounterpartyAccount">
+                  <option value="">-- بدون تحديد --</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold text-primary">حساب النقد / البنك</label>
+                <select class="form-select ledger-account-select" id="ledgerCashAccount">
+                  <option value="">-- بدون تحديد --</option>
+                  </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label fw-bold text-secondary">وضع الدفع الافتراضي</label>
+                <select class="form-select" id="ledgerPaymentBehavior">
+                  {% for behavior in payment_behaviors %}
+                  <option value="{{ behavior }}">{{ behavior }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-8 align-self-end">
+                <div class="alert alert-light border d-flex align-items-center justify-content-between mb-0">
+                  <div class="text-muted">
+                    <i class="fas fa-info-circle text-primary"></i>
+                    يتم استخدام هذه الإعدادات عند إنشاء القيود وسندات الدفع الجزئية.
+                  </div>
+                  <span class="badge bg-success d-none" id="ledgerSaveBadge"><i class="fas fa-check"></i> تم الحفظ</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card border-0 shadow-sm mt-3">
+          <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="mb-0"><i class="fas fa-clone ml-1 text-primary"></i>قوالب التحكم</h5>
+              <small class="text-muted">احفظ إعدادات نوع وطبّقها على أنواع أخرى</small>
+            </div>
+            <button class="btn btn-outline-primary btn-sm" id="createTemplateBtn">
+              <i class="fas fa-save"></i> حفظ القالب من النوع الحالي
+            </button>
+          </div>
+          <div class="card-body" id="templatesList">
+            <div class="text-center text-muted">لا توجد قوالب مسجلة بعد</div>
+          </div>
+        </div>
+        <div class="alert alert-info mt-3" id="panelHint">
+          يتم تحديث نموذج المصروفات فوراً بعد أي تعديل هنا. احرص على اختيار الحقول والحسابات المطابقة لدفترك.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-lg library-card">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div>
+      <h5 class="mb-0">مكتبة الحقول</h5>
+      <small class="text-muted">جميع الحقول المتاحة مع التصنيفات</small>
+    </div>
+    <div class="d-flex gap-2">
+      <select class="form-select form-select-sm" id="categoryFilter">
+        <option value="">كل التصنيفات</option>
+      </select>
+      <input type="text" class="form-control form-control-sm" placeholder="بحث..." id="librarySearchInput">
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover table-striped mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>المفتاح</th>
+            <th>المسمى</th>
+            <th>التصنيف</th>
+            <th class="text-end">الإجراء</th>
+          </tr>
+        </thead>
+        <tbody id="fieldLibraryTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mt-4" id="expensesGuide">
+  <div class="card-header bg-white">
+    <h5 class="mb-0"><i class="fas fa-book-reader ml-1 text-primary"></i>دليل استخدام لوحة تحكم المصاريف</h5>
+    <small class="text-muted">شرح عملي لكل جزء ومتى يستخدم</small>
+  </div>
+  <div class="card-body">
+    <div class="mb-4">
+      <h6 class="fw-bold">١) لماذا نستخدم اللوحة؟</h6>
+      <p class="mb-2">لضبط الحقول الإلزامية، ربط كل نوع مصروف بالحساب المحاسبي الصحيح، وتوحيد سلوك الدفع قبل أن يدخل المستخدمون أي مصروف.</p>
+      <ul class="mb-0">
+        <li>تمنع فقدان بيانات مهمة (مثل المورد أو الفترة).</li>
+        <li>تضمن أن القيود المحاسبية تنشأ بالحسابات الصحيحة.</li>
+        <li>تقلل الأخطاء عند إدخال المصروفات اليومية.</li>
+      </ul>
+    </div>
+    <div class="mb-4">
+      <h6 class="fw-bold">٢) قراءة البطاقة في العمود الأيسر</h6>
+      <ul class="mb-0">
+        <li><strong>الكود الملون:</strong> معرف النوع في التقارير (مثال: RENT، OTHER).</li>
+        <li><strong>الاسم العربي:</strong> ما يظهر للمستخدم في شاشة المصروفات.</li>
+        <li><strong>شارة الدفع:</strong> IMMEDIATE للدفع النقدي، ON_ACCOUNT للذمم، PARTIAL للدفع الجزئي.</li>
+        <li><strong>سطر الحسابات:</strong> يعرض حساب المصروف، حساب الذمم، وحساب النقد. إذا ظهر الرمز — فهذا الحساب غير محدد ويجب ضبطه.</li>
+      </ul>
+    </div>
+    <div class="mb-4">
+      <h6 class="fw-bold">٣) تعديل الحقول</h6>
+      <ol class="mb-0">
+        <li>اختر نوع المصروف.</li>
+        <li>استخدم أزرار <strong>حقول إلزامية</strong> أو <strong>حقول اختيارية</strong> لإضافة الحقول من المكتبة.</li>
+        <li>لإزالة حقل، اضغط زر X على الشارة الخاصة به.</li>
+        <li>زر “تحديث المكتبة” يعيد جلب كل الحقول من قاعدة البيانات والحقول المخصصة.</li>
+      </ol>
+    </div>
+    <div class="mb-4">
+      <h6 class="fw-bold">٤) ضبط الحسابات وسلوك الدفع</h6>
+      <p class="mb-1"><strong>حساب المصروف:</strong> الجانب المدين في القيد المحاسبي.</p>
+      <p class="mb-1"><strong>حساب الذمم / الجهة:</strong> يستخدم عند الشراء الآجل أو عندما نفتح ذمة للمورد.</p>
+      <p class="mb-1"><strong>حساب النقد / البنك:</strong> يظهر فقط عند تسجيل الدفع الفوري (صندوق أو بنك).</p>
+      <p class="mb-0">كل تغيير يُحفظ فوراً ويؤثر على شاشة إدخال المصروفات.</p>
+    </div>
+    <div class="mb-4">
+      <h6 class="fw-bold">٥) القوالب</h6>
+      <p class="mb-2">استعمل زر “حفظ القالب من النوع الحالي” لإنشاء نموذج جاهز.</p>
+      <ul class="mb-0">
+        <li>يمكنك تطبيق القالب على أكثر من نوع في وقت واحد.</li>
+        <li>القوالب تخزن الحقول الإلزامية/الاختيارية والحسابات وسلوك الدفع.</li>
+        <li>مفيد عند تعريف أنواع جديدة مشابهة (مثل إنشاء مجموعة أنواع للسفر أو الشحن).</li>
+      </ul>
+    </div>
+    <div class="mb-0">
+      <h6 class="fw-bold">٦) الحقول المخصصة</h6>
+      <p class="mb-2">عندما تحتاج لحقول إضافية غير موجودة في الجدول الأساسي:</p>
+      <ol class="mb-0">
+        <li>اضغط “إضافة حقل مخصص”.</li>
+        <li>حدد المفتاح البرمجي (بدون مسافات)، الاسم الظاهر، التصنيف، ونوع الإدخال.</li>
+        <li>بعد الحفظ يصبح الحقل متاحاً في مكتبة الحقول ويمكن ربطه بأي نوع.</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="customFieldModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">إضافة حقل مخصص</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">المفتاح البرمجي</label>
+          <input type="text" class="form-control" id="customFieldKey" placeholder="example_field">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">المسمى داخل الواجهة</label>
+          <input type="text" class="form-control" id="customFieldLabel" placeholder="الوصف الواضح للمستخدم">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">التصنيف</label>
+          <input type="text" class="form-control" id="customFieldCategory" placeholder="تصنيف اختياري" value="مخصصة">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">نوع الإدخال</label>
+          <select class="form-select" id="customFieldType">
+            <option value="text">نصي</option>
+            <option value="long_text">نصي متعدد</option>
+            <option value="choice">قائمة</option>
+            <option value="entity">ارتباط</option>
+            <option value="date">تاريخ</option>
+            <option value="number">رقمي</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إغلاق</button>
+        <button type="button" class="btn btn-primary" id="saveCustomFieldBtn">حفظ الحقل</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="templateCreateModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">حفظ قالب جديد</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-light mb-3" id="templateSourceBadge"></div>
+        <div class="mb-3">
+          <label class="form-label">اسم القالب</label>
+          <input type="text" class="form-control" id="templateNameInput" placeholder="مثال: مصاريف تشغيلية">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">وصف (اختياري)</label>
+          <textarea class="form-control" id="templateDescriptionInput" rows="2" placeholder="ملاحظات عن القالب"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-primary" id="saveTemplateBtn">حفظ القالب</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="templateApplyModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">تطبيق القالب</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="templateApplyId">
+        <div class="mb-3">
+          <label class="form-label">اختر الأنواع المستهدفة</label>
+          <select multiple class="form-select" id="templateApplySelect" size="8"></select>
+        </div>
+        <div class="alert alert-info small">
+          سيتم استبدال الحقول الإلزامية/الاختيارية وإعدادات الدفتر للأنواع المختارة طبقاً للقالب.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-primary" id="applyTemplateConfirm">تطبيق القالب</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrfToken = '{{ csrf_token() }}';
+const expenseTypes = {{ expense_types|tojson|safe }};
+let templates = {{ templates|tojson|safe }} || [];
+let fieldLibrary = {{ field_library|tojson|safe }};
+const routes = {
+  updateField: '{{ url_for("security_expenses.api_update_field_status", type_id=0) }}',
+  library: '{{ url_for("security_expenses.api_field_library") }}',
+  customField: '{{ url_for("security_expenses.api_add_custom_field") }}',
+  ledger: '{{ url_for("security_expenses.api_update_ledger", type_id=0) }}',
+  templateCreate: '{{ url_for("security_expenses.api_create_template") }}',
+  templateApply: '{{ url_for("security_expenses.api_apply_template", template_id="__TPL__") }}',
+  templateDelete: '{{ url_for("security_expenses.api_delete_template", template_id="__TPL__") }}'
+};
+let selectedTypeId = null;
+
+const typeListEl = document.getElementById('expenseTypeList');
+const typeSearchInput = document.getElementById('typeSearchInput');
+const behaviorFilter = document.getElementById('behaviorFilter');
+const ledgerFilter = document.getElementById('ledgerFilter');
+const requiredContainer = document.getElementById('requiredFieldsContainer');
+const optionalContainer = document.getElementById('optionalFieldsContainer');
+const requiredCountBadge = document.getElementById('requiredCountBadge');
+const optionalCountBadge = document.getElementById('optionalCountBadge');
+const selectedTypeName = document.getElementById('selectedTypeName');
+const selectedTypeCode = document.getElementById('selectedTypeCode');
+const selectedTypeBehavior = document.getElementById('selectedTypeBehavior');
+const selectedTypeLedgerSummary = document.getElementById('selectedTypeLedgerSummary');
+const selectedTypeLedgerWarning = document.getElementById('selectedTypeLedgerWarning');
+const requiredSelectWrapper = document.getElementById('requiredSelectWrapper');
+const optionalSelectWrapper = document.getElementById('optionalSelectWrapper');
+const requiredFieldSelect = document.getElementById('requiredFieldSelect');
+const optionalFieldSelect = document.getElementById('optionalFieldSelect');
+const addRequiredBtn = document.getElementById('addRequiredBtn');
+const addOptionalBtn = document.getElementById('addOptionalBtn');
+const confirmAddRequired = document.getElementById('confirmAddRequired');
+const confirmAddOptional = document.getElementById('confirmAddOptional');
+const libraryTable = document.getElementById('fieldLibraryTable');
+const librarySearchInput = document.getElementById('librarySearchInput');
+const categoryFilter = document.getElementById('categoryFilter');
+const refreshLibraryBtn = document.getElementById('refreshLibrary');
+const saveCustomFieldBtn = document.getElementById('saveCustomFieldBtn');
+const customFieldModalEl = document.getElementById('customFieldModal');
+const templatesListEl = document.getElementById('templatesList');
+const createTemplateBtn = document.getElementById('createTemplateBtn');
+const templateCreateModalEl = document.getElementById('templateCreateModal');
+const templateSourceBadge = document.getElementById('templateSourceBadge');
+const templateNameInput = document.getElementById('templateNameInput');
+const templateDescriptionInput = document.getElementById('templateDescriptionInput');
+const saveTemplateBtn = document.getElementById('saveTemplateBtn');
+const templateApplyModalEl = document.getElementById('templateApplyModal');
+const templateApplySelect = document.getElementById('templateApplySelect');
+const templateApplyIdInput = document.getElementById('templateApplyId');
+const applyTemplateConfirm = document.getElementById('applyTemplateConfirm');
+
+function updateLedgerFlags(target) {
+  if (!target) return;
+  const ledger = target.ledger || {};
+  const missing = [];
+  if (!(ledger.expense_account || '').toString().trim()) missing.push('expense');
+  if (!(ledger.counterparty_account || '').toString().trim()) missing.push('counterparty');
+  if (!(ledger.cash_account || '').toString().trim()) missing.push('cash');
+  target.ledger_missing = missing;
+  target.ledger_complete = missing.length === 0;
+}
+
+expenseTypes.forEach(updateLedgerFlags);
+function showModal(el) {
+  if (!el) return;
+  if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+    window.jQuery(el).modal('show');
+  } else {
+    el.classList.add('show');
+    el.style.display = 'block';
+    document.body.classList.add('modal-open');
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop fade show';
+    backdrop.dataset.generated = '1';
+    document.body.appendChild(backdrop);
+  }
+}
+
+function hideModal(el) {
+  if (!el) return;
+  if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+    window.jQuery(el).modal('hide');
+  } else {
+    el.classList.remove('show');
+    el.style.display = 'none';
+    document.body.classList.remove('modal-open');
+    document.querySelectorAll('.modal-backdrop[data-generated="1"]').forEach((node) => node.remove());
+  }
+}
+const ledgerExpenseAccountSelect = document.getElementById('ledgerExpenseAccount');
+const ledgerCounterpartyAccountSelect = document.getElementById('ledgerCounterpartyAccount');
+const ledgerCashAccountSelect = document.getElementById('ledgerCashAccount');
+const ledgerPaymentBehaviorSelect = document.getElementById('ledgerPaymentBehavior');
+const ledgerContainer = document.getElementById('ledgerSettingsContainer');
+const ledgerSaveBadge = document.getElementById('ledgerSaveBadge');
+
+function renderTypeList(items) {
+  typeListEl.innerHTML = '';
+  items.forEach((item) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'list-group-item list-group-item-action';
+
+    const headerRow = document.createElement('div');
+    headerRow.className = 'd-flex justify-content-between align-items-center';
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = item.name;
+    headerRow.appendChild(nameSpan);
+    const badge = document.createElement('span');
+    badge.className = item.is_active ? 'badge bg-success rounded-pill' : 'badge bg-danger rounded-pill';
+    badge.textContent = item.code || 'بدون كود';
+    headerRow.appendChild(badge);
+    button.appendChild(headerRow);
+
+    const metaRow = document.createElement('div');
+    metaRow.className = 'd-flex flex-wrap gap-2 mt-2 small';
+    const behaviorBadge = document.createElement('span');
+    behaviorBadge.className = 'badge bg-dark text-white';
+    behaviorBadge.textContent = item.payment_behavior || 'IMMEDIATE';
+    metaRow.appendChild(behaviorBadge);
+    const ledgerBadge = document.createElement('span');
+    if (item.ledger_complete) {
+      ledgerBadge.className = 'badge bg-success';
+      ledgerBadge.textContent = 'حسابات مكتملة';
+    } else {
+      ledgerBadge.className = 'badge bg-warning text-dark';
+      const miss = (item.ledger_missing || []).map((key) => ({
+        expense: 'مصروف',
+        counterparty: 'ذمم',
+        cash: 'نقد'
+      }[key] || key)).join('، ');
+      ledgerBadge.textContent = `ناقص: ${miss || 'غير محدد'}`;
+    }
+    metaRow.appendChild(ledgerBadge);
+    button.appendChild(metaRow);
+
+    button.addEventListener('click', () => selectType(item.id));
+    if (item.id === selectedTypeId) {
+      button.classList.add('active');
+    }
+    typeListEl.appendChild(button);
+  });
+}
+
+function selectType(typeId) {
+  const target = expenseTypes.find((t) => t.id === typeId);
+  if (!target) return;
+  selectedTypeId = typeId;
+  selectedTypeName.textContent = target.name;
+  selectedTypeCode.textContent = target.code ? `الكود: ${target.code}` : '';
+  renderTypeList(filterTypes(typeSearchInput.value));
+  renderFieldPills();
+}
+
+function updateTypeMetaBadges(target) {
+  if (!selectedTypeBehavior || !selectedTypeLedgerSummary || !selectedTypeLedgerWarning) {
+    return;
+  }
+  if (!target) {
+    selectedTypeBehavior.textContent = 'وضع الدفع: —';
+    selectedTypeLedgerSummary.textContent = '';
+    selectedTypeLedgerWarning.classList.add('d-none');
+    return;
+  }
+  selectedTypeBehavior.textContent = `وضع الدفع: ${target.payment_behavior || 'IMMEDIATE'}`;
+  const summary = ledgerSummaryText(target.ledger || {}, target.ledger_missing || []);
+  selectedTypeLedgerSummary.textContent = summary;
+  const missing = target.ledger_missing || [];
+  if (!missing.length) {
+    selectedTypeLedgerWarning.classList.add('d-none');
+    selectedTypeLedgerWarning.textContent = '';
+  } else {
+    const labels = {
+      expense: 'حساب المصروف',
+      counterparty: 'حساب الذمم',
+      cash: 'حساب النقد/البنك'
+    };
+    const text = missing.map((key) => labels[key] || key).join('، ');
+    selectedTypeLedgerWarning.textContent = `استكمل: ${text}`;
+    selectedTypeLedgerWarning.classList.remove('d-none');
+  }
+}
+
+function renderFieldPills() {
+  const target = expenseTypes.find((t) => t.id === selectedTypeId);
+  if (!target) {
+    requiredContainer.innerHTML = '';
+    optionalContainer.innerHTML = '';
+    requiredCountBadge.textContent = '0 إلزامي';
+    optionalCountBadge.textContent = '0 اختياري';
+    updateTypeMetaBadges(null);
+    return;
+  }
+  requiredContainer.innerHTML = '';
+  target.required.forEach((fieldKey) => {
+    requiredContainer.appendChild(buildPill(fieldKey, 'required'));
+  });
+  optionalContainer.innerHTML = '';
+  target.optional.forEach((fieldKey) => {
+    optionalContainer.appendChild(buildPill(fieldKey, 'optional'));
+  });
+  requiredCountBadge.textContent = `${target.required.length} إلزامي`;
+  optionalCountBadge.textContent = `${target.optional.length} اختياري`;
+  populateSelects(target);
+  renderLedgerSettings(target);
+  updateTypeMetaBadges(target);
+}
+
+function buildPill(fieldKey, mode) {
+  const field = fieldLibrary.find((f) => f.key === fieldKey) || { label: fieldKey, category: '' };
+  const pill = document.createElement('span');
+  pill.className = mode === 'required' ? 'badge bg-success text-white d-flex align-items-center gap-2' : 'badge bg-secondary text-white d-flex align-items-center gap-2';
+  pill.innerHTML = `<span>${field.label}</span><span class="small">${field.category || ''}</span>`;
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'btn btn-sm btn-light ms-2';
+  removeBtn.innerHTML = '<i class="fas fa-times"></i>';
+  removeBtn.addEventListener('click', () => updateField(fieldKey, 'hidden'));
+  pill.appendChild(removeBtn);
+  return pill;
+}
+
+function populateSelects(target) {
+  const assigned = new Set([...target.required, ...target.optional]);
+  const available = fieldLibrary.filter((f) => !assigned.has(f.key));
+  requiredFieldSelect.innerHTML = '';
+  optionalFieldSelect.innerHTML = '';
+  available.forEach((field) => {
+    const option = document.createElement('option');
+    option.value = field.key;
+    option.textContent = `${field.label} (${field.key})`;
+    requiredFieldSelect.appendChild(option.cloneNode(true));
+    optionalFieldSelect.appendChild(option);
+  });
+  requiredSelectWrapper.classList.add('d-none');
+  optionalSelectWrapper.classList.add('d-none');
+}
+
+function matchesLedgerFilter(item, filterValue) {
+  if (!filterValue) return true;
+  const missing = item.ledger_missing || [];
+  switch (filterValue) {
+    case 'complete':
+      return !!item.ledger_complete;
+    case 'missing_expense':
+      return missing.includes('expense');
+    case 'missing_counterparty':
+      return missing.includes('counterparty');
+    case 'missing_cash':
+      return missing.includes('cash');
+    default:
+      return true;
+  }
+}
+
+function filterTypes(query) {
+  const value = (query || '').toLowerCase().trim();
+  const behaviorValue = (behaviorFilter?.value || '').trim().toUpperCase();
+  const ledgerValue = ledgerFilter?.value || '';
+  return expenseTypes.filter((item) => {
+    const matchesSearch = !value || item.name.toLowerCase().includes(value) || (item.code || '').toLowerCase().includes(value);
+    if (!matchesSearch) return false;
+    if (behaviorValue && (item.payment_behavior || 'IMMEDIATE').toUpperCase() !== behaviorValue) {
+      return false;
+    }
+    if (!matchesLedgerFilter(item, ledgerValue)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+typeSearchInput.addEventListener('input', (e) => {
+  renderTypeList(filterTypes(e.target.value));
+});
+
+if (behaviorFilter) {
+  behaviorFilter.addEventListener('change', () => renderTypeList(filterTypes(typeSearchInput.value)));
+}
+if (ledgerFilter) {
+  ledgerFilter.addEventListener('change', () => renderTypeList(filterTypes(typeSearchInput.value)));
+}
+
+addRequiredBtn.addEventListener('click', () => {
+  requiredSelectWrapper.classList.toggle('d-none');
+});
+
+addOptionalBtn.addEventListener('click', () => {
+  optionalSelectWrapper.classList.toggle('d-none');
+});
+
+confirmAddRequired.addEventListener('click', () => {
+  if (!selectedTypeId) return;
+  const fieldKey = requiredFieldSelect.value;
+  if (!fieldKey) return;
+  updateField(fieldKey, 'required');
+});
+
+confirmAddOptional.addEventListener('click', () => {
+  if (!selectedTypeId) return;
+  const fieldKey = optionalFieldSelect.value;
+  if (!fieldKey) return;
+  updateField(fieldKey, 'optional');
+});
+
+function updateField(fieldKey, mode) {
+  if (!selectedTypeId) return;
+  const url = routes.updateField.replace('/0/', `/${selectedTypeId}/`);
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    },
+    body: JSON.stringify({ field_key: fieldKey, mode })
+  }).then(async (resp) => {
+    const data = await resp.json();
+    if (!resp.ok || !data.success) throw new Error(data.error || 'فشل التحديث');
+    applyMetaToType(selectedTypeId, data.meta);
+    renderFieldPills();
+    showToast('تم الحفظ بنجاح', 'success');
+  }).catch((err) => {
+    showToast(err.message || 'خطأ غير متوقع', 'danger');
+  });
+}
+
+function applyMetaToType(typeId, meta) {
+  const target = expenseTypes.find((t) => t.id === typeId);
+  if (!target) return;
+  target.required = meta.required || [];
+  target.optional = meta.optional || [];
+  if (meta.ledger) {
+    target.ledger = meta.ledger;
+  }
+  if (meta.payment_behavior) {
+    target.payment_behavior = meta.payment_behavior;
+  }
+  updateLedgerFlags(target);
+}
+
+function renderLibraryTable(items) {
+  libraryTable.innerHTML = '';
+  items.forEach((field) => {
+    const row = document.createElement('tr');
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-sm btn-outline-primary';
+    btn.innerHTML = '<i class="fas fa-plus"></i>';
+    btn.addEventListener('click', () => promptAddField(field.key));
+    row.innerHTML = `
+      <td><code>${field.key}</code></td>
+      <td>${field.label}</td>
+      <td>${field.category || ''}</td>
+      <td class="text-end"></td>
+    `;
+    row.lastElementChild.appendChild(btn);
+    libraryTable.appendChild(row);
+  });
+}
+
+function promptAddField(fieldKey) {
+  if (!selectedTypeId) {
+    showToast('اختر نوعاً أولاً', 'warning');
+    return;
+  }
+  const modal = new bootstrap.Modal(document.createElement('div'));
+  const target = expenseTypes.find((t) => t.id === selectedTypeId);
+  if (!target) return;
+  if (target.required.includes(fieldKey) || target.optional.includes(fieldKey)) {
+    showToast('الحقل مضاف بالفعل', 'info');
+    return;
+  }
+  updateField(fieldKey, 'required');
+}
+
+function filterLibrary() {
+  const query = (librarySearchInput.value || '').toLowerCase().trim();
+  const category = categoryFilter.value;
+  const filtered = fieldLibrary.filter((field) => {
+    const matchCategory = !category || field.category === category;
+    const matchQuery = !query || field.key.toLowerCase().includes(query) || field.label.toLowerCase().includes(query);
+    return matchCategory && matchQuery;
+  });
+  renderLibraryTable(filtered);
+}
+
+librarySearchInput.addEventListener('input', filterLibrary);
+categoryFilter.addEventListener('change', filterLibrary);
+
+function populateCategoryFilter() {
+  const categories = Array.from(new Set(fieldLibrary.map((f) => f.category).filter(Boolean)));
+  categories.sort();
+  categories.forEach((cat) => {
+    const option = document.createElement('option');
+    option.value = cat;
+    option.textContent = cat;
+    categoryFilter.appendChild(option);
+  });
+}
+
+function refreshLibrary() {
+  fetch(routes.library, {
+    headers: {
+      'Accept': 'application/json'
+    }
+  }).then(async (resp) => {
+    const data = await resp.json();
+    if (!resp.ok || !data.success) throw new Error(data.error || 'فشل التحديث');
+    fieldLibrary = data.items || [];
+    populateCategoryFilter();
+    filterLibrary();
+    renderFieldPills();
+    showToast('تم تحديث المكتبة', 'success');
+  }).catch((err) => showToast(err.message || 'خطأ في التحديث', 'danger'));
+}
+
+refreshLibraryBtn.addEventListener('click', refreshLibrary);
+
+saveCustomFieldBtn.addEventListener('click', () => {
+  const key = document.getElementById('customFieldKey').value.trim();
+  const label = document.getElementById('customFieldLabel').value.trim();
+  const category = document.getElementById('customFieldCategory').value.trim() || 'مخصصة';
+  const inputType = document.getElementById('customFieldType').value;
+  if (!key || !label) {
+    showToast('جميع الحقول مطلوبة', 'warning');
+    return;
+  }
+  fetch(routes.customField, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    },
+    body: JSON.stringify({ key, label, category, type: inputType })
+  }).then(async (resp) => {
+    const data = await resp.json();
+    if (!resp.ok || !data.success) throw new Error(data.error || 'فشل الإضافة');
+    fieldLibrary = data.items || [];
+    populateCategoryFilter();
+    filterLibrary();
+    hideModal(customFieldModalEl);
+    document.getElementById('customFieldKey').value = '';
+    document.getElementById('customFieldLabel').value = '';
+    showToast('تمت إضافة الحقل', 'success');
+  }).catch((err) => showToast(err.message || 'خطأ أثناء الحفظ', 'danger'));
+});
+
+function ledgerSummaryText(ledger, missing = []) {
+  const labels = {
+    expense_account: 'حساب المصروف',
+    counterparty_account: 'حساب الذمم',
+    cash_account: 'حساب النقد'
+  };
+  const parts = [];
+  ['expense_account', 'counterparty_account', 'cash_account'].forEach((key) => {
+    const value = ledger?.[key];
+    if (value) {
+      parts.push(`${labels[key]}: ${value}`);
+    } else {
+      parts.push(`${labels[key]}: —`);
+    }
+  });
+  if (!parts.length) {
+    return 'لا توجد حسابات محددة بعد';
+  }
+  return parts.join(' | ');
+}
+
+function renderTemplates() {
+  if (!templatesListEl) return;
+  if (!templates.length) {
+    templatesListEl.innerHTML = '<div class="text-center text-muted">لا توجد قوالب محفوظة بعد</div>';
+    return;
+  }
+  templatesListEl.innerHTML = '';
+  templates.forEach((tpl) => {
+    const box = document.createElement('div');
+    box.className = 'border rounded p-3 mb-2';
+    box.innerHTML = `
+      <div class="d-flex justify-content-between align-items-start gap-3">
+        <div>
+          <div class="fw-bold">${tpl.name}</div>
+          ${tpl.description ? `<div class="text-muted small">${tpl.description}</div>` : ''}
+          <div class="small text-muted mt-2">
+            <span class="badge bg-dark text-white me-1">${(tpl.payment_behavior || 'IMMEDIATE')}</span>
+            <span>${ledgerSummaryText(tpl.ledger)}</span>
+          </div>
+          <div class="text-muted small mt-1">
+            حقول: إلزامي ${tpl.required?.length || 0} / اختياري ${tpl.optional?.length || 0}
+          </div>
+        </div>
+        <div class="btn-group btn-group-sm flex-shrink-0">
+          <button class="btn btn-outline-primary" data-template-apply="${tpl.id}"><i class="fas fa-play"></i> تطبيق</button>
+          <button class="btn btn-outline-danger" data-template-delete="${tpl.id}"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    `;
+    templatesListEl.appendChild(box);
+  });
+}
+
+function openTemplateCreateModal() {
+  if (!selectedTypeId) {
+    showToast('اختر نوع المصروف أولاً', 'warning');
+    return;
+  }
+  const selected = expenseTypes.find((t) => t.id === selectedTypeId);
+  templateSourceBadge.textContent = selected ? `سيتم حفظ إعدادات: ${selected.name}` : '';
+  templateNameInput.value = selected ? selected.name : '';
+  templateDescriptionInput.value = '';
+  showModal(templateCreateModalEl);
+}
+
+function populateTemplateApplySelect() {
+  if (!templateApplySelect) return;
+  templateApplySelect.innerHTML = '';
+  expenseTypes.forEach((type) => {
+    const opt = document.createElement('option');
+    opt.value = type.id;
+    opt.textContent = type.code ? `${type.name} (${type.code})` : type.name;
+    templateApplySelect.appendChild(opt);
+  });
+}
+
+function openTemplateApplyModal(templateId) {
+  templateApplyIdInput.value = templateId;
+  populateTemplateApplySelect();
+  showModal(templateApplyModalEl);
+}
+
+function deleteTemplate(templateId) {
+  if (!confirm('حذف هذا القالب نهائياً؟')) return;
+  const url = routes.templateDelete.replace('__TPL__', templateId);
+  fetch(url, {
+    method: 'DELETE',
+    headers: {
+      'X-CSRFToken': csrfToken
+    }
+  }).then(async (resp) => {
+    const data = await resp.json();
+    if (!resp.ok || !data.success) throw new Error(data.error || 'فشل الحذف');
+    templates = data.templates || [];
+    renderTemplates();
+    showToast('تم حذف القالب', 'success');
+  }).catch((err) => showToast(err.message || 'تعذر حذف القالب', 'danger'));
+}
+
+if (templatesListEl) {
+  templatesListEl.addEventListener('click', (ev) => {
+    const applyBtn = ev.target.closest('[data-template-apply]');
+    if (applyBtn) {
+      openTemplateApplyModal(applyBtn.dataset.templateApply);
+      return;
+    }
+    const deleteBtn = ev.target.closest('[data-template-delete]');
+    if (deleteBtn) {
+      deleteTemplate(deleteBtn.dataset.templateDelete);
+    }
+  });
+}
+
+if (createTemplateBtn) {
+  createTemplateBtn.addEventListener('click', openTemplateCreateModal);
+}
+
+if (saveTemplateBtn) {
+  saveTemplateBtn.addEventListener('click', () => {
+    if (!selectedTypeId) {
+      showToast('اختر نوع المصروف أولاً', 'warning');
+      return;
+    }
+    const name = templateNameInput.value.trim();
+    if (!name) {
+      showToast('أدخل اسم القالب', 'warning');
+      return;
+    }
+    const payload = {
+      name,
+      description: templateDescriptionInput.value.trim(),
+      source_type_id: selectedTypeId
+    };
+    fetch(routes.templateCreate, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify(payload)
+    }).then(async (resp) => {
+      const data = await resp.json();
+      if (!resp.ok || !data.success) throw new Error(data.error || 'فشل حفظ القالب');
+      templates = data.templates || [];
+      renderTemplates();
+      hideModal(templateCreateModalEl);
+      templateNameInput.value = '';
+      templateDescriptionInput.value = '';
+      showToast('تم حفظ القالب', 'success');
+    }).catch((err) => showToast(err.message || 'تعذر حفظ القالب', 'danger'));
+  });
+}
+
+if (applyTemplateConfirm) {
+  applyTemplateConfirm.addEventListener('click', () => {
+    const templateId = templateApplyIdInput.value;
+    const selectedOptions = Array.from(templateApplySelect.selectedOptions).map((opt) => parseInt(opt.value, 10)).filter((val) => !Number.isNaN(val));
+    if (!templateId || !selectedOptions.length) {
+      showToast('اختر الأنواع التي تريد تطبيق القالب عليها', 'warning');
+      return;
+    }
+    const url = routes.templateApply.replace('__TPL__', templateId);
+    fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify({ type_ids: selectedOptions })
+    }).then(async (resp) => {
+      const data = await resp.json();
+      if (!resp.ok || !data.success) throw new Error(data.error || 'فشل تطبيق القالب');
+      (data.updated || []).forEach((entry) => {
+        const target = expenseTypes.find((t) => t.id === entry.type_id);
+        if (target) {
+          target.required = entry.meta.required || [];
+          target.optional = entry.meta.optional || [];
+          target.ledger = entry.meta.ledger || {};
+          target.payment_behavior = entry.meta.payment_behavior || target.payment_behavior;
+          updateLedgerFlags(target);
+        }
+      });
+      hideModal(templateApplyModalEl);
+      renderTemplates();
+      renderFieldPills();
+      renderTypeList(filterTypes(typeSearchInput.value));
+      showToast('تم تطبيق القالب بنجاح', 'success');
+    }).catch((err) => showToast(err.message || 'تعذر تطبيق القالب', 'danger'));
+  });
+}
+
+const toastStyle = document.createElement('style');
+toastStyle.textContent = `
+.expense-toast {
+  position: fixed;
+  top: 90px;
+  right: 24px;
+  z-index: 2050;
+  min-width: 220px;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+}
+.expense-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+`;
+document.head.appendChild(toastStyle);
+
+function showToast(message, variant) {
+  const toast = document.createElement('div');
+  toast.className = `expense-toast alert alert-${variant}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 200);
+  }, 3500);
+}
+
+renderTemplates();
+renderTypeList(filterTypes(typeSearchInput.value));
+if (expenseTypes.length) {
+  selectType(expenseTypes[0].id);
+}
+populateCategoryFilter();
+filterLibrary();
+function populateLedgerOptions() {
+  if (!ledgerContainer) return;
+  const options = JSON.parse(ledgerContainer.dataset.accountOptions || '[]');
+  [ledgerExpenseAccountSelect, ledgerCounterpartyAccountSelect, ledgerCashAccountSelect].forEach((selectEl) => {
+    if (!selectEl) return;
+    const current = selectEl.value;
+    selectEl.innerHTML = '<option value="">-- بدون تحديد --</option>';
+    options.forEach((opt) => {
+      const optionEl = document.createElement('option');
+      optionEl.value = opt.code;
+      optionEl.textContent = `${opt.code} — ${opt.name}`;
+      selectEl.appendChild(optionEl);
+    });
+    if (current) {
+      selectEl.value = current;
+    }
+  });
+}
+
+function renderLedgerSettings(target) {
+  if (!ledgerExpenseAccountSelect) return;
+  populateLedgerOptions();
+  ledgerSaveBadge?.classList.add('d-none');
+  const ledger = (target && target.ledger) || {};
+  ledgerExpenseAccountSelect.value = ledger.expense_account || '';
+  ledgerCounterpartyAccountSelect.value = ledger.counterparty_account || '';
+  ledgerCashAccountSelect.value = ledger.cash_account || '';
+  ledgerPaymentBehaviorSelect.value = (target && target.payment_behavior) || 'IMMEDIATE';
+}
+
+function persistLedgerSettings() {
+  if (!selectedTypeId) return;
+  const url = routes.ledger.replace('/0/', `/${selectedTypeId}/`);
+  const payload = {
+    expense_account: ledgerExpenseAccountSelect.value,
+    counterparty_account: ledgerCounterpartyAccountSelect.value,
+    cash_account: ledgerCashAccountSelect.value,
+    payment_behavior: ledgerPaymentBehaviorSelect.value || 'IMMEDIATE'
+  };
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    },
+    body: JSON.stringify(payload)
+  }).then(async (resp) => {
+    const data = await resp.json();
+    if (!resp.ok || !data.success) throw new Error(data.error || 'فشل حفظ الإعدادات');
+    applyMetaToType(selectedTypeId, data.meta);
+    ledgerSaveBadge?.classList.remove('d-none');
+    showToast('تم حفظ إعدادات الدفتر', 'success');
+  }).catch((err) => showToast(err.message || 'خطأ أثناء حفظ الإعدادات', 'danger'));
+}
+
+[ledgerExpenseAccountSelect, ledgerCounterpartyAccountSelect, ledgerCashAccountSelect, ledgerPaymentBehaviorSelect].forEach((el) => {
+  if (!el) return;
+  el.addEventListener('change', () => persistLedgerSettings());
+});
+
+populateLedgerOptions();
+</script>
+{% endblock %}
+
+

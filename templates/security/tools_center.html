@@ -27,53 +27,160 @@
   <div class="card shadow-lg border-0">
     <div class="card-body p-0">
       
-      <ul class="nav nav-tabs nav-fill">
-        <li class="nav-item">
-          <a class="nav-link {% if active_tab == 'integrations' %}active{% endif %}" 
-             href="{{ url_for('security.tools_center', tab='integrations') }}"
-             title="التكاملات الخارجية">
+      <ul class="nav nav-tabs nav-fill" id="toolsTabs" role="tablist" data-initial-tab="{{ active_tab or 'integrations' }}">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'integrations' %}active{% endif %}"
+                  id="tab-trigger-integrations"
+                  data-bs-toggle="pill"
+                  data-bs-target="#tab-integrations"
+                  type="button"
+                  role="tab"
+                  aria-controls="tab-integrations"
+                  aria-selected="{% if active_tab == 'integrations' %}true{% else %}false{% endif %}"
+                  title="التكاملات الخارجية">
             التكامل
-          </a>
+          </button>
         </li>
-        
-        <li class="nav-item">
-          <a class="nav-link {% if active_tab == 'email' %}active{% endif %}" 
-             href="{{ url_for('security.tools_center', tab='email') }}"
-             title="إدارة البريد الإلكتروني">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'email' %}active{% endif %}"
+                  id="tab-trigger-email"
+                  data-bs-toggle="pill"
+                  data-bs-target="#tab-email"
+                  type="button"
+                  role="tab"
+                  aria-controls="tab-email"
+                  aria-selected="{% if active_tab == 'email' %}true{% else %}false{% endif %}"
+                  title="إدارة البريد الإلكتروني">
             <i class="fas fa-envelope"></i> البريد
-          </a>
+          </button>
         </li>
-        <li class="nav-item">
-          <a class="nav-link {% if active_tab == 'cards' %}active{% endif %}" 
-             href="{{ url_for('security.tools_center', tab='cards') }}">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'cards' %}active{% endif %}"
+                  id="tab-trigger-cards"
+                  data-bs-toggle="pill"
+                  data-bs-target="#tab-cards"
+                  type="button"
+                  role="tab"
+                  aria-controls="tab-cards"
+                  aria-selected="{% if active_tab == 'cards' %}true{% else %}false{% endif %}">
             <i class="fas fa-credit-card"></i> الكروت
-          </a>
+          </button>
         </li>
-        <li class="nav-item">
-          <a class="nav-link {% if active_tab == 'export' %}active{% endif %}" 
-             href="{{ url_for('security.tools_center', tab='export') }}">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link {% if active_tab == 'export' %}active{% endif %}"
+                  id="tab-trigger-export"
+                  data-bs-toggle="pill"
+                  data-bs-target="#tab-export"
+                  type="button"
+                  role="tab"
+                  aria-controls="tab-export"
+                  aria-selected="{% if active_tab == 'export' %}true{% else %}false{% endif %}">
             <i class="fas fa-download"></i> التصدير
-          </a>
+          </button>
         </li>
       </ul>
 
-      <div class="tab-content p-4">
+      <div class="tab-content p-4" id="toolsTabsContent">
         
         <!-- تاب 1: التكامل -->
         <div class="tab-pane fade {% if active_tab == 'integrations' %}show active{% endif %}" 
-             id="integrations" 
-             role="tabpanel">
+             id="tab-integrations" 
+             role="tabpanel" 
+             aria-labelledby="tab-trigger-integrations">
         <div class="container-fluid">
-          <div class="mb-3">
-            <button class="btn btn-primary ml-2" onclick="testIntegration('All')">
-              <i class="fas fa-vial"></i> لوحة الاختبار
-            </button>
-            <button class="btn btn-outline-info" onclick="showWebhookManager()">
-              <i class="fas fa-satellite-dish"></i> Webhook Manager
-            </button>
+          {% set active_integrations = (1 if integrations.stripe.enabled else 0) + (1 if integrations.paypal.enabled else 0) + (1 if integrations.sms.enabled else 0) + (1 if integrations.email.enabled else 0) %}
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm bg-gradient-success text-white h-100">
+                <div class="card-body">
+                  <small class="text-uppercase opacity-75">التكاملات النشطة</small>
+                  <h3 class="mb-0">{{ active_integrations }}/4</h3>
+                  <p class="mb-0 small">بوابات الدفع والاتصال المفعلة حالياً</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                  <small class="text-muted d-block">SMTP</small>
+                  <h5 class="mb-0">{{ integrations.email.smtp_host or '-' }}</h5>
+                  <span class="badge {% if integrations.email.enabled %}bg-success{% else %}bg-secondary{% endif %} mt-2">
+                    {% if integrations.email.enabled %}مفعل{% else %}معطل{% endif %}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                  <small class="text-muted d-block">رقم SMS/WhatsApp</small>
+                  <h5 class="mb-0">{{ integrations.sms.twilio_phone_number or 'غير محدد' }}</h5>
+                  <span class="badge {% if integrations.sms.enabled %}bg-success{% else %}bg-secondary{% endif %} mt-2">
+                    {% if integrations.sms.enabled %}إرسال متاح{% else %}معطل{% endif %}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                  <small class="text-muted d-block">أحدث اختبار</small>
+                  <p class="mb-2 small text-muted">استخدم لوحة التحكم السريعة لتأكيد الاتصال</p>
+                  <button class="btn btn-outline-primary btn-sm w-100" data-role="integration-test" data-integration="All">
+                    <i class="fas fa-bolt"></i> اختبار شامل
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           
-          <h4 class="mb-4"><i class="fas fa-plug text-success"></i> إدارة التكاملات</h4>
+          <div class="row g-3 mb-4 align-items-stretch">
+            <div class="col-lg-8">
+              <div class="h-100 p-3 bg-light border rounded">
+                <h4 class="mb-2"><i class="fas fa-plug text-success"></i> إدارة التكاملات</h4>
+                <p class="mb-0 text-muted">تحكم سريع بالحالة الحالية، اختبر الاتصال فوراً، وانتقل للإعدادات المتقدمة بدون مغادرة الصفحة.</p>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="card h-100 border-0 shadow-sm">
+                <div class="card-header bg-light d-flex align-items-center justify-content-between">
+                  <span><i class="fas fa-sliders-h"></i> لوحة التحكم السريعة</span>
+                  <button class="btn btn-sm btn-outline-secondary" data-role="tools-refresh">
+                    <i class="fas fa-sync"></i> تحديث البيانات
+                  </button>
+                </div>
+                <div class="card-body">
+                  <label class="form-label">اختبار الاتصال</label>
+                  <div class="input-group mb-3">
+                    <select class="form-select" id="integration-test-select">
+                      <option value="Stripe">Stripe</option>
+                      <option value="PayPal">PayPal</option>
+                      <option value="SMS">SMS/WhatsApp</option>
+                      <option value="Email">SMTP</option>
+                      <option value="All" selected>جميع التكاملات</option>
+                    </select>
+                    <button class="btn btn-primary" data-role="integration-test" data-select="#integration-test-select">
+                      تشغيل
+                    </button>
+                  </div>
+                  <label class="form-label">Webhooks</label>
+                  <div class="input-group mb-3">
+                    <select class="form-select" id="webhook-select">
+                      <option value="Stripe">Stripe</option>
+                      <option value="PayPal">PayPal</option>
+                      <option value="SMS">SMS/WhatsApp</option>
+                    </select>
+                    <button class="btn btn-outline-info" data-role="integration-webhook" data-select="#webhook-select">
+                      إدارة
+                    </button>
+                  </div>
+                  <a href="{{ url_for('security.integrations') }}" class="btn btn-outline-success w-100">
+                    <i class="fas fa-cog"></i> صفحة الإعدادات المتقدمة
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
           
           {% if integrations %}
           <div class="row g-4">
@@ -188,9 +295,27 @@
         
         <!-- تاب 3: البريد -->
         <div class="tab-pane fade {% if active_tab == 'email' %}show active{% endif %}" 
-             id="email" 
-             role="tabpanel">
+             id="tab-email" 
+             role="tabpanel"
+             aria-labelledby="tab-trigger-email">
         <div class="container-fluid">
+          
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <div class="btn-group btn-group-sm filter-group" role="group" data-filter-target="#emailLogsRows">
+              <button class="btn btn-outline-secondary active" data-filter-value="all">الكل</button>
+              <button class="btn btn-outline-success" data-filter-value="sent">أُرسلت</button>
+              <button class="btn btn-outline-warning" data-filter-value="pending">معلقة</button>
+              <button class="btn btn-outline-danger" data-filter-value="failed">فشلت</button>
+            </div>
+            <div class="ms-auto d-flex gap-2">
+              <button class="btn btn-sm btn-outline-secondary" data-role="tools-refresh">
+                <i class="fas fa-sync"></i> تحديث الصفحة
+              </button>
+              <a href="{{ url_for('security.notifications_log') }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-external-link-alt"></i> سجل كامل
+              </a>
+            </div>
+          </div>
           
           {% if email_stats %}
           <div class="row g-3 mb-4">
@@ -277,7 +402,7 @@
             </div>
             <div class="card-body p-0">
               {% if email_logs %}
-              <div class="table-responsive">
+                  <div class="table-responsive">
                 <table class="table table-hover mb-0">
                   <thead class="table-light">
                     <tr>
@@ -287,9 +412,9 @@
                       <th>الحالة</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody id="emailLogsRows">
                     {% for log in email_logs %}
-                    <tr>
+                    <tr data-status="{{ (log.status or '').lower() }}">
                       <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') if log.created_at else '-' }}</td>
                       <td>{{ log.recipient }}</td>
                       <td>{{ log.subject or log.type|upper }}</td>
@@ -319,9 +444,27 @@
         
         <!-- تاب 4: الكروت -->
         <div class="tab-pane fade {% if active_tab == 'cards' %}show active{% endif %}" 
-             id="cards" 
-             role="tabpanel">
+             id="tab-cards" 
+             role="tabpanel"
+             aria-labelledby="tab-trigger-cards">
         <div class="container-fluid">
+          
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <div class="btn-group btn-group-sm filter-group" role="group" data-filter-target="#cardsTableRows">
+              <button class="btn btn-outline-secondary active" data-filter-value="all">الكل</button>
+              <button class="btn btn-outline-success" data-filter-value="success">ناجح</button>
+              <button class="btn btn-outline-warning" data-filter-value="pending">معلق</button>
+              <button class="btn btn-outline-danger" data-filter-value="failed">فاشل</button>
+            </div>
+            <div class="ms-auto d-flex gap-2">
+              <button class="btn btn-sm btn-outline-secondary" data-role="tools-refresh">
+                <i class="fas fa-sync"></i> تحديث
+              </button>
+              <a href="{{ url_for('security.card_vault') }}" class="btn btn-sm btn-outline-light text-dark border">
+                <i class="fas fa-vault"></i> لوحة الكروت الكاملة
+              </a>
+            </div>
+          </div>
           
           {% if card_stats %}
           <div class="row g-3 mb-4">
@@ -381,9 +524,9 @@
                       <th>الحالة</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody id="cardsTableRows">
                     {% for card in recent_cards %}
-                    <tr>
+                    <tr data-status="{{ (card.status or '').lower() }}">
                       <td>{{ card.created_at.strftime('%Y-%m-%d %H:%M') if card.created_at else '-' }}</td>
                       <td><strong>{{ '%.2f'|format(card.amount) }}</strong></td>
                       <td>{{ card.currency or '-' }}</td>
@@ -422,8 +565,9 @@
         
         <!-- تاب 5: التصدير -->
         <div class="tab-pane fade {% if active_tab == 'export' %}show active{% endif %}" 
-             id="export" 
-             role="tabpanel">
+             id="tab-export" 
+             role="tabpanel"
+             aria-labelledby="tab-trigger-export">
         <div class="container-fluid">
           
           <div class="row g-3 mb-4">
@@ -524,5 +668,86 @@
     </div>
   </div>
 </div>
-{% endblock %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const tabsRoot = document.getElementById('toolsTabs');
+  const tabsContent = document.getElementById('toolsTabsContent');
+  if (tabsRoot && tabsContent) {
+    const initialTab = tabsRoot.getAttribute('data-initial-tab') || 'integrations';
+    const selector = `#tab-${initialTab}`;
+    const showFallbackTab = (target) => {
+      tabsRoot.querySelectorAll('button[data-bs-target]').forEach(btn => btn.classList.remove('active'));
+      const trigger = tabsRoot.querySelector(`button[data-bs-target="${target}"]`);
+      if (trigger) trigger.classList.add('active');
+      tabsContent.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active', 'show'));
+      const pane = tabsContent.querySelector(target);
+      if (pane) pane.classList.add('active', 'show');
+    };
+    if (window.bootstrap && bootstrap.Tab) {
+      const trigger = tabsRoot.querySelector(`button[data-bs-target="${selector}"]`);
+      if (trigger) bootstrap.Tab.getOrCreateInstance(trigger).show();
+    } else {
+      showFallbackTab(selector);
+      tabsRoot.querySelectorAll('button[data-bs-target]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          showFallbackTab(btn.getAttribute('data-bs-target'));
+        });
+      });
+    }
+  }
 
+  const applyFilter = (targetSelector, filterValue) => {
+    const container = document.querySelector(targetSelector);
+    if (!container) return;
+    const rows = container.querySelectorAll('[data-status]');
+    rows.forEach(row => {
+      const status = (row.getAttribute('data-status') || '').toLowerCase();
+      row.style.display = (filterValue === 'all' || status === filterValue) ? '' : 'none';
+    });
+  };
+
+  document.querySelectorAll('[data-filter-target]').forEach(group => {
+    group.addEventListener('click', function(e) {
+      const button = e.target.closest('button[data-filter-value]');
+      if (!button) return;
+      e.preventDefault();
+      group.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+      const target = group.getAttribute('data-filter-target');
+      applyFilter(target, button.getAttribute('data-filter-value'));
+    });
+  });
+
+  document.querySelectorAll('[data-role="tools-refresh"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      window.location.reload();
+    });
+  });
+
+  const runIntegrationTest = (value) => {
+    if (window.testIntegration) {
+      window.testIntegration(value || 'All');
+    }
+  };
+
+  document.querySelectorAll('[data-role="integration-test"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const selectSelector = btn.getAttribute('data-select');
+      const directValue = btn.getAttribute('data-integration');
+      const selectElement = selectSelector ? document.querySelector(selectSelector) : null;
+      const selectValue = selectElement ? selectElement.value : null;
+      runIntegrationTest(selectValue || directValue || 'All');
+    });
+  });
+
+  document.querySelectorAll('[data-role="integration-webhook"]').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (window.showWebhookManager) {
+        window.showWebhookManager();
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

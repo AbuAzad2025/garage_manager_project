@@ -1,21 +1,45 @@
 
 import csv
 import io
+import json
+import re
+import unicodedata
 from datetime import datetime, date as _date
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from flask import Blueprint, flash, redirect, render_template, render_template_string, abort, request, url_for, Response, current_app, jsonify
 import traceback
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import joinedload
-from sqlalchemy import or_, and_
+from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import or_, and_, func
 from flask_wtf.csrf import generate_csrf
+from urllib.parse import urlencode
 
 from extensions import db
 from forms import EmployeeForm, ExpenseTypeForm, ExpenseForm
-from models import Employee, ExpenseType, Expense, Shipment, UtilityAccount, StockAdjustment, Partner, Warehouse, Supplier
+from models import (
+    Employee,
+    ExpenseType,
+    Expense,
+    Shipment,
+    UtilityAccount,
+    StockAdjustment,
+    Partner,
+    Warehouse,
+    Supplier,
+    Customer,
+    Payment,
+    PaymentDirection,
+    PaymentMethod,
+    PaymentStatus,
+    PaymentEntityType,
+    ensure_currency,
+    Branch,
+)
 import utils
 from utils import D, q0, archive_record, restore_record
+from routes.payments import _ensure_payment_number
+from routes.checks import create_check_record
 
 expenses_bp = Blueprint(
     "expenses_bp",
@@ -142,6 +166,185 @@ def _merge_type_meta(exp_type: ExpenseType) -> dict:
 
     return merged
 
+
+def _payment_method_choices():
+    return [{"value": m.value, "label": m.label} for m in PaymentMethod]
+
+
+def _serialize_expense_payments(expense: Expense):
+    items = []
+    for payment in getattr(expense, "payments", []) or []:
+        items.append({
+            "id": payment.id,
+            "number": payment.payment_number or f"#{payment.id}",
+            "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+            "amount": float(q0(payment.total_amount or 0)),
+            "currency": payment.currency or expense.currency or "ILS",
+            "status": getattr(payment, "status", "") or "",
+            "method": getattr(payment, "method", "") or "",
+        })
+    return items
+
+
+DETAIL_FIELDS = [
+    "check_number",
+    "check_bank",
+    "check_due_date",
+    "bank_transfer_ref",
+    "bank_name",
+    "account_number",
+    "account_holder",
+    "card_number",
+    "card_holder",
+    "card_expiry",
+    "online_gateway",
+    "online_ref",
+]
+DATE_DETAIL_FIELDS = {"check_due_date"}
+
+
+def _parse_partial_payments_payload(raw_payload, default_date, default_currency):
+    entries = []
+    if not raw_payload:
+        return entries
+    try:
+        payload = json.loads(raw_payload)
+    except (TypeError, ValueError):
+        return entries
+    if not isinstance(payload, list):
+        return entries
+
+    if isinstance(default_date, datetime):
+        base_date = default_date
+    elif isinstance(default_date, _date):
+        base_date = datetime.combine(default_date, datetime.min.time())
+    else:
+        base_date = datetime.utcnow()
+
+    for row in payload:
+        if not isinstance(row, dict):
+            continue
+        amount = D(str(row.get("amount") or 0))
+        if amount <= 0:
+            continue
+        method_raw = (row.get("method") or PaymentMethod.CASH.value).strip().lower()
+        method_value = method_raw if method_raw in {m.value for m in PaymentMethod} else PaymentMethod.CASH.value
+        date_str = (row.get("date") or "").strip()
+        try:
+            payment_date = datetime.strptime(date_str, "%Y-%m-%d") if date_str else base_date
+        except ValueError:
+            payment_date = base_date
+        reference = (row.get("reference") or "").strip()
+        notes = (row.get("notes") or "").strip()
+        currency_code = ensure_currency(row.get("currency"), default_currency)
+        detail_payload = {}
+        for field in DETAIL_FIELDS:
+            raw_val = row.get(field)
+            if raw_val in (None, "", []):
+                continue
+            if field in DATE_DETAIL_FIELDS:
+                try:
+                    detail_payload[field] = datetime.strptime(str(raw_val).strip(), "%Y-%m-%d")
+                except ValueError:
+                    continue
+            else:
+                detail_payload[field] = str(raw_val).strip()
+        entries.append({
+            "amount": amount.quantize(Decimal("0.01")),
+            "method": method_value,
+            "payment_date": payment_date,
+            "reference": reference,
+            "notes": notes,
+            "currency": currency_code,
+            "details": detail_payload,
+        })
+    return entries
+
+
+def _create_partial_payments(expense: Expense, entries):
+    if not entries:
+        return []
+    base_currency = (expense.currency or "ILS").upper()
+    total_new = sum((entry["amount"] for entry in entries if entry["currency"] == base_currency), D("0"))
+    existing_paid = D(str(expense.total_paid or 0))
+    total_amount = D(str(expense.amount or 0))
+    if total_new + existing_paid - total_amount > D("0.01"):
+        raise ValueError("الدفعات المدخلة تتجاوز المبلغ الكلي للمصروف.")
+
+    created = []
+    for entry in entries:
+        payment = Payment(
+            payment_date=entry["payment_date"],
+            total_amount=entry["amount"],
+            currency=entry["currency"],
+            method=entry["method"],
+            status=PaymentStatus.COMPLETED.value,
+            direction=PaymentDirection.OUT.value,
+            entity_type=PaymentEntityType.EXPENSE.value,
+            expense_id=expense.id,
+            reference=entry["reference"],
+            notes=entry["notes"],
+            receiver_name=expense.payee_name or expense.paid_to or expense.beneficiary_name,
+            created_by=current_user.id if current_user.is_authenticated else None,
+        )
+        for field, value in (entry.get("details") or {}).items():
+            try:
+                setattr(payment, field, value)
+            except Exception:
+                continue
+        _ensure_payment_number(payment)
+        db.session.add(payment)
+        created.append(payment)
+    return created
+
+
+def _default_expense_branch_id():
+    branch = (
+        Branch.query.filter(Branch.is_active.is_(True))
+        .order_by(Branch.id.asc())
+        .first()
+    )
+    return branch.id if branch else None
+
+
+def _render_expense_form(
+    form,
+    *,
+    is_edit,
+    types_meta,
+    types_list,
+    expense=None,
+    service_mode=False,
+    service_supplier=None,
+    service_partner=None,
+    supplier_service_type_id=None,
+    partner_service_type_id=None,
+):
+    existing_payments = _serialize_expense_payments(expense) if expense else []
+    existing_paid_amount = float(q0(getattr(expense, "total_paid", 0) or 0)) if expense else 0.0
+    currency_choices = []
+    try:
+        for code, label in getattr(form.currency, "choices", []):
+            currency_choices.append({"code": code, "label": label})
+    except Exception:
+        currency_choices = [{"code": "ILS", "label": "ILS"}]
+    return render_template(
+        "expenses/expense_form.html",
+        form=form,
+        is_edit=is_edit,
+        types_meta=types_meta,
+        _types=types_list,
+        payment_method_choices=_payment_method_choices(),
+        existing_payments=existing_payments,
+        existing_paid_amount=existing_paid_amount,
+        currency_choices=currency_choices,
+        service_mode=service_mode,
+        service_supplier=service_supplier,
+        service_partner=service_partner,
+        supplier_service_type_id=supplier_service_type_id,
+        partner_service_type_id=partner_service_type_id,
+    )
+
 def _get_or_404(model, ident, *options):
     if options:
         q = db.session.query(model)
@@ -179,16 +382,174 @@ def _int_arg(name):
     except Exception:
         return None
 
-def _base_query_with_filters():
-    q = (
-        Expense.query.filter(Expense.is_archived == False).options(
-            joinedload(Expense.type),
-            joinedload(Expense.employee),
-            joinedload(Expense.shipment),
-            joinedload(Expense.utility_account),
-            joinedload(Expense.stock_adjustment),
+def _page_arg():
+    raw = (request.args.get("page") or "").strip()
+    if not raw:
+        return 1
+    try:
+        page = int(raw)
+    except Exception:
+        return 1
+    return page if page > 0 else 1
+
+def _build_page_url(page_num: int | None):
+    params = request.args.to_dict(flat=False)
+    params.pop("page", None)
+    if page_num and page_num > 1:
+        params["page"] = [str(page_num)]
+    query_parts = []
+    for key, values in params.items():
+        if isinstance(values, (list, tuple)):
+            iterable = values
+        else:
+            iterable = [values]
+        for value in iterable:
+            if value in (None, ""):
+                continue
+            query_parts.append((key, value))
+    qs = urlencode(query_parts, doseq=True)
+    base_path = request.path
+    return f"{base_path}?{qs}" if qs else base_path
+
+def _pagination_payload(pagination):
+    if not pagination:
+        return None
+    page = pagination.page
+    pages = pagination.pages or 1
+    window = 2
+    start = max(1, page - window)
+    end = min(pages, page + window)
+    items = []
+    for num in range(start, end + 1):
+        items.append(
+            {
+                "page": num,
+                "url": _build_page_url(num),
+                "current": num == page,
+            }
         )
-        .outerjoin(Employee, Expense.employee_id == Employee.id)
+    return {
+        "page": page,
+        "pages": pages,
+        "per_page": pagination.per_page,
+        "total": pagination.total,
+        "has_prev": pagination.has_prev,
+        "has_next": pagination.has_next,
+        "prev_page": pagination.prev_num if pagination.has_prev else None,
+        "next_page": pagination.next_num if pagination.has_next else None,
+        "prev_url": _build_page_url(pagination.prev_num) if pagination.has_prev else None,
+        "next_url": _build_page_url(pagination.next_num) if pagination.has_next else None,
+        "first_page": 1 if pages else None,
+        "first_url": _build_page_url(1) if pages else None,
+        "last_page": pages if pages else None,
+        "last_url": _build_page_url(pages) if pages else None,
+        "show_first_gap": start > 1,
+        "show_last_gap": end < pages,
+        "window": items,
+    }
+
+def _normalize_entity_text(value: str) -> str:
+    if not value:
+        return ""
+    text = unicodedata.normalize("NFKD", str(value))
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    text = text.lower()
+    return re.sub(r"[^a-z0-9\u0600-\u06ff]+", "", text)
+
+
+class LegacyEntityResolver:
+    def __init__(self, min_length: int = 3):
+        self.min_length = max(1, int(min_length or 1))
+        self.lookup = {}
+        self.ambiguous = set()
+        self.fields = ("payee_name", "paid_to", "beneficiary_name", "disbursed_by")
+        self._prepare()
+
+    def _prepare(self):
+        sources = [
+            ("SUPPLIER", "المورد", "supplier", "supplier_id", Supplier),
+            ("PARTNER", "الشريك", "partner", "partner_id", Partner),
+            ("CUSTOMER", "العميل", "customer", "customer_id", Customer),
+            ("EMPLOYEE", "الموظف", "employee", "employee_id", Employee),
+        ]
+        for kind, label, chip, field_name, model in sources:
+            rows = db.session.query(model.id, model.name).all()
+            for ident, name in rows:
+                token = _normalize_entity_text(name)
+                if not token or len(token) < self.min_length:
+                    continue
+                payload = {
+                    "type": kind,
+                    "label": label,
+                    "chip": chip,
+                    "field": field_name,
+                    "id": ident,
+                    "name": name,
+                }
+                self._register(token, payload)
+
+    def _register(self, token, payload):
+        if token in self.ambiguous:
+            return
+        if token in self.lookup:
+            self.lookup.pop(token, None)
+            self.ambiguous.add(token)
+            return
+        self.lookup[token] = payload
+
+    def guess(self, expense):
+        if not expense:
+            return None
+        if any(
+            getattr(expense, field, None)
+            for field in ("supplier_id", "partner_id", "customer_id", "employee_id")
+        ):
+            return None
+        for field in self.fields:
+            raw = getattr(expense, field, None)
+            token = _normalize_entity_text(raw)
+            if not token or len(token) < self.min_length:
+                continue
+            if token in self.ambiguous:
+                continue
+            payload = self.lookup.get(token)
+            if not payload:
+                continue
+            result = dict(payload)
+            result["guessed"] = True
+            result["source_field"] = field
+            result["source_value"] = raw
+            return result
+        return None
+
+    def annotate(self, expenses):
+        if not expenses:
+            return 0
+        count = 0
+        for expense in expenses:
+            if getattr(expense, "smart_entity_guess", None):
+                continue
+            guess = self.guess(expense)
+            if guess:
+                expense.smart_entity_guess = guess
+                count += 1
+        return count
+
+def _base_query_with_filters(include_relations=True):
+    q = Expense.query.filter(Expense.is_archived == False)
+    if include_relations:
+        q = q.options(
+            selectinload(Expense.type),
+            selectinload(Expense.employee),
+            selectinload(Expense.customer),
+            selectinload(Expense.partner),
+            selectinload(Expense.supplier),
+            selectinload(Expense.utility_account),
+            selectinload(Expense.shipment),
+            selectinload(Expense.payments),
+        )
+    q = (
+        q.outerjoin(Employee, Expense.employee_id == Employee.id)
         .outerjoin(Shipment, Expense.shipment_id == Shipment.id)
         .outerjoin(UtilityAccount, Expense.utility_account_id == UtilityAccount.id)
     )
@@ -538,6 +899,7 @@ def generate_salary(emp_id):
         db.session.add(salary_expense)
         db.session.flush()
         
+        salary_payment = None
         if actual_payment > 0:
             from models import Payment
             payment_notes = f"دفع {'جزئي' if remaining_balance > 0 else 'كامل'} للراتب"
@@ -559,6 +921,7 @@ def generate_salary(emp_id):
                 created_by=current_user.id if current_user.is_authenticated else None
             )
             db.session.add(payment)
+            salary_payment = payment
         
         for inst in installments_due:
             inst.paid = True
@@ -569,30 +932,29 @@ def generate_salary(emp_id):
         if installments_due:
             current_app.logger.info(f"✅ تم تحديث {len(installments_due)} قسط سلف للموظف {employee.name}")
         
-        if payment_method.upper() == 'CHECK' and check_number and check_bank:
-            try:
-                from models import Check
-                check_date = datetime.strptime(payment_date, '%Y-%m-%d')
-                check_due = datetime.strptime(check_due_date, '%Y-%m-%d') if check_due_date else check_date
-                
-                check = Check(
-                    check_number=check_number,
-                    check_bank=check_bank,
-                    check_date=check_date,
-                    check_due_date=check_due,
-                    amount=actual_payment,
-                    currency=employee.currency or 'ILS',
-                    direction='OUT',
-                    status='PENDING',
-                    reference_number=f'SALARY-{salary_expense.id}',
-                    notes=f"شيك راتب {month}/{year} - {employee.name}",
-                    payee_name=check_payee or employee.name,
-                    created_by_id=current_user.id if current_user.is_authenticated else None
-                )
-                db.session.add(check)
-                current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check_number} لراتب الموظف {employee.name}")
-            except Exception as e:
-                current_app.logger.error(f"❌ فشل إنشاء سجل الشيك: {e}")
+        if (
+            salary_payment
+            and payment_method.upper() == 'CHECK'
+            and check_number
+            and check_bank
+        ):
+            db.session.flush()
+            check_date_obj = datetime.strptime(payment_date, '%Y-%m-%d')
+            check_due_obj = datetime.strptime(check_due_date, '%Y-%m-%d') if check_due_date else check_date_obj
+            create_check_record(
+                payment=salary_payment,
+                amount=actual_payment,
+                check_number=check_number,
+                check_bank=check_bank,
+                check_date=check_date_obj,
+                check_due_date=check_due_obj,
+                direction='OUT',
+                currency=employee.currency or 'ILS',
+                reference_number=f"SALARY-{salary_expense.id}",
+                notes=f"شيك راتب {month}/{year} - {employee.name}",
+                payee_name=check_payee or employee.name,
+                created_by_id=current_user.id if current_user.is_authenticated else None
+            )
         
         db.session.commit()
         
@@ -755,71 +1117,100 @@ def delete_type(type_id):
 # @permission_required("manage_expenses")  # Commented out
 def index():
     query, filt = _base_query_with_filters()
-    expenses = query.all()
+    latest_expense = query.first()
+    page = _page_arg()
+    per_page = current_app.config.get("EXPENSES_PER_PAGE", 10)
+    try:
+        per_page = int(per_page)
+    except Exception:
+        per_page = 10
+    if per_page <= 0:
+        per_page = 10
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    expenses = pagination.items
+    if not latest_expense and expenses:
+        latest_expense = expenses[0]
+    resolver = LegacyEntityResolver()
+    resolver.annotate(expenses)
     
     from models import fx_rate
     
+    rate_cache = {}
+
+    def _convert_to_ils(value, currency, dt):
+        if value in (None, ""):
+            return 0.0
+        val = float(value or 0)
+        if not val:
+            return 0.0
+        curr = (currency or "").upper()
+        if curr in ("", "ILS"):
+            return val
+        if isinstance(dt, datetime):
+            key_dt = dt.date()
+        elif isinstance(dt, _date):
+            key_dt = dt
+        else:
+            key_dt = None
+        key = (curr, key_dt)
+        rate = rate_cache.get(key)
+        if rate is None:
+            try:
+                rate = fx_rate(curr, "ILS", dt, raise_on_missing=False)
+            except Exception:
+                rate = None
+            rate_cache[key] = rate
+        if rate and rate > 0:
+            return val * float(rate)
+        return val
+
+    summary_query, _ = _base_query_with_filters(include_relations=False)
+    summary_query = summary_query.with_entities(
+        Expense.amount,
+        Expense.currency,
+        Expense.date,
+        Expense.total_paid,
+        Expense.type_id,
+    )
+    type_lookup = {t.id: t.name for t in ExpenseType.query.with_entities(ExpenseType.id, ExpenseType.name).all()}
     total_expenses = 0.0
     total_paid = 0.0
     total_balance = 0.0
     expenses_by_type = {}
     expenses_by_currency = {}
-    
-    for expense in expenses:
-        amount = float(expense.amount or 0)
-        if expense.currency and expense.currency != 'ILS':
-            try:
-                rate = fx_rate(expense.currency, 'ILS', expense.date, raise_on_missing=False)
-                if rate > 0:
-                    amount = float(amount * float(rate))
-                else:
-                    current_app.logger.warning(f"⚠️ سعر صرف مفقود: {expense.currency}/ILS للمصروف #{expense.id} - استخدام المبلغ الأصلي")
-            except Exception as e:
-                current_app.logger.error(f"❌ خطأ في تحويل العملة للمصروف #{expense.id}: {str(e)}")
-        
-        total_expenses += amount
-        
-        paid = float(expense.total_paid or 0)
-        if expense.currency and expense.currency != 'ILS':
-            try:
-                rate = fx_rate(expense.currency, 'ILS', expense.date, raise_on_missing=False)
-                if rate > 0:
-                    paid = float(paid * float(rate))
-                else:
-                    current_app.logger.warning(f"⚠️ سعر صرف مفقود لحساب المدفوع للمصروف #{expense.id}")
-            except Exception as e:
-                current_app.logger.error(f"❌ خطأ في تحويل العملة للمدفوع للمصروف #{expense.id}: {str(e)}")
-        
-        total_paid += paid
-        balance = amount - paid
-        total_balance += balance
-        
-        expense_type = expense.type.name if expense.type else 'غير مصنف'
-        if expense_type not in expenses_by_type:
-            expenses_by_type[expense_type] = {'count': 0, 'amount': 0}
-        expenses_by_type[expense_type]['count'] += 1
-        expenses_by_type[expense_type]['amount'] += amount
-        
-        currency = expense.currency or 'ILS'
-        if currency not in expenses_by_currency:
-            expenses_by_currency[currency] = {'count': 0, 'amount': 0, 'amount_ils': 0}
-        expenses_by_currency[currency]['count'] += 1
-        expenses_by_currency[currency]['amount'] += float(expense.amount or 0)
-        expenses_by_currency[currency]['amount_ils'] += amount
+    for amount_value, currency_value, exp_date_value, paid_value, type_id_value in summary_query.yield_per(500):
+        amount_ils = _convert_to_ils(amount_value, currency_value, exp_date_value)
+        paid_ils = _convert_to_ils(paid_value, currency_value, exp_date_value)
+        total_expenses += amount_ils
+        total_paid += paid_ils
+        total_balance += amount_ils - paid_ils
+        type_name = type_lookup.get(type_id_value, 'غير مصنف')
+        type_entry = expenses_by_type.setdefault(type_name, {'count': 0, 'amount': 0})
+        type_entry['count'] += 1
+        type_entry['amount'] += amount_ils
+        currency_key = currency_value or 'ILS'
+        currency_entry = expenses_by_currency.setdefault(currency_key, {'count': 0, 'amount': 0, 'amount_ils': 0})
+        currency_entry['count'] += 1
+        currency_entry['amount'] += float(amount_value or 0)
+        currency_entry['amount_ils'] += amount_ils
     
     expenses_by_type_sorted = sorted(expenses_by_type.items(), key=lambda x: x[1]['amount'], reverse=True)
+    total_records = pagination.total
+    average_expense = total_expenses / total_records if total_records > 0 else 0
     
     summary = {
         'total_expenses': total_expenses,
         'total_paid': total_paid,
         'total_balance': total_balance,
-        'expenses_count': len(expenses),
-        'average_expense': total_expenses / len(expenses) if len(expenses) > 0 else 0,
+        'expenses_count': total_records,
+        'average_expense': average_expense,
         'expenses_by_type': expenses_by_type_sorted,
         'expenses_by_currency': expenses_by_currency,
         'payment_percentage': (total_paid / total_expenses * 100) if total_expenses > 0 else 0,
-        'latest_expense': expenses[0] if expenses else None
+        'latest_expense': latest_expense,
     }
+    
+    pagination_data = _pagination_payload(pagination)
     
     is_ajax = (
         request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -1183,7 +1574,8 @@ def index():
                 {
                     "table_html": table_html,
                     "summary_html": summary_html,
-                    "total_filtered": len(expenses),
+                    "total_filtered": pagination.total,
+                    "pagination": pagination_data,
                 }
             )
     
@@ -1200,6 +1592,8 @@ def index():
         stock_adjustment_id=filt["stock_adjustment_id"],
         payee_type=filt["payee_type"],
         summary=summary,
+        pagination=pagination,
+        pagination_data=pagination_data,
     )
 
 @expenses_bp.route("/<int:exp_id>", methods=["GET"], endpoint="detail")
@@ -1211,11 +1605,85 @@ def detail(exp_id):
         exp_id,
         joinedload(Expense.type),
         joinedload(Expense.employee),
+        joinedload(Expense.customer),
         joinedload(Expense.shipment),
         joinedload(Expense.utility_account),
         joinedload(Expense.stock_adjustment),
+        joinedload(Expense.payments)
+        .joinedload(Payment.splits),
     )
-    return render_template("expenses/detail.html", expense=exp)
+
+    def _coerce_datetime(value):
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, _date):
+            return datetime.combine(value, datetime.min.time())
+        if isinstance(value, str):
+            v = value.replace("Z", "+00:00")
+            try:
+                return datetime.fromisoformat(v)
+            except Exception:
+                return None
+        return None
+
+    def _method_label(value):
+        method_key = value.value if hasattr(value, "value") else value
+        mapping = {
+            "CASH": "نقد",
+            "CHEQUE": "شيك",
+            "CARD": "بطاقة",
+            "BANK": "تحويل بنكي",
+            "ONLINE": "دفع إلكتروني",
+        }
+        return mapping.get((method_key or "").upper(), method_key or "غير محدد")
+
+    payment_rows = []
+    method_labels = []
+    for p in exp.payments or []:
+        payment_method = _method_label(p.method)
+        if p.splits:
+            for split in p.splits:
+                details = split.details or {}
+                check_number = details.get("check_number") or p.check_number
+                check_bank = details.get("check_bank") or p.check_bank
+                check_due = details.get("check_due_date") or p.check_due_date
+                method_label = _method_label(split.method)
+                method_labels.append(method_label)
+                payment_rows.append(
+                    {
+                        "date": p.payment_date,
+                        "amount": split.amount,
+                        "currency": split.currency or p.currency,
+                        "status": p.status,
+                        "number": p.payment_number or p.id,
+                        "method": method_label,
+                        "check_number": check_number,
+                        "check_bank": check_bank,
+                        "check_due_date": _coerce_datetime(check_due),
+                    }
+                )
+        else:
+            method_labels.append(payment_method)
+            payment_rows.append(
+                {
+                    "date": p.payment_date,
+                    "amount": p.total_amount,
+                    "currency": p.currency,
+                    "status": p.status,
+                    "number": p.payment_number or p.id,
+                    "method": payment_method,
+                    "check_number": p.check_number,
+                    "check_bank": p.check_bank,
+                    "check_due_date": _coerce_datetime(p.check_due_date),
+                }
+            )
+
+    payment_rows.sort(key=lambda row: row["date"] or datetime.min)
+    methods_summary = ", ".join(dict.fromkeys(m for m in method_labels if m))
+
+    return render_template("expenses/detail.html", expense=exp, payment_rows=payment_rows, payment_methods_summary=methods_summary)
 
 @expenses_bp.route("/add", methods=["GET", "POST"], endpoint="create_expense")
 @login_required
@@ -1223,9 +1691,44 @@ def detail(exp_id):
 def add():
     from models import Branch, Site
     
+    raw_mode = (request.args.get("mode") or request.form.get("service_mode") or "").strip().lower()
+    supplier_service_mode = raw_mode == "supplier_service"
+    partner_service_mode = raw_mode == "partner_service"
+    prefill_supplier_id = request.args.get("supplier_id", type=int)
+    if prefill_supplier_id is None:
+        try:
+            prefill_supplier_id = int((request.form.get("prefill_supplier_id") or "").strip() or 0) or None
+        except (TypeError, ValueError, AttributeError):
+            prefill_supplier_id = None
+    service_supplier = Supplier.query.get(prefill_supplier_id) if prefill_supplier_id else None
+    prefill_partner_id = request.args.get("partner_id", type=int)
+    if prefill_partner_id is None:
+        try:
+            prefill_partner_id = int((request.form.get("prefill_partner_id") or "").strip() or 0) or None
+        except (TypeError, ValueError, AttributeError):
+            prefill_partner_id = None
+    service_partner = Partner.query.get(prefill_partner_id) if prefill_partner_id else None
+
     form = ExpenseForm()
     _types = ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()
+    types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
     form.type_id.choices = [(t.id, t.name) for t in _types]
+    supplier_service_type_id = None
+    partner_service_type_id = None
+    if supplier_service_mode:
+        supplier_service_type_id = next(
+            (t["id"] for t in types_list if (t.get("code") or "").upper() == "SUPPLIER_EXPENSE"),
+            None,
+        )
+        if supplier_service_type_id:
+            form.type_id.data = supplier_service_type_id
+    if partner_service_mode:
+        partner_service_type_id = next(
+            (t["id"] for t in types_list if (t.get("code") or "").upper() == "PARTNER_EXPENSE"),
+            None,
+        )
+        if partner_service_type_id:
+            form.type_id.data = partner_service_type_id
     try:
         form.branch_id.choices = [(b.id, f"{b.code} - {b.name}") for b in Branch.query.filter_by(is_active=True).order_by(Branch.name).all()]
         form.site_id.choices = [(0, '-- بدون موقع --')] + [
@@ -1239,10 +1742,30 @@ def add():
     form.warehouse_id.choices = [(0, '-- اختر مستودع --')] + [(w.id, w.name) for w in Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).limit(100).all()]
     form.partner_id.choices = [(0, '-- اختر شريك --')] + [(p.id, p.name) for p in Partner.query.filter_by(is_archived=False).order_by(Partner.name).limit(100).all()]
     form.supplier_id.choices = [(0, '-- اختر مورد --')] + [(s.id, s.name) for s in Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).limit(100).all()]
+    if service_supplier and all(choice_id != service_supplier.id for choice_id, _ in form.supplier_id.choices):
+        form.supplier_id.choices.append((service_supplier.id, f"✓ {service_supplier.name}"))
+    if service_supplier:
+        form.supplier_id.data = service_supplier.id
+    if service_partner and all(choice_id != service_partner.id for choice_id, _ in form.partner_id.choices):
+        form.partner_id.choices.append((service_partner.id, f"✓ {service_partner.name}"))
+    if service_partner:
+        form.partner_id.data = service_partner.id
+    customers_query = Customer.query
+    if hasattr(Customer, 'is_archived'):
+        customers_query = customers_query.filter_by(is_archived=False)
+    customers = customers_query.order_by(Customer.name).limit(100).all()
+    form.customer_id.choices = [(0, '-- اختر عميل --')] + [(c.id, c.name) for c in customers]
     form.shipment_id.choices = [(0, '-- اختر شحنة --')] + [(s.id, f"شحنة #{s.id}") for s in Shipment.query.order_by(Shipment.id.desc()).limit(50).all()]
     form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')] + [(sa.id, f"تسوية #{sa.id}") for sa in StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()]
     
     types_meta = {t.id: _merge_type_meta(t) for t in _types}
+    render_kwargs = {
+        "service_mode": supplier_service_mode or partner_service_mode,
+        "service_supplier": service_supplier,
+        "service_partner": service_partner,
+        "supplier_service_type_id": supplier_service_type_id,
+        "partner_service_type_id": partner_service_type_id,
+    }
 
     if form.validate_on_submit():
         exp = Expense()
@@ -1257,18 +1780,15 @@ def add():
             
             if not exp.branch_id or exp.branch_id == 0:
                 flash("⚠️ يرجى اختيار الفرع من القائمة", "warning")
-                types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
-                return render_template("expenses/expense_form.html", form=form, is_edit=False, types_meta=types_meta, _types=types_list)
+                return _render_expense_form(form, is_edit=False, types_meta=types_meta, types_list=types_list, **render_kwargs)
             
             if not exp.amount or exp.amount <= 0:
                 flash("⚠️ يرجى إدخال مبلغ المصروف", "warning")
-                types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
-                return render_template("expenses/expense_form.html", form=form, is_edit=False, types_meta=types_meta, _types=types_list)
+                return _render_expense_form(form, is_edit=False, types_meta=types_meta, types_list=types_list, **render_kwargs)
             
             if not exp.disbursed_by or exp.disbursed_by.strip() == '':
                 flash("⚠️ يرجى إدخال اسم الشخص الذي سلم المال", "warning")
-                types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
-                return render_template("expenses/expense_form.html", form=form, is_edit=False, types_meta=types_meta, _types=types_list)
+                return _render_expense_form(form, is_edit=False, types_meta=types_meta, types_list=types_list, **render_kwargs)
             
             if not getattr(form.employee_id, "data", None) or form.employee_id.data == 0:
                 exp.employee_id = None
@@ -1280,6 +1800,13 @@ def add():
                 exp.shipment_id = None
             if not getattr(form, "stock_adjustment_id", None) or form.stock_adjustment_id.data == 0:
                 exp.stock_adjustment_id = None
+
+        partial_payload_raw = request.form.get("partial_payments_payload")
+        partial_entries = _parse_partial_payments_payload(
+            partial_payload_raw,
+            form.date.data or datetime.utcnow(),
+            (form.currency.data or exp.currency or "ILS"),
+        )
 
         try:
             etype = ExpenseType.query.get(int(form.type_id.data)) if getattr(form, 'type_id', None) else None
@@ -1306,11 +1833,7 @@ def add():
                 flash(f"❌ حقول إلزامية مفقودة: {errs}", 'danger')
                 raise ValueError('missing required fields')
         except Exception:
-            return render_template(
-                "expenses/expense_form.html",
-                form=form,
-                is_edit=False,
-            ), 400
+            return _render_expense_form(form, is_edit=False, types_meta=types_meta, types_list=types_list, **render_kwargs), 400
         try:
             etype = ExpenseType.query.get(exp.type_id) if exp.type_id else None
             if etype and etype.code == 'SALARY' and exp.employee_id:
@@ -1325,6 +1848,12 @@ def add():
         
         db.session.add(exp)
         db.session.flush()
+        try:
+            _create_partial_payments(exp, partial_entries)
+        except ValueError as perr:
+            db.session.rollback()
+            flash(str(perr), "danger")
+            return _render_expense_form(form, is_edit=False, types_meta=types_meta, types_list=types_list, **render_kwargs)
         
         try:
             db.session.commit()
@@ -1380,31 +1909,21 @@ def add():
                 current_app.logger.error(f"❌ فشل إنشاء خصم شهري: {e}")
             
             try:
-                from models import Check
-                from flask_login import current_user
-                
                 if exp.payment_method and exp.payment_method.lower() in ['check', 'cheque']:
                     check_number = (exp.check_number or '').strip()
                     check_bank = (exp.check_bank or '').strip()
-                    
                     if not check_number or not check_bank:
                         current_app.logger.warning(f"⚠️ مصروف {exp.id} بطريقة شيك لكن بدون رقم شيك أو بنك")
                     else:
-                        check_due_date = exp.check_due_date
-                        if check_due_date and isinstance(check_due_date, date) and not isinstance(check_due_date, datetime):
-                            check_due_date = datetime.combine(check_due_date, datetime.min.time())
-                        elif not check_due_date:
-                            check_due_date = exp.date or datetime.utcnow()
-                        
-                        check = Check(
+                        check_due = exp.check_due_date or exp.date or datetime.utcnow()
+                        _, created = create_check_record(
+                            amount=exp.amount,
                             check_number=check_number,
                             check_bank=check_bank,
                             check_date=exp.date or datetime.utcnow(),
-                            check_due_date=check_due_date,
-                            amount=exp.amount,
+                            check_due_date=check_due,
                             currency=exp.currency or 'ILS',
-                            direction='OUT',  # المصروفات دائماً صادرة
-                            status='PENDING',
+                            direction='OUT',
                             supplier_id=getattr(exp, 'supplier_id', None),
                             partner_id=getattr(exp, 'partner_id', None),
                             reference_number=f"EXP-{exp.id}",
@@ -1412,9 +1931,9 @@ def add():
                             payee_name=exp.payee_name or exp.paid_to or exp.beneficiary_name,
                             created_by_id=current_user.id if current_user.is_authenticated else None
                         )
-                        db.session.add(check)
-                        db.session.commit()
-                        current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check.check_number} من مصروف رقم {exp.id}")
+                        if created:
+                            db.session.commit()
+                            current_app.logger.info(f"✅ تم إنشاء سجل شيك من مصروف رقم {exp.id}")
             except Exception as e:
                 current_app.logger.error(f"❌ فشل إنشاء سجل شيك من مصروف {exp.id}: {str(e)}")
                 import traceback
@@ -1445,12 +1964,253 @@ def add():
             import traceback
             current_app.logger.error(traceback.format_exc())
     
-    types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
-    return render_template("expenses/expense_form.html", 
-                         form=form, 
-                         is_edit=False,
-                         types_meta=types_meta,
-                         _types=types_list)
+    return _render_expense_form(form, is_edit=False, types_meta=types_meta, types_list=types_list, **render_kwargs)
+
+
+@expenses_bp.route("/quick-supplier-service", methods=["POST"], endpoint="quick_supplier_service")
+@login_required
+def quick_supplier_service():
+    if not request.is_json:
+        return jsonify({"success": False, "message": "payload_required"}), 400
+    data = request.get_json(silent=True) or {}
+    supplier_id = data.get("supplier_id")
+    try:
+        supplier_id = int(supplier_id or 0)
+    except (TypeError, ValueError):
+        supplier_id = 0
+    supplier = Supplier.query.get(supplier_id)
+    if not supplier:
+        return jsonify({"success": False, "message": "supplier_not_found"}), 404
+    amount = D(str(data.get("amount") or 0))
+    if amount <= 0:
+        return jsonify({"success": False, "message": "invalid_amount"}), 400
+    currency = ensure_currency(data.get("currency"), supplier.currency or "ILS")
+    description = (data.get("description") or "").strip()
+    branch_id = data.get("branch_id")
+    try:
+        branch_id = int(branch_id or 0)
+    except (TypeError, ValueError):
+        branch_id = 0
+    if not branch_id:
+        branch_id = _default_expense_branch_id()
+    branch = Branch.query.get(branch_id) if branch_id else None
+    if not branch:
+        return jsonify({"success": False, "message": "branch_not_found"}), 400
+    supplier_type = (
+        ExpenseType.query.filter(func.upper(ExpenseType.code) == "SUPPLIER_EXPENSE")
+        .order_by(ExpenseType.id.asc())
+        .first()
+    )
+    if not supplier_type:
+        return jsonify({"success": False, "message": "supplier_type_missing"}), 400
+    exp = Expense()
+    exp.date = datetime.utcnow()
+    exp.amount = amount
+    exp.currency = currency
+    exp.branch_id = branch.id
+    exp.type_id = supplier_type.id
+    exp.supplier_id = supplier.id
+    exp.payee_type = "SUPPLIER"
+    exp.payee_entity_id = supplier.id
+    exp.payee_name = supplier.name
+    exp.beneficiary_name = supplier.name
+    exp.paid_to = supplier.name
+    user_name = getattr(current_user, "full_name", None) or getattr(current_user, "name", None) or getattr(current_user, "username", None) or "المحاسب"
+    exp.disbursed_by = user_name
+    exp.description = description or "فاتورة خدمة"
+    exp.notes = description or None
+    exp.payment_method = "cash"
+    exp.payment_details = None
+    db.session.add(exp)
+    db.session.commit()
+    return jsonify(
+        {
+            "success": True,
+            "expense_id": exp.id,
+            "expense_url": url_for("expenses_bp.edit", exp_id=exp.id),
+            "amount": float(amount),
+            "currency": currency,
+            "supplier_name": supplier.name,
+        }
+    )
+
+
+@expenses_bp.route("/quick-supplier-service/pay", methods=["POST"], endpoint="quick_supplier_service_pay")
+@login_required
+def quick_supplier_service_pay():
+    if not request.is_json:
+        return jsonify({"success": False, "message": "payload_required"}), 400
+    data = request.get_json(silent=True) or {}
+    expense_id = data.get("expense_id")
+    try:
+        expense_id = int(expense_id or 0)
+    except (TypeError, ValueError):
+        expense_id = 0
+    expense = Expense.query.get(expense_id)
+    if not expense:
+        return jsonify({"success": False, "message": "expense_not_found"}), 404
+    amount = D(str(data.get("amount") or 0))
+    if amount <= 0:
+        return jsonify({"success": False, "message": "invalid_amount"}), 400
+    currency = ensure_currency(data.get("currency"), expense.currency or "ILS")
+    if currency != (expense.currency or "ILS"):
+        return jsonify({"success": False, "message": "currency_mismatch"}), 400
+    method_raw = (data.get("method") or "cash").strip().lower()
+    allowed_methods = {m.value for m in PaymentMethod}
+    if method_raw not in allowed_methods:
+        return jsonify({"success": False, "message": "invalid_method"}), 400
+    reference = (data.get("reference") or "").strip()
+    notes = (data.get("notes") or "").strip()
+    entries = [
+        {
+            "amount": amount.quantize(Decimal("0.01")),
+            "method": method_raw,
+            "payment_date": datetime.utcnow(),
+            "reference": reference,
+            "notes": notes,
+            "currency": currency,
+            "details": {},
+        }
+    ]
+    try:
+        _create_partial_payments(expense, entries)
+        db.session.commit()
+    except ValueError as err:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(err) or "payment_error"}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({"success": False, "message": "payment_error"}), 400
+    return jsonify(
+        {
+            "success": True,
+            "expense_id": expense.id,
+            "expense_url": url_for("expenses_bp.edit", exp_id=expense.id),
+        }
+    )
+
+
+@expenses_bp.route("/quick-partner-service", methods=["POST"], endpoint="quick_partner_service")
+@login_required
+def quick_partner_service():
+    if not request.is_json:
+        return jsonify({"success": False, "message": "payload_required"}), 400
+    data = request.get_json(silent=True) or {}
+    partner_id = data.get("partner_id")
+    try:
+        partner_id = int(partner_id or 0)
+    except (TypeError, ValueError):
+        partner_id = 0
+    partner = Partner.query.get(partner_id)
+    if not partner:
+        return jsonify({"success": False, "message": "partner_not_found"}), 404
+    amount = D(str(data.get("amount") or 0))
+    if amount <= 0:
+        return jsonify({"success": False, "message": "invalid_amount"}), 400
+    currency = ensure_currency(data.get("currency"), partner.currency or "ILS")
+    description = (data.get("description") or "").strip()
+    branch_id = data.get("branch_id")
+    try:
+        branch_id = int(branch_id or 0)
+    except (TypeError, ValueError):
+        branch_id = 0
+    if not branch_id:
+        branch_id = _default_expense_branch_id()
+    branch = Branch.query.get(branch_id) if branch_id else None
+    if not branch:
+        return jsonify({"success": False, "message": "branch_not_found"}), 400
+    partner_type = (
+        ExpenseType.query.filter(func.upper(ExpenseType.code) == "PARTNER_EXPENSE")
+        .order_by(ExpenseType.id.asc())
+        .first()
+    )
+    if not partner_type:
+        return jsonify({"success": False, "message": "partner_type_missing"}), 400
+    exp = Expense()
+    exp.date = datetime.utcnow()
+    exp.amount = amount
+    exp.currency = currency
+    exp.branch_id = branch.id
+    exp.type_id = partner_type.id
+    exp.partner_id = partner.id
+    exp.payee_type = "PARTNER"
+    exp.payee_entity_id = partner.id
+    exp.payee_name = partner.name
+    exp.beneficiary_name = partner.name
+    exp.paid_to = partner.name
+    user_name = getattr(current_user, "full_name", None) or getattr(current_user, "name", None) or getattr(current_user, "username", None) or "المحاسب"
+    exp.disbursed_by = user_name
+    exp.description = description or "فاتورة خدمة شريك"
+    exp.notes = description or None
+    exp.payment_method = "cash"
+    exp.payment_details = None
+    db.session.add(exp)
+    db.session.commit()
+    return jsonify(
+        {
+            "success": True,
+            "expense_id": exp.id,
+            "expense_url": url_for("expenses_bp.edit", exp_id=exp.id),
+            "amount": float(amount),
+            "currency": currency,
+            "partner_name": partner.name,
+        }
+    )
+
+
+@expenses_bp.route("/quick-partner-service/pay", methods=["POST"], endpoint="quick_partner_service_pay")
+@login_required
+def quick_partner_service_pay():
+    if not request.is_json:
+        return jsonify({"success": False, "message": "payload_required"}), 400
+    data = request.get_json(silent=True) or {}
+    expense_id = data.get("expense_id")
+    try:
+        expense_id = int(expense_id or 0)
+    except (TypeError, ValueError):
+        expense_id = 0
+    expense = Expense.query.get(expense_id)
+    if not expense:
+        return jsonify({"success": False, "message": "expense_not_found"}), 404
+    amount = D(str(data.get("amount") or 0))
+    if amount <= 0:
+        return jsonify({"success": False, "message": "invalid_amount"}), 400
+    currency = ensure_currency(data.get("currency"), expense.currency or "ILS")
+    if currency != (expense.currency or "ILS"):
+        return jsonify({"success": False, "message": "currency_mismatch"}), 400
+    method_raw = (data.get("method") or "cash").strip().lower()
+    allowed_methods = {m.value for m in PaymentMethod}
+    if method_raw not in allowed_methods:
+        return jsonify({"success": False, "message": "invalid_method"}), 400
+    reference = (data.get("reference") or "").strip()
+    notes = (data.get("notes") or "").strip()
+    entries = [
+        {
+            "amount": amount.quantize(Decimal("0.01")),
+            "method": method_raw,
+            "payment_date": datetime.utcnow(),
+            "reference": reference,
+            "notes": notes,
+            "currency": currency,
+            "details": {},
+        }
+    ]
+    try:
+        _create_partial_payments(expense, entries)
+        db.session.commit()
+    except ValueError as err:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(err) or "payment_error"}), 400
+    except Exception:
+        db.session.rollback()
+        return jsonify({"success": False, "message": "payment_error"}), 400
+    return jsonify(
+        {
+            "success": True,
+            "expense_id": expense.id,
+            "expense_url": url_for("expenses_bp.edit", exp_id=expense.id),
+        }
+    )
 
 @expenses_bp.route("/edit/<int:exp_id>", methods=["GET", "POST"], endpoint="edit")
 @login_required
@@ -1462,6 +2222,7 @@ def edit(exp_id):
     form = ExpenseForm(obj=exp)
     
     _types = ExpenseType.query.order_by(ExpenseType.name).all()
+    types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
     form.type_id.choices = [(t.id, t.name) for t in _types]
     types_meta = {t.id: _merge_type_meta(t) for t in _types}
     
@@ -1501,6 +2262,20 @@ def edit(exp_id):
         form.supplier_id.choices.append((exp.supplier.id, f"✓ {exp.supplier.name}"))
     form.supplier_id.choices += [(s.id, s.name) for s in suppliers]
     
+    customers_query = Customer.query
+    if hasattr(Customer, 'is_archived'):
+        customers_query = customers_query.filter_by(is_archived=False)
+    customers = customers_query.order_by(Customer.name).limit(100).all()
+    form.customer_id.choices = [(0, '-- اختر عميل --')]
+    current_customer_id = exp.customer_id or (exp.payee_entity_id if getattr(exp, 'payee_type', '').upper() == 'CUSTOMER' else None)
+    if current_customer_id:
+        if exp.customer_id and exp.customer and exp.customer not in customers:
+            form.customer_id.choices.append((exp.customer.id, f"✓ {exp.customer.name}"))
+        elif not any(c.id == current_customer_id for c in customers):
+            form.customer_id.choices.append((current_customer_id, f"✓ {exp.payee_name or f'عميل #{current_customer_id}'}"))
+        form.customer_id.data = current_customer_id
+    form.customer_id.choices += [(c.id, c.name) for c in customers]
+    
     adjustments = StockAdjustment.query.order_by(StockAdjustment.id.desc()).limit(50).all()
     form.stock_adjustment_id.choices = [(0, '-- اختر تسوية --')]
     if exp.stock_adjustment_id and exp.stock_adjustment and exp.stock_adjustment not in adjustments:
@@ -1508,6 +2283,12 @@ def edit(exp_id):
     form.stock_adjustment_id.choices += [(sa.id, f"تسوية #{sa.id}") for sa in adjustments]
     
     if form.validate_on_submit():
+        partial_payload_raw = request.form.get("partial_payments_payload")
+        partial_entries = _parse_partial_payments_payload(
+            partial_payload_raw,
+            form.date.data or exp.date or datetime.utcnow(),
+            form.currency.data or exp.currency or "ILS",
+        )
         if hasattr(form, "apply_to"):
             form.apply_to(exp)
         else:
@@ -1529,19 +2310,19 @@ def edit(exp_id):
             if not getattr(form, "stock_adjustment_id", None) or form.stock_adjustment_id.data == 0:
                 exp.stock_adjustment_id = None
         try:
+            db.session.flush()
+            _create_partial_payments(exp, partial_entries)
             db.session.commit()
             flash("✅ تم تعديل المصروف", "success")
             return redirect(url_for("expenses_bp.list_expenses"))
+        except ValueError as perr:
+            db.session.rollback()
+            flash(str(perr), "danger")
         except SQLAlchemyError as err:
             db.session.rollback()
             flash(f"❌ خطأ في تعديل المصروف: {err}", "danger")
     
-    types_list = [{'id': t.id, 'name': t.name, 'code': t.code, 'fields_meta': t.fields_meta} for t in _types]
-    return render_template("expenses/expense_form.html", 
-                         form=form, 
-                         is_edit=True,
-                         types_meta=types_meta,
-                         _types=types_list)
+    return _render_expense_form(form, is_edit=True, types_meta=types_meta, types_list=types_list, expense=exp)
 
 @expenses_bp.route("/delete/<int:exp_id>", methods=["POST"], endpoint="delete")
 @login_required

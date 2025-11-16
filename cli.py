@@ -19,10 +19,10 @@ from permissions_config.permissions import PermissionsRegistry
 from models import (
     Account, AuditLog, Customer, Employee, ExchangeTransaction, Expense, ExpenseType, GLBatch, GLEntry, GL_ACCOUNTS,
     Invoice, Note, OnlineCart, OnlineCartItem, OnlinePayment, OnlinePreOrder, OnlinePreOrderItem,
-    PartnerSettlement, Payment, PaymentDirection, PaymentEntityType, PaymentMethod, PaymentStatus, Permission,
+    Partner, PartnerSettlement, Payment, PaymentDirection, PaymentEntityType, PaymentMethod, PaymentStatus, Permission,
     PreOrder, Product, Role, ServicePart, ServiceRequest, ServiceStatus, ServiceTask,
     Shipment, ShipmentItem, StockAdjustment, StockAdjustmentItem, StockLevel, Supplier,
-    SupplierSettlement, Transfer, TransferDirection, Warehouse, _gl_upsert_batch_and_entries,
+    SupplierSettlement, Transfer, TransferDirection, Warehouse, _ensure_customer_for_counterparty, _gl_upsert_batch_and_entries,
     build_partner_settlement_draft, build_supplier_settlement_draft, User,
 )
 
@@ -1548,6 +1548,95 @@ def expense_pay(expense_id, amount, method, currency):
     except SQLAlchemyError as e:
         db.session.rollback(); raise click.ClickException(str(e)) from e
 
+@click.command("expense-link-known-entities")
+@with_appcontext
+def expense_link_known_entities():
+    updated = {"naser": 0, "mahal": 0, "baraa": 0}
+    naser_name = "نصر  خالد"
+    naser = db.session.query(Employee).filter(Employee.name == naser_name).one_or_none()
+    if naser:
+        q = db.session.query(Expense).filter(
+            Expense.employee_id.is_(None),
+            Expense.supplier_id.is_(None),
+            Expense.partner_id.is_(None),
+            Expense.customer_id.is_(None),
+            (Expense.payee_name.contains("نصر")) | (Expense.payee_name.contains("[افتراضي] نصر"))
+        )
+        for e in q.yield_per(100):
+            e.employee_id = naser.id
+            e.payee_type = "EMPLOYEE"
+            e.payee_entity_id = naser.id
+            e.payee_name = naser_name
+            updated["naser"] += 1
+    q = db.session.query(Expense).filter(Expense.payee_name == "المحل")
+    for e in q.yield_per(100):
+        e.payee_name = "المركز الرئيسي"
+        updated["mahal"] += 1
+    baraa_name = "براء – خدمات تنظيف"
+    supplier = db.session.query(Supplier).filter(Supplier.name == baraa_name).one_or_none()
+    if not supplier:
+        supplier = Supplier(name=baraa_name, is_local=True)
+        db.session.add(supplier)
+        db.session.flush()
+    q = db.session.query(Expense).filter(
+        Expense.supplier_id.is_(None),
+        Expense.partner_id.is_(None),
+        Expense.customer_id.is_(None),
+        Expense.employee_id.is_(None),
+        Expense.payee_name == "براء"
+    )
+    for e in q.yield_per(100):
+        e.supplier_id = supplier.id
+        e.payee_type = "SUPPLIER"
+        e.payee_entity_id = supplier.id
+        e.payee_name = baraa_name
+        updated["baraa"] += 1
+    try:
+        with _begin():
+            db.session.flush()
+        click.echo(json.dumps(updated, ensure_ascii=False))
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        raise click.ClickException(str(e)) from e
+
+@click.command("expenses-payoff-all")
+@click.option("--method", type=click.Choice(["cash","cheque","bank","card","online","other"]), default="cash")
+@click.option("--dry-run/--commit", default=True)
+@with_appcontext
+def expenses_payoff_all(method, dry_run):
+    created = 0
+    skipped = 0
+    q = db.session.query(Expense).order_by(Expense.id.asc())
+    for e in q.yield_per(200):
+        bal = float(e.balance or 0)
+        if bal <= 0.01:
+            skipped += 1
+            continue
+        p = Payment(
+            payment_date=datetime.utcnow(),
+            total_amount=_Q2(bal),
+            currency=(e.currency or "ILS").upper(),
+            method=PaymentMethod(method),
+            status=PaymentStatus.COMPLETED.value,
+            direction=PaymentDirection.OUT.value,
+            entity_type=PaymentEntityType.EXPENSE.value,
+            expense_id=e.id,
+            supplier_id=getattr(e, "supplier_id", None),
+            partner_id=getattr(e, "partner_id", None),
+            reference=f"AUTO-EXP-{e.id}",
+        )
+        db.session.add(p)
+        created += 1
+    try:
+        if dry_run:
+            db.session.rollback()
+        else:
+            db.session.commit()
+        click.echo(json.dumps({"created": created, "skipped": skipped, "committed": (not dry_run)}, ensure_ascii=False))
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        raise click.ClickException(str(e)) from e
+
 @click.command("stock-adjustment-create")
 @click.option("--warehouse-id", type=int, required=True)
 @click.option("--reason", type=click.Choice(["DAMAGED","STORE_USE"]), required=True)
@@ -1600,7 +1689,24 @@ def stock_adjustment_finalize(adjustment_id, expense_type_id):
 @with_appcontext
 def gl_seed_accounts():
     created, updated = [], []
-    mapping=[("1100_AR","Accounts Receivable"),("4000_SALES","Sales Revenue"),("2100_VAT_PAYABLE","VAT Payable"),("1000_CASH","Cash on Hand"),("1010_BANK","Bank"),("1020_CARD_CLEARING","Card Clearing"),("2000_AP","Accounts Payable"),("5000_EXPENSES","Expenses"),("1205_INV_EXCHANGE","Inventory Exchange"),("5105_COGS_EXCHANGE","COGS Exchange")]
+    mapping=[
+        ("1100_AR","Accounts Receivable"),
+        ("4000_SALES","Sales Revenue"),
+        ("2100_VAT_PAYABLE","VAT Payable"),
+        ("1000_CASH","Cash on Hand"),
+        ("1010_BANK","Bank"),
+        ("1020_CARD_CLEARING","Card Clearing"),
+        ("2000_AP","Accounts Payable"),
+        ("5000_EXPENSES","Expenses"),
+        ("5200_PARTNER_EXPENSES","Partner Expenses"),
+        ("1205_INV_EXCHANGE","Inventory Exchange"),
+        ("5105_COGS_EXCHANGE","COGS Exchange"),
+        ("2300_ADVANCE_PAYMENTS","Advance Payments"),
+        ("2150_EMPLOYEE_ADVANCES","Employee Advances Clearing"),
+        ("2150_PAYROLL_CLEARING","Payroll Clearing"),
+        ("2200_PARTNER_CLEARING","Partner Clearing"),
+        ("3100_OWNER_CURRENT","Owner Current Account"),
+    ]
     with _begin():
         for code,name in mapping:
             acc=db.session.query(Account).filter_by(code=code).one_or_none()
@@ -1608,7 +1714,16 @@ def gl_seed_accounts():
                 if (acc.is_active!=True) or (acc.name!=name):
                     acc.name=name; acc.is_active=True; updated.append(code)
             else:
-                acc=Account(code=code, name=name, type=("ASSET" if code.startswith(("1","12")) else "LIABILITY" if code.startswith("2") else "REVENUE" if code.startswith("4") else "EXPENSE"), is_active=True)
+                inferred_type = "ASSET"
+                if code.startswith("2"):
+                    inferred_type = "LIABILITY"
+                elif code.startswith("3"):
+                    inferred_type = "EQUITY"
+                elif code.startswith("4"):
+                    inferred_type = "REVENUE"
+                elif not code.startswith(("1","2","3","4")):
+                    inferred_type = "EXPENSE"
+                acc=Account(code=code, name=name, type=inferred_type, is_active=True)
                 db.session.add(acc); created.append(code)
     click.echo(json.dumps({"created":created,"updated":updated}, ensure_ascii=False))
 
@@ -1942,6 +2057,69 @@ def optimize_db():
     except Exception as e:
         click.echo(click.style(f"❌ خطأ: {str(e)}", fg="red"))
 
+@click.command("link-missing-counterparties")
+@with_appcontext
+def link_missing_counterparties():
+    connection = db.session.connection()
+    suppliers = Supplier.query.filter(Supplier.customer_id.is_(None)).all()
+    partners = Partner.query.filter(Partner.customer_id.is_(None)).all()
+    sup_total = len(suppliers)
+    part_total = len(partners)
+    sup_linked = 0
+    part_linked = 0
+    failures = []
+    for supplier in suppliers:
+        try:
+            cid = _ensure_customer_for_counterparty(
+                connection,
+                name=supplier.name,
+                phone=supplier.phone,
+                whatsapp=supplier.phone,
+                email=supplier.email,
+                address=supplier.address,
+                currency=supplier.currency,
+                source_label="SUPPLIER",
+                source_id=supplier.id,
+            )
+            if cid:
+                supplier.customer_id = cid
+                sup_linked += 1
+            else:
+                failures.append(f"Supplier#{supplier.id}")
+        except Exception as exc:
+            failures.append(f"Supplier#{supplier.id}: {exc}")
+    for partner in partners:
+        try:
+            cid = _ensure_customer_for_counterparty(
+                connection,
+                name=partner.name,
+                phone=partner.phone_number,
+                whatsapp=partner.phone_number,
+                email=partner.email,
+                address=partner.address,
+                currency=partner.currency,
+                source_label="PARTNER",
+                source_id=partner.id,
+            )
+            if cid:
+                partner.customer_id = cid
+                part_linked += 1
+            else:
+                failures.append(f"Partner#{partner.id}")
+        except Exception as exc:
+            failures.append(f"Partner#{partner.id}: {exc}")
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        raise click.ClickException(str(exc))
+    click.echo(click.style(f"الموردون المستهدفون: {sup_total} | تم الربط: {sup_linked}", fg="green"))
+    click.echo(click.style(f"الشركاء المستهدفون: {part_total} | تم الربط: {part_linked}", fg="green"))
+    if failures:
+        click.echo(click.style("سجلات لم تنجح:", fg="yellow"))
+        for item in failures:
+            click.echo(f"- {item}")
+
 @click.command("workflow-check-timeouts")
 @with_appcontext
 def workflow_check_timeouts():
@@ -1964,13 +2142,13 @@ def register_cli(app) -> None:
         payment_create, payment_list, invoice_list, invoice_update_status, preorder_create,
         sr_create, sr_add_part, sr_add_task, sr_recalc, sr_set_status, sr_show, 
         cart_create, cart_add_item, order_from_cart, order_set_status, order_add_item,
-        onlinepay_create, onlinepay_decrypt_card, expense_create, expense_pay,
+        onlinepay_create, onlinepay_decrypt_card, expense_create, expense_pay, expense_link_known_entities, expenses_payoff_all,
         stock_adjustment_create, stock_adjustment_add_item, stock_adjustment_finalize,
         gl_seed_accounts, gl_list_batches, gl_list_entries,
         note_add, note_list, audit_tail,
         currency_balance, currency_validate, currency_report, currency_health, currency_update, currency_test,
         create_superadmin,
-        optimize_db,
+        optimize_db, link_missing_counterparties,
         seed_employees, seed_salaries, seed_expenses_demo, seed_branches,
         workflow_check_timeouts
     ]

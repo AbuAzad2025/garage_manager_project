@@ -102,6 +102,11 @@
         <dt class="col-sm-3 text-end">طريقة الدفع</dt>
         <dd class="col-sm-9">{{ expense.payment_method or '—' }}</dd>
 
+        {% if payment_methods_summary %}
+        <dt class="col-sm-3 text-end">طرق الدفع الفعلية</dt>
+        <dd class="col-sm-9">{{ payment_methods_summary }}</dd>
+        {% endif %}
+
         {% if (expense.payment_method or '').lower() == 'cheque' %}
         <dt class="col-sm-3 text-end">رقم الشيك</dt>
         <dd class="col-sm-9">{{ expense.check_number or '—' }}</dd>
@@ -166,7 +171,7 @@
     </div>
   </div>
 
-  {% if expense.payments and expense.payments|length > 0 %}
+  {% if payment_rows %}
   <div class="card card-outline card-secondary mt-3">
     <div class="card-header">
       <h5 class="card-title mb-0"><i class="fas fa-list ml-1"></i> الدفعات المرتبطة</h5>
@@ -180,16 +185,28 @@
             <th>العملة</th>
             <th>الحالة</th>
             <th>رقم الدفعة</th>
+            <th>طريقة الدفع</th>
+            <th>تفاصيل الشيك</th>
           </tr>
         </thead>
         <tbody>
-          {% for p in expense.payments %}
+          {% for row in payment_rows %}
           <tr>
-            <td>{{ p.payment_date|format_date if p.payment_date else '—' }}</td>
-            <td>{{ (p.total_amount or 0)|float|round(2)|number_format(2) }}</td>
-            <td>{{ p.currency or expense.currency }}</td>
-            <td>{{ p.status or '—' }}</td>
-            <td>{{ p.payment_number or p.id }}</td>
+            <td>{{ row.date|format_date if row.date else '—' }}</td>
+            <td>{{ (row.amount or 0)|float|round(2)|number_format(2) }}</td>
+            <td>{{ row.currency or expense.currency }}</td>
+            <td>{{ row.status or '—' }}</td>
+            <td>{{ row.number }}</td>
+            <td>{{ row.method or '—' }}</td>
+            <td>
+              {% if row.check_number %}
+                <div>رقم: {{ row.check_number }}</div>
+                {% if row.check_bank %}<div>البنك: {{ row.check_bank }}</div>{% endif %}
+                <div>الاستحقاق: {{ row.check_due_date|format_date if row.check_due_date else '—' }}</div>
+              {% else %}
+                —
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

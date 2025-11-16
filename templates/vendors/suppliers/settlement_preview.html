@@ -108,7 +108,7 @@
         </div>
     </div>
 
-    <section class="content">
+    <section class="content" id="settlement-print-area">
         <div class="container-fluid">
             
             <!-- معلومات التسوية -->
@@ -994,16 +994,49 @@
 (function() {
   'use strict';
   
-  // زر الطباعة
+  const settlementPrintArea = document.getElementById('settlement-print-area');
+  const triggerSettlementPrint = () => {
+    if (!settlementPrintArea) {
+      window.print();
+      return;
+    }
+    const printWindow = window.open('', '', 'width=1024,height=768');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+    const doc = printWindow.document;
+    doc.write('<html><head><title>{{ supplier.name }} - {{ ss.code }}</title>');
+    document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+      if (link.href) {
+        doc.write('<link rel="stylesheet" href="' + link.href + '">');
+      }
+    });
+    document.querySelectorAll('style').forEach(styleTag => {
+      if (styleTag.innerHTML) {
+        doc.write('<style>' + styleTag.innerHTML + '</style>');
+      }
+    });
+    const bodyClass = (document.body.getAttribute('class') || '').replace(/"/g, '&quot;');
+    doc.write('</head><body class="' + bodyClass + '" dir="rtl">');
+    doc.write(settlementPrintArea.outerHTML);
+    doc.write('</body></html>');
+    doc.close();
+    printWindow.focus();
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.close();
+    };
+  };
+  
   document.getElementById('btn-print')?.addEventListener('click', function () {
-    window.print();
+    triggerSettlementPrint();
   });
   
-  // Ctrl+P للطباعة
   document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
       e.preventDefault();
-      window.print();
+      triggerSettlementPrint();
     }
   });
   

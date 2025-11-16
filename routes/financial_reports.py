@@ -643,8 +643,7 @@ def trial_balance():
             debit = float(acc.total_debit or 0)
             credit = float(acc.total_credit or 0)
             net = debit - credit
-            
-            trial_balance_data.append({
+            row = {
                 'account': acc.account,
                 'name': acc.name,
                 'type': acc.type,
@@ -653,16 +652,33 @@ def trial_balance():
                 'credit': credit,
                 'net': net,
                 'side': 'DR' if net > 0 else 'CR'
-            })
-            
+            }
+            trial_balance_data.append(row)
             total_debits += debit
             total_credits += credit
+        trial_balance_data.sort(key=lambda r: (r['type'] or '', r['account']))
+        grouped_trial_balance = {}
+        for row in trial_balance_data:
+            t = row['type'] or 'OTHER'
+            if t not in grouped_trial_balance:
+                grouped_trial_balance[t] = {
+                    'rows': [],
+                    'total_debit': 0.0,
+                    'total_credit': 0.0,
+                    'total_net': 0.0,
+                }
+            g = grouped_trial_balance[t]
+            g['rows'].append(row)
+            g['total_debit'] += row['debit']
+            g['total_credit'] += row['credit']
+            g['total_net'] += row['net']
         
         is_balanced = abs(total_debits - total_credits) < 0.01
         
         data = {
             'as_of_date': as_of_date,
             'trial_balance_data': trial_balance_data,
+            'grouped_trial_balance': grouped_trial_balance,
             'total_debits': total_debits,
             'total_credits': total_credits,
             'is_balanced': is_balanced

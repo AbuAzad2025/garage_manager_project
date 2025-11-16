@@ -21,6 +21,8 @@ try:
 except ImportError:
     get_realtime_monitor = lambda: None
 
+_listeners_registered = False
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 👂 EVENT LISTENERS - المستمعين
@@ -32,6 +34,10 @@ def register_ai_listeners(app):
     
     يُستدعى مرة واحدة عند تشغيل التطبيق
     """
+    global _listeners_registered
+    if _listeners_registered:
+        print("[AI] Event Listeners already registered; skipping duplicate setup")
+        return
     with app.app_context():
         from models import (
             Sale, Payment, StockLevel, GLBatch, 
@@ -111,6 +117,7 @@ def register_ai_listeners(app):
             except Exception as e:
                 print(f"[AI Monitor] Error checking customer: {e}")
         
+        _listeners_registered = True
         print("[AI] Event Listeners registered - Real-time monitoring active")
 
 

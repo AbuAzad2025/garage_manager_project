@@ -66,7 +66,8 @@ from models import (
 )
 import utils
 from routes.partner_settlements import _calculate_smart_partner_balance
-from utils import D, q0, archive_record, restore_record
+from routes.checks import create_check_record
+from utils import D, q0, archive_record, restore_record, permission_required
 try:
     from acl import super_only
 except Exception:
@@ -422,7 +423,7 @@ def index():
     if not getattr(current_user, "is_authenticated", False):
         return redirect(url_for("auth.login", next=request.full_path))
     page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 20, type=int), 100)
+    per_page = min(request.args.get("per_page", 10, type=int), 10)
     print_mode = request.args.get("print") == "1"
     scope_param = request.args.get("scope")
     print_scope = scope_param or ("page" if print_mode else "all")
@@ -628,13 +629,12 @@ def index():
             "grand_total": int(gt),
             "total_paid": int(ti)
         }
+    page_payments = payments_list if not print_mode else payments_for_summary
     if _wants_json():
-        # حساب مجموع الصفحة الحالية (page sum) في الباكند
         page_sum = 0.0
         page_sum_ils = 0.0
-        for p in payments_for_summary:
+        for p in page_payments:
             page_sum += float(p.total_amount or 0)
-            # تحويل للشيكل
             if p.currency == 'ILS':
                 page_sum_ils += float(p.total_amount or 0)
             else:
@@ -646,10 +646,10 @@ def index():
                     pass
         
         return jsonify({
-            "payments": [_serialize_payment(p, full=False) for p in payments_for_summary],
-            "total_pages": math.ceil(len(payments_for_summary) / per_page),
+            "payments": [_serialize_payment(p, full=False) for p in page_payments],
+            "total_pages": total_pages if total_pages else 1,
             "current_page": page,
-            "total_items": len(payments_for_summary),
+            "total_items": total_filtered,
             "currency": None,
             "totals_by_currency": totals_by_currency,
             "totals": {
@@ -708,7 +708,13 @@ def create_payment():
         if raw_et == "SHIPMENT_CUSTOMS":
             raw_et = "SHIPMENT"
         et = raw_et if hasattr(form, "_entity_field_map") and raw_et in form._entity_field_map else ""
-        eid = request.args.get("entity_id")
+        raw_entity_id = (request.args.get("entity_id") or "").strip()
+        eid = None
+        if raw_entity_id:
+            try:
+                eid = int(raw_entity_id)
+            except (TypeError, ValueError):
+                current_app.logger.warning("payments.create_payment invalid entity_id '%s' for type %s", raw_entity_id, et or raw_et)
         pre_amount = D(request.args.get("amount"))
         if pre_amount <= 0:
             pre_amount = D(request.args.get("total_amount"))
@@ -722,12 +728,13 @@ def create_payment():
         if et:
             form.entity_type.data = et
             field_name = form._entity_field_map[et]
-            if eid and str(eid).isdigit() and hasattr(form, field_name):
-                getattr(form, field_name).data = int(eid)
-                # ملء entity_id أيضاً
+            if eid is not None and hasattr(form, field_name):
+                getattr(form, field_name).data = eid
                 form.entity_id.data = str(eid)
-            if et == "CUSTOMER" and eid:
-                c = db.session.get(Customer, int(eid))
+            elif raw_entity_id:
+                form.entity_id.data = raw_entity_id
+            if et == "CUSTOMER" and eid is not None:
+                c = db.session.get(Customer, eid)
                 if c:
                     balance = int(q0(getattr(c, "balance", 0) or 0))
                     entity_info = {"type": "customer", "name": c.name, "balance": balance, "currency": getattr(c, "currency", "ILS")}
@@ -739,8 +746,8 @@ def create_payment():
                     # ملء اسم العميل في search field
                     if hasattr(form, 'customer_search'):
                         form.customer_search.data = c.name
-            elif et == "SUPPLIER" and eid:
-                s = db.session.get(Supplier, int(eid))
+            elif et == "SUPPLIER" and eid is not None:
+                s = db.session.get(Supplier, eid)
                 if s:
                     balance = int(q0(s.balance_in_ils or 0))
                     entity_info = {"type": "supplier", "name": s.name, "balance": balance, "currency": getattr(s, "currency", "ILS")}
@@ -750,8 +757,8 @@ def create_payment():
                         form.currency.data = getattr(s, "currency", "ILS")
                     if hasattr(form, 'supplier_search'):
                         form.supplier_search.data = s.name
-            elif et == "PARTNER" and eid:
-                p = db.session.get(Partner, int(eid))
+            elif et == "PARTNER" and eid is not None:
+                p = db.session.get(Partner, eid)
                 if p:
                     details = _get_partner_balance_details(p)
                     balance_val = details["balance"] if details else float(p.balance_in_ils or 0)
@@ -770,8 +777,8 @@ def create_payment():
                         form.currency.data = currency_val
                     if hasattr(form, 'partner_search'):
                         form.partner_search.data = p.name
-            elif et == "SALE" and eid:
-                rec = db.session.get(Sale, int(eid))
+            elif et == "SALE" and eid is not None:
+                rec = db.session.get(Sale, eid)
                 if rec:
                     total_i = int(q0(getattr(rec, "total_amount", getattr(rec, "total", 0)) or 0))
                     paid_i = int(q0(getattr(rec, "total_paid", 0) or 0))
@@ -786,8 +793,8 @@ def create_payment():
                         if cust:
                             person = {"type": "customer", "id": cust.id, "name": cust.name}
                     entity_info = {"type": "sale","number": rec.sale_number,"date": rec.sale_date.strftime("%Y-%m-%d") if rec.sale_date else "","total": total_i,"paid": paid_i,"balance": due_i,"currency": getattr(rec, "currency", "ILS"),"person": person}
-            elif et == "INVOICE" and eid:
-                rec = db.session.get(Invoice, int(eid))
+            elif et == "INVOICE" and eid is not None:
+                rec = db.session.get(Invoice, eid)
                 if rec:
                     total_i = int(q0(getattr(rec, "total_amount", 0) or 0))
                     paid_i = int(q0(getattr(rec, "total_paid", 0) or 0))
@@ -802,8 +809,8 @@ def create_payment():
                         if cust:
                             person = {"type": "customer", "id": cust.id, "name": cust.name}
                     entity_info = {"type": "invoice","number": rec.invoice_number,"date": rec.invoice_date.strftime("%Y-%m-%d") if rec.invoice_date else "","total": total_i,"paid": paid_i,"balance": due_i,"currency": getattr(rec, "currency", "ILS"),"person": person}
-            elif et == "SERVICE" and eid:
-                svc = db.session.get(ServiceRequest, int(eid))
+            elif et == "SERVICE" and eid is not None:
+                svc = db.session.get(ServiceRequest, eid)
                 if svc:
                     try:
                         subtotal_i, tax_i, grand_i = _service_totals(svc)
@@ -830,8 +837,8 @@ def create_payment():
                     entity_info = {"type": "service","number": identifier,"date": svc.request_date.strftime("%Y-%m-%d") if getattr(svc, "request_date", None) else "","total": int(q0(grand_i)),"paid": total_paid_i,"balance": due_i,"currency": getattr(svc, "currency", "ILS") if hasattr(svc, "currency") else "ILS","person": person}
                     if not form.direction.data:
                         form.direction.data = "IN"
-            elif et == "EXPENSE" and eid:
-                exp = db.session.get(Expense, int(eid))
+            elif et == "EXPENSE" and eid is not None:
+                exp = db.session.get(Expense, eid)
                 if exp:
                     bal = D(getattr(exp, "balance", getattr(exp, "amount", 0)) or 0)
                     if pre_amount is None:
@@ -858,8 +865,8 @@ def create_payment():
                     if not form.reference.data:
                         form.reference.data = f"دفع مصروف {ref_txt}"
                     entity_info = {"type": "expense","number": f"EXP-{exp.id}","date": exp.date.strftime("%Y-%m-%d") if getattr(exp, "date", None) else "","description": exp.description or "","amount": int(q0(getattr(exp, "amount", 0) or 0)),"balance": int(q0(getattr(exp, "balance", 0) or 0)),"currency": getattr(exp, "currency", "ILS"),"type_name": getattr(getattr(exp, "type", None), "name", None),"employee_name": getattr(getattr(exp, "employee", None), "name", None),"person": person}
-            elif et == "SHIPMENT" and eid:
-                shp = db.session.get(Shipment, int(eid))
+            elif et == "SHIPMENT" and eid is not None:
+                shp = db.session.get(Shipment, eid)
                 if shp:
                     if hasattr(shp, "currency") and shp.currency and not preset_currency:
                         form.currency.data = shp.currency
@@ -877,8 +884,8 @@ def create_payment():
                         if sup:
                             person = {"type": "supplier", "id": sup.id, "name": sup.name}
                     entity_info = {"type": "shipment","number": getattr(shp, "shipment_number", None),"date": shp.shipment_date.strftime("%Y-%m-%d") if getattr(shp, "shipment_date", None) else "","destination": getattr(shp, "destination", "") or "","currency": getattr(shp, "currency", "USD"),"person": person}
-            elif et == "PREORDER" and eid:
-                po = db.session.get(PreOrder, int(eid))
+            elif et == "PREORDER" and eid is not None:
+                po = db.session.get(PreOrder, eid)
                 if po:
                     if not preset_currency:
                         form.currency.data = getattr(po, "currency", "ILS")
@@ -1026,14 +1033,12 @@ def create_payment():
                 p = db.session.get(Partner, target_id) if target_id else None
                 person_name = getattr(p, "name", None)
             elif etype == "LOAN" and target_id:
-                from models import SupplierLoanSettlement
                 loan_settlement = db.session.get(SupplierLoanSettlement, target_id)
                 related_supplier_id = getattr(loan_settlement, "supplier_id", None) if loan_settlement else None
                 if related_supplier_id:
                     s = db.session.get(Supplier, related_supplier_id)
                     person_name = getattr(s, "name", None)
             elif etype == "EXPENSE" and target_id:
-                from models import Expense
                 expense = db.session.get(Expense, target_id)
                 if expense:
                     related_supplier_id = getattr(expense, "supplier_id", None)
@@ -1214,102 +1219,48 @@ def create_payment():
                     pass
                 db.session.commit()
                 
-                # ✅ إنشاء سجل Check تلقائياً إذا كانت طريقة الدفع شيك
                 try:
-                    from models import Check
-                    from datetime import datetime as dt
-                    
-                    # أولاً: فحص Payment مباشرة (بدون splits)
+                    created_checks = False
                     payment_method_str = str(payment.method).upper()
                     if ('CHECK' in payment_method_str or 'CHEQUE' in payment_method_str) and payment.check_number and payment.check_bank:
-                        # تحويل check_due_date
-                        check_due_date = payment.check_due_date
-                        if check_due_date and isinstance(check_due_date, date) and not isinstance(check_due_date, datetime):
-                            check_due_date = datetime.combine(check_due_date, datetime.min.time())
-                        elif not check_due_date:
-                            check_due_date = payment.payment_date or datetime.utcnow()
-                        
-                        check = Check(
-                            check_number=payment.check_number.strip(),
-                            check_bank=payment.check_bank.strip(),
-                            check_date=payment.payment_date or datetime.utcnow(),
-                            check_due_date=check_due_date,
+                        _, created = create_check_record(
+                            payment=payment,
                             amount=payment.total_amount,
-                            currency=payment.currency or 'ILS',
-                            direction=payment.direction,
-                            status='PENDING',
-                            customer_id=payment.customer_id,
-                            supplier_id=payment.supplier_id,
-                            partner_id=payment.partner_id,
-                            reference_number=f"PMT-{payment.id}",
-                            notes=f"شيك من دفعة رقم {payment.payment_number or payment.id}",
-                            created_by_id=payment.created_by
+                            check_number=payment.check_number,
+                            check_bank=payment.check_bank,
+                            check_date=payment.payment_date or datetime.utcnow(),
+                            check_due_date=payment.check_due_date or payment.payment_date,
+                            notes=f"شيك من دفعة رقم {payment.payment_number or payment.id}"
                         )
-                        db.session.add(check)
-                        current_app.logger.info(f"✅ سيتم إنشاء شيك {check.check_number} من Payment #{payment.id}")
-                    
-                    # ثانياً: فحص Splits
+                        created_checks = created or created_checks
                     for split in payment.splits:
                         method_str = str(split.method).upper()
-                        if 'CHECK' in method_str or 'CHEQUE' in method_str:
-                            details = split.details or {}
-                            check_number = details.get('check_number', '').strip()
-                            check_bank = details.get('check_bank', '').strip()
-                            
-                            if not check_number or not check_bank:
-                                current_app.logger.warning(f"⚠️ شيك بدون رقم أو بنك في دفعة {payment.id}")
-                                continue
-                            
-                            # تحويل check_due_date من string إذا لزم الأمر
-                            check_due_date_raw = details.get('check_due_date')
-                            check_due_date = None
-                            
-                            if check_due_date_raw:
-                                try:
-                                    if isinstance(check_due_date_raw, str):
-                                        # تحويل من ISO string
-                                        check_due_date = dt.fromisoformat(check_due_date_raw.replace('Z', '+00:00'))
-                                    elif isinstance(check_due_date_raw, (datetime, dt)):
-                                        check_due_date = check_due_date_raw
-                                    elif isinstance(check_due_date_raw, date):
-                                        check_due_date = dt.combine(check_due_date_raw, dt.min.time())
-                                except Exception as parse_err:
-                                    current_app.logger.warning(f"⚠️ فشل تحويل check_due_date: {parse_err}")
-                            
-                            if not check_due_date:
-                                check_due_date = payment.payment_date or datetime.utcnow()
-                            
-                            # تحديد اتجاه الشيك
-                            check_direction = payment.direction
-                            
-                            # إنشاء سجل الشيك
-                            check = Check(
-                                check_number=check_number,
-                                check_bank=check_bank,
-                                check_date=payment.payment_date or datetime.utcnow(),
-                                check_due_date=check_due_date,
-                                amount=split.amount,
-                                currency=payment.currency or 'ILS',
-                                direction=check_direction,
-                                status='PENDING',
-                                customer_id=payment.customer_id,
-                                supplier_id=payment.supplier_id,
-                                partner_id=payment.partner_id,
-                                reference_number=f"PMT-{payment.id}",
-                                notes=f"شيك من دفعة رقم {payment.payment_number or payment.id}",
-                                created_by_id=payment.created_by
-                            )
-                            db.session.add(check)
-                            current_app.logger.info(f"✅ سيتم إنشاء سجل شيك رقم {check.check_number} من دفعة رقم {payment.id}")
-                    
-                    db.session.commit()
-                    current_app.logger.info(f"✅ تم حفظ الشيكات من دفعة {payment.id}")
+                        if 'CHECK' not in method_str and 'CHEQUE' not in method_str:
+                            continue
+                        details = split.details or {}
+                        check_number = (details.get('check_number') or "").strip()
+                        check_bank = (details.get('check_bank') or "").strip()
+                        if not check_number or not check_bank:
+                            current_app.logger.warning(f"⚠️ شيك بدون رقم أو بنك في دفعة {payment.id}")
+                            continue
+                        check_due_date_raw = details.get('check_due_date') or payment.check_due_date or payment.payment_date
+                        _, created = create_check_record(
+                            payment=payment,
+                            amount=split.amount,
+                            check_number=check_number,
+                            check_bank=check_bank,
+                            check_date=payment.payment_date or datetime.utcnow(),
+                            check_due_date=check_due_date_raw,
+                            notes=f"شيك من دفعة رقم {payment.payment_number or payment.id}"
+                        )
+                        created_checks = created or created_checks
+                    if created_checks:
+                        db.session.commit()
+                        current_app.logger.info(f"✅ تم حفظ الشيكات من دفعة {payment.id}")
                 except Exception as e:
-                    # في حالة فشل إنشاء الشيك، لا نُفشل الدفعة
                     current_app.logger.error(f"❌ فشل إنشاء سجل شيك من دفعة {payment.id}: {str(e)}")
                     import traceback
                     current_app.logger.error(traceback.format_exc())
-                    # لا نعمل rollback لأن الدفعة تم حفظها مسبقاً
                 
                 utils.log_audit("Payment", payment.id, "CREATE")
             except SQLAlchemyError:
@@ -1479,8 +1430,7 @@ def view_payment(payment_id: int):
 
 @payments_bp.route("/<int:payment_id>/status", methods=["POST"], endpoint="update_payment_status")
 @login_required
-# @permission_required("manage_payments")  # Commented out
-@csrf.exempt
+@permission_required("manage_payments")
 def update_payment_status(payment_id: int):
     """تحديث حالة الدفعة"""
     payment = _safe_get_payment(payment_id, all_rels=True)
@@ -1513,7 +1463,7 @@ def update_payment_status(payment_id: int):
 
 @payments_bp.route("/<int:payment_id>", methods=["DELETE"], endpoint="delete_payment")
 @login_required
-# @super_only  # Commented out
+@super_only
 def delete_payment(payment_id: int):
     payment = _safe_get_payment(payment_id, all_rels=True)
     if not payment:
@@ -2840,6 +2790,7 @@ def _build_partner_ledger(
         )
     )
     entries[0]["running_balance"] = opening_amount
+    entries[0]["balance_after"] = opening_amount
     entries[0]["debit"] = 0.0
     entries[0]["credit"] = 0.0
 
@@ -2870,6 +2821,7 @@ def _build_partner_ledger(
             entry["debit"] = amt
             running -= amt
         entry["running_balance"] = running
+        entry["balance_after"] = running
 
     return {
         "entries": entries,

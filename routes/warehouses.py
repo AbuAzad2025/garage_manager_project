@@ -41,7 +41,8 @@ except Exception:
 
 from extensions import db, csrf
 import utils
-from utils import _get_or_404
+from utils import _get_or_404, permission_required
+from routes.checks import create_check_record
 from forms import (
     ExchangeTransactionForm,
     ExchangeVendorForm,
@@ -1152,8 +1153,7 @@ def products(id):
 
 @warehouse_bp.route("/<int:id>/transfer", methods=["POST"], endpoint="transfer_inline")
 @login_required
-@csrf.exempt
-# @permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")  # Commented out
+@permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")
 def transfer_inline(id):
     warehouse_id = id
     data = request.get_json(silent=True) or request.form or {}
@@ -2871,31 +2871,27 @@ def preorder_create():
             try:
                 db.session.commit()
                 
-                # ✅ إنشاء سجل Check تلقائياً إذا كانت طريقة الدفع شيك
                 try:
-                    from models import Check
                     payment_method_lower = (form.payment_method.data or "cash").lower()
-                    if payment_method_lower in ['check', 'cheque']:
-                        if pay.check_number and pay.check_bank:
-                            check = Check(
-                                check_number=pay.check_number,
-                                check_bank=pay.check_bank,
-                                check_date=pay.payment_date or datetime.utcnow(),
-                                check_due_date=pay.check_due_date or pay.payment_date or datetime.utcnow(),
-                                amount=pay.total_amount,
-                                currency=pay.currency or 'ILS',
-                                direction='IN',  # دفعة عربون واردة
-                                status='PENDING',
-                                customer_id=preorder.customer_id,
-                                supplier_id=preorder.supplier_id,
-                                partner_id=preorder.partner_id,
-                                reference_number=f"PREORDER-{preorder.id}",
-                                notes=f"شيك من عربون حجز رقم {preorder.reference}",
-                                created_by_id=current_user.id if current_user.is_authenticated else None
-                            )
-                            db.session.add(check)
+                    if payment_method_lower in ['check', 'cheque'] and pay.check_number and pay.check_bank:
+                        _, created = create_check_record(
+                            payment=pay,
+                            amount=pay.total_amount,
+                            check_number=pay.check_number,
+                            check_bank=pay.check_bank,
+                            check_date=pay.payment_date or datetime.utcnow(),
+                            check_due_date=pay.check_due_date or pay.payment_date or datetime.utcnow(),
+                            direction='IN',
+                            customer_id=preorder.customer_id,
+                            supplier_id=preorder.supplier_id,
+                            partner_id=preorder.partner_id,
+                            reference_number=f"PREORDER-{preorder.id}",
+                            notes=f"شيك من عربون حجز رقم {preorder.reference}",
+                            created_by_id=current_user.id if current_user.is_authenticated else None
+                        )
+                        if created:
                             db.session.commit()
-                            current_app.logger.info(f"✅ تم إنشاء سجل شيك رقم {check.check_number} من حجز رقم {preorder.id}")
+                            current_app.logger.info(f"✅ تم إنشاء سجل شيك من حجز رقم {preorder.id}")
                 except Exception as e:
                     current_app.logger.warning(f"⚠️ فشل إنشاء سجل شيك من حجز {preorder.id}: {str(e)}")
                     db.session.rollback()

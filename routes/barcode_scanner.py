@@ -7,9 +7,10 @@ import uuid
 from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for, abort
 from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, func
-from extensions import db, csrf
+from extensions import db
 from models import Product, ProductCategory, Supplier, Warehouse, StockLevel, ProductCondition
 import utils
+from utils import permission_required
 from barcodes import normalize_barcode, generate_barcode_image
 from datetime import datetime
 import json
@@ -751,8 +752,7 @@ def search_products():
 
 @barcode_scanner_bp.route("/auto-assign", methods=["POST"], endpoint="auto_assign_barcodes")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
-@csrf.exempt
+@permission_required("manage_warehouses")
 def auto_assign_barcodes_route():
     """إعطاء باركود فريد لكل منتج بدون باركود"""
     try:
@@ -831,8 +831,7 @@ def barcode_stats():
 
 @barcode_scanner_bp.route("/bulk-import", methods=["POST"], endpoint="bulk_import_products")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
-@csrf.exempt
+@permission_required("manage_warehouses")
 def bulk_import_products():
     """استيراد جماعي للمنتجات بالباركود مع دعم الحقول الديناميكية"""
     import logging

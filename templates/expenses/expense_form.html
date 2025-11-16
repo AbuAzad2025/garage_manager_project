@@ -30,8 +30,22 @@
   </div>
   {% endif %}
 
-  <form method="POST" id="expenseForm" class="needs-validation" novalidate>
+  <form method="POST" id="expenseForm" class="needs-validation" novalidate data-service-mode="{{ 'true' if service_mode else 'false' }}">
     {{ form.hidden_tag() }}
+    {% if service_mode %}
+      <input type="hidden" name="service_mode" value="supplier_service">
+      <input type="hidden" name="prefill_supplier_id" value="{{ service_supplier.id if service_supplier else '' }}">
+      <div class="alert alert-info d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between mb-3">
+        <div>
+          <strong><i class="fas fa-file-signature ml-1"></i>توريد خدمات للمورد:</strong>
+          <span class="badge bg-primary text-white ml-1">{{ service_supplier.name if service_supplier else '—' }}</span>
+          <div class="small text-muted mt-1">
+            سيتم إنشاء فاتورة خدمة غير مسددة تضاف مباشرة لذمة المورد وتظهر في تسوياته وكشوف حسابه.
+          </div>
+        </div>
+        <span class="badge bg-light text-dark mt-2 mt-md-0">سيتم تسديد هذه الفاتورة من شاشة المصاريف المعتادة</span>
+      </div>
+    {% endif %}
     <script>
       window.expenseTypeMeta = {{ types_meta|tojson|safe }};
       window._types = {{ _types|tojson|safe }};
@@ -52,6 +66,9 @@
             {{ form.type_id.label(class="form-label fw-bold text-danger") }}
             {{ form.type_id(class="custom-select", id="type_id", required=true) }}
             <small class="text-muted">نوع المصروف</small>
+            {% if service_mode %}
+            <small class="text-primary d-block">تم اختيار نوع مصروف المورد تلقائياً لتقييد الخدمة.</small>
+            {% endif %}
             {% for e in form.type_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
           <div class="col-md-3">
@@ -85,6 +102,69 @@
             {% for e in form.disbursed_by.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
         </div>
+        <hr class="my-4">
+        <div class="row g-3 align-items-end">
+          <div id="supplier-field" class="col-md-3 type-field" data-field-key="supplier_id" data-fixed="true">
+            {{ form.supplier_id.label(class="form-label") }}
+            <div class="input-group input-group-sm">
+              {{ form.supplier_id(class="custom-select custom-select-sm ajax", id="supplier_id", **{
+                'data-url': url_for('api.search_suppliers'),
+                'data-current': form.supplier_id.data or ''
+              }) }}
+              <div class="input-group-append">
+                <a href="{{ url_for('vendors_bp.suppliers_create') }}" target="_blank" class="btn btn-sm btn-success" title="إضافة مورد جديد">
+                  <i class="fas fa-plus"></i>
+                </a>
+      </div>
+          </div>
+            <small class="text-muted">اربط المصروف بمورد (اختياري)</small>
+            {% if service_mode and service_supplier %}
+            <small class="text-primary d-block">تم تثبيت هذا الحقل تلقائياً على المورد المختار من قائمة الموردين.</small>
+            {% endif %}
+            {% for e in form.supplier_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+      </div>
+          <div id="partner-field" class="col-md-3 type-field" data-field-key="partner_id" data-fixed="true">
+            {{ form.partner_id.label(class="form-label") }}
+            <div class="input-group input-group-sm">
+              {{ form.partner_id(class="custom-select custom-select-sm ajax", id="partner_id", **{
+                'data-url': url_for('api.search_partners'),
+                'data-current': form.partner_id.data or ''
+              }) }}
+              <div class="input-group-append">
+                <a href="{{ url_for('vendors_bp.partners_create') }}" target="_blank" class="btn btn-sm btn-success" title="إضافة شريك جديد">
+                  <i class="fas fa-plus"></i>
+                </a>
+              </div>
+            </div>
+            <small class="text-muted">اربط المصروف بشريك (اختياري)</small>
+            {% for e in form.partner_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+          <div id="customer-field" class="col-md-3 type-field" data-field-key="customer_id" data-fixed="true">
+            {{ form.customer_id.label(class="form-label") }}
+            <div class="input-group input-group-sm">
+              {{ form.customer_id(class="custom-select custom-select-sm ajax", id="customer_id", **{
+                'data-url': url_for('api.search_customers'),
+                'data-current': form.customer_id.data or ''
+              }) }}
+              <div class="input-group-append">
+                <a href="{{ url_for('customers_bp.create_form') }}" target="_blank" class="btn btn-sm btn-success" title="إضافة عميل جديد">
+                  <i class="fas fa-plus"></i>
+                </a>
+              </div>
+            </div>
+            <small class="text-muted">اربط المصروف بعميل (اختياري)</small>
+            {% for e in form.customer_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+          </div>
+          <div id="employee-field" class="col-md-3 type-field" data-field-key="employee_id" data-fixed="true">
+            {{ form.employee_id.label(class="form-label") }}
+            {{ form.employee_id(class="custom-select ajax", id="employee_id", **{
+              'data-url': url_for('api.search_employees'),
+              'data-current': form.employee_id.data or ''
+            }) }}
+            <small class="text-muted">حدد الموظف (رواتب، سلف...)</small>
+            {% for e in form.employee_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
+            </div>
+        </div>
       </div>
           </div>
 
@@ -95,16 +175,6 @@
       <div class="card-body">
         <p class="text-muted mb-3 small">يتم إظهار الحقول اللازمة تلقائياً بعد اختيار نوع المصروف. أي حقل لا يظهر يعتبر غير مطلوب لهذه العملية.</p>
         <div id="typeRequiredRow" class="row g-3">
-          <div id="employee-field" class="col-md-4 type-field" data-field-key="employee_id">
-            {{ form.employee_id.label(class="form-label fw-bold") }}
-            {{ form.employee_id(class="custom-select ajax", id="employee_id", **{
-              'data-url': url_for('api.search_employees'),
-              'data-current': form.employee_id.data or ''
-            }) }}
-            <small class="text-muted">للرواتب والسلف</small>
-            {% for e in form.employee_id.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
-            </div>
-
           <div id="period-fields" class="col-md-4 type-field" data-field-key="period">
             <label class="form-label fw-bold">الفترة المغطاة</label>
             <div class="row g-2">
@@ -271,38 +341,6 @@
               'data-current': form.utility_account_id.data or ''
             }) }}
             <small class="text-muted">ربط اختياري مع حساب المرفق</small>
-          </div>
-
-          <div id="partner-field" class="col-md-4 type-field" data-field-key="partner_id">
-            {{ form.partner_id.label(class="form-label") }}
-            <div class="input-group input-group-sm">
-              {{ form.partner_id(class="custom-select custom-select-sm ajax", id="partner_id", **{
-                'data-url': url_for('api.search_partners'),
-                'data-current': form.partner_id.data or ''
-              }) }}
-              <div class="input-group-append">
-                <a href="{{ url_for('vendors_bp.partners_create') }}" target="_blank" class="btn btn-sm btn-success" title="إضافة شريك جديد">
-                  <i class="fas fa-plus"></i>
-                </a>
-              </div>
-            </div>
-            <small class="text-muted">لمصاريف الشركاء</small>
-          </div>
-
-          <div id="supplier-field" class="col-md-4 type-field" data-field-key="supplier_id">
-            {{ form.supplier_id.label(class="form-label") }}
-            <div class="input-group input-group-sm">
-              {{ form.supplier_id(class="custom-select custom-select-sm ajax", id="supplier_id", **{
-                'data-url': url_for('api.search_suppliers'),
-                'data-current': form.supplier_id.data or ''
-              }) }}
-              <div class="input-group-append">
-                <a href="{{ url_for('vendors_bp.suppliers_create') }}" target="_blank" class="btn btn-sm btn-success" title="إضافة مورد جديد">
-                  <i class="fas fa-plus"></i>
-                </a>
-              </div>
-            </div>
-            <small class="text-muted">لمصاريف الموردين</small>
           </div>
 
           <div id="beneficiary-field" class="col-md-4 type-field" data-field-key="beneficiary_name">
@@ -914,7 +952,7 @@
             </div>
           </div>
 
-    <div class="card shadow-sm mb-3 section-card">
+    <div class="card shadow-sm mb-3 section-card" id="generalPaymentSection">
       <div class="card-header bg-light">
         <h5 class="mb-0"><i class="fas fa-money-bill ml-1 text-success"></i>تفاصيل الدفع العامة</h5>
           </div>
@@ -986,6 +1024,92 @@
       </div>
             </div>
 
+    <div class="card shadow-sm mb-3 section-card no-print" id="partialPaymentsSection"
+         data-method-options='{{ payment_method_choices|tojson|safe }}'
+         data-currency-options='{{ currency_choices|tojson|safe }}'
+         data-base-currency='{{ form.currency.data or "ILS" }}'
+         data-base-amount='{{ form.amount.data or 0 }}'
+         data-default-date='{{ form.date.data.strftime("%Y-%m-%d") if form.date.data else '' }}'
+         data-existing-paid='{{ existing_paid_amount }}'>
+      <div class="card-header d-flex justify-content-between align-items-center" style="background:linear-gradient(120deg,#6a11cb,#2575fc);color:#fff;">
+        <div>
+          <h5 class="mb-0"><i class="fas fa-money-check-alt ml-1"></i>دفعات المصروف الجزئية</h5>
+          <small class="text-light">يتم إنشاء سند مستقل لكل صف</small>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-light btn-sm" id="addPartialPaymentRow">
+            <i class="fas fa-plus"></i> إضافة دفعة
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <input type="hidden" name="partial_payments_payload" id="partial_payments_payload">
+        <div class="alert alert-info" id="partialPaymentsSummary">
+          <div><i class="fas fa-balance-scale"></i> المبلغ الكلي: <strong id="partialTotalAmountLabel">{{ (form.amount.data or 0)|float|round(2)|number_format(2) }} {{ form.currency.data or 'ILS' }}</strong></div>
+          <div>مدفوع سابقاً: <strong id="partialExistingPaidLabel">{{ existing_paid_amount|float|round(2)|number_format(2) }} {{ form.currency.data or 'ILS' }}</strong></div>
+          <div>مدفوع الآن: <strong id="partialNewPaidLabel">0.00 {{ form.currency.data or 'ILS' }}</strong></div>
+          <div>المتبقي: <strong id="partialRemainingLabel">{{ (form.amount.data or 0)|float|round(2)|number_format(2) }} {{ form.currency.data or 'ILS' }}</strong></div>
+          <div class="text-muted small d-none" id="partialMixedCurrencyNote">يوجد دفعات بعملات أخرى ستتحول تلقائياً عند الحفظ.</div>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 110px;">التاريخ</th>
+                <th style="width: 130px;">المبلغ</th>
+                <th style="width: 120px;">العملة</th>
+                <th style="width: 140px;">الطريقة</th>
+                <th>مرجع</th>
+                <th>ملاحظات</th>
+                <th style="width: 90px;" class="text-center">أدوات</th>
+              </tr>
+            </thead>
+            <tbody id="partialPaymentsBody">
+              <tr id="partialEmptyRow">
+                <td colspan="7" class="text-center text-muted">لا توجد دفعات جزئية مضافة</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {% if existing_payments %}
+    <div class="card shadow-sm mb-3">
+      <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="fas fa-clipboard-list ml-1 text-secondary"></i>دفعات مسجلة مسبقاً</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>السند</th>
+                <th>التاريخ</th>
+                <th>المبلغ</th>
+                <th>العملة</th>
+                <th>الحالة</th>
+                <th>الطريقة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in existing_payments %}
+              <tr>
+                <td>{{ p.number }}</td>
+                <td>{{ p.date or '—' }}</td>
+                <td>{{ p.amount|number_format(2) }}</td>
+                <td>{{ p.currency }}</td>
+                <td>{{ p.status }}</td>
+                <td>{{ p.method }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <div class="card shadow-sm mb-3 section-card">
       <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-sliders-h ml-1 text-secondary"></i>حقول عامة اختيارية</h5>
@@ -1018,7 +1142,8 @@
     </div>
 
     <div class="d-flex gap-2 mt-3">
-      <button type="submit" class="btn btn-success btn-lg">
+      <button type="submit" class="btn btn-success btn-lg" id="expenseSubmitBtn">
+        <span class="spinner-border spinner-border-sm ml-1 d-none" id="expenseSubmitSpinner" role="status" aria-hidden="true"></span>
         <i class="fas fa-save ml-1"></i>
         {{ is_edit and 'حفظ التعديلات' or 'حفظ المصروف' }}
       </button>
@@ -1064,6 +1189,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const shipmentField = document.getElementById('shipment-field');
   const partnerField = document.getElementById('partner-field');
   const supplierField = document.getElementById('supplier-field');
+  const customerField = document.getElementById('customer-field');
   const beneficiaryField = document.getElementById('beneficiary-field');
   const stockField = document.getElementById('stock-field');
   const advanceFields = document.getElementById('advance-fields');
@@ -1180,6 +1306,19 @@ document.addEventListener('DOMContentLoaded', function() {
   const legalCaseNotesField = document.getElementById('legal-case-notes-field');
   const legalCaseNumberField = document.getElementById('legal-case-number-field');
   const legalCaseTypeField = document.getElementById('legal-case-type-field');
+  const submitBtn = document.getElementById('expenseSubmitBtn');
+  const submitSpinner = document.getElementById('expenseSubmitSpinner');
+  let isSubmitting = false;
+  const setSubmitting = (state) => {
+    isSubmitting = !!state;
+    if (submitBtn) {
+      submitBtn.disabled = state;
+      submitBtn.classList.toggle('disabled', state);
+    }
+    if (submitSpinner) {
+      submitSpinner.classList.toggle('d-none', !state);
+    }
+  };
   const typeFieldMap = {
     employee_id: employeeField,
     period: periodFields,
@@ -1211,6 +1350,7 @@ document.addEventListener('DOMContentLoaded', function() {
     shipment_id: shipmentField,
     partner_id: partnerField,
     supplier_id: supplierField,
+    customer_id: customerField,
     stock_adjustment_id: stockField,
     beneficiary_name: beneficiaryField,
     rent_property_address: rentPropertyAddressField,
@@ -1364,12 +1504,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const container = typeFieldMap[key];
     if (!container) return;
     const targetRow = isRequired ? typeRequiredRow : typeOptionalRow;
-    if (targetRow && container.parentElement !== targetRow) {
+    const isFixed = container.dataset.fixed === 'true';
+    if (!isFixed && targetRow && container.parentElement !== targetRow) {
       targetRow.appendChild(container);
     }
     container.classList.toggle('type-field-required-active', isRequired);
     container.style.display = 'block';
+    if (!isFixed) {
     setFieldsDisabled(container, false);
+    }
     markFieldRequired(container, isRequired);
   }
   
@@ -1387,6 +1530,13 @@ document.addEventListener('DOMContentLoaded', function() {
   function updateRelatedFields() {
     Object.values(typeFieldMap).forEach(f => {
       if (!f) return;
+      const isFixed = f.dataset.fixed === 'true';
+      if (isFixed) {
+        f.style.display = 'block';
+        f.classList.remove('type-field-required-active');
+        markFieldRequired(f, false);
+        return;
+      }
       const wasVisible = f.style.display !== 'none';
       f.style.display = 'none';
       f.classList.remove('type-field-required-active');
@@ -1468,27 +1618,44 @@ document.addEventListener('DOMContentLoaded', function() {
   const form = document.getElementById('expenseForm');
   if (form) {
     form.addEventListener('submit', function(e) {
+      if (isSubmitting) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+      setSubmitting(true);
+
+      if (!form.checkValidity()) {
+        e.preventDefault();
+        e.stopPropagation();
+        form.classList.add('was-validated');
+        setSubmitting(false);
+        return false;
+      }
+
       const branchSelect = document.getElementById('branch_id');
       const siteSelect = document.getElementById('site_id');
-      const typeSelect = document.getElementById('type_id');
+      const typeSelectEl = document.getElementById('type_id');
       const amountInput = document.getElementById('amount');
       const disbursedInput = document.getElementById('disbursed_by');
       
       if (!branchSelect || !branchSelect.value || branchSelect.value === '0') {
         e.preventDefault();
         alert('⚠️ يرجى اختيار الفرع');
-        branchSelect.focus();
+        branchSelect?.focus();
+        setSubmitting(false);
         return false;
       }
       
       if (!disbursedInput || !disbursedInput.value || disbursedInput.value.trim() === '') {
         e.preventDefault();
         alert('⚠️ يرجى إدخال اسم الشخص الذي سلم المال');
-        disbursedInput.focus();
+        disbursedInput?.focus();
+        setSubmitting(false);
         return false;
       }
       
-      const criticalFields = [branchSelect, siteSelect, typeSelect, amountInput, disbursedInput];
+      const criticalFields = [branchSelect, siteSelect, typeSelectEl, amountInput, disbursedInput];
       
       const disabledFields = form.querySelectorAll('input:disabled, select:disabled, textarea:disabled');
       disabledFields.forEach(field => {
