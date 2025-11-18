@@ -584,6 +584,10 @@ def index():
     
     per_page = min(max(1, per_page), 500)
     
+    range_start_value = None
+    range_end_value = None
+    target_page_value = None
+    
     if print_mode:
         if print_scope == "all":
             pag = ordered_query.paginate(page=1, per_page=10000, error_out=False)
@@ -608,6 +612,10 @@ def index():
         pag = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
         payments_list = list(pag.items)
         row_offset = (pag.page - 1) * pag.per_page if pag else 0
+    
+    total_filtered = pag.total if pag else 0
+    total_pages = pag.pages if pag else 1
+    
     for s in payments_list:
         try:
             _ = s.entity_label()
@@ -730,7 +738,7 @@ def index():
         query_args.pop(key, None)
     
     # حساب الملخصات بالشيكل - فلترة الدفعات غير المؤرشفة
-    payments_for_summary = all_payments
+    payments_for_summary = ordered_query.all()
     total_incoming_ils = 0.0
     total_outgoing_ils = 0.0
     grand_total_ils = 0.0
