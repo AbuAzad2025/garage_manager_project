@@ -1,8 +1,4 @@
-﻿# payments.py - Payments Management Routes
-# Location: /garage_manager/routes/payments.py
-# Description: Payment processing and management routes
-
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 import uuid
@@ -35,14 +31,17 @@ from sqlalchemy import (
     or_,
     select,
     text as sa_text,
+    nullslast,
 )
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only
 from weasyprint import HTML, CSS
 
 from extensions import db
 from forms import PaymentForm
 from models import (
+    Check,
+    CheckStatus,
     Customer,
     Expense,
     ExpenseType,
@@ -255,12 +254,17 @@ def _serialize_split(s):
     }
 
 def _serialize_payment_min(p, *, full=False):
+    is_manual_check = getattr(p, "is_manual_check", False)
+    payment_date = getattr(p, "payment_date", None)
+    if is_manual_check and hasattr(p, "_check_obj"):
+        payment_date = p._check_obj.check_date
+    
     # ✅ حساب المبلغ بالشيكل في الباكند
     amount_in_ils = float(p.total_amount or 0)
     if p.currency and p.currency != 'ILS':
         try:
             from models import convert_amount
-            amount_in_ils = float(convert_amount(p.total_amount, p.currency, 'ILS', p.payment_date))
+            amount_in_ils = float(convert_amount(p.total_amount, p.currency, 'ILS', payment_date))
         except Exception:
             # fallback: استخدام fx_rate_used المحفوظ
             if p.fx_rate_used and p.fx_rate_used > 0:
@@ -268,7 +272,7 @@ def _serialize_payment_min(p, *, full=False):
     
     d = {
         "id": p.id,
-        "payment_date": (p.payment_date.isoformat() if getattr(p, "payment_date", None) else None),
+        "payment_date": (payment_date.isoformat() if payment_date else None),
         "total_amount": int(q0(getattr(p, "total_amount", 0) or 0)),
         "currency": getattr(p, "currency", "ILS") or "ILS",
         "amount_in_ils": amount_in_ils,  # ✅ إضافة المبلغ بالشيكل من الباكند
@@ -280,7 +284,11 @@ def _serialize_payment_min(p, *, full=False):
         "entity_type": getattr(p, "entity_type", "") or "",
         "entity_display": p.entity_label() if hasattr(p, "entity_label") else (getattr(p, "entity_type", "") or ""),
         "splits": [_serialize_split(s) for s in (list(getattr(p, "splits", []) or []))],
+        "is_manual_check": is_manual_check,
     }
+    if is_manual_check:
+        d["check_id"] = getattr(p, "check_id", None)
+        d["check_number"] = getattr(p, "check_number", None)
     d["deliverer_name"] = getattr(p, "deliverer_name", None)
     d["receiver_name"] = getattr(p, "receiver_name", None)
     d["service_id"] = getattr(p, "service_id", None)
@@ -394,7 +402,9 @@ def entity_search():
             col = getattr(model, c, None)
             if col is not None:
                 conds.append(col.ilike(like))
-        return db.session.query(model).filter(or_(*conds)).order_by(getattr(model, "name").asc()).limit(limit).all()
+        return db.session.query(model).options(
+            load_only(model.id, model.name, getattr(model, "phone", None), getattr(model, "mobile", None), getattr(model, "email", None))
+        ).filter(or_(*conds)).order_by(getattr(model, "name").asc()).limit(limit).all()
     results = []
     if t == "CUSTOMER":
         rows = rows_for(Customer); results = [{"id": r.id, "label": r.name, "extra": (getattr(r, "phone", "") or getattr(r, "mobile", "") or "")} for r in rows]
@@ -423,7 +433,7 @@ def index():
     if not getattr(current_user, "is_authenticated", False):
         return redirect(url_for("auth.login", next=request.full_path))
     page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 10, type=int), 10)
+    per_page = 10
     print_mode = request.args.get("print") == "1"
     scope_param = request.args.get("scope")
     print_scope = scope_param or ("page" if print_mode else "all")
@@ -540,37 +550,60 @@ def index():
             joinedload(Payment.service).joinedload(ServiceRequest.vehicle_type),
         )
     )
-    ordered_query = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc())
     
-    all_payments = ordered_query.all()
-    total_filtered = len(all_payments)
-    total_pages = math.ceil(total_filtered / per_page) if total_filtered else 1
-
-    range_start_value = max(1, range_start or 1)
-    range_end_value = range_end or (total_filtered if total_filtered else 1)
-    if range_end_value < range_start_value:
-        range_end_value = range_start_value
-    target_page_value = target_page or 1
-    if target_page_value < 1:
-        target_page_value = 1
-    if target_page_value > total_pages:
-        target_page_value = total_pages if total_pages else 1
-
+    sort = request.args.get("sort", "date")
+    order = request.args.get("order", "desc")
+    
+    if sort == "date":
+        if order == "asc":
+            ordered_query = base_q.order_by(Payment.payment_date.asc(), Payment.id.asc())
+        else:
+            ordered_query = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc())
+    elif sort == "amount":
+        if order == "asc":
+            ordered_query = base_q.order_by(Payment.total_amount.asc().nullslast(), Payment.id.asc())
+        else:
+            ordered_query = base_q.order_by(Payment.total_amount.desc().nullslast(), Payment.id.desc())
+    elif sort == "entity":
+        if order == "asc":
+            ordered_query = base_q.order_by(Payment.entity_type.asc().nullslast(), Payment.id.asc())
+        else:
+            ordered_query = base_q.order_by(Payment.entity_type.desc().nullslast(), Payment.id.desc())
+    elif sort == "direction":
+        if order == "asc":
+            ordered_query = base_q.order_by(Payment.direction.asc().nullslast(), Payment.id.asc())
+        else:
+            ordered_query = base_q.order_by(Payment.direction.desc().nullslast(), Payment.id.desc())
+    elif sort == "method":
+        if order == "asc":
+            ordered_query = base_q.order_by(Payment.method.asc().nullslast(), Payment.id.asc())
+        else:
+            ordered_query = base_q.order_by(Payment.method.desc().nullslast(), Payment.id.desc())
+    else:
+        ordered_query = base_q.order_by(Payment.payment_date.desc(), Payment.id.desc())
+    
+    per_page = min(max(1, per_page), 500)
+    
     if print_mode:
         if print_scope == "all":
-            payments_list = list(all_payments)
+            pag = ordered_query.paginate(page=1, per_page=10000, error_out=False)
+            payments_list = list(pag.items)
             row_offset = 0
         elif print_scope == "range":
-            start_idx = range_start_value - 1
-            end_idx = min(total_filtered, range_end_value)
-            payments_list = all_payments[start_idx:end_idx]
-            row_offset = start_idx
+            range_start_value = max(1, range_start or 1)
+            range_end_value = range_end or 10000
+            if range_end_value < range_start_value:
+                range_end_value = range_start_value
+            range_size = range_end_value - range_start_value + 1
+            range_page = math.ceil(range_start_value / per_page)
+            pag = ordered_query.paginate(page=range_page, per_page=range_size, error_out=False)
+            payments_list = list(pag.items)
+            row_offset = range_start_value - 1
         else:
-            row_offset = (target_page_value - 1) * per_page
-            start_idx = row_offset
-            end_idx = start_idx + per_page
-            payments_list = all_payments[start_idx:end_idx]
-        pag = None
+            target_page_value = max(1, target_page or 1)
+            pag = ordered_query.paginate(page=target_page_value, per_page=per_page, error_out=False)
+            payments_list = list(pag.items)
+            row_offset = (pag.page - 1) * pag.per_page if pag else 0
     else:
         pag = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
         payments_list = list(pag.items)
@@ -580,7 +613,118 @@ def index():
             _ = s.entity_label()
         except Exception:
             pass
-    payments_render = payments_list
+    
+    # ✅ إضافة الشيكات اليدوية إلى قائمة الدفعات المعروضة
+    manual_checks_for_display = []
+    # إضافة الشيكات اليدوية حتى لو لم يكن هناك entity_type و entity_id (للعرض العام)
+    check_filters = [Check.payment_id.is_(None)]
+    
+    if entity_type in ["PARTNER", "SUPPLIER", "CUSTOMER"] and entity_id:
+        if entity_type == "PARTNER":
+            check_filters.append(Check.partner_id == entity_id)
+        elif entity_type == "SUPPLIER":
+            check_filters.append(Check.supplier_id == entity_id)
+        elif entity_type == "CUSTOMER":
+            check_filters.append(Check.customer_id == entity_id)
+    
+    if sd:
+        check_filters.append(Check.check_date >= datetime.combine(sd, time.min))
+    if ed:
+        check_filters.append(Check.check_date <= datetime.combine(ed, time.max))
+    
+    if status:
+        st_val = status.strip().upper()
+        if st_val in ["RETURNED", "BOUNCED", "PENDING", "CASHED", "RESUBMITTED", "CANCELLED", "ARCHIVED", "OVERDUE"]:
+            check_filters.append(Check.status == st_val)
+    
+    if direction:
+        dir_val = _dir_to_db(direction)
+        if dir_val:
+            check_filters.append(Check.direction == dir_val)
+    
+    manual_checks_list = db.session.query(Check).filter(*check_filters).order_by(Check.check_date.desc(), Check.id.desc()).all()
+    
+    for check in manual_checks_list:
+        class MockPayment:
+            def __init__(self, check_obj):
+                self.id = f"check_{check_obj.id}"
+                self.payment_date = check_obj.check_date
+                self.total_amount = check_obj.amount
+                self.currency = check_obj.currency or "ILS"
+                self.method = PaymentMethod.CHEQUE.value
+                self.direction = check_obj.direction
+                self.status = check_obj.status
+                self.entity_type = entity_type
+                self.payment_number = None
+                self.receipt_number = None
+                self.reference = f"شيك يدوي - {check_obj.check_number or ''}"
+                self.notes = check_obj.notes or "شيك يدوي"
+                self.check_id = check_obj.id
+                self.check_number = check_obj.check_number
+                self.fx_rate_used = None
+                self.fx_rate_source = None
+                self.splits = []
+                self.is_manual_check = True
+                self._check_obj = check_obj
+            
+            def entity_label(self):
+                check_entity_type = None
+                check_entity_id = None
+                if self._check_obj.customer_id:
+                    check_entity_type = "CUSTOMER"
+                    check_entity_id = self._check_obj.customer_id
+                elif self._check_obj.supplier_id:
+                    check_entity_type = "SUPPLIER"
+                    check_entity_id = self._check_obj.supplier_id
+                elif self._check_obj.partner_id:
+                    check_entity_type = "PARTNER"
+                    check_entity_id = self._check_obj.partner_id
+                
+                if check_entity_type == "PARTNER":
+                    partner_obj = db.session.get(Partner, check_entity_id)
+                    return f"شريك: {partner_obj.name if partner_obj else ''}"
+                elif check_entity_type == "SUPPLIER":
+                    supplier_obj = db.session.get(Supplier, check_entity_id)
+                    return f"مورد: {supplier_obj.name if supplier_obj else ''}"
+                elif check_entity_type == "CUSTOMER":
+                    customer_obj = db.session.get(Customer, check_entity_id)
+                    return f"عميل: {customer_obj.name if customer_obj else ''}"
+                return "شيك يدوي"
+        
+        mock_payment = MockPayment(check)
+        manual_checks_for_display.append(mock_payment)
+    
+    payments_render = list(payments_list) + manual_checks_for_display
+    
+    def sort_key(x):
+        payment_date = datetime.min
+        if hasattr(x, 'payment_date') and x.payment_date:
+            if isinstance(x.payment_date, datetime):
+                payment_date = x.payment_date
+            elif isinstance(x.payment_date, str):
+                try:
+                    payment_date = datetime.strptime(x.payment_date, '%Y-%m-%d')
+                except:
+                    payment_date = datetime.min
+            elif isinstance(x.payment_date, date):
+                payment_date = datetime.combine(x.payment_date, datetime.min.time())
+        
+        item_id = getattr(x, 'id', 0)
+        if isinstance(item_id, str):
+            if item_id.startswith('check_'):
+                try:
+                    item_id = int(item_id.replace('check_', ''))
+                except:
+                    item_id = 0
+            else:
+                try:
+                    item_id = int(item_id)
+                except:
+                    item_id = 0
+        
+        return (payment_date, item_id)
+    
+    payments_render.sort(key=sort_key, reverse=True)
     query_args = request.args.to_dict()
     for key in ["page", "print", "scope", "range_start", "range_end", "page_number"]:
         query_args.pop(key, None)
@@ -608,6 +752,42 @@ def index():
             # في حالة فشل التحويل، سجل الخطأ ولا تضف المبلغ بعملة مختلفة
             current_app.logger.error(f"❌ خطأ في تحويل العملة للدفعة #{payment.id}: {str(e)} - تجاهل المبلغ من الإحصائيات")
             # لا نضيف المبلغ لأنه بعملة مختلفة ولا يمكن تحويله
+    
+    # ✅ إضافة الشيكات اليدوية (بدون payment_id) للإحصائيات
+    manual_checks_filters = []
+    if entity_type == "PARTNER" and entity_id:
+        manual_checks_filters.append(Check.partner_id == entity_id)
+    elif entity_type == "SUPPLIER" and entity_id:
+        manual_checks_filters.append(Check.supplier_id == entity_id)
+    elif entity_type == "CUSTOMER" and entity_id:
+        manual_checks_filters.append(Check.customer_id == entity_id)
+    
+    if manual_checks_filters:
+        manual_checks_filters.append(Check.payment_id.is_(None))
+        if sd:
+            manual_checks_filters.append(Check.check_date >= datetime.combine(sd, time.min))
+        if ed:
+            manual_checks_filters.append(Check.check_date <= datetime.combine(ed, time.max))
+        
+        manual_checks = db.session.query(Check).filter(*manual_checks_filters).all()
+        
+        for check in manual_checks:
+            try:
+                from models import convert_amount
+                if check.currency == 'ILS':
+                    converted_amount = float(check.amount or 0)
+                else:
+                    converted_amount = float(convert_amount(Decimal(str(check.amount or 0)), check.currency, 'ILS', check.check_date or datetime.utcnow()))
+                
+                grand_total_ils += converted_amount
+                if check.direction == PaymentDirection.IN.value:
+                    if check.status not in [CheckStatus.RETURNED.value, CheckStatus.BOUNCED.value, CheckStatus.CANCELLED.value, CheckStatus.ARCHIVED.value]:
+                        total_incoming_ils += converted_amount
+                elif check.direction == PaymentDirection.OUT.value:
+                    if check.status not in [CheckStatus.RETURNED.value, CheckStatus.BOUNCED.value, CheckStatus.CANCELLED.value, CheckStatus.ARCHIVED.value]:
+                        total_outgoing_ils += converted_amount
+            except Exception as e:
+                current_app.logger.error(f"❌ خطأ في تحويل العملة للشيك اليدوي #{check.id}: {str(e)}")
     
     net_total_ils = total_incoming_ils - total_outgoing_ils
     
@@ -663,6 +843,11 @@ def index():
             "selected_partner": selected_partner,
             "partner_ledger": partner_ledger,
         })
+    if 'query_args' not in locals():
+        query_args = request.args.to_dict()
+        for key in ["page", "print", "scope", "range_start", "range_end", "page_number", "ajax"]:
+            query_args.pop(key, None)
+    
     return render_template(
         "payments/list.html",
         payments=payments_render,
@@ -688,6 +873,8 @@ def index():
         show_actions=not print_mode,
         pagination=pag,
         query_args=query_args,
+        current_sort=sort,
+        current_order=order,
     )
 
 @payments_bp.route("/create", methods=["GET", "POST"], endpoint="create_payment")
@@ -1263,6 +1450,41 @@ def create_payment():
                     current_app.logger.error(traceback.format_exc())
                 
                 utils.log_audit("Payment", payment.id, "CREATE")
+                
+                check_token = request.form.get("check_token") or request.args.get("check_token")
+                if check_token:
+                    try:
+                        from routes.checks import CheckActionService
+                        service = CheckActionService(current_user)
+                        ctx = service._resolve(check_token)
+                        current_status = service._current_status(ctx)
+                        if current_status not in ['CANCELLED', 'CASHED']:
+                            note_text = "تم تسوية الشيك مرتجع عن طريق دفع بديل"
+                            payment._skip_gl_entry = True
+                            if ctx.kind in ['payment', 'payment_split'] and ctx.payment:
+                                if current_status == 'PENDING':
+                                    service.run(check_token, 'CANCELLED', note_text)
+                                else:
+                                    note_suffix = "\n[SETTLED=true] " + note_text
+                                    if '[SETTLED=true]' not in (ctx.payment.notes or ''):
+                                        ctx.payment.notes = (ctx.payment.notes or '') + note_suffix
+                            elif ctx.kind == 'expense' and ctx.expense:
+                                note_suffix = "\n[SETTLED=true] " + note_text
+                                if '[SETTLED=true]' not in (ctx.expense.notes or ''):
+                                    ctx.expense.notes = (ctx.expense.notes or '') + note_suffix
+                            elif ctx.kind == 'manual' and ctx.manual:
+                                if current_status == 'PENDING':
+                                    service.run(check_token, 'CANCELLED', note_text)
+                                else:
+                                    note_suffix = "\n[SETTLED=true] " + note_text
+                                    if '[SETTLED=true]' not in (ctx.manual.notes or ''):
+                                        ctx.manual.notes = (ctx.manual.notes or '') + note_suffix
+                            db.session.commit()
+                            current_app.logger.info(f"✅ تم تسوية الشيك {check_token} بعد حفظ الدفعة {payment.id}")
+                    except Exception as e:
+                        current_app.logger.error(f"⚠️ فشل تسوية الشيك {check_token} بعد حفظ الدفعة {payment.id}: {str(e)}")
+                        import traceback
+                        current_app.logger.error(traceback.format_exc())
             except SQLAlchemyError:
                 db.session.rollback()
         except SQLAlchemyError as e:
@@ -1469,11 +1691,11 @@ def delete_payment(payment_id: int):
     if not payment:
         return _ok_not_found("السند غير موجود (لا حاجة لإجراء)")
     try:
-        with db.session.begin():
-            if hasattr(payment, "splits") and payment.splits:
-                for sp in list(payment.splits):
-                    db.session.delete(sp)
-            db.session.delete(payment)
+        if hasattr(payment, "splits") and payment.splits:
+            for sp in list(payment.splits):
+                db.session.delete(sp)
+        db.session.delete(payment)
+        db.session.commit()
         if _wants_json():
             return jsonify(status="ok", deleted_id=payment_id), 200
         return redirect(url_for(".index"))
@@ -1702,14 +1924,17 @@ def _get_partner_balance_details(partner: Partner | None) -> dict | None:
         return None
     smart_balance = None
     try:
-        balance_data = _calculate_smart_partner_balance(
-            partner.id,
-            SMART_PARTNER_BALANCE_START,
-            datetime.utcnow()
-        )
-        if balance_data.get("success"):
-            smart_balance = float(balance_data.get("balance", {}).get("amount", 0) or 0)
-    except Exception:
+        from utils import get_partner_balance_unified
+        from extensions import cache
+        cache_key = f'partner_balance_unified_{partner.id}'
+        try:
+            cache.delete(cache_key)
+        except:
+            pass
+        smart_balance = float(get_partner_balance_unified(partner.id))
+        current_app.logger.debug(f"✅ رصيد الشريك #{partner.id}: {smart_balance}")
+    except Exception as e:
+        current_app.logger.warning(f"⚠️ خطأ في حساب رصيد الشريك #{partner.id}: {e}")
         smart_balance = None
     stored_balance = float(partner.balance_in_ils or 0)
     balance = smart_balance if smart_balance is not None else stored_balance
@@ -1770,7 +1995,9 @@ def get_entities(entity_type):
     
     try:
         if entity_type == "CUSTOMER":
-            query = Customer.query.filter_by(is_active=True)
+            query = Customer.query.filter_by(is_active=True).options(
+                load_only(Customer.id, Customer.name, Customer.phone, Customer.email)
+            )
             if search:
                 query = query.filter(
                     or_(
@@ -1793,9 +2020,10 @@ def get_entities(entity_type):
             })
             
         elif entity_type == "SUPPLIER":
-            query = Supplier.query.filter_by(is_archived=False)  # ✅ Supplier عنده is_archived مش is_active
+            query = Supplier.query.filter_by(is_archived=False).options(
+                load_only(Supplier.id, Supplier.name, Supplier.phone, Supplier.email)
+            )
             if search:
-                # ✅ استخدام func.coalesce للتعامل مع null
                 query = query.filter(
                     or_(
                         Supplier.name.ilike(f"%{search}%"),
@@ -1817,9 +2045,10 @@ def get_entities(entity_type):
             })
             
         elif entity_type == "PARTNER":
-            query = Partner.query.filter_by(is_archived=False)  # ✅ Partner عنده is_archived مش is_active
+            query = Partner.query.filter_by(is_archived=False).options(
+                load_only(Partner.id, Partner.name, Partner.phone_number, Partner.email)
+            )
             if search:
-                # ✅ Partner عنده phone_number (مش phone) + استخدام coalesce للتعامل مع null
                 query = query.filter(
                     or_(
                         Partner.name.ilike(f"%{search}%"),
@@ -1841,7 +2070,10 @@ def get_entities(entity_type):
             })
             
         elif entity_type == "SALE":
-            query = Sale.query.filter_by(status="CONFIRMED")
+            query = Sale.query.filter_by(status="CONFIRMED").options(
+                joinedload(Sale.customer).load_only(Customer.id, Customer.name),
+                load_only(Sale.id, Sale.sale_number, Sale.sale_date, Sale.total_amount, Sale.currency)
+            )
             if search:
                 query = query.join(Customer).filter(
                     or_(
@@ -1862,13 +2094,15 @@ def get_entities(entity_type):
             })
             
         elif entity_type == "INVOICE":
-            # ✅ status محسوب تلقائياً - نستخدم total_paid للفلترة على الفواتير غير المدفوعة
             from sqlalchemy import and_
             query = Invoice.query.filter(
                 and_(
                     Invoice.total_paid == 0,
                     Invoice.cancelled_at.is_(None)
                 )
+            ).options(
+                joinedload(Invoice.customer).load_only(Customer.id, Customer.name),
+                load_only(Invoice.id, Invoice.invoice_number, Invoice.invoice_date, Invoice.total_amount, Invoice.currency, Invoice.total_paid, Invoice.cancelled_at)
             )
             if search:
                 query = query.join(Customer).filter(

@@ -213,9 +213,9 @@
             <td>{{ loop.index }}</td>
             <td class="supplier-name">{{ s.name }}</td>
             <td class="supplier-phone">{{ s.phone or '—' }}</td>
-            <td data-sort-value="{{ s.balance_in_ils or 0 }}">
-              <span class="badge {% if (s.balance_in_ils or 0) < 0 %}bg-danger{% elif (s.balance_in_ils or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
-                {{ '%.2f'|format(s.balance_in_ils or 0) }} ₪
+            <td data-sort-value="{{ s.balance or 0 }}">
+              <span class="badge {% if (s.balance or 0) < 0 %}bg-danger{% elif (s.balance or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+                {{ '%.2f'|format(s.balance or 0) }} ₪
               </span>
             </td>
             <td>

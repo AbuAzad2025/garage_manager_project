@@ -11,7 +11,6 @@ function printReport(targetSelector = 'body') {
     const printContent = document.querySelector(targetSelector);
     
     if (!printContent) {
-        console.error('Print target not found:', targetSelector);
         return;
     }
 
@@ -113,7 +112,6 @@ function printTable(tableId) {
     const table = document.getElementById(tableId);
     
     if (!table) {
-        console.error('Table not found:', tableId);
         return;
     }
 
@@ -174,10 +172,9 @@ function printTable(tableId) {
 function exportToCSV(tableId, filename = 'report.csv') {
     const table = document.getElementById(tableId);
     
-    if (!table) {
-        console.error('Table not found:', tableId);
-        return;
-    }
+  if (!table) {
+    return;
+  }
 
     const rows = Array.from(table.querySelectorAll('tr'));
     const csvContent = rows.map(row => {
@@ -206,10 +203,9 @@ function exportToCSV(tableId, filename = 'report.csv') {
 function exportToExcel(tableId, filename = 'report.xlsx') {
     const table = document.getElementById(tableId);
     
-    if (!table) {
-        console.error('Table not found:', tableId);
-        return;
-    }
+  if (!table) {
+    return;
+  }
 
     const clone = table.cloneNode(true);
     clone.querySelectorAll('.no-print, .action-column, .btn').forEach(el => el.remove());
@@ -226,10 +222,9 @@ function exportToExcel(tableId, filename = 'report.xlsx') {
 function printWithSummary(targetSelector, summaryData) {
     const printContent = document.querySelector(targetSelector);
     
-    if (!printContent) {
-        console.error('Print target not found:', targetSelector);
-        return;
-    }
+  if (!printContent) {
+    return;
+  }
 
     const originalContents = document.body.innerHTML;
     const printableContent = printContent.innerHTML;

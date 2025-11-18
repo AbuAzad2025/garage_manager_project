@@ -83,7 +83,6 @@
     start: function(tourName = 'dashboard') {
       const tour = this.tours[tourName];
       if (!tour || tour.length === 0) {
-        console.warn('⚠️ Tour not found:', tourName);
         return;
       }
       
@@ -100,8 +99,6 @@
       
       this.createOverlay();
       this.showStep(tour[0]);
-      
-      console.log(`🎯 بدء الجولة الإرشادية: ${tourName}`);
     },
     
     createOverlay: function() {
@@ -150,9 +147,7 @@
     
     showStep: function(step) {
       const element = document.querySelector(step.element);
-      
       if (!element) {
-        console.warn('⚠️ Element not found for step:', step);
         this.next();
         return;
       }
@@ -282,7 +277,6 @@
       this.tooltipBox?.remove();
       this.isActive = false;
       this.currentStep = 0;
-      console.log('✅ تم إنهاء الجولة الإرشادية');
     }
   };
 
@@ -298,7 +292,5 @@
     }
   });
 
-  console.log('✅ Security Tour Guide System Ready');
-  
 })();
 

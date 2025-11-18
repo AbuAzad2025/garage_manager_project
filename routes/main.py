@@ -18,6 +18,7 @@ from models import (
     CheckStatus,
     Customer,
     ExchangeTransaction,
+    Expense,
     Invoice,
     Note,
     Payment,
@@ -30,7 +31,6 @@ from models import (
     Supplier,
     Partner,
     StockLevel,
-    Expense,
 )
 from models import convert_amount, fx_rate
 import utils
@@ -71,7 +71,6 @@ def dashboard():
     start = today - timedelta(days=6)
     end = today
 
-    # حدود زمنية دقيقة لليوم والأسبوع (Exclusive للحد الأعلى)
     day_start_dt = datetime.combine(today, time.min)
     day_end_dt = datetime.combine(today + timedelta(days=1), time.min)
     week_start_dt = datetime.combine(start, time.min)
@@ -80,7 +79,9 @@ def dashboard():
     inv_rows = (
         db.session.query(Product, func.coalesce(func.sum(StockLevel.quantity), 0).label("on_hand_sum"))
         .outerjoin(StockLevel, StockLevel.product_id == Product.id)
+        .filter(Product.is_active.is_(True))
         .group_by(Product.id)
+        .limit(5000)
         .all()
     )
     for p, qty in inv_rows:
@@ -173,26 +174,43 @@ def dashboard():
         for amt, currency, fx_used, sale_dt in today_sales_rows:
             today_revenue += _to_ils(amt, currency, fx_used, sale_dt)
 
-    # helper لجمع الأرصدة من الخصائص الهجينة (لا يمكن جمعها عبر SQL مباشرة)
     def _sum_entity_balance(model):
         total = Decimal('0.00')
         try:
-            for entity in model.query.options(load_only(model.id)).all():
+            from extensions import cache
+            cache_key = f"dashboard_balance_{model.__tablename__}"
+            cached_total = cache.get(cache_key)
+            if cached_total is not None:
+                return float(cached_total)
+            
+            entities = model.query.options(load_only(model.id)).limit(10000).all()
+            for entity in entities:
                 try:
                     total += Decimal(str(getattr(entity, "balance", 0) or 0))
                 except Exception:
                     continue
-        except Exception as exc:  # pragma: no cover - فقط للتسجيل
+            result = float(total)
+            cache.set(cache_key, result, timeout=300)
+            return result
+        except Exception as exc:
             current_app.logger.warning(f"Dashboard balance aggregation failed for {model.__tablename__}: {exc}")
             return 0.0
-        return float(total)
 
     def _sum_partner_smart_balance():
+        try:
+            from extensions import cache
+            cache_key = "dashboard_partner_balance"
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return float(cached)
+        except Exception:
+            pass
+        
         try:
             from routes.partner_settlements import _calculate_smart_partner_balance
         except Exception:
             _calculate_smart_partner_balance = None
-        partners = Partner.query.filter(Partner.is_archived.is_(False)).options(load_only(Partner.id)).all()
+        partners = Partner.query.filter(Partner.is_archived.is_(False)).options(load_only(Partner.id)).limit(1000).all()
         total = Decimal('0.00')
         smart_start = datetime(date.today().year, 1, 1)
         smart_end = datetime.utcnow()
@@ -211,7 +229,12 @@ def dashboard():
                 except Exception:
                     balance_value = Decimal('0.00')
             total += balance_value
-        return float(total)
+        result = float(total)
+        try:
+            cache.set(cache_key, result, timeout=300)
+        except Exception:
+            pass
+        return result
 
     total_customer_balance = _sum_entity_balance(Customer)
     total_supplier_balance = _sum_entity_balance(Supplier)
@@ -242,6 +265,32 @@ def dashboard():
                 incoming += amt_ils
             else:
                 outgoing += amt_ils
+        
+        expenses_without_payments = (
+            db.session.query(
+                Expense.amount,
+                Expense.currency,
+                Expense.date,
+            )
+            .outerjoin(
+                Payment,
+                and_(
+                    Payment.expense_id == Expense.id,
+                    Payment.status == PaymentStatus.COMPLETED.value
+                )
+            )
+            .filter(
+                Expense.date >= start_dt,
+                Expense.date < end_dt,
+                Payment.id.is_(None)
+            )
+            .all()
+        )
+        
+        for amount, currency, exp_dt in expenses_without_payments:
+            amt_ils = _to_ils(amount, currency, None, exp_dt or start_dt)
+            outgoing += amt_ils
+        
         return float(incoming), float(outgoing)
 
     today_incoming, today_outgoing = _aggregate_payments(day_start_dt, day_end_dt)

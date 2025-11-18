@@ -1,4 +1,3 @@
-// Arabic DataTables Translation (Inline)
 (function() {
     let applied = false;
     function applyDefaults() {

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import text, func
+from sqlalchemy.exc import SAWarning
 from datetime import datetime, timedelta, timezone
 from extensions import db, cache
 from models import User, AuditLog, SystemSettings
@@ -8,6 +9,7 @@ import utils
 from functools import wraps
 import json
 import os
+import warnings
 
 from AI.engine.ai_service import (
     ai_chat_with_search,
@@ -21,7 +23,6 @@ security_bp = Blueprint('security', __name__, url_prefix='/security')
 
 
 def make_aware(dt):
-    """تحويل naive datetime إلى aware datetime"""
     if dt and dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
@@ -73,10 +74,6 @@ def _get_action_color(action):
 
 
 def owner_only(f):
-    """
-    🔐 Decorator صارم: يسمح فقط للمالك (__OWNER__) بالوصول
-    حتى Super Admin لن يستطيع الدخول!
-    """
     @wraps(f)
     @login_required
     def decorated_function(*args, **kwargs):
@@ -2233,9 +2230,11 @@ def get_cached_security_stats():
         
         # حساب إجمالي الفهارس
         total_indexes = 0
-        for table in tables:
-            idxs = inspector.get_indexes(table)
-            total_indexes += len(idxs)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=SAWarning, message='.*Skipped unsupported reflection.*')
+            for table in tables:
+                idxs = inspector.get_indexes(table)
+                total_indexes += len(idxs)
         
         # حساب إجمالي الجداول (ما عدا الجداول النظامية)
         total_tables = len([t for t in tables if not t.startswith('sqlite_')])

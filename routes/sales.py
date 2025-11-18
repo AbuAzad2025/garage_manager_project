@@ -9,9 +9,9 @@ from flask import Blueprint, flash, jsonify, redirect, render_template, render_t
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_, desc, extract, case, and_
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload, load_only
 from extensions import db
-from models import Sale, SaleLine, Invoice, Customer, Product, AuditLog, Warehouse, User, Payment, StockLevel
+from models import Sale, SaleLine, Invoice, Customer, Product, AuditLog, Warehouse, User, Payment, StockLevel, Employee
 from forms import SaleForm
 import utils
 from utils import D, line_total_decimal, money_fmt, archive_record, restore_record  # Import from utils package
@@ -411,7 +411,11 @@ def list_sales():
     )
     q = (Sale.query
          .filter(Sale.is_archived == False)
-        .options(joinedload(Sale.customer), joinedload(Sale.seller), joinedload(Sale.seller_employee))
+        .options(
+            joinedload(Sale.customer).load_only(Customer.id, Customer.name, Customer.phone),
+            joinedload(Sale.seller).load_only(User.id, User.username),
+            joinedload(Sale.seller_employee).load_only(Employee.id, Employee.name)
+        )
          .outerjoin(subtotals, subtotals.c.sale_id == Sale.id)
          .outerjoin(Customer))
     st = (f.get("status") or "").upper().strip()
@@ -449,13 +453,28 @@ def list_sales():
         q = q.filter(or_(*search_filters))
     sort = f.get("sort", "date")
     order = f.get("order", "desc")
+    current_app.logger.info(f"Sales sort: {sort}, order: {order}, request.args: {dict(request.args)}")
     if sort == "total":
         fld = subtotals.c.calc_total
+        ordered_query = q.order_by(fld.asc() if order == "asc" else fld.desc())
     elif sort == "customer":
         fld = Customer.name
+        ordered_query = q.order_by(fld.asc() if order == "asc" else fld.desc())
+    elif sort == "invoice_no":
+        fld = Sale.sale_number
+        ordered_query = q.order_by(fld.asc().nullslast() if order == "asc" else fld.desc().nullslast())
+    elif sort == "paid":
+        fld = Sale.total_paid
+        ordered_query = q.order_by(fld.asc().nullslast() if order == "asc" else fld.desc().nullslast())
+    elif sort == "balance":
+        fld = Sale.balance_due
+        ordered_query = q.order_by(fld.asc().nullslast() if order == "asc" else fld.desc().nullslast())
+    elif sort == "date":
+        fld = Sale.sale_date
+        ordered_query = q.order_by(fld.asc() if order == "asc" else fld.desc())
     else:
         fld = Sale.sale_date
-    ordered_query = q.order_by(fld.asc() if order == "asc" else fld.desc())
+        ordered_query = q.order_by(fld.asc() if order == "asc" else fld.desc())
 
     per_page = 10
     page = max(1, int(f.get("page", 1)))
@@ -466,43 +485,44 @@ def list_sales():
     range_start = request.args.get("range_start", type=int)
     range_end = request.args.get("range_end", type=int)
     target_page = request.args.get("page_number", type=int)
-
-    all_sales = ordered_query.all()
-
-    total_filtered = len(all_sales)
-    total_pages = math.ceil(total_filtered / per_page) if total_filtered else 1
-
+    
+    # تعريف القيم الافتراضية
     range_start_value = range_start or 1
-    if range_start_value < 1:
-        range_start_value = 1
-    range_end_value = range_end or (total_filtered if total_filtered else 1)
-    if range_end_value < range_start_value:
-        range_end_value = range_start_value
+    range_end_value = range_end or 10000
     target_page_value = target_page or 1
-    if target_page_value < 1:
-        target_page_value = 1
-    if target_page_value > total_pages:
-        target_page_value = total_pages if total_pages else 1
 
+    per_page = min(max(1, per_page), 500)
+    
+    # حساب total_filtered و total_pages
+    total_filtered = ordered_query.count()
+    total_pages = math.ceil(total_filtered / per_page) if total_filtered else 1
+    
     if print_mode:
         if print_scope == "all":
-            sales_list = list(all_sales)
+            pag = ordered_query.paginate(page=1, per_page=10000, error_out=False)
+            sales_list = list(pag.items)
             row_offset = 0
         elif print_scope == "range":
-            start_idx = range_start_value - 1
-            end_idx = min(total_filtered, range_end_value)
-            sales_list = all_sales[start_idx:end_idx]
-            row_offset = start_idx
+            range_start_value = max(1, range_start or 1)
+            range_end_value = range_end or 10000
+            if range_end_value < range_start_value:
+                range_end_value = range_start_value
+            range_size = range_end_value - range_start_value + 1
+            range_page = math.ceil(range_start_value / per_page)
+            pag = ordered_query.paginate(page=range_page, per_page=range_size, error_out=False)
+            sales_list = list(pag.items)
+            row_offset = range_start_value - 1
         else:
-            row_offset = (target_page_value - 1) * per_page
-            start_idx = row_offset
-            end_idx = start_idx + per_page
-            sales_list = all_sales[start_idx:end_idx]
+            target_page_value = max(1, target_page or 1)
+            pag = ordered_query.paginate(page=target_page_value, per_page=per_page, error_out=False)
+            sales_list = list(pag.items)
+            row_offset = (pag.page - 1) * pag.per_page if pag else 0
         pag = None
     else:
         pag = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
         sales_list = list(pag.items)
         row_offset = (pag.page - 1) * pag.per_page if pag else 0
+    current_app.logger.debug(f"Sales list count: {len(sales_list)}, first sale date: {sales_list[0].sale_date if sales_list else 'N/A'}")
     for s in sales_list:
         _format_sale(s)
     
@@ -541,7 +561,7 @@ def list_sales():
     except Exception:
         pass
     
-    all_sales = all_sales_query.all()
+    all_sales = all_sales_query.limit(10000).all()
     
     # حساب الإحصائيات بدقة
     def _to_ils(value, currency, fx_used, at_date):
@@ -623,8 +643,12 @@ def list_sales():
     context = {
         "sales": sales_list,
         "pagination": pag,
-        "warehouses": Warehouse.query.order_by(Warehouse.name).all(),
-        "customers": Customer.query.order_by(Customer.name).limit(100).all(),
+        "warehouses": Warehouse.query.options(
+            load_only(Warehouse.id, Warehouse.name)
+        ).order_by(Warehouse.name).all(),
+        "customers": Customer.query.options(
+            load_only(Customer.id, Customer.name, Customer.phone)
+        ).order_by(Customer.name).limit(100).all(),
         "sellers": User.query.filter_by(is_active=True).order_by(User.username).all(),
         "status_map": STATUS_MAP,
         "summary": summary,
@@ -645,19 +669,93 @@ def list_sales():
 
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.accept_mimetypes.best == "application/json"
     if is_ajax and not print_mode:
+        current_sort = f.get("sort", "date")
+        current_order = f.get("order", "desc")
         table_html = render_template_string(
             """
 <table id="salesTable" class="table table-hover align-middle">
   <thead class="thead-light">
     <tr>
-      <th>رقم</th>
-      <th>التاريخ</th>
-      <th>العميل</th>
-      <th>الإجمالي</th>
+      <th>
+        <div class="d-flex align-items-center justify-content-between">
+          <span>رقم</span>
+          <div class="sort-buttons">
+            <button type="button" class="btn-sort {% if current_sort == 'invoice_no' and current_order == 'asc' %}active{% endif %}" data-sort="invoice_no" data-order="asc" title="تصاعدي">
+              <i class="fas fa-sort-up"></i>
+            </button>
+            <button type="button" class="btn-sort {% if current_sort == 'invoice_no' and current_order == 'desc' %}active{% endif %}" data-sort="invoice_no" data-order="desc" title="تنازلي">
+              <i class="fas fa-sort-down"></i>
+            </button>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="d-flex align-items-center justify-content-between">
+          <span>التاريخ</span>
+          <div class="sort-buttons">
+            <button type="button" class="btn-sort {% if current_sort == 'date' and current_order == 'asc' %}active{% endif %}" data-sort="date" data-order="asc" title="تصاعدي">
+              <i class="fas fa-sort-up"></i>
+            </button>
+            <button type="button" class="btn-sort {% if current_sort == 'date' and current_order == 'desc' %}active{% endif %}" data-sort="date" data-order="desc" title="تنازلي">
+              <i class="fas fa-sort-down"></i>
+            </button>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="d-flex align-items-center justify-content-between">
+          <span>العميل</span>
+          <div class="sort-buttons">
+            <button type="button" class="btn-sort {% if current_sort == 'customer' and current_order == 'asc' %}active{% endif %}" data-sort="customer" data-order="asc" title="تصاعدي">
+              <i class="fas fa-sort-up"></i>
+            </button>
+            <button type="button" class="btn-sort {% if current_sort == 'customer' and current_order == 'desc' %}active{% endif %}" data-sort="customer" data-order="desc" title="تنازلي">
+              <i class="fas fa-sort-down"></i>
+            </button>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="d-flex align-items-center justify-content-between">
+          <span>الإجمالي</span>
+          <div class="sort-buttons">
+            <button type="button" class="btn-sort {% if current_sort == 'total' and current_order == 'asc' %}active{% endif %}" data-sort="total" data-order="asc" title="تصاعدي">
+              <i class="fas fa-sort-up"></i>
+            </button>
+            <button type="button" class="btn-sort {% if current_sort == 'total' and current_order == 'desc' %}active{% endif %}" data-sort="total" data-order="desc" title="تنازلي">
+              <i class="fas fa-sort-down"></i>
+            </button>
+          </div>
+        </div>
+      </th>
       <th>العملة</th>
       <th>سعر الصرف</th>
-      <th>مدفوع</th>
-      <th>متبقي</th>
+      <th>
+        <div class="d-flex align-items-center justify-content-between">
+          <span>مدفوع</span>
+          <div class="sort-buttons">
+            <button type="button" class="btn-sort {% if current_sort == 'paid' and current_order == 'asc' %}active{% endif %}" data-sort="paid" data-order="asc" title="تصاعدي">
+              <i class="fas fa-sort-up"></i>
+            </button>
+            <button type="button" class="btn-sort {% if current_sort == 'paid' and current_order == 'desc' %}active{% endif %}" data-sort="paid" data-order="desc" title="تنازلي">
+              <i class="fas fa-sort-down"></i>
+            </button>
+          </div>
+        </div>
+      </th>
+      <th>
+        <div class="d-flex align-items-center justify-content-between">
+          <span>متبقي</span>
+          <div class="sort-buttons">
+            <button type="button" class="btn-sort {% if current_sort == 'balance' and current_order == 'asc' %}active{% endif %}" data-sort="balance" data-order="asc" title="تصاعدي">
+              <i class="fas fa-sort-up"></i>
+            </button>
+            <button type="button" class="btn-sort {% if current_sort == 'balance' and current_order == 'desc' %}active{% endif %}" data-sort="balance" data-order="desc" title="تنازلي">
+              <i class="fas fa-sort-down"></i>
+            </button>
+          </div>
+        </div>
+      </th>
       <th class="text-center" data-sortable="false">إجراءات</th>
     </tr>
   </thead>
@@ -741,6 +839,8 @@ def list_sales():
             """,
             sales=sales_list,
             current_user=current_user,
+            current_sort=current_sort,
+            current_order=current_order,
         )
         pagination_html = render_template_string(
             """
@@ -883,7 +983,6 @@ def _resolve_unit_price(product_id: int, warehouse_id: Optional[int]) -> float:
 
 @sales_bp.route("/new", methods=["GET", "POST"], endpoint="create_sale")
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def create_sale():
     form = SaleForm()
     if request.method == "POST" and not form.validate_on_submit():
@@ -891,44 +990,44 @@ def create_sale():
         current_app.logger.debug("POST data: %r", request.form.to_dict(flat=False))
     if form.validate_on_submit():
         try:
-            # دائماً مؤكد - لا حاجة لاختيار الحالة
             target_status = "CONFIRMED"
             require_stock = True
             lines_payload, err = _resolve_lines_from_form(form, require_stock=require_stock)
             if err:
                 flash(f"❌ {err}", "danger")
                 return render_template("sales/form.html", form=form, title="إنشاء فاتورة جديدة",
-                                       products=Product.query.order_by(Product.name).all(),
-                                       warehouses=Warehouse.query.order_by(Warehouse.name).all())
-            # جلب السعر التلقائي فقط إذا كان 0 أو سالب
+                                       products=Product.query.options(
+                                           load_only(Product.id, Product.name, Product.sku, Product.price, Product.currency, Product.is_active)
+                                       ).filter(Product.is_active == True).order_by(Product.name).all(),
+                                       warehouses=Warehouse.query.options(
+                                           load_only(Warehouse.id, Warehouse.name)
+                                       ).order_by(Warehouse.name).all())
             for d in lines_payload:
                 if (d.get("unit_price") or 0) <= 0:
                     d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
             if require_stock:
                 pairs = [(d["product_id"], d["warehouse_id"]) for d in lines_payload if d.get("warehouse_id")]
                 _lock_stock_rows(pairs)
-            # تنظيف notes من أي قيم غير صحيحة
+
             notes_raw = str(form.notes.data or '').strip()
             if notes_raw in ('[]', '{}', 'null', 'None', ''):
                 notes_clean = None
             else:
                 notes_clean = notes_raw or None
-            
             sale = Sale(
                 sale_number=None,
                 customer_id=form.customer_id.data,
                 seller_id=current_user.id if current_user and current_user.is_authenticated else None,
                 seller_employee_id=form.seller_employee_id.data,
                 sale_date=form.sale_date.data or datetime.utcnow(),
-                status=target_status,  # دائماً CONFIRMED
-                payment_status="PENDING",  # دائماً PENDING عند الإنشاء
+                status=target_status,
+                payment_status="PENDING",
                 currency=(form.currency.data or "ILS").upper(),
                 tax_rate=form.tax_rate.data or 0,
                 discount_total=form.discount_total.data or 0,
                 shipping_cost=form.shipping_cost.data or 0,
                 notes=notes_clean
             )
-            # إضافة receiver_name بشكل آمن
             if hasattr(Sale, 'receiver_name'):
                 sale.receiver_name = form.receiver_name.data
             db.session.add(sale)
@@ -936,7 +1035,6 @@ def create_sale():
             _safe_generate_number_after_flush(sale)
             _attach_lines(sale, lines_payload)
             db.session.flush()
-            # الفاتورة مؤكدة - خصم المخزون مباشرة بدون حجز
             if require_stock and target_status == "CONFIRMED":
                 _deduct_stock(sale)
             _log(sale, "CREATE", None, sale_to_dict(sale))
@@ -1075,8 +1173,12 @@ def edit_sale(id: int):
                     _reserve_stock(sale)
                 flash(f"❌ {err}", "danger")
                 return render_template("sales/form.html", form=form, sale=sale, title="تعديل الفاتورة",
-                                       products=Product.query.order_by(Product.name).all(),
-                                       warehouses=Warehouse.query.order_by(Warehouse.name).all())
+                                       products=Product.query.options(
+                                           load_only(Product.id, Product.name, Product.sku, Product.price, Product.currency, Product.is_active)
+                                       ).filter(Product.is_active == True).order_by(Product.name).all(),
+                                       warehouses=Warehouse.query.options(
+                                           load_only(Warehouse.id, Warehouse.name)
+                                       ).order_by(Warehouse.name).all())
             # جلب السعر التلقائي فقط إذا كان 0 أو سالب
             for d in lines_payload:
                 if (d.get("unit_price") or 0) <= 0:

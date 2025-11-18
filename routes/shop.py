@@ -444,7 +444,11 @@ def catalog():
     if qparam:
         like = f"%{qparam}%"
         q = q.filter((Product.name.ilike(like)) | (Product.sku.ilike(like)) | (Product.part_number.ilike(like)))
-    products = q.distinct(Product.id).order_by(Product.name.asc()).all()
+    
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 50, type=int), 200)
+    
+    products = q.distinct(Product.id).order_by(Product.name.asc()).limit(per_page * 10).all()
     if request.is_json or request.args.get("format") == "json":
         return jsonify([
             {

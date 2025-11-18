@@ -11,7 +11,6 @@
   const token = document.getElementById('token')?.value || '';
   const btnCompact = document.getElementById('btnToggleCompact');
 
-  // Notification system (basic)
   function notify(message, type = 'info') {
     const existing = document.getElementById('notifyBox');
     if (existing) existing.remove();
@@ -26,7 +25,6 @@
     setTimeout(() => box.remove(), 4000);
   }
 
-  // Counter display
   let resultCount = document.getElementById('resultCount');
   if (!resultCount) {
     resultCount = document.createElement('div');

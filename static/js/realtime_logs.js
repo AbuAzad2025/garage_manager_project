@@ -26,10 +26,7 @@
     // إضافة Export button
     addExportButton();
     
-    // إضافة Clear button
     addClearButton();
-    
-    console.log('✅ Real-time Logs جاهز');
   }
   
   /**
@@ -182,8 +179,6 @@
     logsAutoRefresh = setInterval(() => {
       refreshLogs();
     }, REFRESH_INTERVAL);
-    
-    console.log('✅ Auto-refresh مفعّل');
   }
   
   /**
@@ -240,8 +235,6 @@
     link.href = URL.createObjectURL(dataBlob);
     link.download = `logs_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
-    
-    console.log(`✅ تم تصدير ${logs.length} سجل`);
   }
   
   /**

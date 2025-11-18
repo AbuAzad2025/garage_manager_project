@@ -1,8 +1,4 @@
 
-"""
-وحدة الصيانة المحسّنة
-Enhanced Service Management Module
-"""
 import io
 import json
 import csv
@@ -327,6 +323,7 @@ def list_requests():
     query = query.order_by(field.asc() if sort_order == 'asc' else field.desc())
     
     # Pagination
+    per_page = min(max(1, per_page), 500)
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     
     # الإحصائيات (مع Cache)
@@ -876,8 +873,8 @@ def delete_request(rid):
 @login_required
 def api_service_requests():
     status=(request.args.get('status','all') or '').upper()
-    if status=='ALL' or not hasattr(ServiceStatus,status): reqs=ServiceRequest.query.all()
-    else: reqs=ServiceRequest.query.filter_by(status=getattr(ServiceStatus,status)).all()
+    if status=='ALL' or not hasattr(ServiceStatus,status): reqs=ServiceRequest.query.limit(1000).all()
+    else: reqs=ServiceRequest.query.filter_by(status=getattr(ServiceStatus,status)).limit(1000).all()
     result=[{'id':r.id,'service_number':r.service_number,'customer':r.customer.name if r.customer else (getattr(r,'name','') or ''),'vehicle_vrn':r.vehicle_vrn,'status':getattr(r.status,'value',r.status),'priority':getattr(r.priority,'value',r.priority),'request_date':(r.received_at.strftime('%Y-%m-%d %H:%M') if getattr(r,'received_at',None) else ''),'mechanic':r.mechanic.username if getattr(r,'mechanic',None) else ''} for r in reqs]
     return jsonify(result)
 

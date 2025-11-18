@@ -30,22 +30,35 @@
 
 /* جعل الجدول يتمدد بشكل كامل */
 .table-responsive {
-    overflow-x: auto;
+    overflow-x: auto !important;
+    overflow-y: visible;
     width: 100%;
     margin: 0;
     padding: 0;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
 }
 
 #ledger-table {
     width: 100% !important;
     min-width: 100% !important;
     font-size: 0.85rem;
-    table-layout: fixed !important;
+    table-layout: auto !important;
+}
+
+#ledger-table th:nth-child(9),
+#ledger-table td:nth-child(9) {
+    white-space: nowrap !important;
+    min-width: 120px !important;
+    width: auto !important;
+    display: table-cell !important;
+    visibility: visible !important;
 }
 
 /* تقليل padding في card-body */
 .card-body {
     padding: 10px 5px !important;
+    overflow-x: auto;
 }
 
 .card {
@@ -101,6 +114,50 @@
 .table thead th {
     background-color: #f8f9fa;
     border-bottom: 2px solid #dee2e6;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+.table thead th.sorting,
+.table thead th.sorting_asc,
+.table thead th.sorting_desc {
+    padding-right: 25px !important;
+}
+
+.table thead th.sorting:after,
+.table thead th.sorting_asc:after,
+.table thead th.sorting_desc:after {
+    content: "";
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.table thead th.sorting:after {
+    content: "\f0dc";
+    opacity: 0.3;
+}
+
+.table thead th.sorting_asc:after {
+    content: "\f0de";
+    color: #007bff;
+    opacity: 1;
+}
+
+.table thead th.sorting_desc:after {
+    content: "\f0dd";
+    color: #007bff;
+    opacity: 1;
+}
+
+.table thead th.sorting:hover:after {
+    opacity: 0.6;
 }
 
 /* تحسين تباين الألوان */
@@ -192,6 +249,10 @@
     border-color: #454d55 !important;
     text-align: center !important;
 }
+.sort-buttons { display: inline-flex; flex-direction: column; margin-left: 4px; }
+.btn-sort { padding: 0; border: none; background: transparent; color: rgba(255,255,255,0.6); font-size: 0.7rem; line-height: 0.8; cursor: pointer; }
+.btn-sort:hover { color: rgba(255,255,255,0.9); }
+.btn-sort.active { color: #ffc107; }
 
 .table tbody td {
     color: #343a40 !important;
@@ -645,6 +706,11 @@
                             <i class="fas fa-pen-alt"></i> قيد يدوي
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="cogs-audit-tab" data-toggle="tab" href="#cogs-audit" role="tab">
+                            <i class="fas fa-search-dollar"></i> فحص تكلفة البضاعة
+                        </a>
+                    </li>
                 </ul>
             </div>
             <div class="card-body">
@@ -902,14 +968,64 @@
                                 <table class="table table-bordered table-hover table-sm datatable" id="ledger-table" data-dt-skip="1">
                                     <thead class="table-light">
                                         <tr>
-                                            <th style="width: 7%;">التاريخ</th>
+                                            <th style="width: 7%;">
+                                              التاريخ
+                                              <div class="sort-buttons d-inline-flex flex-column ml-1">
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="date" data-order="asc" title="تصاعدي">
+                                                  <i class="fas fa-sort-up"></i>
+                                                </button>
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="date" data-order="desc" title="تنازلي">
+                                                  <i class="fas fa-sort-down"></i>
+                                                </button>
+                                              </div>
+                                            </th>
                                             <th style="width: 9%;">رقم القيد</th>
-                                            <th style="width: 10%;">نوع العملية</th>
+                                            <th style="width: 10%;">
+                                              نوع العملية
+                                              <div class="sort-buttons d-inline-flex flex-column ml-1">
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="type" data-order="asc" title="تصاعدي">
+                                                  <i class="fas fa-sort-up"></i>
+                                                </button>
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="type" data-order="desc" title="تنازلي">
+                                                  <i class="fas fa-sort-down"></i>
+                                                </button>
+                                              </div>
+                                            </th>
                                             <th style="width: 13%;">الجهة المرتبطة</th>
                                             <th style="width: 25%;">البيان</th>
-                                            <th style="width: 10%;" class="text-end">المدين (منه)</th>
-                                            <th style="width: 10%;" class="text-end">الدائن (له)</th>
-                                            <th style="width: 10%;" class="text-end">الرصيد</th>
+                                            <th style="width: 10%;" class="text-end">
+                                              المدين (منه)
+                                              <div class="sort-buttons d-inline-flex flex-column ml-1">
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="debit" data-order="asc" title="تصاعدي">
+                                                  <i class="fas fa-sort-up"></i>
+                                                </button>
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="debit" data-order="desc" title="تنازلي">
+                                                  <i class="fas fa-sort-down"></i>
+                                                </button>
+                                              </div>
+                                            </th>
+                                            <th style="width: 10%;" class="text-end">
+                                              الدائن (له)
+                                              <div class="sort-buttons d-inline-flex flex-column ml-1">
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="credit" data-order="asc" title="تصاعدي">
+                                                  <i class="fas fa-sort-up"></i>
+                                                </button>
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="credit" data-order="desc" title="تنازلي">
+                                                  <i class="fas fa-sort-down"></i>
+                                                </button>
+                                              </div>
+                                            </th>
+                                            <th style="width: 10%;" class="text-end">
+                                              الرصيد
+                                              <div class="sort-buttons d-inline-flex flex-column ml-1">
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="balance" data-order="asc" title="تصاعدي">
+                                                  <i class="fas fa-sort-up"></i>
+                                                </button>
+                                                <button class="btn-sort btn btn-sm p-0" data-sort="balance" data-order="desc" title="تنازلي">
+                                                  <i class="fas fa-sort-down"></i>
+                                                </button>
+                                              </div>
+                                            </th>
                                             <th style="width: 6%;">الإجراءات</th>
                                         </tr>
                                     </thead>
@@ -1340,6 +1456,107 @@
             
                     </div><!-- End Manual Entry Tab -->
                     
+                    <!-- Tab 7: COGS Audit -->
+                    <div class="tab-pane fade" id="cogs-audit" role="tabpanel">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card ledger-card">
+                                    <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                        <h4 class="mb-0">
+                                            <i class="fas fa-search-dollar"></i>
+                                            فحص تكلفة البضاعة المباعة (COGS Audit)
+                                        </h4>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row mb-4">
+                                            <div class="col-md-4">
+                                                <label class="form-label">من تاريخ:</label>
+                                                <input type="date" class="form-control" id="cogs-from-date">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">إلى تاريخ:</label>
+                                                <input type="date" class="form-control" id="cogs-to-date">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label">&nbsp;</label>
+                                                <button class="btn btn-primary btn-block" onclick="loadCogsAudit()">
+                                                    <i class="fas fa-search"></i> فحص
+                                                </button>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="cogs-summary" style="display: none;">
+                                            <div class="row mb-4">
+                                                <div class="col-md-3">
+                                                    <div class="card bg-success text-white">
+                                                        <div class="card-body">
+                                                            <h5>تكلفة فعلية</h5>
+                                                            <h3 id="cogs-actual-count">0</h3>
+                                                            <p class="mb-0" id="cogs-actual-amount">0.00 ₪</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="card bg-warning text-white">
+                                                        <div class="card-body">
+                                                            <h5>تكلفة مقدرة</h5>
+                                                            <h3 id="cogs-estimated-count">0</h3>
+                                                            <p class="mb-0" id="cogs-estimated-amount">0.00 ₪</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="card bg-danger text-white">
+                                                        <div class="card-body">
+                                                            <h5>بدون تكلفة</h5>
+                                                            <h3 id="cogs-missing-count">0</h3>
+                                                            <p class="mb-0" id="cogs-missing-amount">0.00 ₪</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="card bg-info text-white">
+                                                        <div class="card-body">
+                                                            <h5>إجمالي COGS</h5>
+                                                            <h3 id="cogs-total">0.00 ₪</h3>
+                                                            <p class="mb-0">هامش: <span id="cogs-margin">0.0%</span></p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="table-responsive" id="cogs-table-container" style="display: none;">
+                                            <table class="table table-bordered table-hover table-sm" id="cogs-audit-table">
+                                                <thead class="table-dark">
+                                                    <tr>
+                                                        <th>المنتج</th>
+                                                        <th>SKU</th>
+                                                        <th>البيع</th>
+                                                        <th>التاريخ</th>
+                                                        <th>الكمية</th>
+                                                        <th>سعر البيع</th>
+                                                        <th>التكلفة</th>
+                                                        <th>المصدر</th>
+                                                        <th>الحالة</th>
+                                                        <th>الربح</th>
+                                                        <th>الهامش</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="cogs-audit-tbody">
+                                                    <tr>
+                                                        <td colspan="11" class="text-center text-muted">
+                                                            <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div><!-- End COGS Audit Tab -->
                     
                 </div><!-- End Tab Content -->
             </div><!-- End Card Body -->
@@ -1358,7 +1575,36 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
+function bindSortButtons() {
+    const currentSort = new URL(window.location.href).searchParams.get('sort') || 'date';
+    const currentOrder = new URL(window.location.href).searchParams.get('order') || 'asc';
+    const sortButtons = document.querySelectorAll('.btn-sort');
+    
+    sortButtons.forEach(btn => {
+        const sort = btn.dataset.sort;
+        const order = btn.dataset.order;
+        btn.classList.toggle('active', sort === currentSort && order === currentOrder);
+        btn.onclick = handleSortClick;
+    });
+}
+
+function handleSortClick(e) {
+    e.preventDefault();
+    const btn = e.currentTarget;
+    const sort = btn.dataset.sort;
+    const order = btn.dataset.order;
+    const url = new URL(window.location.href);
+    url.searchParams.set('sort', sort);
+    url.searchParams.set('order', order);
+    url.searchParams.delete('page');
+    url.searchParams.set('page', '1');
+    
+    window.location.href = url.toString();
+}
+
 $(document).ready(function() {
+    bindSortButtons();
+    
     // تعيين التاريخ الحالي كافتراضي - لكن نترك الحقول فارغة لعرض كل البيانات
     const today = new Date().toISOString().split('T')[0];
     const firstDayOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
@@ -1383,10 +1629,14 @@ $(document).ready(function() {
     });
 
     ledgerSearchInput.on('input', function() {
-        clearTimeout(ledgerSearchTimer);
-        ledgerSearchTimer = setTimeout(() => {
-            loadLedgerData();
-        }, 300);
+        if (ledgerDataTable) {
+            ledgerDataTable.search(this.value).draw();
+        } else {
+            clearTimeout(ledgerSearchTimer);
+            ledgerSearchTimer = setTimeout(() => {
+                loadLedgerData();
+            }, 300);
+        }
     });
 
 });
@@ -1395,20 +1645,25 @@ let ledgerDataTable = null;
 
 function loadLedgerData() {
     const formData = $('#filter-form').serialize();
-    const searchTerm = $('#ledger-search').val() || '';
-    const params = formData ? `${formData}&q=${encodeURIComponent(searchTerm)}` : `q=${encodeURIComponent(searchTerm)}`;
+    const urlParams = new URLSearchParams(window.location.search);
+    const sort = urlParams.get('sort') || 'date';
+    const order = urlParams.get('order') || 'asc';
+    const page = urlParams.get('page') || '1';
+    const params = formData + (formData ? '&' : '') + `sort=${sort}&order=${order}&page=${page}`;
 
     $.ajax({
         url: '{{ url_for("ledger.get_ledger_data") }}',
         method: 'GET',
         data: params,
         success: function(response) {
-
             updateLedgerTable(response.data, response.totals);
             updateStatistics(response.statistics);
+            if (response.pagination) {
+                updatePagination(response.pagination);
+            }
+            bindSortButtons();
         },
         error: function(xhr, status, error) {
-
             showAlert('خطأ في تحميل البيانات', 'error');
         }
     });
@@ -1599,23 +1854,30 @@ function initLedgerDataTable() {
                     className: 'btn btn-sm btn-info'
                 }
             ],
-            searching: false,
+            searching: true,
             paging: true,
             info: true,
-            responsive: true,
+            responsive: false,
+            scrollX: true,
+            scrollCollapse: false,
+            orderable: true,
             columnDefs: [
-                { targets: [5, 6, 7], className: 'text-end' },
-                { targets: [0, 1, 2, 3, 8], className: 'text-center' }
+                { targets: [5, 6, 7], className: 'text-end', type: 'num' },
+                { targets: [0, 1, 2, 3, 8], className: 'text-center' },
+                { targets: [8], orderable: false },
+                { targets: [8], width: '120px' }
             ],
             footerCallback: function(row, data, start, end, display) {
                 const api = this.api();
                 let pageDebit = 0;
                 let pageCredit = 0;
                 api.column(5, { page: 'current' }).data().each(function(value) {
-                    pageDebit += parseFloat(value) || 0;
+                    const numValue = parseFloat(String(value).replace(/[^\d.-]/g, '')) || 0;
+                    pageDebit += numValue;
                 });
                 api.column(6, { page: 'current' }).data().each(function(value) {
-                    pageCredit += parseFloat(value) || 0;
+                    const numValue = parseFloat(String(value).replace(/[^\d.-]/g, '')) || 0;
+                    pageCredit += numValue;
                 });
             }
         });
@@ -1624,7 +1886,9 @@ function initLedgerDataTable() {
         if (searchInput.length) {
             searchInput.prop('disabled', false);
             searchInput.off('input.ledger').on('input.ledger', function() {
-                ledgerDataTable.search(this.value).draw();
+                if (ledgerDataTable) {
+                    ledgerDataTable.search(this.value).draw();
+                }
             });
             if (searchValue) {
                 ledgerDataTable.search(searchValue).draw();
@@ -2954,5 +3218,118 @@ document.addEventListener('keydown', function(e) {
         </div>
     </div>
 </div>
+
+<script>
+function loadCogsAudit() {
+    const fromDate = document.getElementById('cogs-from-date').value;
+    const toDate = document.getElementById('cogs-to-date').value;
+    
+    if (!fromDate || !toDate) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'تنبيه',
+            text: 'يرجى تحديد تاريخ البداية والنهاية'
+        });
+        return;
+    }
+    
+    const tbody = document.getElementById('cogs-audit-tbody');
+    tbody.innerHTML = '<tr><td colspan="11" class="text-center"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
+    
+    $.ajax({
+        url: '{{ url_for("ledger.cogs_audit_report") }}',
+        method: 'GET',
+        data: {
+            from_date: fromDate,
+            to_date: toDate
+        },
+        success: function(response) {
+            if (response.success) {
+                displayCogsAudit(response);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: response.error || 'حدث خطأ في تحميل البيانات'
+                });
+            }
+        },
+        error: function(xhr) {
+            Swal.fire({
+                icon: 'error',
+                title: 'خطأ',
+                text: 'حدث خطأ في الاتصال بالخادم'
+            });
+        }
+    });
+}
+
+function displayCogsAudit(data) {
+    const summary = data.summary;
+    const products = data.products;
+    
+    document.getElementById('cogs-actual-count').textContent = summary.actual_count;
+    document.getElementById('cogs-actual-amount').textContent = formatCurrency(summary.total_cogs_actual) + ' ₪';
+    
+    document.getElementById('cogs-estimated-count').textContent = summary.estimated_count;
+    document.getElementById('cogs-estimated-amount').textContent = formatCurrency(summary.total_cogs_estimated) + ' ₪';
+    
+    document.getElementById('cogs-missing-count').textContent = summary.missing_count;
+    document.getElementById('cogs-missing-amount').textContent = formatCurrency(summary.total_cogs_missing) + ' ₪';
+    
+    document.getElementById('cogs-total').textContent = formatCurrency(summary.total_cogs) + ' ₪';
+    document.getElementById('cogs-margin').textContent = summary.overall_margin.toFixed(2) + '%';
+    
+    document.getElementById('cogs-summary').style.display = 'block';
+    document.getElementById('cogs-table-container').style.display = 'block';
+    
+    const tbody = document.getElementById('cogs-audit-tbody');
+    tbody.innerHTML = '';
+    
+    products.forEach(function(product) {
+        let statusBadge = '';
+        let statusClass = '';
+        if (product.cost_status === 'actual') {
+            statusBadge = '<span class="badge badge-success">فعلية</span>';
+            statusClass = 'table-success';
+        } else if (product.cost_status === 'estimated') {
+            statusBadge = '<span class="badge badge-warning">مقدرة</span>';
+            statusClass = 'table-warning';
+        } else {
+            statusBadge = '<span class="badge badge-danger">مفقودة</span>';
+            statusClass = 'table-danger';
+        }
+        
+        const costSourceMap = {
+            'purchase_price': 'سعر الشراء',
+            'cost_after_shipping': 'بعد الشحن',
+            'cost_before_shipping': 'قبل الشحن',
+            'estimated_70%': 'تقدير 70%',
+            'missing': 'مفقود'
+        };
+        
+        const row = `
+            <tr class="${statusClass}">
+                <td><strong>${product.product_name}</strong></td>
+                <td>${product.product_sku}</td>
+                <td><a href="/sales/${product.sale_id}" target="_blank">${product.sale_number}</a></td>
+                <td>${product.sale_date}</td>
+                <td class="text-center">${product.qty_sold}</td>
+                <td class="text-end">${formatCurrency(product.unit_price)} ₪</td>
+                <td class="text-end">${formatCurrency(product.unit_cost)} ₪</td>
+                <td>${costSourceMap[product.cost_source] || product.cost_source}</td>
+                <td>${statusBadge}</td>
+                <td class="text-end ${product.gross_profit >= 0 ? 'text-success' : 'text-danger'}">${formatCurrency(product.gross_profit)} ₪</td>
+                <td class="text-end">${product.profit_margin.toFixed(2)}%</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+    
+    if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="text-center text-muted">لا توجد بيانات</td></tr>';
+    }
+}
+</script>
 
 {% endblock %}

@@ -395,11 +395,8 @@
     document.body.appendChild(button);
   }
   
-  // تهيئة عند تحميل الصفحة
   document.addEventListener('DOMContentLoaded', function() {
     addShortcutsButton();
-    console.log('✅ اختصارات لوحة المفاتيح جاهزة (Ctrl+Shift+D/A/S/U/T/R/G/L/H)');
-    console.log('💡 اضغط Ctrl+Shift+? لإظهار قائمة الاختصارات');
   });
   
 })();

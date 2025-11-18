@@ -1,11 +1,6 @@
-/**
- * وحدة الصيانة المحسّنة - JavaScript
- * Enhanced Service Module - JavaScript
- */
 (function () {
   'use strict';
 
-  // ========== دوال مساعدة محسّنة ==========
   function toNum(v) {
     var n = parseFloat(v);
     return isNaN(n) ? 0 : n;
@@ -15,7 +10,6 @@
     return (Math.round((toNum(v) + Number.EPSILON) * 100) / 100).toFixed(2);
   }
 
-  // Loading State محسّن
   function showLoading($el) {
     $el.addClass('loading').prop('disabled', true);
   }
@@ -24,12 +18,7 @@
     $el.removeClass('loading').prop('disabled', false);
   }
 
-  // ========== إعداد الجدول بدون DataTable ==========
   function dtSafeInit() {
-    // DataTable معطّل تماماً - نستخدم Pagination server-side
-    // هذا أسرع وأكثر كفاءة مع البيانات الكبيرة
-    
-    // Select All محسّن
     $('#selectAll').on('change', function () {
       $('.row-select').prop('checked', this.checked);
       updateBulkActionsState();
@@ -37,7 +26,6 @@
 
     $('.row-select').on('change', updateBulkActionsState);
 
-    // Bulk Actions
     $('#bulkDelete').on('click', handleBulkDelete);
     $('#exportCsv').on('click', function () {
       var $btn = $(this);
@@ -48,7 +36,6 @@
       }, 500);
     });
     
-    // إضافة Hover effects للصفوف
     $('#servicesTable tbody tr').hover(
       function() {
         $(this).addClass('table-active');
@@ -164,13 +151,10 @@
     $hint.text('المتاح في المخزن: ' + (available == null ? '-' : available));
   }
 
-  // تم إلغاء حسابات الخصم التلقائية - الآن الخصم مبلغ صحيح
   function recalcPriceFromDiscount($scope) {
-    // لا حاجة لإعادة حساب السعر - الخصم مبلغ مباشر
   }
 
   function recalcDiscountFromPrice($scope) {
-    // لا حاجة لإعادة حساب الخصم - الخصم مبلغ مباشر
   }
 
   function setQueryParam(url, key, val) {

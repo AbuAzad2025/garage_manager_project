@@ -1,20 +1,3 @@
-"""
-🏦 وحدة التقارير المالية الأساسية - Financial Reports Module
-===============================================================
-
-📋 الوصف:
-    تقارير مالية احترافية: قائمة الدخل، الميزانية العمومية، التدفق النقدي
-    
-🎯 التقارير:
-    ✅ قائمة الدخل (P&L Statement)
-    ✅ الميزانية العمومية (Balance Sheet)  
-    ✅ قائمة التدفق النقدي (Cash Flow Statement)
-    ✅ تقرير الأرصدة المجمعة
-    
-🔒 الأمان:
-    - Owner only (@owner_only)
-"""
-
 from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, date, timedelta
@@ -34,15 +17,12 @@ financial_reports_bp = Blueprint('financial_reports', __name__, url_prefix='/rep
 @financial_reports_bp.route('/')
 @owner_only
 def index():
-    """لوحة التقارير المالية الرئيسية"""
     return render_template('reports/financial/index.html')
 
 @financial_reports_bp.route('/income-statement')
 @owner_only
 def income_statement():
-    """قائمة الدخل (P&L Statement) - يدعم HTML وJSON"""
     try:
-        # معاملات التاريخ
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         
@@ -52,13 +32,11 @@ def income_statement():
             start_date = today.replace(day=1)
             end_date = today
         
-        # تحويل التواريخ
         if isinstance(start_date, str):
             start_date = datetime.fromisoformat(start_date).date()
         if isinstance(end_date, str):
             end_date = datetime.fromisoformat(end_date).date()
         
-        # حساب الإيرادات من GL
         revenue_query = db.session.query(
             func.sum(GLEntry.credit).label('total_revenue')
         ).join(GLBatch).filter(
@@ -68,7 +46,6 @@ def income_statement():
             GLEntry.account.like('4%')  # حسابات الإيرادات
         ).scalar() or 0
         
-        # حساب تكلفة البضاعة المباعة
         cogs_query = db.session.query(
             func.sum(GLEntry.debit).label('total_cogs')
         ).join(GLBatch).filter(
@@ -78,7 +55,6 @@ def income_statement():
             GLEntry.account.like('51%')  # حسابات COGS
         ).scalar() or 0
         
-        # حساب المصروفات التشغيلية
         expenses_query = db.session.query(
             func.sum(GLEntry.debit).label('total_expenses')
         ).join(GLBatch).filter(
@@ -88,7 +64,6 @@ def income_statement():
             GLEntry.account.like('5%')  # حسابات المصروفات
         ).scalar() or 0
         
-        # حساب الضرائب
         taxes_query = db.session.query(
             func.sum(GLEntry.debit).label('total_taxes')
         ).join(GLBatch).filter(
@@ -98,7 +73,6 @@ def income_statement():
             GLEntry.account.like('21%')  # حسابات الضرائب
         ).scalar() or 0
         
-        # الحسابات
         total_revenue = float(revenue_query)
         total_cogs = float(cogs_query)
         gross_profit = total_revenue - total_cogs
@@ -107,7 +81,6 @@ def income_statement():
         total_taxes = float(taxes_query)
         net_profit = operating_profit - total_taxes
         
-        # تفاصيل الإيرادات مع أسماء الحسابات
         revenue_details = db.session.query(
             GLEntry.account,
             Account.name,
@@ -119,7 +92,6 @@ def income_statement():
             GLEntry.account.like('4%')
         ).group_by(GLEntry.account, Account.name).all()
         
-        # تفاصيل المصروفات مع أسماء الحسابات
         expense_details = db.session.query(
             GLEntry.account,
             Account.name,
@@ -150,7 +122,6 @@ def income_statement():
             'expense_details': expense_details
         }
         
-        # إذا طلب JSON
         if request.args.get('format') == 'json' or request.headers.get('Accept') == 'application/json':
             return jsonify({
                 'success': True,
@@ -174,7 +145,6 @@ def income_statement():
                 }
             })
         
-        # إرجاع HTML template
         return render_template('reports/financial/income_statement.html', **data)
         
     except Exception as e:

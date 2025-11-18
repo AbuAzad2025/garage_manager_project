@@ -1,4 +1,3 @@
-/* Safe Enhancements - تحسينات آمنة تلقائية */
 (function() {
   'use strict';
   
@@ -167,8 +166,7 @@
     window.addEventListener('unhandledrejection', (event) => {
       if (event.reason && event.reason.message) {
         const message = event.reason.message;
-        if (message.includes('fetch') || message.includes('network')) {
-          // Network issue - could show notification
+      if (message.includes('fetch') || message.includes('network')) {
         }
       }
     });

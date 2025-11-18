@@ -44,6 +44,10 @@
   .summary-card-label { font-size:0.95rem; font-weight:600; color:#6c757d; }
   .summary-card-value { font-size:1.9rem; font-weight:700; color:#212529; letter-spacing:-0.02em; }
   .summary-card-value small { display:block; font-size:0.9rem; font-weight:600; color:#6c757d; margin-top:0.35rem; }
+  .sort-buttons { display: inline-flex; flex-direction: column; margin-left: 4px; }
+  .btn-sort { padding: 0; border: none; background: transparent; color: rgba(255,255,255,0.6); font-size: 0.7rem; line-height: 0.8; cursor: pointer; }
+  .btn-sort:hover { color: rgba(255,255,255,0.9); }
+  .btn-sort.active { color: #ffc107; }
   </style>
   {% endif %}
 {% endblock %}
@@ -294,6 +298,18 @@
                   <label for="endDate" class="form-label">إلى تاريخ</label>
                   <input type="date" id="endDate" class="form-control" value="{{ request.args.get('end_date') or request.args.get('end','') }}">
                 </div>
+                <div class="col-md-2 col-sm-4">
+                  <label class="form-label d-block">&nbsp;</label>
+                  <button type="button" id="btnApplyFilters" class="btn btn-success btn-block">
+                    <i class="fas fa-filter me-1"></i> تطبيق
+                  </button>
+                </div>
+                <div class="col-md-2 col-sm-4">
+                  <label class="form-label d-block">&nbsp;</label>
+                  <button type="button" id="btnResetFilters" class="btn btn-secondary btn-block">
+                    <i class="fas fa-redo me-1"></i> إعادة تعيين
+                  </button>
+                </div>
                 <div class="col-md-2 col-sm-4 ml-auto">
                   <label class="form-label d-block">&nbsp;</label>
                   <a id="btnAddPayment" href="{{ url_for('payments.create_payment') }}" class="btn btn-primary btn-block">إضافة دفعة</a>
@@ -381,13 +397,53 @@
         <thead class="table-dark">
           <tr>
             <th style="width:60px">#</th>
-            <th style="width:110px">التاريخ</th>
-            <th style="width:120px">المبلغ</th>
+            <th style="width:110px">
+              التاريخ
+              <div class="sort-buttons d-inline-flex flex-column ml-1">
+                <button class="btn-sort btn btn-sm p-0" data-sort="date" data-order="asc" title="تصاعدي">
+                  <i class="fas fa-sort-up"></i>
+                </button>
+                <button class="btn-sort btn btn-sm p-0" data-sort="date" data-order="desc" title="تنازلي">
+                  <i class="fas fa-sort-down"></i>
+                </button>
+              </div>
+            </th>
+            <th style="width:120px">
+              المبلغ
+              <div class="sort-buttons d-inline-flex flex-column ml-1">
+                <button class="btn-sort btn btn-sm p-0" data-sort="amount" data-order="asc" title="تصاعدي">
+                  <i class="fas fa-sort-up"></i>
+                </button>
+                <button class="btn-sort btn btn-sm p-0" data-sort="amount" data-order="desc" title="تنازلي">
+                  <i class="fas fa-sort-down"></i>
+                </button>
+              </div>
+            </th>
             <th style="width:70px">العملة</th>
             <th style="width:100px">سعر الصرف</th>
             <th style="width:130px">المبلغ بالشيكل</th>
-            <th style="width:150px">الطريقة</th>
-            <th style="width:90px">الاتجاه</th>
+            <th style="width:150px">
+              الطريقة
+              <div class="sort-buttons d-inline-flex flex-column ml-1">
+                <button class="btn-sort btn btn-sm p-0" data-sort="method" data-order="asc" title="تصاعدي">
+                  <i class="fas fa-sort-up"></i>
+                </button>
+                <button class="btn-sort btn btn-sm p-0" data-sort="method" data-order="desc" title="تنازلي">
+                  <i class="fas fa-sort-down"></i>
+                </button>
+              </div>
+            </th>
+            <th style="width:90px">
+              الاتجاه
+              <div class="sort-buttons d-inline-flex flex-column ml-1">
+                <button class="btn-sort btn btn-sm p-0" data-sort="direction" data-order="asc" title="تصاعدي">
+                  <i class="fas fa-sort-up"></i>
+                </button>
+                <button class="btn-sort btn btn-sm p-0" data-sort="direction" data-order="desc" title="تنازلي">
+                  <i class="fas fa-sort-down"></i>
+                </button>
+              </div>
+            </th>
             <th style="width:100px">الحالة</th>
             <th style="width:150px">مسلم الدفعة</th>
             <th style="width:150px">مستلم الدفعة</th>
@@ -479,6 +535,40 @@
   {% else %}
   <script src="{{ url_for('static', filename='js/payments.js') }}"></script>
   <script src="{{ url_for('static', filename='js/vendors.js') }}"></script>
+  <script>
+    (function(){
+      function bindSortButtons() {
+        const currentSort = new URL(window.location.href).searchParams.get('sort') || 'date';
+        const currentOrder = new URL(window.location.href).searchParams.get('order') || 'desc';
+        const sortButtons = document.querySelectorAll('.btn-sort');
+        
+        sortButtons.forEach(btn => {
+          const sort = btn.dataset.sort;
+          const order = btn.dataset.order;
+          btn.classList.toggle('active', sort === currentSort && order === currentOrder);
+          btn.onclick = handleSortClick;
+        });
+      }
+      
+      function handleSortClick(e) {
+        e.preventDefault();
+        const btn = e.currentTarget;
+        const sort = btn.dataset.sort;
+        const order = btn.dataset.order;
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', sort);
+        url.searchParams.set('order', order);
+        url.searchParams.delete('page');
+        url.searchParams.set('page', '1');
+        
+        window.location.href = url.toString();
+      }
+      
+      document.addEventListener('DOMContentLoaded', function() {
+        bindSortButtons();
+      });
+    })();
+  </script>
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       var etHidden = document.getElementById('prefilter_entity_type');

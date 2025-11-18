@@ -174,13 +174,11 @@
         const data = isJson ? await res.json() : null;
         if (!res.ok || (isJson && data && data.ok === false)) {
           const message = (isJson && data && data.message) ? data.message : "فشل إنشاء العميل";
-          console.error(message);
           if (isJson && data && data.errors) applyFieldErrors(form, data.errors);
           return;
         }
         const id = isJson && data ? data.id : null;
         const text = isJson && data ? (data.text || form.querySelector('[name="name"]')?.value || "عميل") : "عميل";
-        console.log("تم إنشاء العميل بنجاح");
         form.dispatchEvent(new CustomEvent("customer:created", { detail: { id, text }, bubbles: true }));
         const m = form.closest(".modal");
         if (m) {
@@ -193,8 +191,6 @@
         const rt = form.querySelector('input[name="return_to"]')?.value || "";
         if (rt) window.location.href = rt;
       } catch (err) {
-
-        console.error("خطأ بالشبكة أو السيرفر");
       }
     });
   });
@@ -280,9 +276,8 @@
       const qstr = urlObj.searchParams.toString();
       const nextUrl = qstr ? `${urlObj.pathname}?${qstr}` : urlObj.pathname;
       window.history.replaceState({}, "", nextUrl);
-    }).catch(err => {
+    }).catch(() => {
       if (requestId !== customersRequestId) return;
-      console.error(err);
       if (customersTableWrapper) {
         customersTableWrapper.innerHTML = previousMarkup;
         initCustomerTable();

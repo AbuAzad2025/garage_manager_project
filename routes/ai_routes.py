@@ -1,19 +1,3 @@
-"""
-🤖 AI Routes - مسارات المساعد الذكي
-=====================================
-
-ملف مخصص لجميع routes المساعد الذكي
-منفصل تماماً عن security.py لتحسين التنظيم
-
-Features:
-- AI Hub (مركز التحكم)
-- AI Assistant (المساعد المباشر)
-- Training Management (إدارة التدريب)
-- API Keys Management (إدارة المفاتيح)
-- System Map (خريطة النظام)
-- Analytics & Stats (التحليلات)
-"""
-
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
 from flask_login import login_required, current_user
 from functools import wraps

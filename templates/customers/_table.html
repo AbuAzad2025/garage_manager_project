@@ -3,16 +3,78 @@
 {% set print_flag = 1 if print_mode is defined and print_mode else 0 %}
 {% set table_id = table_id if table_id is defined else 'customersTable' %}
 {% set table_classes = table_classes if table_classes is defined else 'table table-hover table-bordered table-striped align-middle mb-0 text-center table-mobile-friendly' %}
+{% set current_sort = current_sort if current_sort is defined else 'balance' %}
+{% set current_order = current_order if current_order is defined else 'asc' %}
 <div class="table-responsive">
   <table id="{{ table_id }}" class="{{ table_classes }}" data-dt-skip="true" data-print-mode="{{ print_flag }}" data-has-actions="{{ 1 if has_actions else 0 }}">
     <thead class="table-primary">
       <tr>
         <th class="hide-mobile">#</th>
-        <th class="hide-mobile">تاريخ الإنشاء</th>
-        <th>الاسم</th>
-        <th>الجوال</th>
-        <th class="hide-mobile">التصنيف</th>
-        <th>الرصيد</th>
+        <th class="hide-mobile">
+          <div class="d-flex align-items-center justify-content-between">
+            <span>تاريخ الإنشاء</span>
+            <div class="sort-buttons">
+              <button type="button" class="btn-sort {% if current_sort == 'created_at' and current_order == 'asc' %}active{% endif %}" data-sort="created_at" data-order="asc" title="تصاعدي">
+                <i class="fas fa-sort-up"></i>
+              </button>
+              <button type="button" class="btn-sort {% if current_sort == 'created_at' and current_order == 'desc' %}active{% endif %}" data-sort="created_at" data-order="desc" title="تنازلي">
+                <i class="fas fa-sort-down"></i>
+              </button>
+            </div>
+          </div>
+        </th>
+        <th>
+          <div class="d-flex align-items-center justify-content-between">
+            <span>الاسم</span>
+            <div class="sort-buttons">
+              <button type="button" class="btn-sort {% if current_sort == 'name' and current_order == 'asc' %}active{% endif %}" data-sort="name" data-order="asc" title="تصاعدي">
+                <i class="fas fa-sort-up"></i>
+              </button>
+              <button type="button" class="btn-sort {% if current_sort == 'name' and current_order == 'desc' %}active{% endif %}" data-sort="name" data-order="desc" title="تنازلي">
+                <i class="fas fa-sort-down"></i>
+              </button>
+            </div>
+          </div>
+        </th>
+        <th>
+          <div class="d-flex align-items-center justify-content-between">
+            <span>الجوال</span>
+            <div class="sort-buttons">
+              <button type="button" class="btn-sort {% if current_sort == 'phone' and current_order == 'asc' %}active{% endif %}" data-sort="phone" data-order="asc" title="تصاعدي">
+                <i class="fas fa-sort-up"></i>
+              </button>
+              <button type="button" class="btn-sort {% if current_sort == 'phone' and current_order == 'desc' %}active{% endif %}" data-sort="phone" data-order="desc" title="تنازلي">
+                <i class="fas fa-sort-down"></i>
+              </button>
+            </div>
+          </div>
+        </th>
+        <th class="hide-mobile">
+          <div class="d-flex align-items-center justify-content-between">
+            <span>التصنيف</span>
+            <div class="sort-buttons">
+              <button type="button" class="btn-sort {% if current_sort == 'category' and current_order == 'asc' %}active{% endif %}" data-sort="category" data-order="asc" title="تصاعدي">
+                <i class="fas fa-sort-up"></i>
+              </button>
+              <button type="button" class="btn-sort {% if current_sort == 'category' and current_order == 'desc' %}active{% endif %}" data-sort="category" data-order="desc" title="تنازلي">
+                <i class="fas fa-sort-down"></i>
+              </button>
+            </div>
+          </div>
+        </th>
+        <th>
+          <div class="d-flex align-items-center justify-content-between">
+            <span>الرصيد</span>
+            <div class="sort-buttons">
+              <button type="button" class="btn-sort {% if current_sort == 'balance' and current_order == 'asc' %}active{% endif %}" data-sort="balance" data-order="asc" title="تصاعدي">
+                <i class="fas fa-sort-up"></i>
+              </button>
+              <button type="button" class="btn-sort {% if current_sort == 'balance' and current_order == 'desc' %}active{% endif %}" data-sort="balance" data-order="desc" title="تنازلي">
+                <i class="fas fa-sort-down"></i>
+              </button>
+            </div>
+          </div>
+        </th>
         {% if has_actions %}
         <th data-sortable="false">العمليات</th>
         {% endif %}

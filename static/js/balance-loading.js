@@ -74,7 +74,6 @@
                 }
             }
         } catch (error) {
-            console.error('Error loading balance:', error);
             if (targetElement) {
                 targetElement.textContent = 'خطأ';
                 targetElement.classList.add('bg-warning');

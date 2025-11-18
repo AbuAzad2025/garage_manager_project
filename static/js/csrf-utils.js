@@ -1,16 +1,9 @@
-/**
- * ✅ دالة موحدة للحصول على CSRF Token
- * تبحث في: meta tag → hidden input → fallback
- */
 function getCSRFToken() {
     return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') 
         || document.getElementById('csrf_token')?.value 
         || '';
 }
 
-/**
- * ✅ إضافة CSRF Token تلقائياً لجميع fetch requests
- */
 function setupGlobalCSRF() {
     const originalFetch = window.fetch;
     window.fetch = function(url, options = {}) {

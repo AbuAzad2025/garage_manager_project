@@ -14,8 +14,6 @@
       this.addCurrentPage();
       this.renderFavoriteButton();
       this.renderWidgets();
-      
-      console.log('✅ Favorites & Recent Pages System Ready');
     },
     
     loadFavorites: function() {

@@ -1,4 +1,3 @@
-/* Event Utilities - أدوات Event Listeners آمنة */
 (function(window) {
   'use strict';
 

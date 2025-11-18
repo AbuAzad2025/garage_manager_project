@@ -255,6 +255,30 @@ body.print-mode .content {
 .no-print-inline {
     display: inline-flex;
 }
+.sort-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-right: 4px;
+}
+.btn-sort {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    color: #6c757d;
+    font-size: 0.75rem;
+    line-height: 1;
+}
+.btn-sort:hover {
+    color: #495057;
+}
+.btn-sort.active {
+    color: #007bff;
+}
+.table thead th .d-flex {
+    width: 100%;
+}
 </style>
 {% endif %}
 {% endblock %}
@@ -474,6 +498,8 @@ body.print-mode .content {
         </div>
       </div>
       <div id="customers-table-wrapper">
+        {% set current_sort = request.args.get('sort', 'balance') %}
+        {% set current_order = request.args.get('order', 'asc') %}
         {% include 'customers/_table.html' %}
       </div>
       <div id="customers-pagination-wrapper" class="px-3 pb-3">
@@ -591,6 +617,153 @@ body.print-mode .content {
         }
       });
     });
+  </script>
+  <script>
+    (function(){
+      function bindSortButtons() {
+        const currentSort = new URL(window.location.href).searchParams.get('sort') || 'balance';
+        const currentOrder = new URL(window.location.href).searchParams.get('order') || 'asc';
+        const sortButtons = document.querySelectorAll('.btn-sort');
+        
+        sortButtons.forEach(btn => {
+          const sort = btn.dataset.sort;
+          const order = btn.dataset.order;
+          btn.classList.toggle('active', sort === currentSort && order === currentOrder);
+          btn.onclick = handleSortClick;
+        });
+      }
+      
+      function handleSortClick(e) {
+        e.preventDefault();
+        const btn = e.currentTarget;
+        const sort = btn.dataset.sort;
+        const order = btn.dataset.order;
+        console.log('Sort clicked:', sort, order);
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', sort);
+        url.searchParams.set('order', order);
+        url.searchParams.delete('page');
+        url.searchParams.set('page', '1');
+        console.log('URL:', url.toString());
+        
+        const customersTableWrapper = document.getElementById('customers-table-wrapper');
+        const paginationWrapper = document.getElementById('customers-pagination-wrapper');
+        const customersSearchSummary = document.getElementById('customers-search-summary');
+        
+        if(!customersTableWrapper) {
+          window.location.href = url.toString();
+          return;
+        }
+        
+        url.searchParams.set('ajax', '1');
+        const previousTable = customersTableWrapper.innerHTML;
+        const previousPagination = paginationWrapper ? paginationWrapper.innerHTML : '';
+        const tbody = customersTableWrapper.querySelector('tbody');
+        
+        if(tbody && typeof window.setLoading === 'function') {
+          window.setLoading(tbody, true);
+        }
+        
+        fetch(url.toString(), {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+          }
+        })
+        .then(res => {
+          if(!res.ok) throw res;
+          return res.json();
+        })
+        .then(data => {
+          console.log('Received data:', data);
+          if(typeof data.table_html === 'string') {
+            customersTableWrapper.innerHTML = data.table_html;
+          }
+          if(paginationWrapper) {
+            paginationWrapper.innerHTML = data.pagination_html || '';
+          }
+          if(customersSearchSummary && typeof data.total_filtered === 'number') {
+            customersSearchSummary.textContent = `إجمالي النتائج: ${data.total_filtered}`;
+          }
+          
+          bindSortButtons();
+          
+          url.searchParams.delete('ajax');
+          const qstr = url.searchParams.toString();
+          const nextUrl = qstr ? `${url.pathname}?${qstr}` : url.pathname;
+          window.history.replaceState({}, '', nextUrl);
+        })
+        .catch(() => {
+          customersTableWrapper.innerHTML = previousTable;
+          if(paginationWrapper) {
+            paginationWrapper.innerHTML = previousPagination;
+          }
+          if(typeof window.showNotification === 'function') {
+            window.showNotification('تعذر تحديث القائمة', 'danger');
+          } else {
+            alert('تعذر تحديث القائمة');
+          }
+        });
+      }
+      
+      bindSortButtons();
+      
+      if(document.getElementById('customers-pagination-wrapper')) {
+        document.getElementById('customers-pagination-wrapper').addEventListener('click', function(event) {
+          const link = event.target.closest('a.page-link');
+          if(!link) return;
+          event.preventDefault();
+          const url = new URL(link.href, window.location.origin);
+          url.searchParams.set('ajax', '1');
+          const customersTableWrapper = document.getElementById('customers-table-wrapper');
+          const paginationWrapper = document.getElementById('customers-pagination-wrapper');
+          const customersSearchSummary = document.getElementById('customers-search-summary');
+          
+          if(!customersTableWrapper) {
+            window.location.href = link.href;
+            return;
+          }
+          
+          const previousTable = customersTableWrapper.innerHTML;
+          const previousPagination = paginationWrapper ? paginationWrapper.innerHTML : '';
+          
+          fetch(url.toString(), {
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest',
+              'Accept': 'application/json'
+            }
+          })
+          .then(res => {
+            if(!res.ok) throw res;
+            return res.json();
+          })
+          .then(data => {
+            if(typeof data.table_html === 'string') {
+              customersTableWrapper.innerHTML = data.table_html;
+            }
+            if(paginationWrapper) {
+              paginationWrapper.innerHTML = data.pagination_html || '';
+            }
+            if(customersSearchSummary && typeof data.total_filtered === 'number') {
+              customersSearchSummary.textContent = `إجمالي النتائج: ${data.total_filtered}`;
+            }
+            
+            bindSortButtons();
+            
+            url.searchParams.delete('ajax');
+            const qstr = url.searchParams.toString();
+            const nextUrl = qstr ? `${url.pathname}?${qstr}` : url.pathname;
+            window.history.replaceState({}, '', nextUrl);
+          })
+          .catch(() => {
+            customersTableWrapper.innerHTML = previousTable;
+            if(paginationWrapper) {
+              paginationWrapper.innerHTML = previousPagination;
+            }
+          });
+        });
+      }
+    })();
   </script>
   <script src="{{ url_for('static', filename='js/customers.js') }}"></script>
 {% endblock %}

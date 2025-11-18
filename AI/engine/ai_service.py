@@ -7,7 +7,7 @@ import re
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import func, text, desc
-from extensions import db
+from extensions import db, cache
 from models import SystemSettings
 from AI.engine.ai_knowledge import get_knowledge_base, analyze_error, format_error_response
 from AI.engine.ai_knowledge_finance import (
@@ -108,6 +108,21 @@ def gather_system_context():
         except Exception:
             context_fx_rate = 'غير متوفر'
         
+        cache_key_prefix = 'ai_system_context_'
+        cache_ttl = 300
+        
+        def get_cached_count(model, key_suffix, query_func=None):
+            cache_key = f"{cache_key_prefix}{key_suffix}"
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
+            if query_func:
+                count = query_func()
+            else:
+                count = model.query.count()
+            cache.set(cache_key, count, timeout=cache_ttl)
+            return count
+        
         context = {
             'system_name': 'نظام أزاد لإدارة الكراج - Garage Manager Pro',
             'version': 'v5.0.0',
@@ -124,32 +139,30 @@ def gather_system_context():
                 'الباركود', 'العملات', 'API', 'الشركاء', 'الدفتر', 'الأمان', 
                 'النسخ الاحتياطي', 'الحذف الصعب'
             ],
-            'roles_count': Role.query.count(),
+            'roles_count': get_cached_count(Role, 'roles_count'),
             'roles': [r.name for r in Role.query.limit(10).all()],
             
-            # Statistics
-            'total_users': User.query.count(),
-            'active_users': User.query.filter_by(is_active=True).count(),
-            'total_services': ServiceRequest.query.count(),
-            'pending_services': ServiceRequest.query.filter_by(status='pending').count(),
-            'completed_services': ServiceRequest.query.filter_by(status='completed').count(),
-            'total_sales': 0,  # يمكن إضافته لاحقاً
+            'total_users': get_cached_count(User, 'total_users'),
+            'active_users': get_cached_count(User, 'active_users', lambda: User.query.filter_by(is_active=True).count()),
+            'total_services': get_cached_count(ServiceRequest, 'total_services'),
+            'pending_services': get_cached_count(ServiceRequest, 'pending_services', lambda: ServiceRequest.query.filter_by(status='pending').count()),
+            'completed_services': get_cached_count(ServiceRequest, 'completed_services', lambda: ServiceRequest.query.filter_by(status='completed').count()),
+            'total_sales': 0,
             'sales_today': 0,
-            'total_products': Product.query.count(),
-            'products_in_stock': Product.query.filter(Product.id.in_(
+            'total_products': get_cached_count(Product, 'total_products'),
+            'products_in_stock': get_cached_count(Product, 'products_in_stock', lambda: Product.query.filter(Product.id.in_(
                 db.session.query(func.distinct(db.Column('product_id'))).select_from(db.Table('stock_levels'))
-            )).count() if Product.query.count() > 0 else 0,
-            'total_customers': Customer.query.count(),
-            'active_customers': Customer.query.filter_by(is_active=True).count(),
-            'total_vendors': Supplier.query.count(),
-            'total_payments': Payment.query.count(),
+            )).count() if Product.query.count() > 0 else 0),
+            'total_customers': get_cached_count(Customer, 'total_customers'),
+            'active_customers': get_cached_count(Customer, 'active_customers', lambda: Customer.query.filter_by(is_active=True).count()),
+            'total_vendors': get_cached_count(Supplier, 'total_vendors'),
+            'total_payments': get_cached_count(Payment, 'total_payments'),
             'payments_today': Payment.query.filter(func.date(Payment.payment_date) == today).count(),
-            'total_expenses': Expense.query.count(),
-            'total_warehouses': Warehouse.query.count(),
-            'total_notes': Note.query.count(),
-            'total_shipments': Shipment.query.count(),
+            'total_expenses': get_cached_count(Expense, 'total_expenses'),
+            'total_warehouses': get_cached_count(Warehouse, 'total_warehouses'),
+            'total_notes': get_cached_count(Note, 'total_notes'),
+            'total_shipments': get_cached_count(Shipment, 'total_shipments'),
             
-            # Security
             'failed_logins': AuditLog.query.filter(
                 AuditLog.action == 'login_failed',
                 AuditLog.created_at >= datetime.now(timezone.utc).replace(hour=0, minute=0, second=0)
@@ -158,12 +171,10 @@ def gather_system_context():
             'blocked_countries': 0,
             'suspicious_activities': 0,
             
-            # Audit
-            'total_audit_logs': AuditLog.query.count(),
+            'total_audit_logs': get_cached_count(AuditLog, 'total_audit_logs'),
             'recent_actions': AuditLog.query.order_by(AuditLog.created_at.desc()).limit(5).count(),
             
-            # Exchange Rates
-            'total_exchange_transactions': ExchangeTransaction.query.count(),
+            'total_exchange_transactions': get_cached_count(ExchangeTransaction, 'total_exchange_transactions'),
             'latest_usd_ils_rate': context_fx_rate,
             
             # Performance
@@ -172,12 +183,11 @@ def gather_system_context():
             'db_size': db_size,
             'db_health': db_health,
             
-            # Generate current stats text
             'current_stats': f"""
-المستخدمين: {User.query.count()} | النشطين: {User.query.filter_by(is_active=True).count()}
-الصيانة: {ServiceRequest.query.count()} طلب
-العملاء: {Customer.query.count()} | الموردين: {Supplier.query.count()}
-المنتجات: {Product.query.count()} | المخازن: {Warehouse.query.count()}
+المستخدمين: {context['total_users']} | النشطين: {context['active_users']}
+الصيانة: {context['total_services']} طلب
+العملاء: {context['total_customers']} | الموردين: {context['total_vendors']}
+المنتجات: {context['total_products']} | المخازن: {context['total_warehouses']}
 CPU: {cpu_usage}% | RAM: {memory.percent}%
 """
         }

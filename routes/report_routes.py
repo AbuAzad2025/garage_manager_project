@@ -1365,7 +1365,7 @@ def customers_advanced_report():
             )
         )
     
-    all_customers = query.all()
+    all_customers = query.limit(10000).all()
     customers_data = []
     
     total_invoiced_sum = Decimal('0.00')
@@ -1381,7 +1381,7 @@ def customers_advanced_report():
         invoices = db.session.query(Invoice).filter(
             Invoice.customer_id == cust.id,
             Invoice.cancelled_at.is_(None)
-        ).all()
+        ).limit(10000).all()
         invoice_count += len(invoices)
         for inv in invoices:
             amt = Decimal(str(inv.total_amount or 0))
@@ -1392,7 +1392,7 @@ def customers_advanced_report():
         sales = db.session.query(Sale).filter(
             Sale.customer_id == cust.id,
             Sale.status == SaleStatus.CONFIRMED
-        ).all()
+        ).limit(10000).all()
         invoice_count += len(sales)
         for s in sales:
             amt = Decimal(str(s.total_amount or 0))
@@ -1402,7 +1402,7 @@ def customers_advanced_report():
         
         services = db.session.query(ServiceRequest).filter(
             ServiceRequest.customer_id == cust.id
-        ).all()
+        ).limit(10000).all()
         invoice_count += len(services)
         for srv in services:
             amt = Decimal(str(srv.total_amount or 0))
@@ -1414,7 +1414,7 @@ def customers_advanced_report():
             Payment.customer_id == cust.id,
             Payment.direction == PaymentDirection.IN.value,
             Payment.status == PaymentStatus.COMPLETED.value
-        ).all()
+        ).limit(10000).all()
         for p in payments:
             amt = Decimal(str(p.total_amount or 0))
             paid_ils += amt

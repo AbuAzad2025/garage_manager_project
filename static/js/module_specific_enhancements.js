@@ -384,8 +384,6 @@
     link.href = URL.createObjectURL(blob);
     link.download = `users_export_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
-    
-    console.log(`✅ تم تصدير ${users.length} مستخدم`);
   };
   
   // ═══════════════════════════════════════════════════════════════════
@@ -1022,15 +1020,10 @@
   // ═══════════════════════════════════════════════════════════════════
   
   document.addEventListener('DOMContentLoaded', function() {
-    // إضافة Voice Input في صفحات AI
     addVoiceInputButton();
-    
-    // تهيئة Bulk Operations في صفحات Users
     if (window.location.pathname.includes('user')) {
       setTimeout(initBulkUserOperations, 500);
     }
-    
-    console.log('✅ جميع التحسينات المتخصصة جاهزة');
   });
   
 })();

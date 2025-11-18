@@ -43,8 +43,6 @@
         link.href = url.toString();
       }
     });
-    
-    console.log('✅ Tab Memory جاهز');
   }
   
   // ═══════════════════════════════════════════════════════════════════
@@ -145,8 +143,6 @@
         showQuickActionsMenu();
       }
     });
-    
-    console.log('✅ Quick Actions Menu جاهز (Ctrl+Space)');
   }
   
   function showQuickActionsMenu() {
@@ -276,10 +272,7 @@
   // ═══════════════════════════════════════════════════════════════════
   
   function initNotificationCenter() {
-    // إضافة أيقونة الإشعارات في الـ navbar
     addNotificationBell();
-    
-    console.log('✅ Notification Center جاهز');
   }
   
   function addNotificationBell() {
@@ -417,8 +410,6 @@
         item.style.display = text.includes(query) || !query ? '' : 'none';
       });
     });
-    
-    console.log('✅ Settings Search جاهز');
   }
   
   // ═══════════════════════════════════════════════════════════════════
@@ -565,8 +556,6 @@
     trackRecentPages();
     enhanceDataTables();
     initUIEnhancements();
-    
-    console.log('✅ جميع التحسينات العامة جاهزة');
   });
   
 })();

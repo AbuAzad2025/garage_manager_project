@@ -389,8 +389,7 @@
   function startCharts() {
     ensureChartLibraries().then(() => {
       bootstrap();
-    }).catch(error => {
-      console.error(error);
+    }).catch(() => {
     });
   }
 

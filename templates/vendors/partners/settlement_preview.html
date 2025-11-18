@@ -289,7 +289,8 @@
                     - التزاماته ({{ "%.2f"|format(balance_data.obligations.total) }}) 
                     - دفعنا له ({{ "%.2f"|format(balance_data.payments.total_paid) }}) 
                     + دفع لنا ({{ "%.2f"|format(balance_data.payments.total_received) }}) 
-                    {% if balance_data.expenses.total_ils > 0 %}- مصاريف ({{ "%.2f"|format(balance_data.expenses.total_ils) }}){% endif %}
+                    {% if balance_data.expenses.total_ils > 0 %}+ توريد خدمة ({{ "%.2f"|format(balance_data.expenses.total_ils) }}){% endif %}
+                    {% if balance_data.expenses.deducted_ils > 0 %}- مصاريف أخرى ({{ "%.2f"|format(balance_data.expenses.deducted_ils) }}){% endif %}
                     = <strong>{{ "%.2f"|format(balance_data.balance.amount) }}</strong>
                 </code>
             </div>
@@ -768,15 +769,72 @@
             </div>
             {% endif %}
             
-            <!-- 💸 قسم المصاريف -->
-            {% if balance_data.expenses and balance_data.expenses.total_ils > 0 %}
+            <!-- ✅ توريد الخدمة (مصروفات) -->
+            {% if balance_data.expenses and balance_data.expenses.get('items', [])|length > 0 %}
+            <div class="col-md-6">
+                <div class="card settlement-detail-card">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-invoice-dollar"></i> توريد خدمة (مصروفات)
+                            <span class="badge bg-light text-dark">{{ balance_data.expenses.get('count', 0) }}</span>
+                        </h5>
+                        <button class="btn btn-sm btn-light no-print" onclick="printTable('expensesTable', 'توريد الخدمة للشريك')">
+                            <i class="fas fa-print"></i> طباعة
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" id="expensesTable">
+                                <thead>
+                                    <tr>
+                                        <th>المرجع</th>
+                                        <th>التاريخ</th>
+                                        <th>الوصف</th>
+                                        <th class="text-end">المبلغ (₪)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in balance_data.expenses.get('items', []) %}
+                                    <tr>
+                                        <td>{{ item.reference }}</td>
+                                        <td><small>{{ item.date[:10] if item.date else '-' }}</small></td>
+                                        <td>
+                                            <small>{{ item.description or item.expense_type }}</small>
+                                        </td>
+                                        <td class="text-end">
+                                            {{ "%.2f"|format(item.amount_ils) }}
+                                            {% if item.currency != 'ILS' %}
+                                            <br><small class="text-muted">({{ item.currency }}: {{ "%.2f"|format(item.amount) }})</small>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <td colspan="3" class="text-end"><strong>المجموع:</strong></td>
+                                        <td class="text-end"><strong class="text-success">{{ "%.2f"|format(balance_data.expenses.get('total_ils', 0)) }}</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-info-circle"></i> توريد الخدمة = ورد لنا خدمة = زاد ديننا له (يُضاف للرصيد)
+                        </small>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 💸 قسم المصاريف الأخرى -->
+            {% if balance_data.expenses and balance_data.expenses.deducted_ils > 0 %}
             <h4 class="mt-5 mb-3" style="border-bottom: 3px solid #dc3545; padding-bottom: 10px;">
-                <i class="fas fa-coins text-danger"></i> المصاريف - دفعات صادرة تُطرح من رصيده
+                <i class="fas fa-coins text-danger"></i> المصاريف الأخرى - تُطرح من رصيده
             </h4>
             
             <div class="alert alert-danger">
-                <strong><i class="fas fa-info-circle"></i> إجمالي المصاريف:</strong>
-                <h3 class="text-danger mb-0">{{ "%.2f"|format(balance_data.expenses.total_ils) }} ₪</h3>
+                <strong><i class="fas fa-info-circle"></i> إجمالي المصاريف الأخرى:</strong>
+                <h3 class="text-danger mb-0">{{ "%.2f"|format(balance_data.expenses.deducted_ils) }} ₪</h3>
             </div>
             {% endif %}
 

@@ -124,9 +124,8 @@ var partnersRequestSeq = 0;
             window.jQuery('[data-toggle="tooltip"]').tooltip();
           }
         })
-        .catch(function (err) {
+        .catch(function () {
           if (requestId !== suppliersRequestSeq) return;
-          console.error(err);
           tableWrapper.innerHTML = previous;
           attachSupplierServiceButtons();
         });
@@ -266,9 +265,8 @@ var partnersRequestSeq = 0;
           var nextUrl = urlObj.pathname + (nextSearch ? "?" + nextSearch : "");
           window.history.replaceState(null, "", nextUrl);
         })
-        .catch(function (err) {
+        .catch(function () {
           if (requestId !== partnersRequestSeq) return;
-          console.error(err);
           tableWrapper.innerHTML = previous;
           if (typeof window !== "undefined" && typeof window.enableTableSorting === "function") {
             window.enableTableSorting("#partnersTable");

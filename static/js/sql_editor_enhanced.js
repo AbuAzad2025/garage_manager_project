@@ -37,13 +37,8 @@
     // إضافة Query Formatter
     addQueryFormatter(textarea);
     
-    // إضافة Autocomplete
     addAutocomplete(textarea);
-    
-    // إضافة Keyboard Shortcuts
     addKeyboardShortcuts(textarea);
-    
-    console.log('✅ SQL Editor محسّن جاهز');
   }
   
   /**

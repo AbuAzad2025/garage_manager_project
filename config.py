@@ -79,20 +79,37 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = _bool(os.environ.get("SQLALCHEMY_TRACK_MODIFICATIONS"), False)
     
     _is_sqlite = _db_uri.startswith("sqlite:")
+    _is_postgresql = _db_uri.startswith(("postgresql://", "postgres://"))
+    
+    if _is_postgresql:
+        _default_pool_size = 100
+        _default_max_overflow = 200
+    elif _is_sqlite:
+        _default_pool_size = 5
+        _default_max_overflow = 10
+    else:
+        _default_pool_size = 50
+        _default_max_overflow = 100
     
     SQLALCHEMY_ENGINE_OPTIONS = {
         "connect_args": {
             "timeout": 30,
             "check_same_thread": False if _is_sqlite else True,
         },
-        "pool_pre_ping": True,  # ✅ فحص الاتصال قبل الاستخدام
-        "pool_recycle": 1800,   # ✅ إعادة تدوير كل 30 دقيقة
-        "pool_size": _int("SQLALCHEMY_POOL_SIZE", 10),
-        "max_overflow": _int("SQLALCHEMY_MAX_OVERFLOW", 20),
+        "pool_pre_ping": True,
+        "pool_recycle": 3600,
+        "pool_size": _int("SQLALCHEMY_POOL_SIZE", _default_pool_size),
+        "max_overflow": _int("SQLALCHEMY_MAX_OVERFLOW", _default_max_overflow),
         "pool_timeout": _int("SQLALCHEMY_POOL_TIMEOUT", 30),
-        "echo": False,          # ✅ إيقاف SQL logging للأداء
-        "echo_pool": False,     # ✅ إيقاف pool logging
+        "echo": False,
+        "echo_pool": False,
     }
+    
+    if _is_postgresql:
+        SQLALCHEMY_ENGINE_OPTIONS["connect_args"].update({
+            "connect_timeout": 10,
+            "application_name": "garage_manager",
+        })
     
     SQLALCHEMY_ECHO = False
     
@@ -177,13 +194,12 @@ class Config:
     # Cache - تحسين التخزين المؤقت
     CACHE_TYPE = os.environ.get("CACHE_TYPE", "simple")
     CACHE_REDIS_URL = os.environ.get("CACHE_REDIS_URL", REDIS_URL)
-    CACHE_DEFAULT_TIMEOUT = _int("CACHE_DEFAULT_TIMEOUT", 300)
+    CACHE_DEFAULT_TIMEOUT = _int("CACHE_DEFAULT_TIMEOUT", 1800)
     CACHE_KEY_PREFIX = os.environ.get("CACHE_KEY_PREFIX", "garage_manager")
-    CACHE_THRESHOLD = _int("CACHE_THRESHOLD", 500)  # ✅ عدد العناصر قبل التنظيف التلقائي
+    CACHE_THRESHOLD = _int("CACHE_THRESHOLD", 500)
 
-    # ✅ Pagination محسّن
-    ITEMS_PER_PAGE = _int("ITEMS_PER_PAGE", 50)  # زيادة من 10 إلى 50 للأداء الأفضل
-    MAX_ITEMS_PER_PAGE = _int("MAX_ITEMS_PER_PAGE", 100)  # حد أقصى
+    ITEMS_PER_PAGE = _int("ITEMS_PER_PAGE", 200)
+    MAX_ITEMS_PER_PAGE = _int("MAX_ITEMS_PER_PAGE", 500)
     SHOP_PREPAID_RATE = _float("SHOP_PREPAID_RATE", 0.20)
     SHOP_WAREHOUSE_IDS = _csv_int("SHOP_WAREHOUSE_IDS")
     SHOP_WAREHOUSE_TYPES = _csv_str("SHOP_WAREHOUSE_TYPES", ["MAIN", "INVENTORY"])

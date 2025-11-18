@@ -1,7 +1,3 @@
-# utils.py - Utility Functions
-# Location: /garage_manager/utils.py
-# Description: Common utility functions and helpers
-
 from __future__ import annotations
 
 import base64
@@ -155,8 +151,15 @@ def search_model(
     elif hasattr(model, value_attr):
         query = query.order_by(getattr(model, value_attr).asc())
 
-    total = query.count()
-    items = query.offset((page - 1) * limit).limit(limit).all()
+    offset = (page - 1) * limit
+    items_query = query.offset(offset).limit(limit + 1)
+    items = items_query.all()
+    
+    has_more = len(items) > limit
+    if has_more:
+        items = items[:limit]
+    
+    total = None
 
     def _serialize(obj):
         if serializer:
@@ -171,7 +174,7 @@ def search_model(
         return d
 
     results = [_serialize(o) for o in items]
-    return jsonify({"results": results, "pagination": {"more": (page * limit) < total}})
+    return jsonify({"results": results, "pagination": {"more": has_more}})
 
 
 def _limit(spec: str):
@@ -308,20 +311,146 @@ def format_currency_in_ils(value: Any) -> str:
         return "0.00 شيكل"
 
 
+def get_supplier_balance_unified(supplier_id: int) -> float:
+    """
+    دالة موحدة لحساب رصيد المورد - تستخدم نفس المعادلة في كل مكان
+    """
+    try:
+        from extensions import cache
+        from datetime import datetime
+        from flask import current_app
+        
+        cache_key = f'supplier_balance_unified_{supplier_id}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return float(cached)
+        
+        try:
+            from routes.supplier_settlements import _calculate_smart_supplier_balance
+            date_from = datetime(2024, 1, 1)
+            date_to = datetime.utcnow()
+            
+            balance_data = _calculate_smart_supplier_balance(supplier_id, date_from, date_to)
+            
+            if balance_data.get("success"):
+                result = float(balance_data.get("balance", {}).get("amount", 0) or 0)
+                try:
+                    current_app.logger.info(f"✅ حساب رصيد المورد #{supplier_id}: {result} (من {balance_data.get('balance', {}).get('formula', 'N/A')})")
+                except:
+                    pass
+            else:
+                error_msg = balance_data.get("error", "خطأ غير معروف")
+                result = 0.0
+                try:
+                    current_app.logger.error(f"❌ فشل حساب رصيد المورد #{supplier_id}: {error_msg}")
+                except:
+                    pass
+        except ImportError as e:
+            result = 0.0
+            try:
+                current_app.logger.error(f"❌ خطأ Import في حساب رصيد المورد الموحد #{supplier_id}: {e}")
+            except:
+                pass
+        except Exception as e:
+            result = 0.0
+            try:
+                current_app.logger.error(f"❌ خطأ في حساب رصيد المورد الموحد #{supplier_id}: {e}")
+                import traceback
+                current_app.logger.error(traceback.format_exc())
+            except:
+                pass
+        
+        try:
+            cache.set(cache_key, result, timeout=300)
+        except:
+            pass
+        
+        return result
+    except Exception as e:
+        try:
+            from flask import current_app
+            current_app.logger.error(f"❌ خطأ عام في get_supplier_balance_unified #{supplier_id}: {e}")
+        except:
+            pass
+        return 0.0
+
+def get_partner_balance_unified(partner_id: int) -> float:
+    """
+    دالة موحدة لحساب رصيد الشريك - تستخدم نفس المعادلة في كل مكان
+    """
+    try:
+        from extensions import cache
+        from datetime import datetime
+        from flask import current_app
+        
+        cache_key = f'partner_balance_unified_{partner_id}'
+        
+        try:
+            from routes.partner_settlements import _calculate_smart_partner_balance
+            date_from = datetime(2024, 1, 1)
+            date_to = datetime.utcnow()
+            
+            balance_data = _calculate_smart_partner_balance(partner_id, date_from, date_to)
+            
+            if balance_data.get("success"):
+                result = float(balance_data.get("balance", {}).get("amount", 0) or 0)
+            else:
+                result = 0.0
+                try:
+                    current_app.logger.warning(f"⚠️ فشل حساب رصيد الشريك الموحد #{partner_id}: {balance_data.get('error', 'unknown')}")
+                except:
+                    pass
+        except ImportError as e:
+            try:
+                current_app.logger.warning(f"⚠️ خطأ في استيراد _calculate_smart_partner_balance: {e}")
+            except:
+                pass
+            result = 0.0
+        except Exception as e:
+            try:
+                current_app.logger.warning(f"⚠️ خطأ في حساب رصيد الشريك الموحد #{partner_id}: {e}")
+            except:
+                pass
+            result = 0.0
+        
+        try:
+            cache.set(cache_key, result, timeout=60)
+        except:
+            pass
+        
+        return result
+    except Exception as e:
+        try:
+            from flask import current_app
+            current_app.logger.warning(f"⚠️ خطأ عام في get_partner_balance_unified #{partner_id}: {e}")
+        except:
+            pass
+        return 0.0
+
 def get_entity_balance_in_ils(entity_type: str, entity_id: int) -> Decimal:
     try:
         from models import Customer, Supplier, Partner
+        cache_key = f"entity_balance_{entity_type}_{entity_id}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Decimal(str(cached))
+        
         et = (entity_type or "").upper()
+        result = Decimal("0.00")
         if et == "CUSTOMER":
             obj = db.session.get(Customer, entity_id)
-            return Decimal(str(getattr(obj, "balance_in_ils", 0) or 0)) if obj else Decimal("0.00")
-        if et == "SUPPLIER":
-            obj = db.session.get(Supplier, entity_id)
-            return Decimal(str(getattr(obj, "balance_in_ils", 0) or 0)) if obj else Decimal("0.00")
-        if et == "PARTNER":
-            obj = db.session.get(Partner, entity_id)
-            return Decimal(str(getattr(obj, "balance_in_ils", 0) or 0)) if obj else Decimal("0.00")
-        return Decimal("0.00")
+            if obj:
+                result = Decimal(str(getattr(obj, "balance_in_ils", 0) or 0))
+        elif et == "SUPPLIER":
+            result = Decimal(str(get_supplier_balance_unified(entity_id)))
+        elif et == "PARTNER":
+            result = Decimal(str(get_partner_balance_unified(entity_id)))
+        
+        try:
+            cache.set(cache_key, float(result), timeout=300)
+        except Exception:
+            pass
+        return result
     except Exception:
         return Decimal("0.00")
 

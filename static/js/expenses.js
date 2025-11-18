@@ -337,7 +337,6 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .catch(function (err) {
           if (requestId !== expensesAjaxSeq) return;
-          console.error(err);
           if (err && typeof err.text === 'function') {
             err.text().then(function (raw) {
               try {
@@ -346,7 +345,6 @@ document.addEventListener('DOMContentLoaded', function () {
                   window.showNotification(parsed.error, 'danger');
                 }
               } catch (parseErr) {
-                console.error("Failed to parse error payload", parseErr);
               }
             }).catch(function () {});
           }

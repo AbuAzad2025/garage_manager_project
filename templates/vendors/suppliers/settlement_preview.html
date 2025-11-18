@@ -730,6 +730,63 @@
                     </div>
                 </div>
                 {% endif %}
+                
+                {# ✅ توريد الخدمة (مصروفات) #}
+                {% if balance_data.expenses and balance_data.expenses.get('items', [])|length > 0 %}
+                <div class="col-md-6">
+                    <div class="card settlement-detail-card">
+                        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-file-invoice-dollar"></i> توريد خدمة (مصروفات)
+                                <span class="badge bg-light text-dark">{{ balance_data.expenses.get('count', 0) }}</span>
+                            </h5>
+                            <button class="btn btn-sm btn-light no-print" onclick="printTable('expensesTable', 'توريد الخدمة للمورد')">
+                                <i class="fas fa-print"></i> طباعة
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" id="expensesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>المرجع</th>
+                                            <th>التاريخ</th>
+                                            <th>الوصف</th>
+                                            <th class="text-end">المبلغ (₪)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in balance_data.expenses.get('items', []) %}
+                                        <tr>
+                                            <td>{{ item.reference }}</td>
+                                            <td><small>{{ item.date[:10] if item.date else '-' }}</small></td>
+                                            <td>
+                                                <small>{{ item.description or item.expense_type }}</small>
+                                            </td>
+                                            <td class="text-end">
+                                                {{ "%.2f"|format(item.amount_ils) }}
+                                                {% if item.currency != 'ILS' %}
+                                                <br><small class="text-muted">({{ item.currency }}: {{ "%.2f"|format(item.amount) }})</small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <td colspan="3" class="text-end"><strong>المجموع:</strong></td>
+                                            <td class="text-end"><strong class="text-success">{{ "%.2f"|format(balance_data.expenses.get('total_ils', 0)) }}</strong></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle"></i> توريد الخدمة = ورد لنا خدمة = زاد ديننا له (يُضاف للرصيد)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- الدفعات والمرتجعات -->

@@ -273,6 +273,22 @@ def _create_partial_payments(expense: Expense, entries):
 
     created = []
     for entry in entries:
+        expense_ref = f"مصروف #{expense.id}"
+        if expense.description:
+            expense_ref += f" - {expense.description}"
+        elif expense.type and expense.type.name:
+            expense_ref += f" - {expense.type.name}"
+        
+        reference_text = entry.get("reference", "").strip()
+        if not reference_text:
+            reference_text = expense_ref
+        elif expense_ref not in reference_text:
+            reference_text = f"{expense_ref} | {reference_text}"
+        
+        notes_text = entry.get("notes", "").strip()
+        if not notes_text and expense.description:
+            notes_text = expense.description
+        
         payment = Payment(
             payment_date=entry["payment_date"],
             total_amount=entry["amount"],
@@ -282,8 +298,8 @@ def _create_partial_payments(expense: Expense, entries):
             direction=PaymentDirection.OUT.value,
             entity_type=PaymentEntityType.EXPENSE.value,
             expense_id=expense.id,
-            reference=entry["reference"],
-            notes=entry["notes"],
+            reference=reference_text or None,
+            notes=notes_text or None,
             receiver_name=expense.payee_name or expense.paid_to or expense.beneficiary_name,
             created_by=current_user.id if current_user.is_authenticated else None,
         )
@@ -2379,7 +2395,7 @@ def pay(exp_id):
 # @permission_required("manage_expenses")  # Commented out
 def export_csv():
     query, _ = _base_query_with_filters()
-    rows = query.all()
+    rows = query.limit(50000).all()
     output = io.StringIO()
     output.write("\ufeff")
     writer = csv.writer(output)
@@ -2443,7 +2459,7 @@ def export_csv():
 # @permission_required("manage_expenses")  # Commented out
 def print_list():
     query, filt = _base_query_with_filters()
-    rows = query.all()
+    rows = query.limit(50000).all()
     total_amount = int(q0(sum(D(getattr(e, "amount", 0) or 0) for e in rows)))
     total_paid = int(q0(sum(D(getattr(e, "total_paid", 0) or 0) for e in rows)))
     total_balance = int(q0(sum(D(getattr(e, "balance", 0) or 0) for e in rows)))
@@ -2610,7 +2626,7 @@ def generate_all_salaries():
     year = int(request.form.get('year', today.year))
     payment_date = request.form.get('payment_date', today.date().isoformat())
     
-    employees = Employee.query.all()
+    employees = Employee.query.order_by(Employee.name).limit(1000).all()
     
     salary_type = ExpenseType.query.filter_by(code='SALARY').first()
     if not salary_type:

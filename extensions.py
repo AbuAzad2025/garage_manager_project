@@ -257,11 +257,14 @@ def _sqlite_pragmas_on_connect(dbapi_connection, connection_record):
             cur.execute("PRAGMA journal_mode=WAL")
             cur.execute("PRAGMA synchronous=NORMAL")
             cur.execute("PRAGMA foreign_keys=ON")
-            cur.execute("PRAGMA cache_size=-64000")
+            cur.execute("PRAGMA cache_size=-128000")
             cur.execute("PRAGMA temp_store=MEMORY")
-            cur.execute("PRAGMA mmap_size=268435456")
+            cur.execute("PRAGMA mmap_size=536870912")
             cur.execute("PRAGMA page_size=4096")
             cur.execute("PRAGMA auto_vacuum=INCREMENTAL")
+            cur.execute("PRAGMA threads=4")
+            cur.execute("PRAGMA optimize")
+            cur.execute("PRAGMA query_only=0")
             cur.close()
     except Exception:
         pass
@@ -743,8 +746,8 @@ def init_extensions(app):
         'text/html', 'text/css', 'text/xml', 'text/javascript',
         'application/json', 'application/javascript'
     ])
-    app.config.setdefault('COMPRESS_LEVEL', 6)
-    app.config.setdefault('COMPRESS_MIN_SIZE', 500)
+    app.config.setdefault('COMPRESS_LEVEL', 9)
+    app.config.setdefault('COMPRESS_MIN_SIZE', 100)
 
     # تعطيل SocketIO في Development mode لتجنب أخطاء WebSocket
     # يمكن تفعيله في Production مع gunicorn + gevent

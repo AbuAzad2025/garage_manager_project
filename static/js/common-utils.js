@@ -1,9 +1,3 @@
-/**
- * ✅ دوال مشتركة للنظام بالكامل
- * تجنب التكرار - استخدم هذا الملف في جميع القوالب
- */
-
-// ✅ Debounce - منع التنفيذ المتكرر
 function debounce(fn, ms) {
     let timer;
     return function() {
@@ -12,7 +6,6 @@ function debounce(fn, ms) {
     };
 }
 
-// ✅ تحويل النص لرقم (يدعم الأرقام العربية)
 function toNumber(s) {
     s = String(s || '')
         .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
@@ -22,7 +15,6 @@ function toNumber(s) {
     return isNaN(n) ? 0 : n;
 }
 
-// ✅ تنسيق المبلغ (2 decimal places)
 function fmtAmount(v) { 
     const num = toNumber(v);
     return num.toLocaleString('en-US', { 
@@ -84,7 +76,6 @@ if (typeof window !== 'undefined') {
     window.enableTableSorting = enableTableSorting;
 }
 
-// ✅ تنسيق العملة
 function formatCurrency(amount, currency = 'ILS') {
     const num = toNumber(amount);
     const formatted = num.toLocaleString('en-US', {
@@ -94,7 +85,6 @@ function formatCurrency(amount, currency = 'ILS') {
     return currency === 'ILS' ? formatted + ' ₪' : formatted + ' ' + currency;
 }
 
-// ✅ Badge للاتجاه
 function badgeForDirection(dir) {
     const v = String(dir || '').toUpperCase();
     return (v === 'IN' || v === 'INCOMING') 
@@ -102,7 +92,6 @@ function badgeForDirection(dir) {
         : '<span class="badge bg-danger">صادر</span>';
 }
 
-// ✅ Badge للحالة
 function badgeForStatus(st) {
     const statusMap = {
         'COMPLETED': {cls: 'bg-success', txt: 'مكتملة'},
@@ -116,7 +105,6 @@ function badgeForStatus(st) {
     return `<span class="badge ${status.cls}">${status.txt}</span>`;
 }
 
-// ✅ عرض رسالة تنبيه
 function showAlert(type, message, duration = 0) {
     const alertTypes = {
         'success': 'alert-success',
@@ -141,7 +129,6 @@ function showAlert(type, message, duration = 0) {
     document.body.appendChild(alertDiv);
 }
 
-// ✅ تحميل البيانات مع Loading
 function setLoading(selector, isLoading) {
     const el = typeof selector === 'string' ? document.querySelector(selector) : selector;
     if (!el) return;
@@ -156,12 +143,10 @@ function setLoading(selector, isLoading) {
     }
 }
 
-// ✅ تأكيد قبل الحذف
 function confirmDelete(entityName, entityId) {
     return confirm(`هل أنت متأكد من حذف ${entityName} #${entityId}؟\n\nهذا الإجراء لا يمكن التراجع عنه!`);
 }
 
-// ✅ Export to CSV
 function exportToCSV(data, filename) {
     const csv = data.map(row => 
         row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
@@ -180,7 +165,6 @@ function exportToCSV(data, filename) {
     URL.revokeObjectURL(url);
 }
 
-// ✅ تحويل التاريخ للعرض
 function formatDate(dateString) {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -192,7 +176,6 @@ function formatDate(dateString) {
     });
 }
 
-// ✅ تحويل الوقت للعرض
 function formatDateTime(dateString) {
     if (!dateString) return '-';
     const date = new Date(dateString);
@@ -206,7 +189,6 @@ function formatDateTime(dateString) {
     });
 }
 
-// ✅ استخراج تسمية الجهة من كائن الدفعة
 function deriveEntityLabel(p) {
     const esc = (val) => String(val ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     if (p.service_id) {
@@ -242,7 +224,6 @@ function deriveEntityLabel(p) {
     return p.entity_type || '';
 }
 
-// ✅ تطبيع نوع الجهة
 function normalizeEntity(val) {
     if (!val) return '';
     const enumMap = {
@@ -254,14 +235,12 @@ function normalizeEntity(val) {
     return enumMap[k] || val.toString().toUpperCase();
 }
 
-// ✅ تطبيع طريقة الدفع
 function normalizeMethod(v) {
     v = String(v || '').trim();
     if (!v) return '';
     return v.replace(/\s+/g,'_').replace(/-/g,'_').toUpperCase();
 }
 
-// ✅ تطبيع الاتجاه
 function normDir(v) {
     v = (v || '').toUpperCase();
     if (v === 'IN') return 'INCOMING';
@@ -269,7 +248,6 @@ function normDir(v) {
     return v;
 }
 
-// ✅ التحقق من صحة التواريخ
 function validDates(start, end) {
     if (!start || !end) return { start, end };
     const s = new Date(start), e = new Date(end);

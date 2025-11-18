@@ -14,12 +14,10 @@ function initLocationPicker(elementId, latInput, lngInput, addressInput) {
     const mapElement = document.getElementById(elementId);
     if (!mapElement) return;
 
-    // الموقع الافتراضي: رام الله، فلسطين
     const defaultLat = parseFloat(latInput.value) || 31.9038;
     const defaultLng = parseFloat(lngInput.value) || 35.2034;
     const defaultPos = { lat: defaultLat, lng: defaultLng };
 
-    // إنشاء الخريطة
     map = new google.maps.Map(mapElement, {
         center: defaultPos,
         zoom: 15,
@@ -30,7 +28,6 @@ function initLocationPicker(elementId, latInput, lngInput, addressInput) {
         fullscreenControl: true
     });
 
-    // إنشاء Marker
     marker = new google.maps.Marker({
         position: defaultPos,
         map: map,
@@ -41,32 +38,26 @@ function initLocationPicker(elementId, latInput, lngInput, addressInput) {
 
     geocoder = new google.maps.Geocoder();
 
-    // عند سحب الـ Marker
     marker.addListener('dragend', function(event) {
         const pos = event.latLng;
         updateInputs(pos.lat(), pos.lng(), latInput, lngInput, addressInput);
     });
 
-    // عند النقر على الخريطة
     map.addListener('click', function(event) {
         const pos = event.latLng;
         marker.setPosition(pos);
         updateInputs(pos.lat(), pos.lng(), latInput, lngInput, addressInput);
     });
 
-    // زر GPS
     const gpsButton = createGPSButton();
     map.controls[google.maps.ControlPosition.TOP_RIGHT].push(gpsButton);
 
-    // أزرار المشاركة والنسخ
     const shareButtons = createShareButtons(latInput, lngInput);
     map.controls[google.maps.ControlPosition.TOP_RIGHT].push(shareButtons);
 
-    // زر البحث
     const searchBox = createSearchBox();
     map.controls[google.maps.ControlPosition.TOP_LEFT].push(searchBox);
 
-    // إضافة listener للبحث
     const searchInput = searchBox.querySelector('input');
     const autocomplete = new google.maps.places.Autocomplete(searchInput, {
         componentRestrictions: { country: ['ps', 'il', 'jo'] }, // فلسطين، إسرائيل، الأردن
@@ -92,7 +83,6 @@ function updateInputs(lat, lng, latInput, lngInput, addressInput, address = null
     latInput.value = lat.toFixed(6);
     lngInput.value = lng.toFixed(6);
 
-    // إذا لم يتم توفير العنوان، استخدم Reverse Geocoding
     if (!address && addressInput) {
         geocoder.geocode({ location: { lat, lng } }, function(results, status) {
             if (status === 'OK' && results[0]) {
@@ -130,27 +120,21 @@ function createGPSButton() {
 
     button.addEventListener('click', function() {
         if (navigator.geolocation) {
-            console.log('🔍 بدء طلب الموقع الجغرافي...');
             button.disabled = true;
             button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري التحديد...';
 
-            // خيارات طلب الموقع
             const options = {
-                enableHighAccuracy: true,  // دقة عالية
-                timeout: 10000,            // 10 ثواني timeout
-                maximumAge: 0              // عدم استخدام cache
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
             };
-            
-            console.log('⚙️ خيارات الطلب:', options);
 
             navigator.geolocation.getCurrentPosition(
                 function(position) {
-                    console.log('✅ تم الحصول على الموقع بنجاح:', position);
                     const pos = {
                         lat: position.coords.latitude,
                         lng: position.coords.longitude
                     };
-                    console.log('📍 الإحداثيات:', pos);
 
                     map.setCenter(pos);
                     map.setZoom(17);
@@ -168,19 +152,10 @@ function createGPSButton() {
                     }, 2000);
                 },
                 function(error) {
-                    console.error('❌ خطأ في الحصول على الموقع:', error);
-                    console.error('📋 تفاصيل الخطأ:', {
-                        code: error.code,
-                        message: error.message,
-                        PERMISSION_DENIED: error.PERMISSION_DENIED,
-                        POSITION_UNAVAILABLE: error.POSITION_UNAVAILABLE,
-                        TIMEOUT: error.TIMEOUT
-                    });
                     
                     button.disabled = false;
                     button.innerHTML = '<i class="fas fa-times-circle me-1 text-danger"></i>فشل التحديد';
                     
-                    // رسالة خطأ مفصلة حسب نوع الخطأ
                     let errorMsg = '❌ تعذر الحصول على موقعك.\n\n';
                     switch(error.code) {
                         case error.PERMISSION_DENIED:
@@ -255,7 +230,6 @@ function createShareButtons(latInput, lngInput) {
             return;
         }
 
-        // نسخ الإحداثيات بصيغ متعددة
         const formats = [
             `📍 الإحداثيات:`,
             `Latitude: ${lat}`,
@@ -265,14 +239,12 @@ function createShareButtons(latInput, lngInput) {
             `🗺️ OpenStreetMap: https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=15`
         ].join('\n');
 
-        // نسخ للحافظة
         navigator.clipboard.writeText(formats).then(() => {
             copyButton.innerHTML = '<i class="fas fa-check-circle me-1 text-success"></i>تم النسخ!';
             setTimeout(() => {
                 copyButton.innerHTML = '<i class="fas fa-copy me-1"></i>نسخ الموقع';
             }, 2000);
         }).catch(() => {
-            // Fallback للمتصفحات القديمة
             const textarea = document.createElement('textarea');
             textarea.value = formats;
             document.body.appendChild(textarea);
@@ -314,7 +286,6 @@ function createShareButtons(latInput, lngInput) {
         const branchName = document.querySelector('input[name="name"]')?.value || 'الموقع';
         const shareText = `📍 موقع ${branchName}\n\n🗺️ عرض على الخريطة:\n${googleMapsUrl}`;
 
-        // استخدام Web Share API إذا كان متاحاً
         if (navigator.share) {
             navigator.share({
                 title: `موقع ${branchName}`,
@@ -331,7 +302,6 @@ function createShareButtons(latInput, lngInput) {
                 }
             });
         } else {
-            // عرض نافذة المشاركة البديلة
             showShareModal(shareText, googleMapsUrl);
         }
     });
@@ -427,36 +397,20 @@ function createSearchBox() {
  * تهيئة سريعة من HTML
  */
 document.addEventListener('DOMContentLoaded', function() {
-    // فحص دعم Geolocation
     if (!navigator.geolocation) {
-        console.error('❌ المتصفح لا يدعم Geolocation API');
     } else {
-        console.log('✅ المتصفح يدعم Geolocation API');
-        
-        // فحص إذا كان الموقع يعمل على HTTPS أو localhost
         const isSecure = window.location.protocol === 'https:' || 
                         window.location.hostname === 'localhost' || 
                         window.location.hostname === '127.0.0.1';
         
-        if (!isSecure) {
-            console.warn('⚠️ تحذير: بعض المتصفحات تتطلب HTTPS لاستخدام Geolocation');
-        } else {
-            console.log('✅ البروتوكول آمن (HTTPS أو localhost)');
-        }
-        
-        // اختبار الأذونات (Permissions API)
         if (navigator.permissions) {
             navigator.permissions.query({ name: 'geolocation' }).then(function(result) {
-                console.log('🔐 حالة أذونات الموقع:', result.state);
                 if (result.state === 'denied') {
-                    console.error('❌ تم رفض أذونات الموقع مسبقاً');
                 } else if (result.state === 'granted') {
-                    console.log('✅ تم منح أذونات الموقع');
                 } else {
-                    console.log('⏳ لم يتم تحديد أذونات الموقع بعد (سيُسأل المستخدم)');
                 }
             }).catch(function(error) {
-                console.log('⚠️ لا يمكن فحص أذونات الموقع:', error);
+                
             });
         }
     }
@@ -468,7 +422,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const addressInput = document.querySelector('input[name="address"]');
         
         if (latInput && lngInput) {
-            // تحميل Google Maps API
             if (typeof google === 'undefined') {
                 const script = document.createElement('script');
                 script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&language=ar&region=PS`;

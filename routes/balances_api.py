@@ -8,9 +8,9 @@ balances_api_bp = Blueprint('balances_api', __name__, url_prefix='/api/balances'
 @balances_api_bp.route('/dashboard', methods=['GET'])
 @login_required
 def balances_dashboard():
-    suppliers = Supplier.query.filter_by(is_archived=False).all()
-    partners = Partner.query.filter_by(is_archived=False).all()
-    customers = Customer.query.filter_by(is_archived=False).all()
+    suppliers = Supplier.query.filter_by(is_archived=False).limit(10000).all()
+    partners = Partner.query.filter_by(is_archived=False).limit(10000).all()
+    customers = Customer.query.filter_by(is_archived=False).limit(10000).all()
     
     suppliers_total = sum(s.balance for s in suppliers)
     partners_total = sum(p.balance for p in partners)
@@ -101,9 +101,9 @@ def get_balances_summary():
     if cached:
         return jsonify(cached)
     
-    suppliers = Supplier.query.filter_by(is_archived=False).all()
-    partners = Partner.query.filter_by(is_archived=False).all()
-    customers = Customer.query.filter_by(is_archived=False).all()
+    suppliers = Supplier.query.filter_by(is_archived=False).limit(10000).all()
+    partners = Partner.query.filter_by(is_archived=False).limit(10000).all()
+    customers = Customer.query.filter_by(is_archived=False).limit(10000).all()
     
     suppliers_total = sum(s.balance for s in suppliers)
     partners_total = sum(p.balance for p in partners)

@@ -54,9 +54,8 @@
     dataTablesPromise = Promise.all(cssLoaders).then(() => loadJsSequentially).then(() => {
       if (!$.fn.DataTable) throw new Error("DataTables failed to load");
       $(document).trigger("datatables:ready");
-    }).catch(err => {
+    }).catch(() => {
       dataTablesPromise = null;
-      console.error(err);
     });
     return dataTablesPromise || Promise.resolve();
   }

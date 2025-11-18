@@ -76,13 +76,11 @@ from routes.sale_returns import returns_bp
 from routes.balances_api import balances_api_bp
 
 
-# ========== تفعيل Foreign Keys في SQLite ==========
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_conn, connection_record):
-    '''تفعيل Foreign Keys وWAL mode في SQLite'''
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.execute("PRAGMA journal_mode=WAL")  # للأداء الأفضل
+    cursor.execute("PRAGMA journal_mode=WAL")
     cursor.close()
 
 # تم تفعيل Foreign Keys + WAL mode
@@ -164,35 +162,32 @@ def create_app(config_object=Config) -> Flask:
     app.config.setdefault("AI_SYSTEMS_ENABLED", True)
     app.config.setdefault("ENABLE_AUTOMATED_BACKUPS", True)
 
-    engine_opts = app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
-    connect_args = engine_opts.setdefault("connect_args", {})
+    engine_opts = app.config.get("SQLALCHEMY_ENGINE_OPTIONS", {})
+    connect_args = engine_opts.get("connect_args", {})
     uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
-    engine_opts.setdefault("pool_pre_ping", True)
-    engine_opts.setdefault("pool_recycle", 1800)
-    engine_opts.setdefault("pool_size", 10)
-    engine_opts.setdefault("max_overflow", 20)
-    if uri.startswith("sqlite"):
+    
+    is_postgresql = uri.startswith(("postgresql", "postgres"))
+    is_sqlite = uri.startswith("sqlite")
+    
+    if is_sqlite:
         connect_args.setdefault("timeout", 30)
     else:
         connect_args.pop("timeout", None)
-        if uri.startswith(("postgresql", "postgresql+psycopg2")):
+        if is_postgresql:
             connect_args.setdefault("connect_timeout", int(os.getenv("DB_CONNECT_TIMEOUT", "10")))
+            connect_args.setdefault("application_name", "garage_manager")
         elif uri.startswith(("mysql", "mysql+pymysql", "mysql+mysqldb")):
             connect_args.setdefault("connect_timeout", int(os.getenv("DB_CONNECT_TIMEOUT", "10")))
+    
+    engine_opts["connect_args"] = connect_args
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = engine_opts
 
     setup_logging(app)
     setup_sentry(app)
 
     init_extensions(app)
-    # utils_init_app(app)  # Commented out - function not available in utils package
-    
-    # زرع أنواع المصاريف الأساسية دائماً عند الإقلاع (بعيداً عن الهجرات)
-    # ملاحظة: هذا فقط لأنواع المصاريف - البذور الأخرى (عملاء، إلخ) تُنفذ يدوياً فقط
     try:
         with app.app_context():
-            # تم تعطيل seed_core_expense_types - يعمل تلقائياً بكل تشغيل
-            # from services.bootstrap_data import seed_core_expense_types
-            # seed_core_expense_types(db)
             pass
     except Exception as _e:
         app.logger.warning(f"Bootstrap expense types skipped: {_e}")

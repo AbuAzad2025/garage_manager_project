@@ -501,6 +501,18 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" data-toggle="pill" href="#tab-settled" role="tab">
+                                <i class="fas fa-handshake"></i> مسوّاة
+                                <span class="badge badge-custom" id="badge-settled">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-toggle="pill" href="#tab-legal" role="tab">
+                                <i class="fas fa-gavel"></i> دائرة قانونية
+                                <span class="badge badge-custom" id="badge-legal">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" data-toggle="pill" href="#tab-all" role="tab">
                                 <i class="fas fa-list"></i> الكل
                                 <span class="badge badge-custom" id="badge-all">0</span>
@@ -609,6 +621,54 @@
 
                         <div class="tab-pane fade" id="tab-cancelled" role="tabpanel">
                                 <table class="table table-hover checks-table" id="table-cancelled">
+                                    <thead>
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>العملة</th>
+                                        <th>سعر الصرف</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="12" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+
+                        <div class="tab-pane fade" id="tab-settled" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-settled">
+                                    <thead>
+                                        <tr>
+                                        <th>#</th>
+                                        <th>رقم الشيك</th>
+                                        <th>المبلغ</th>
+                                        <th>العملة</th>
+                                        <th>سعر الصرف</th>
+                                        <th>البنك</th>
+                                        <th>الجهة</th>
+                                        <th>تاريخ الاستحقاق</th>
+                                        <th>الاتجاه</th>
+                                        <th>الحالة</th>
+                                        <th>المصدر</th>
+                                        <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr><td colspan="12" class="text-center">جاري التحميل...</td></tr>
+                                    </tbody>
+                                </table>
+                        </div>
+
+                        <div class="tab-pane fade" id="tab-legal" role="tabpanel">
+                                <table class="table table-hover checks-table" id="table-legal">
                                     <thead>
                                         <tr>
                                         <th>#</th>

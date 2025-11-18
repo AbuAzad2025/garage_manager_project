@@ -591,6 +591,9 @@ h2, h3, h4 {
   {% endif %}
 
   <form method="POST" id="paymentForm" action="{{ url_for('payments.create_payment') }}" autocomplete="off">
+    {% if request.args.get('check_token') %}
+    <input type="hidden" name="check_token" value="{{ request.args.get('check_token') }}">
+    {% endif %}
     {{ form.hidden_tag() }}
     {% if form.request_token is not none %}
       {{ form.request_token }}

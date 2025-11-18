@@ -1,5 +1,3 @@
-// payments.js - Payment Functions
-// Location: /garage_manager/static/js/payments.js
 let smartSearchInitialized = false;
 
 function initializeSmartSearchOnce() {
@@ -19,7 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const filterSelectors = ['#filterEntity', '#filterStatus', '#filterDirection', '#filterMethod', '#startDate', '#endDate', '#filterCurrency'];
   const searchInput = document.querySelector('#payments-search');
   const ENTITY_ENUM = { customer:'CUSTOMER', supplier:'SUPPLIER', partner:'PARTNER', sale:'SALE', service:'SERVICE', expense:'EXPENSE', loan:'LOAN', preorder:'PREORDER', shipment:'SHIPMENT' };
-  const AR_STATUS = { COMPLETED:'مكتملة', PENDING:'قيد الانتظار', FAILED:'فاشلة', REFUNDED:'مُرجعة' };
   function inferEntityContext() {
     const path = location.pathname.replace(/\/+$/, '');
     const m = path.match(/^\/vendors\/(suppliers|partners)\/(\d+)\/payments$/i);
@@ -48,15 +45,91 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   function debounce(fn, ms) { let t; return function () { clearTimeout(t); t = setTimeout(() => fn.apply(this, arguments), ms); }; }
   const debouncedReload = debounce(function () { updateUrlQuery(); loadPayments(1); }, 250);
+  
+  const applyFilters = function() {
+    updateUrlQuery();
+    loadPayments(1);
+    if (btnApplyFilters) {
+      btnApplyFilters.classList.remove('btn-warning');
+      btnApplyFilters.classList.add('btn-success');
+      btnApplyFilters.innerHTML = '<i class="fas fa-filter me-1"></i> تطبيق';
+    }
+  };
+  
+  const resetFilters = function() {
+    const qs = new URLSearchParams(location.search);
+    const entityType = qs.get('entity_type') || '';
+    const entityId = qs.get('entity_id') || '';
+    
+    const filterEntity = document.querySelector('#filterEntity');
+    const filterStatus = document.querySelector('#filterStatus');
+    const filterDirection = document.querySelector('#filterDirection');
+    const filterMethod = document.querySelector('#filterMethod');
+    const startDate = document.querySelector('#startDate');
+    const endDate = document.querySelector('#endDate');
+    const filterCurrency = document.querySelector('#filterCurrency');
+    
+    if (filterEntity) filterEntity.value = entityType;
+    if (filterStatus) filterStatus.value = '';
+    if (filterDirection) filterDirection.value = '';
+    if (filterMethod) filterMethod.value = '';
+    if (startDate) startDate.value = '';
+    if (endDate) endDate.value = '';
+    if (filterCurrency) filterCurrency.value = '';
+    if (searchInput) searchInput.value = '';
+    
+    if (btnApplyFilters) {
+      btnApplyFilters.classList.remove('btn-warning');
+      btnApplyFilters.classList.add('btn-success');
+      btnApplyFilters.innerHTML = '<i class="fas fa-filter me-1"></i> تطبيق';
+    }
+    
+    const params = new URLSearchParams();
+    if (entityType) params.append('entity_type', entityType);
+    if (entityId) params.append('entity_id', entityId);
+    history.replaceState(null, '', location.pathname + (params.toString() ? ('?' + params.toString()) : ''));
+    loadPayments(1);
+  };
+  
+  const btnApplyFilters = document.getElementById('btnApplyFilters');
+  if (btnApplyFilters) {
+    btnApplyFilters.addEventListener('click', applyFilters);
+  }
+  
+  const btnResetFilters = document.getElementById('btnResetFilters');
+  if (btnResetFilters) {
+    btnResetFilters.addEventListener('click', resetFilters);
+  }
+  
   filterSelectors.forEach(function (sel) {
     const el = document.querySelector(sel);
     if (!el) return;
-    el.addEventListener('change', debouncedReload, { passive: true });
-    if (el.tagName === 'INPUT') el.addEventListener('input', debouncedReload, { passive: true });
+    el.addEventListener('change', function() {
+      if (btnApplyFilters) {
+        btnApplyFilters.classList.add('btn-warning');
+        btnApplyFilters.innerHTML = '<i class="fas fa-filter me-1"></i> تطبيق <span class="badge bg-light text-dark ms-1">تغييرات</span>';
+      }
+    }, { passive: true });
+    if (el.tagName === 'INPUT') {
+      el.addEventListener('input', function() {
+        if (btnApplyFilters) {
+          btnApplyFilters.classList.add('btn-warning');
+          btnApplyFilters.innerHTML = '<i class="fas fa-filter me-1"></i> تطبيق <span class="badge bg-light text-dark ms-1">تغييرات</span>';
+        }
+      }, { passive: true });
+    }
   });
-  if (searchInput) searchInput.addEventListener('input', debouncedReload, { passive: true });
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      if (btnApplyFilters) {
+        btnApplyFilters.classList.add('btn-warning');
+        btnApplyFilters.innerHTML = '<i class="fas fa-filter me-1"></i> تطبيق <span class="badge bg-light text-dark ms-1">تغييرات</span>';
+      }
+    }, { passive: true });
+  }
   // ✅ الدوال نُقلت إلى common-utils.js (normalizeEntity, normalizeMethod, normDir, validDates)
   function currentFilters(page = 1) {
+    const urlParams = new URLSearchParams(window.location.search);
     const raw = {
       entity_type: normalizeEntity(document.querySelector('#filterEntity')?.value || ctx.entity_type || ''),
       status: document.querySelector('#filterStatus')?.value || '',
@@ -66,6 +139,8 @@ document.addEventListener('DOMContentLoaded', function() {
       end_date: document.querySelector('#endDate')?.value || '',
       currency: (document.querySelector('#filterCurrency')?.value || '').toUpperCase(),
       q: (searchInput && searchInput.value) ? searchInput.value.trim() : '',
+      sort: urlParams.get('sort') || 'date',
+      order: urlParams.get('order') || 'desc',
       page
     };
     const v = validDates(raw.start_date, raw.end_date);
@@ -204,8 +279,15 @@ document.addEventListener('DOMContentLoaded', function() {
       // إنشاء عمود التفاصيل المحسّن
       const entityDetails = deriveEntityLabel(p);
       let notesHtml = '';
+      if (p.is_manual_check) {
+        notesHtml += '<div class="mt-1"><span class="badge bg-warning text-dark"><i class="fas fa-file-invoice"></i> شيك يدوي';
+        if (p.check_number) {
+          notesHtml += ' - رقم: ' + sanitize(p.check_number);
+        }
+        notesHtml += '</span></div>';
+      }
       if (p.notes && p.notes.trim()) {
-        notesHtml = '<div class="mt-1"><small class="text-muted"><i class="fas fa-sticky-note"></i> ' + p.notes.substring(0, 80) + (p.notes.length > 80 ? '...' : '') + '</small></div>';
+        notesHtml += '<div class="mt-1"><small class="text-muted"><i class="fas fa-sticky-note"></i> ' + p.notes.substring(0, 80) + (p.notes.length > 80 ? '...' : '') + '</small></div>';
       }
       var delivererText = p.deliverer_name && p.deliverer_name.trim() ? sanitize(p.deliverer_name.trim()) : '-';
       var receiverText = p.receiver_name && p.receiver_name.trim() ? sanitize(p.receiver_name.trim()) : '-';
@@ -217,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
         '<td class="text-center"><span class="badge badge-secondary">' + (p.currency || '') + '</span></td>' +
         '<td class="text-center"><small>' + fxRateDisplay + '</small></td>' +
         '<td class="text-end" data-sort-value="' + (amountIlsNumeric || 0) + '"><strong style="color: #0056b3;">' + fmtAmount(amountInILS) + ' ₪</strong></td>' +
-        '<td>' + (splitsHtml || '<span class="badge badge-info">' + (p.method || '') + '</span>') + '</td>' +
+        '<td>' + (p.is_manual_check ? '<span class="badge bg-warning text-dark"><i class="fas fa-file-invoice"></i> شيك يدوي</span>' : (splitsHtml || '<span class="badge badge-info">' + (p.method || '') + '</span>')) + '</td>' +
         '<td class="text-center">' + badgeForDirection(p.direction) + '</td>' +
         '<td class="text-center">' + badgeForStatus(p.status) + '</td>' +
         '<td>' + delivererText + '</td>' +

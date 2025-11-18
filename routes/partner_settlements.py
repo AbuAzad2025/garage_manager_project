@@ -3,11 +3,11 @@ from datetime import datetime, date as _date, time as _time
 from decimal import Decimal, ROUND_HALF_UP
 from flask import Blueprint, request, jsonify, render_template, url_for, abort
 from flask_login import login_required
-from sqlalchemy import and_
+from sqlalchemy import and_, or_, func
 from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 import utils
-from models import Partner, PaymentDirection, PaymentMethod, PartnerSettlement, PartnerSettlementStatus, build_partner_settlement_draft, AuditLog, SaleStatus, ServiceStatus
+from models import Partner, PaymentDirection, PaymentMethod, PartnerSettlement, PartnerSettlementStatus, build_partner_settlement_draft, AuditLog, SaleStatus, ServiceStatus, Expense, ExpenseType
 import json
 
 partner_settlements_bp = Blueprint("partner_settlements_bp", __name__, url_prefix="/partners")
@@ -393,6 +393,338 @@ def partner_settlement(partner_id):
     )
 
 
+def _get_returned_checks_to_partner(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
+    """
+    الشيكات الصادرة المرتدة (دفعنا للشريك) - تُحسب بشكل منفصل
+    """
+    from models import Payment, PaymentDirection, PaymentStatus, PaymentMethod, Check, CheckStatus, Sale, Invoice, ServiceRequest, PreOrder
+    from sqlalchemy import or_, and_
+    
+    returned_checks_out = Decimal('0.00')
+    items = []
+    
+    returned_out_direct = db.session.query(Payment).outerjoin(
+        Check, Check.payment_id == Payment.id
+    ).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == PaymentDirection.OUT,
+        or_(
+            Check.status.in_(['RETURNED', 'BOUNCED']),
+            and_(
+                Payment.status == PaymentStatus.FAILED,
+                Payment.method == PaymentMethod.CHEQUE.value
+            )
+        ),
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).all()
+    
+    returned_out_from_customer = []
+    returned_out_from_sales = []
+    returned_out_from_invoices = []
+    returned_out_from_services = []
+    returned_out_from_preorders = []
+    
+    if partner.customer_id:
+        returned_out_from_customer = db.session.query(Payment).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            Payment.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        returned_out_from_sales = db.session.query(Payment).join(
+            Sale, Sale.id == Payment.sale_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            Sale.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        returned_out_from_invoices = db.session.query(Payment).join(
+            Invoice, Invoice.id == Payment.invoice_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            Invoice.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        returned_out_from_services = db.session.query(Payment).join(
+            ServiceRequest, ServiceRequest.id == Payment.service_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            ServiceRequest.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        returned_out_from_preorders = db.session.query(Payment).join(
+            PreOrder, PreOrder.id == Payment.preorder_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            PreOrder.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.OUT,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+    
+    seen_returned_out_ids = set()
+    returned_out_all = []
+    for p in (returned_out_direct + returned_out_from_customer + returned_out_from_sales + 
+             returned_out_from_invoices + returned_out_from_services + returned_out_from_preorders):
+        if p.id not in seen_returned_out_ids:
+            seen_returned_out_ids.add(p.id)
+            returned_out_all.append(p)
+    
+    for p in returned_out_all:
+        amt = _convert_to_ils(Decimal(str(p.total_amount or 0)), p.currency, p.payment_date)
+        returned_checks_out += amt
+        items.append({
+            "payment_id": p.id,
+            "payment_number": p.payment_number,
+            "date": p.payment_date.strftime("%Y-%m-%d") if p.payment_date else "",
+            "amount_ils": float(amt)
+        })
+    
+    # ✅ الشيكات اليدوية المرتدة (بدون payment_id) - OUT
+    manual_returned_checks = db.session.query(Check).filter(
+        Check.partner_id == partner_id,
+        Check.payment_id.is_(None),
+        Check.direction == PaymentDirection.OUT.value,
+        Check.status.in_([CheckStatus.RETURNED.value, CheckStatus.BOUNCED.value]),
+        Check.check_date >= date_from,
+        Check.check_date <= date_to
+    ).all()
+    
+    for check in manual_returned_checks:
+        amt = _convert_to_ils(Decimal(str(check.amount or 0)), check.currency or 'ILS', check.check_date or date_from)
+        returned_checks_out += amt
+        items.append({
+            "check_id": check.id,
+            "payment_id": None,
+            "date": check.check_date.strftime("%Y-%m-%d") if check.check_date else "",
+            "amount_ils": float(amt)
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(returned_checks_out),
+        "count": len(items)
+    }
+
+
+def _get_returned_checks_from_partner(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
+    """
+    الشيكات الواردة المرتدة (دفع الشريك لنا) - تُحسب بشكل منفصل
+    """
+    from models import Payment, PaymentDirection, PaymentStatus, PaymentMethod, Check, CheckStatus, Sale, Invoice, ServiceRequest, PreOrder
+    from sqlalchemy import or_, and_
+    
+    returned_checks_in = Decimal('0.00')
+    items = []
+    
+    returned_in_direct = db.session.query(Payment).outerjoin(
+        Check, Check.payment_id == Payment.id
+    ).filter(
+        Payment.partner_id == partner_id,
+        Payment.direction == PaymentDirection.IN,
+        or_(
+            Check.status.in_(['RETURNED', 'BOUNCED']),
+            and_(
+                Payment.status == PaymentStatus.FAILED,
+                Payment.method == PaymentMethod.CHEQUE.value
+            )
+        ),
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).all()
+    
+    returned_in_from_customer = []
+    returned_in_from_sales = []
+    returned_in_from_invoices = []
+    returned_in_from_services = []
+    returned_in_from_preorders = []
+    
+    if partner.customer_id:
+        returned_in_from_customer = db.session.query(Payment).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            Payment.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        returned_in_from_sales = db.session.query(Payment).join(
+            Sale, Sale.id == Payment.sale_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            Sale.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        returned_in_from_invoices = db.session.query(Payment).join(
+            Invoice, Invoice.id == Payment.invoice_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            Invoice.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        returned_in_from_services = db.session.query(Payment).join(
+            ServiceRequest, ServiceRequest.id == Payment.service_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            ServiceRequest.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+        
+        returned_in_from_preorders = db.session.query(Payment).join(
+            PreOrder, PreOrder.id == Payment.preorder_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
+            PreOrder.customer_id == partner.customer_id,
+            Payment.direction == PaymentDirection.IN,
+            or_(
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                and_(
+                    Payment.status == PaymentStatus.FAILED,
+                    Payment.method == PaymentMethod.CHEQUE.value
+                )
+            ),
+            Payment.payment_date >= date_from,
+            Payment.payment_date <= date_to
+        ).all()
+    
+    seen_returned_in_ids = set()
+    returned_in_all = []
+    for p in (returned_in_direct + returned_in_from_customer + returned_in_from_sales + 
+             returned_in_from_invoices + returned_in_from_services + returned_in_from_preorders):
+        if p.id not in seen_returned_in_ids:
+            seen_returned_in_ids.add(p.id)
+            returned_in_all.append(p)
+    
+    for p in returned_in_all:
+        amt = _convert_to_ils(Decimal(str(p.total_amount or 0)), p.currency, p.payment_date)
+        returned_checks_in += amt
+        items.append({
+            "payment_id": p.id,
+            "payment_number": p.payment_number,
+            "date": p.payment_date.strftime("%Y-%m-%d") if p.payment_date else "",
+            "amount_ils": float(amt)
+        })
+    
+    # ✅ الشيكات اليدوية المرتدة (بدون payment_id) - IN
+    manual_returned_checks = db.session.query(Check).filter(
+        Check.partner_id == partner_id,
+        Check.payment_id.is_(None),
+        Check.direction == PaymentDirection.IN.value,
+        Check.status.in_([CheckStatus.RETURNED.value, CheckStatus.BOUNCED.value]),
+        Check.check_date >= date_from,
+        Check.check_date <= date_to
+    ).all()
+    
+    for check in manual_returned_checks:
+        amt = _convert_to_ils(Decimal(str(check.amount or 0)), check.currency or 'ILS', check.check_date or date_from)
+        returned_checks_in += amt
+        items.append({
+            "check_id": check.id,
+            "payment_id": None,
+            "date": check.check_date.strftime("%Y-%m-%d") if check.check_date else "",
+            "amount_ils": float(amt)
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(returned_checks_in),
+        "count": len(items)
+    }
+
+
 def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_to: datetime):
     """
     حساب التسوية الذكية الشاملة للشريك
@@ -445,6 +777,10 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # 4. أرصدة الحجوزات المسبقة (العربون المدفوع) - تُحسب كدفعة واردة
         preorders_prepaid = _get_partner_preorders_prepaid(partner_id, partner, date_from, date_to)
         
+        # ✅ 5. الشيكات المرتدة - تُحسب بشكل منفصل
+        returned_checks_in = _get_returned_checks_from_partner(partner_id, partner, date_from, date_to)
+        returned_checks_out = _get_returned_checks_to_partner(partner_id, partner, date_from, date_to)
+        
         # ═══════════════════════════════════════════════════════════
         # 🔴 جانب الدائن (ما عليه لنا - حقوقنا)
         # ═══════════════════════════════════════════════════════════
@@ -458,11 +794,53 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # 6. رسوم صيانة عليه
         service_fees = _get_partner_service_fees(partner_id, partner, date_from, date_to)
         
+        # 6.5. الحجوزات المسبقة له (كعميل)
+        preorders_to_partner = _get_partner_preorders_as_customer(partner_id, partner, date_from, date_to)
+        
         # 7. نصيبه من القطع التالفة
         damaged_items = _get_partner_damaged_items(partner_id, date_from, date_to)
         
-        # 8. المصروفات المخصومة من رصيده
+        # 8. المصروفات المخصومة من رصيده (غير توريد الخدمة)
         expenses_deducted = _get_partner_expenses(partner_id, date_from, date_to)
+        
+        # 9. توريد الخدمة للشريك (مصروفات PARTNER_EXPENSE)
+        expenses_to_partner = Expense.query.join(ExpenseType).filter(
+            or_(
+                Expense.partner_id == partner_id,
+                and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner_id)
+            ),
+            Expense.date >= date_from,
+            Expense.date <= date_to,
+            func.upper(ExpenseType.code) == "PARTNER_EXPENSE"
+        ).all()
+        
+        partner_service_total = Decimal('0.00')
+        expenses_items = []
+        for exp in expenses_to_partner:
+            amt = Decimal(str(exp.amount or 0))
+            amt_ils = amt
+            if exp.currency == "ILS":
+                partner_service_total += amt
+            else:
+                try:
+                    from models import convert_amount
+                    amt_ils = convert_amount(amt, exp.currency, "ILS", exp.date)
+                    partner_service_total += amt_ils
+                except Exception:
+                    pass
+            
+            # إضافة تفاصيل المصروف للعرض
+            exp_type_name = getattr(getattr(exp, 'type', None), 'name', 'توريد خدمة') if hasattr(exp, 'type') and exp.type else 'توريد خدمة'
+            expenses_items.append({
+                "id": exp.id,
+                "date": exp.date.isoformat() if exp.date else None,
+                "description": exp.description or exp_type_name,
+                "amount": float(amt),
+                "currency": exp.currency or "ILS",
+                "amount_ils": float(amt_ils),
+                "expense_type": exp_type_name,
+                "reference": f"مصروف #{exp.id}"
+            })
         
         # ═══════════════════════════════════════════════════════════
         # الحساب المحاسبي الصحيح
@@ -475,6 +853,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         # التزامات الشريك (ما عليه لنا)
         partner_obligations = Decimal(str(sales_to_partner.get("total_ils", 0))) + \
                              Decimal(str(service_fees.get("total_ils", 0))) + \
+                             Decimal(str(preorders_to_partner.get("total_ils", 0) if isinstance(preorders_to_partner, dict) else 0)) + \
                              Decimal(str(damaged_items.get("total_ils", 0)))
         
         # صافي الحساب قبل احتساب الدفعات
@@ -487,7 +866,13 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
         received_from_partner = Decimal(str(payments_from_partner.get("total_ils", 0))) + \
                                Decimal(str(preorders_prepaid.get("total_ils", 0)))
         
-        balance = opening_balance + net_before_payments - paid_to_partner + received_from_partner - Decimal(str(expenses_deducted or 0))
+        # الشيكات المرتدة
+        returned_checks_in_total = Decimal(str(returned_checks_in.get("total_ils", 0)))
+        returned_checks_out_total = Decimal(str(returned_checks_out.get("total_ils", 0)))
+        
+        # ✅ المعادلة النهائية: balance = ob + payments_in - obligations - payments_out - returned_checks_in + returned_checks_out
+        # ✅ توريد الخدمة = ورد لنا خدمة = زاد ديننا له = نضيف للرصيد
+        balance = opening_balance + net_before_payments - paid_to_partner + received_from_partner - Decimal(str(expenses_deducted or 0)) + partner_service_total - returned_checks_in_total + returned_checks_out_total
         
         return {
             "success": True,
@@ -518,6 +903,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
             "obligations": {
                 "sales_to_partner": sales_to_partner,
                 "service_fees": service_fees,
+                "preorders_to_partner": preorders_to_partner,
                 "damaged_items": damaged_items,
                 "total": float(partner_obligations)
             },
@@ -526,13 +912,20 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
                 "paid_to_partner": payments_to_partner,
                 "received_from_partner": payments_from_partner,
                 "preorders_prepaid": preorders_prepaid,
+                "returned_checks_in": returned_checks_in,
+                "returned_checks_out": returned_checks_out,
                 "total_paid": float(paid_to_partner),
                 "total_received": float(received_from_partner),
+                "total_returned_checks_in": float(returned_checks_in_total),
+                "total_returned_checks_out": float(returned_checks_out_total),
                 "total_settled": float(paid_to_partner + received_from_partner)
             },
             # 💸 المصاريف
             "expenses": {
-                "total_ils": float(expenses_deducted or 0)
+                "items": expenses_items,
+                "total_ils": float(partner_service_total),
+                "deducted_ils": float(expenses_deducted or 0),
+                "count": len(expenses_to_partner)
             },
             # 🎯 الرصيد
             "balance": {
@@ -543,7 +936,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
                 "payment_direction": "OUT" if balance > 0 else "IN" if balance < 0 else None,
                 "action": "ندفع له" if balance > 0 else "يدفع لنا" if balance < 0 else "لا شيء",
                 "currency": "ILS",
-                "formula": f"({float(opening_balance):.2f} + {float(partner_rights):.2f} - {float(partner_obligations):.2f} - {float(paid_to_partner):.2f} + {float(received_from_partner):.2f} - {float(expenses_deducted or 0):.2f}) = {float(balance):.2f}"
+                "formula": f"({float(opening_balance):.2f} + {float(partner_rights):.2f} - {float(partner_obligations):.2f} - {float(paid_to_partner):.2f} + {float(received_from_partner):.2f} - {float(expenses_deducted or 0):.2f} + {float(partner_service_total):.2f} - {float(returned_checks_in_total):.2f} + {float(returned_checks_out_total):.2f}) = {float(balance):.2f}"
             },
             # معلومات إضافية
             "previous_settlements": _get_previous_partner_settlements(partner_id, date_from),
@@ -1370,22 +1763,30 @@ def _get_partner_sales_share(partner_id: int, date_from: datetime, date_to: date
 def _get_payments_to_partner(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
     """
     دفعات دفعناها للشريك (OUT) - تُخصم من حقوقه علينا
+    ✅ تستثني الشيكات المرتدة (لأنها كانت محسوبة سابقاً)
     
     تشمل:
     1. الدفعات المرتبطة مباشرة بـ partner_id
     2. الدفعات المرتبطة بـ customer_id (العميل المرتبط بالشريك)
     3. الدفعات المرتبطة بمبيعات للعميل (entity_type = SALE)
     """
-    from models import Payment, PaymentDirection, PaymentStatus, PaymentEntityType, Sale
+    from models import Payment, PaymentDirection, PaymentStatus, PaymentEntityType, Sale, Check
+    from sqlalchemy import or_
     
     items = []
     total_ils = Decimal('0.00')
     
-    # 1. الدفعات المرتبطة مباشرة بالشريك
-    direct_payments = db.session.query(Payment).filter(
+    # 1. الدفعات المرتبطة مباشرة بالشريك (استثناء الشيكات المرتدة)
+    direct_payments = db.session.query(Payment).outerjoin(
+        Check, Check.payment_id == Payment.id
+    ).filter(
         Payment.partner_id == partner_id,
         Payment.direction == PaymentDirection.OUT,
-        Payment.status == PaymentStatus.COMPLETED,
+        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+        or_(
+            Check.status.is_(None),
+            ~Check.status.in_(['RETURNED', 'BOUNCED'])
+        ),
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to
     ).all()
@@ -1407,12 +1808,18 @@ def _get_payments_to_partner(partner_id: int, partner: Partner, date_from: datet
             "source": "partner"
         })
     
-    # 2. الدفعات المرتبطة بالعميل المرتبط بالشريك
+    # 2. الدفعات المرتبطة بالعميل المرتبط بالشريك (استثناء الشيكات المرتدة)
     if partner.customer_id:
-        customer_payments = db.session.query(Payment).filter(
+        customer_payments = db.session.query(Payment).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
             Payment.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.OUT,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1434,13 +1841,19 @@ def _get_payments_to_partner(partner_id: int, partner: Partner, date_from: datet
                 "source": "customer"
             })
         
-        # 3. الدفعات المرتبطة بمبيعات للعميل (entity_type = SALE)
+        # 3. الدفعات المرتبطة بمبيعات للعميل (استثناء الشيكات المرتدة)
         sale_payments = db.session.query(Payment).join(
             Sale, Sale.id == Payment.sale_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
         ).filter(
             Sale.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.OUT,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1463,15 +1876,55 @@ def _get_payments_to_partner(partner_id: int, partner: Partner, date_from: datet
                     "notes": payment.notes,
                     "source": "sale"
                 })
-        
-        # 4. الدفعات المرتبطة بفواتير للعميل
+    
+    # ✅ 4. الدفعات المرتبطة بمصروفات الشريك (توريد خدمة) - خارج if partner.customer_id
+    from models import Expense
+    expense_payments = db.session.query(Payment).join(
+        Expense, Expense.id == Payment.expense_id
+    ).filter(
+        or_(
+            Expense.partner_id == partner_id,
+            and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner_id)
+        ),
+        Payment.direction == PaymentDirection.OUT,
+        Payment.status == PaymentStatus.COMPLETED,
+        Payment.payment_date >= date_from,
+        Payment.payment_date <= date_to
+    ).all()
+    
+    for payment in expense_payments:
+        if not any(item['payment_id'] == payment.id for item in items):
+            amount_ils = _convert_to_ils(Decimal(str(payment.total_amount or 0)), payment.currency, payment.payment_date)
+            total_ils += amount_ils
+            
+            items.append({
+                "payment_id": payment.id,
+                "payment_number": payment.payment_number,
+                "date": payment.payment_date.strftime("%Y-%m-%d") if payment.payment_date else "",
+                "method": payment.method,
+                "check_number": payment.check_number,
+                "amount": float(payment.total_amount or 0),
+                "currency": payment.currency,
+                "amount_ils": float(amount_ils),
+                "notes": payment.notes or f"دفع مصروف #{payment.expense_id}",
+                "source": "expense"
+            })
+    
+    if partner.customer_id:
+        # 5. الدفعات المرتبطة بفواتير للعميل (استثناء الشيكات المرتدة)
         from models import Invoice
         invoice_payments = db.session.query(Payment).join(
             Invoice, Invoice.id == Payment.invoice_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
         ).filter(
             Invoice.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.OUT,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1494,14 +1947,20 @@ def _get_payments_to_partner(partner_id: int, partner: Partner, date_from: datet
                     "source": "invoice"
                 })
         
-        # 5. الدفعات المرتبطة بخدمات للعميل
+        # 5. الدفعات المرتبطة بخدمات للعميل (استثناء الشيكات المرتدة)
         from models import ServiceRequest
         service_payments = db.session.query(Payment).join(
             ServiceRequest, ServiceRequest.id == Payment.service_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
         ).filter(
             ServiceRequest.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.OUT,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1524,14 +1983,20 @@ def _get_payments_to_partner(partner_id: int, partner: Partner, date_from: datet
                     "source": "service"
                 })
         
-        # 6. الدفعات المرتبطة بحجوزات مسبقة للعميل
+        # 6. الدفعات المرتبطة بحجوزات مسبقة للعميل (استثناء الشيكات المرتدة)
         from models import PreOrder
         preorder_payments = db.session.query(Payment).join(
             PreOrder, PreOrder.id == Payment.preorder_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
         ).filter(
             PreOrder.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.OUT,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1553,6 +2018,35 @@ def _get_payments_to_partner(partner_id: int, partner: Partner, date_from: datet
                     "notes": payment.notes,
                     "source": "preorder"
                 })
+    
+    # ✅ 7. الشيكات اليدوية (بدون payment_id) المرتبطة بالشريك مباشرة
+    from models import Check, CheckStatus
+    manual_checks = db.session.query(Check).filter(
+        Check.partner_id == partner_id,
+        Check.payment_id.is_(None),
+        Check.direction == PaymentDirection.OUT.value,
+        ~Check.status.in_([CheckStatus.RETURNED.value, CheckStatus.BOUNCED.value, CheckStatus.CANCELLED.value, CheckStatus.ARCHIVED.value]),
+        Check.check_date >= date_from,
+        Check.check_date <= date_to
+    ).all()
+    
+    for check in manual_checks:
+        amount_ils = _convert_to_ils(Decimal(str(check.amount or 0)), check.currency or 'ILS', check.check_date or date_from)
+        total_ils += amount_ils
+        
+        items.append({
+            "check_id": check.id,
+            "payment_id": None,
+            "payment_number": None,
+            "date": check.check_date.strftime("%Y-%m-%d") if check.check_date else "",
+            "method": "CHEQUE",
+            "check_number": check.check_number,
+            "amount": float(check.amount or 0),
+            "currency": check.currency or 'ILS',
+            "amount_ils": float(amount_ils),
+            "notes": check.notes or "شيك يدوي",
+            "source": "manual_check"
+        })
     
     # ترتيب حسب التاريخ
     items.sort(key=lambda x: x['date'])
@@ -1712,7 +2206,7 @@ def _get_partner_preorders_prepaid(partner_id: int, partner: Partner, date_from:
         PreOrder.status != 'FULFILLED',
         PreOrder.preorder_date >= date_from,
         PreOrder.preorder_date <= date_to
-    ).order_by(PreOrder.preorder_date).all()
+    ).order_by(PreOrder.preorder_date).limit(10000).all()
     
     items = []
     total_ils = Decimal('0.00')
@@ -1744,17 +2238,18 @@ def _get_partner_preorders_prepaid(partner_id: int, partner: Partner, date_from:
 
 
 def _get_partner_expenses(partner_id: int, date_from: datetime, date_to: datetime):
-    """جلب المصروفات المخصومة من حصة الشريك"""
-    from models import Expense
-    from sqlalchemy import or_, and_
+    """جلب المصروفات المخصومة من حصة الشريك (غير توريد الخدمة)"""
+    from models import Expense, ExpenseType
+    from sqlalchemy import or_, and_, func
     
-    expenses = db.session.query(Expense).filter(
+    expenses = db.session.query(Expense).join(ExpenseType, Expense.type_id == ExpenseType.id).filter(
         or_(
             Expense.partner_id == partner_id,
             and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner_id)
         ),
         Expense.date >= date_from,
-        Expense.date <= date_to
+        Expense.date <= date_to,
+        func.upper(ExpenseType.code) != "PARTNER_EXPENSE"  # ✅ استثناء توريد الخدمة
     ).all()
     
     total_ils = Decimal('0.00')
@@ -1794,23 +2289,30 @@ def _get_previous_partner_settlements(partner_id: int, before_date: datetime):
 def _get_partner_payments_received(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
     """
     دفعات استلمناها من الشريك (IN) - تُضاف إلى حقوقه علينا
+    ✅ تستثني الشيكات المرتدة (لأنها كانت محسوبة سابقاً)
     
     تشمل:
     1. الدفعات المرتبطة مباشرة بـ partner_id
     2. الدفعات المرتبطة بـ customer_id (العميل المرتبط بالشريك)
     3. الدفعات المرتبطة بمبيعات للعميل (entity_type = SALE)
     """
-    from models import Payment, PaymentDirection, PaymentStatus, PaymentEntityType, Sale
+    from models import Payment, PaymentDirection, PaymentStatus, PaymentEntityType, Sale, Check
     from sqlalchemy import or_
     
     items = []
     total_ils = Decimal('0.00')
     
-    # 1. الدفعات المرتبطة مباشرة بالشريك
-    direct_payments = db.session.query(Payment).filter(
+    # 1. الدفعات المرتبطة مباشرة بالشريك (استثناء الشيكات المرتدة)
+    direct_payments = db.session.query(Payment).outerjoin(
+        Check, Check.payment_id == Payment.id
+    ).filter(
         Payment.partner_id == partner_id,
         Payment.direction == PaymentDirection.IN,
-        Payment.status == PaymentStatus.COMPLETED,
+        Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+        or_(
+            Check.status.is_(None),
+            ~Check.status.in_(['RETURNED', 'BOUNCED'])
+        ),
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to
     ).all()
@@ -1832,12 +2334,18 @@ def _get_partner_payments_received(partner_id: int, partner: Partner, date_from:
             "source": "partner"
         })
     
-    # 2. الدفعات المرتبطة بالعميل المرتبط بالشريك
+    # 2. الدفعات المرتبطة بالعميل المرتبط بالشريك (استثناء الشيكات المرتدة)
     if partner.customer_id:
-        customer_payments = db.session.query(Payment).filter(
+        customer_payments = db.session.query(Payment).outerjoin(
+            Check, Check.payment_id == Payment.id
+        ).filter(
             Payment.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.IN,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1860,13 +2368,19 @@ def _get_partner_payments_received(partner_id: int, partner: Partner, date_from:
                     "source": "customer"
                 })
         
-        # 3. الدفعات المرتبطة بمبيعات للعميل
+        # 3. الدفعات المرتبطة بمبيعات للعميل (استثناء الشيكات المرتدة)
         sale_payments = db.session.query(Payment).join(
             Sale, Sale.id == Payment.sale_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
         ).filter(
             Sale.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.IN,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1889,14 +2403,20 @@ def _get_partner_payments_received(partner_id: int, partner: Partner, date_from:
                     "source": "sale"
                 })
         
-        # 4. الدفعات المرتبطة بفواتير للعميل
+        # 4. الدفعات المرتبطة بفواتير للعميل (استثناء الشيكات المرتدة)
         from models import Invoice
         invoice_payments = db.session.query(Payment).join(
             Invoice, Invoice.id == Payment.invoice_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
         ).filter(
             Invoice.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.IN,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1919,14 +2439,20 @@ def _get_partner_payments_received(partner_id: int, partner: Partner, date_from:
                     "source": "invoice"
                 })
         
-        # 5. الدفعات المرتبطة بخدمات للعميل
+        # 5. الدفعات المرتبطة بخدمات للعميل (استثناء الشيكات المرتدة)
         from models import ServiceRequest
         service_payments = db.session.query(Payment).join(
             ServiceRequest, ServiceRequest.id == Payment.service_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
         ).filter(
             ServiceRequest.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.IN,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1949,14 +2475,20 @@ def _get_partner_payments_received(partner_id: int, partner: Partner, date_from:
                     "source": "service"
                 })
         
-        # 6. الدفعات المرتبطة بحجوزات مسبقة للعميل
+        # 6. الدفعات المرتبطة بحجوزات مسبقة للعميل (استثناء الشيكات المرتدة)
         from models import PreOrder
         preorder_payments = db.session.query(Payment).join(
             PreOrder, PreOrder.id == Payment.preorder_id
+        ).outerjoin(
+            Check, Check.payment_id == Payment.id
         ).filter(
             PreOrder.customer_id == partner.customer_id,
             Payment.direction == PaymentDirection.IN,
-            Payment.status == PaymentStatus.COMPLETED,
+            Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING]),
+            or_(
+                Check.status.is_(None),
+                ~Check.status.in_(['RETURNED', 'BOUNCED'])
+            ),
             Payment.payment_date >= date_from,
             Payment.payment_date <= date_to
         ).all()
@@ -1978,6 +2510,35 @@ def _get_partner_payments_received(partner_id: int, partner: Partner, date_from:
                     "notes": payment.notes,
                     "source": "preorder"
                 })
+    
+    # ✅ 7. الشيكات اليدوية (بدون payment_id) المرتبطة بالشريك مباشرة
+    from models import Check, CheckStatus
+    manual_checks = db.session.query(Check).filter(
+        Check.partner_id == partner_id,
+        Check.payment_id.is_(None),
+        Check.direction == PaymentDirection.IN.value,
+        ~Check.status.in_([CheckStatus.RETURNED.value, CheckStatus.BOUNCED.value, CheckStatus.CANCELLED.value, CheckStatus.ARCHIVED.value]),
+        Check.check_date >= date_from,
+        Check.check_date <= date_to
+    ).all()
+    
+    for check in manual_checks:
+        amount_ils = _convert_to_ils(Decimal(str(check.amount or 0)), check.currency or 'ILS', check.check_date or date_from)
+        total_ils += amount_ils
+        
+        items.append({
+            "check_id": check.id,
+            "payment_id": None,
+            "payment_number": None,
+            "date": check.check_date.strftime("%Y-%m-%d") if check.check_date else "",
+            "method": "CHEQUE",
+            "check_number": check.check_number,
+            "amount": float(check.amount or 0),
+            "currency": check.currency or 'ILS',
+            "amount_ils": float(amount_ils),
+            "notes": check.notes or "شيك يدوي",
+            "source": "manual_check"
+        })
     
     # ترتيب حسب التاريخ
     items.sort(key=lambda x: x['date'])
@@ -2080,6 +2641,51 @@ def _get_partner_service_fees(partner_id: int, partner: Partner, date_from: date
             "currency": service.currency,
             "amount_ils": float(amount_ils),
             "status": service.status
+        })
+    
+    return {
+        "items": items,
+        "total_ils": float(total_ils),
+        "count": len(items)
+    }
+
+
+def _get_partner_preorders_as_customer(partner_id: int, partner: Partner, date_from: datetime, date_to: datetime):
+    """
+    حجوزات مسبقة للشريك (إذا كان عميلاً) - تُخصم من حقوقه
+    """
+    from models import PreOrder
+    
+    if not partner.customer_id:
+        return {"items": [], "total_ils": 0.0, "count": 0}
+    
+    items = []
+    total_ils = Decimal('0.00')
+    
+    preorders = db.session.query(PreOrder).filter(
+        PreOrder.customer_id == partner.customer_id,
+        PreOrder.status.in_(['CONFIRMED', 'COMPLETED', 'DELIVERED']),
+        PreOrder.status != 'FULFILLED',
+        PreOrder.created_at >= date_from,
+        PreOrder.created_at <= date_to
+    ).all()
+    
+    for po in preorders:
+        amount_ils = _convert_to_ils(
+            Decimal(str(po.total_amount or 0)),
+            po.currency or 'ILS',
+            po.created_at or datetime.utcnow()
+        )
+        total_ils += amount_ils
+        
+        items.append({
+            "preorder_id": po.id,
+            "preorder_number": po.preorder_number or f"PO-{po.id}",
+            "date": po.created_at.strftime("%Y-%m-%d") if po.created_at else "",
+            "total_amount": float(po.total_amount or 0),
+            "amount_ils": float(amount_ils),
+            "currency": po.currency or 'ILS',
+            "status": po.status
         })
     
     return {

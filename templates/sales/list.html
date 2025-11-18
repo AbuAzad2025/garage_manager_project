@@ -30,6 +30,11 @@
     .sales-summary-card .card-title{color:rgba(0,0,0,.85);font-size:1.05rem;font-weight:700}
     .sales-summary-card small{font-size:0.95rem;font-weight:600;color:rgba(0,0,0,.7)}
     .table thead th{white-space:nowrap}
+    .sort-buttons{display:flex;flex-direction:column;gap:2px;margin-right:4px}
+    .btn-sort{background:none;border:none;padding:2px 4px;cursor:pointer;color:#6c757d;font-size:0.75rem;line-height:1}
+    .btn-sort:hover{color:#495057}
+    .btn-sort.active{color:#007bff}
+    .table thead th .d-flex{width:100%}
   </style>
   {% else %}
   <style>
@@ -273,14 +278,86 @@ html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",san
         <table id="salesTable" class="table table-hover align-middle">
           <thead class="thead-light">
             <tr>
-              <th>رقم</th>
-              <th>التاريخ</th>
-              <th>العميل</th>
-              <th>الإجمالي</th>
+              <th>
+                <div class="d-flex align-items-center justify-content-between">
+                  <span>رقم</span>
+                  <div class="sort-buttons">
+                    <button type="button" class="btn-sort" data-sort="invoice_no" data-order="asc" title="تصاعدي">
+                      <i class="fas fa-sort-up"></i>
+                    </button>
+                    <button type="button" class="btn-sort" data-sort="invoice_no" data-order="desc" title="تنازلي">
+                      <i class="fas fa-sort-down"></i>
+                    </button>
+                  </div>
+                </div>
+              </th>
+              <th>
+                <div class="d-flex align-items-center justify-content-between">
+                  <span>التاريخ</span>
+                  <div class="sort-buttons">
+                    <button type="button" class="btn-sort" data-sort="date" data-order="asc" title="تصاعدي">
+                      <i class="fas fa-sort-up"></i>
+                    </button>
+                    <button type="button" class="btn-sort" data-sort="date" data-order="desc" title="تنازلي">
+                      <i class="fas fa-sort-down"></i>
+                    </button>
+                  </div>
+                </div>
+              </th>
+              <th>
+                <div class="d-flex align-items-center justify-content-between">
+                  <span>العميل</span>
+                  <div class="sort-buttons">
+                    <button type="button" class="btn-sort" data-sort="customer" data-order="asc" title="تصاعدي">
+                      <i class="fas fa-sort-up"></i>
+                    </button>
+                    <button type="button" class="btn-sort" data-sort="customer" data-order="desc" title="تنازلي">
+                      <i class="fas fa-sort-down"></i>
+                    </button>
+                  </div>
+                </div>
+              </th>
+              <th>
+                <div class="d-flex align-items-center justify-content-between">
+                  <span>الإجمالي</span>
+                  <div class="sort-buttons">
+                    <button type="button" class="btn-sort" data-sort="total" data-order="asc" title="تصاعدي">
+                      <i class="fas fa-sort-up"></i>
+                    </button>
+                    <button type="button" class="btn-sort" data-sort="total" data-order="desc" title="تنازلي">
+                      <i class="fas fa-sort-down"></i>
+                    </button>
+                  </div>
+                </div>
+              </th>
               <th>العملة</th>
               <th>سعر الصرف</th>
-              <th>مدفوع</th>
-              <th>متبقي</th>
+              <th>
+                <div class="d-flex align-items-center justify-content-between">
+                  <span>مدفوع</span>
+                  <div class="sort-buttons">
+                    <button type="button" class="btn-sort" data-sort="paid" data-order="asc" title="تصاعدي">
+                      <i class="fas fa-sort-up"></i>
+                    </button>
+                    <button type="button" class="btn-sort" data-sort="paid" data-order="desc" title="تنازلي">
+                      <i class="fas fa-sort-down"></i>
+                    </button>
+                  </div>
+                </div>
+              </th>
+              <th>
+                <div class="d-flex align-items-center justify-content-between">
+                  <span>متبقي</span>
+                  <div class="sort-buttons">
+                    <button type="button" class="btn-sort" data-sort="balance" data-order="asc" title="تصاعدي">
+                      <i class="fas fa-sort-up"></i>
+                    </button>
+                    <button type="button" class="btn-sort" data-sort="balance" data-order="desc" title="تنازلي">
+                      <i class="fas fa-sort-down"></i>
+                    </button>
+                  </div>
+                </div>
+              </th>
               <th class="text-center" data-sortable="false">إجراءات</th>
             </tr>
           </thead>
@@ -469,6 +546,109 @@ html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",san
       };
       scopeInputs.forEach(inp => inp.addEventListener('change', toggleFields));
       toggleFields();
+    })();
+  </script>
+  <script>
+    (function(){
+      function bindSortButtons() {
+        const currentSort = new URL(window.location.href).searchParams.get('sort') || 'date';
+        const currentOrder = new URL(window.location.href).searchParams.get('order') || 'desc';
+        const sortButtons = document.querySelectorAll('.btn-sort');
+        
+        sortButtons.forEach(btn => {
+          const sort = btn.dataset.sort;
+          const order = btn.dataset.order;
+          btn.classList.toggle('active', sort === currentSort && order === currentOrder);
+          btn.onclick = handleSortClick;
+        });
+      }
+      
+      function handleSortClick(e) {
+        e.preventDefault();
+        const btn = e.currentTarget;
+        const sort = btn.dataset.sort;
+        const order = btn.dataset.order;
+        console.log('Sort clicked:', sort, order);
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', sort);
+        url.searchParams.set('order', order);
+        url.searchParams.delete('page');
+        url.searchParams.set('page', '1');
+        console.log('URL:', url.toString());
+        
+        const salesTableWrapper = document.getElementById('sales-table-wrapper');
+        const paginationWrapper = document.getElementById('sales-pagination-wrapper');
+        const salesSummaryWrapper = document.getElementById('sales-summary-wrapper');
+        const salesSearchSummary = document.getElementById('sales-search-summary');
+        
+        if(!salesTableWrapper) {
+          window.location.href = url.toString();
+          return;
+        }
+        
+        url.searchParams.set('ajax', '1');
+        const previousTable = salesTableWrapper.innerHTML;
+        const previousPagination = paginationWrapper ? paginationWrapper.innerHTML : '';
+        const previousSummary = salesSummaryWrapper ? salesSummaryWrapper.innerHTML : '';
+        const tbody = salesTableWrapper.querySelector('tbody');
+        
+        if(tbody && typeof window.setLoading === 'function') {
+          window.setLoading(tbody, true);
+        }
+        
+        fetch(url.toString(), {
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json'
+          }
+        })
+        .then(res => {
+          if(!res.ok) throw res;
+          return res.json();
+        })
+        .then(data => {
+          console.log('Received data:', data);
+          if(typeof data.table_html === 'string') {
+            salesTableWrapper.innerHTML = data.table_html;
+          }
+          if(paginationWrapper) {
+            paginationWrapper.innerHTML = data.pagination_html || '';
+          }
+          if(salesSummaryWrapper) {
+            salesSummaryWrapper.innerHTML = data.summary_html || '';
+          }
+          if(salesSearchSummary && typeof data.total_filtered === 'number') {
+            salesSearchSummary.textContent = `إجمالي النتائج: ${data.total_filtered}`;
+          }
+          
+          bindSortButtons();
+          
+          if(typeof window.initSalesTable === 'function') {
+            window.initSalesTable();
+          }
+          
+          url.searchParams.delete('ajax');
+          const qstr = url.searchParams.toString();
+          const nextUrl = qstr ? `${url.pathname}?${qstr}` : url.pathname;
+          window.history.replaceState({}, '', nextUrl);
+        })
+        .catch(() => {
+          salesTableWrapper.innerHTML = previousTable;
+          if(paginationWrapper) {
+            paginationWrapper.innerHTML = previousPagination;
+          }
+          if(salesSummaryWrapper) {
+            salesSummaryWrapper.innerHTML = previousSummary;
+          }
+          if(typeof window.showNotification === 'function') {
+            window.showNotification('تعذر تحديث القائمة', 'danger');
+          } else {
+            alert('تعذر تحديث القائمة');
+          }
+        });
+      }
+      
+      bindSortButtons();
     })();
   </script>
   <script src="{{ url_for('static', filename='js/sales.js') }}"></script>

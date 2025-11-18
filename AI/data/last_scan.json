@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-16T03:00:00.839974",
+  "timestamp": "2025-11-18T03:00:00.297847",
   "snapshot": {
     "tables": {},
     "routes": [
@@ -1114,6 +1114,13 @@
         "file": "routes\\checks.py"
       },
       {
+        "path": "/api/first-incomplete",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\checks.py"
+      },
+      {
         "path": "/api/check-lifecycle/<int:check_id>/<check_type>",
         "methods": [
           "GET"
@@ -1136,6 +1143,13 @@
       },
       {
         "path": "/api/mark-settled/<check_token>",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\checks.py"
+      },
+      {
+        "path": "/api/unsettle/<check_token>",
         "methods": [
           "POST"
         ],

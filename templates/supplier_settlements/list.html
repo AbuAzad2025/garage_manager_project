@@ -93,11 +93,59 @@
                                         </tr>
                                     </thead>
                                     <tbody id="settlements-tbody">
-                                        <tr>
-                                            <td colspan="9" class="text-center text-muted">
-                                                <i class="fas fa-spinner fa-spin"></i> جاري التحميل...
-                                            </td>
-                                        </tr>
+                                        {% if settlements %}
+                                            {% for settlement in settlements %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ settlement.code or ('SET-' ~ settlement.id|string) }}</strong>
+                                                </td>
+                                                <td>
+                                                    <i class="fas fa-truck"></i> {{ settlement.supplier.name if settlement.supplier else 'غير محدد' }}
+                                                </td>
+                                                <td>
+                                                    <small>{{ settlement.from_date.strftime('%Y-%m-%d') if settlement.from_date else '-' }}</small><br>
+                                                    <small class="text-muted">→ {{ settlement.to_date.strftime('%Y-%m-%d') if settlement.to_date else '-' }}</small>
+                                                </td>
+                                                <td class="text-end">
+                                                    <strong class="text-info">{{ "%.2f"|format(settlement.total_gross or 0) }}</strong>
+                                                </td>
+                                                <td class="text-end">
+                                                    <strong class="text-success">{{ "%.2f"|format(settlement.total_paid or 0) }}</strong>
+                                                </td>
+                                                <td class="text-end">
+                                                    {% set balance = settlement.closing_balance or settlement.total_due or 0 %}
+                                                    <strong class="{% if balance > 0 %}text-success{% elif balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                                                        {{ "%.2f"|format(balance) }}
+                                                    </strong>
+                                                </td>
+                                                <td>{{ settlement.currency or 'ILS' }}</td>
+                                                <td>
+                                                    {% if settlement.is_approved %}
+                                                        <span class="badge bg-success">معتمد</span>
+                                                    {% elif settlement.status == 'CONFIRMED' %}
+                                                        <span class="badge bg-info">مؤكد</span>
+                                                    {% elif settlement.status == 'DRAFT' %}
+                                                        <span class="badge bg-warning">مسودة</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">{{ settlement.status or 'غير محدد' }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <a href="{{ url_for('supplier_settlements_bp.supplier_settlement', supplier_id=settlement.supplier_id) if settlement.supplier_id else '#' }}" 
+                                                       class="btn btn-sm btn-outline-primary" title="عرض التفاصيل">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="9" class="text-center text-muted py-4">
+                                                    <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                                                    لا توجد تسويات حتى الآن
+                                                </td>
+                                            </tr>
+                                        {% endif %}
                                     </tbody>
                                 </table>
                             </div>

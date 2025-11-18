@@ -1,7 +1,3 @@
-# reports.py - Reports Module
-# Location: /garage_manager/reports.py
-# Description: Report generation and analytics functionality
-
 from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime, timedelta, time as _t
@@ -19,6 +15,8 @@ from models import (
     OnlinePreOrder, Payment, PaymentSplit, PaymentDirection, PaymentStatus,
     Sale, SaleStatus, ServiceRequest, ServiceStatus, InvoiceStatus,
 )
+
+import utils
 
 def age_bucket(days) -> str:
     try:
@@ -462,7 +460,7 @@ def sales_report(start_date: date | None, end_date: date | None, tz_name: str = 
     sales = Sale.query.filter(*filters).filter(
         Sale.status.in_(allowed_statuses),
         ~Sale.status.in_(excluded_statuses)
-    ).all()
+    ).limit(50000).all()
     
     day_to_sum: dict[str, Decimal] = {}
     for sale in sales:
@@ -1015,7 +1013,8 @@ def ap_aging_report(start_date=None, end_date=None):
             elif p.direction == PaymentDirection.IN.value:
                 total_paid -= converted
         
-        outstanding = total_payable - total_paid
+        outstanding_manual = total_payable - total_paid
+        outstanding = Decimal(str(utils.get_supplier_balance_unified(sup.id)))
         if outstanding <= 0:
             continue
         

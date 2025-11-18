@@ -7,20 +7,15 @@
 (function() {
   'use strict';
   
-  // الانتظار حتى تحميل Chart.js
   document.addEventListener('DOMContentLoaded', function() {
     if (typeof Chart === 'undefined') {
-      console.warn('⚠️ Chart.js غير محمّل - الرسوم البيانية معطلة');
       return;
     }
     
-    // ═══ تهيئة الرسوم البيانية ═══
     initUsersTrendChart();
     initFailedLoginsChart();
     initSystemHealthChart();
     initActivityChart();
-    
-    console.log('✅ رسوم بيانية الأمان جاهزة');
   });
   
   /**
@@ -246,7 +241,6 @@
         return await response.json();
       }
     } catch (error) {
-      console.error('خطأ في جلب بيانات الرسوم:', error);
     }
     return null;
   }

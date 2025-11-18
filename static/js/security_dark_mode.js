@@ -136,13 +136,10 @@
     });
   }
   
-  // ═══ التهيئة ═══
   document.addEventListener('DOMContentLoaded', function() {
     loadSavedPreference();
     addDarkModeButton();
     watchSystemPreference();
-    
-    console.log('✅ Dark Mode جاهز (زر عائم على اليسار)');
   });
   
   // تطبيق سريع قبل التحميل لتجنب flash

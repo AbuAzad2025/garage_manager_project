@@ -25,7 +25,7 @@ from flask import (
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from extensions import db
 from forms import CustomerForm, CustomerImportForm, ExportContactsForm
@@ -44,7 +44,7 @@ from models import (
     OnlinePreOrder,
 )
 import utils
-from utils import archive_record, restore_record  # Import from utils package
+from utils import archive_record, restore_record
 
 customers_bp = Blueprint(
     "customers_bp",
@@ -113,12 +113,10 @@ def log_customer_action(cust, action, old_data=None, new_data=None):
 
 @customers_bp.route("/", methods=["GET"], endpoint="list_customers")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def list_customers():
-    # استخدام joinedload لتحسين الأداء - فلترة السجلات غير المؤرشفة
     q = Customer.query.filter(Customer.is_archived == False).options(
-        joinedload(Customer.payments),
-        joinedload(Customer.sales)
+        selectinload(Customer.payments).load_only(Payment.id, Payment.total_amount, Payment.payment_date, Payment.status, Payment.direction),
+        selectinload(Customer.sales).load_only(Sale.id, Sale.sale_number, Sale.sale_date, Sale.total_amount, Sale.status)
     )
 
     if name := request.args.get("name"):
@@ -153,38 +151,159 @@ def list_customers():
     target_page = request.args.get("page_number", type=int)
 
     page = max(1, request.args.get("page", 1, type=int))
-    per_page = request.args.get("per_page", 20, type=int)
-    per_page = min(max(1, per_page), 200)
+    per_page = 10
 
-    # ترتيب محسّن
-    ordered_query = q.order_by(Customer.created_at.desc())
-    total_filtered = ordered_query.count()
+    sort = request.args.get("sort", "balance")
+    order = request.args.get("order", "asc")
+    current_app.logger.info(f"Customers sort: {sort}, order: {order}, request.args: {dict(request.args)}")
+    
+    if sort == "name":
+        if order == "asc":
+            q = q.order_by(Customer.name.asc())
+        else:
+            q = q.order_by(Customer.name.desc())
+    elif sort == "created_at":
+        if order == "asc":
+            q = q.order_by(Customer.created_at.asc())
+        else:
+            q = q.order_by(Customer.created_at.desc())
+    elif sort == "phone":
+        if order == "asc":
+            q = q.order_by(Customer.phone.asc().nullslast())
+        else:
+            q = q.order_by(Customer.phone.desc().nullslast())
+    elif sort == "category":
+        if order == "asc":
+            q = q.order_by(Customer.category.asc().nullslast())
+        else:
+            q = q.order_by(Customer.category.desc().nullslast())
+    else:
+        q = q.order_by(Customer.name.asc())
 
-    if print_scope not in {"all", "range", "page"}:
+    if print_scope not in {"all", "range", "page"}: 
         print_scope = "page" if print_mode else "all"
 
-    customers_list = []
-    pagination = None
-
-    start_index = 1
-    page_number = page
-
-    if print_mode:
-        if print_scope == "all":
-            customers_list = ordered_query.all()
-        elif print_scope == "range":
-            start_index = max(1, range_start or 1)
-            end_index = range_end or total_filtered or start_index
-            if end_index < start_index:
-                end_index = start_index
-            limit = max(1, end_index - start_index + 1)
-            customers_list = ordered_query.offset(start_index - 1).limit(limit).all()
+    if sort == "balance":
+        all_customers = q.all()
+        current_app.logger.debug(f"Fetched {len(all_customers)} customers for balance sort")
+        customers_with_balance = []
+        for customer in all_customers:
+            if not customer:
+                continue
+                
+            balance_value = 0.0
+            customer_id = getattr(customer, 'id', None)
+            
+            try:
+                if hasattr(customer, 'balance'):
+                    balance_result = customer.balance
+                    if balance_result is not None:
+                        if isinstance(balance_result, (int, float)):
+                            balance_value = float(balance_result)
+                        elif isinstance(balance_result, Decimal):
+                            balance_value = float(balance_result)
+                        else:
+                            try:
+                                balance_value = float(balance_result)
+                            except (ValueError, TypeError, OverflowError):
+                                balance_value = 0.0
+                    else:
+                        balance_value = 0.0
+                else:
+                    balance_value = 0.0
+            except AttributeError as ae:
+                current_app.logger.warning(f"خطأ AttributeError في حساب رصيد العميل {customer_id}: {str(ae)}")
+                balance_value = 0.0
+            except (ValueError, TypeError, OverflowError) as ve:
+                current_app.logger.warning(f"خطأ في تحويل قيمة الرصيد للعميل {customer_id}: {str(ve)}")
+                balance_value = 0.0
+            except Exception as e:
+                current_app.logger.error(f"خطأ غير متوقع في حساب رصيد العميل {customer_id}: {str(e)}", exc_info=True)
+                balance_value = 0.0
+            
+            customers_with_balance.append((customer, balance_value))
+        
+        if order == "asc":
+            customers_with_balance.sort(key=lambda x: x[1])
         else:
-            page_number = max(1, target_page or page or 1)
-            customers_list = ordered_query.offset((page_number - 1) * per_page).limit(per_page).all()
+            customers_with_balance.sort(key=lambda x: x[1], reverse=True)
+        
+        sorted_customers = [c[0] for c in customers_with_balance]
+        total_filtered = len(sorted_customers)
+        customers_list = []
+        pagination = None
+
+        start_index = 1
+        page_number = page
+
+        if print_mode:
+            if print_scope == "all":
+                customers_list = sorted_customers[:10000]
+            elif print_scope == "range":
+                start_index = max(1, range_start or 1)
+                end_index = range_end or total_filtered or start_index
+                if end_index < start_index:
+                    end_index = start_index
+                customers_list = sorted_customers[start_index - 1:end_index]
+            else:
+                page_number = max(1, target_page or page or 1)
+                start_idx = (page_number - 1) * per_page
+                end_idx = start_idx + per_page
+                customers_list = sorted_customers[start_idx:end_idx]
+        else:
+            start_idx = (page - 1) * per_page
+            end_idx = start_idx + per_page
+            customers_list = sorted_customers[start_idx:end_idx]
+            
+            class PaginationObj:
+                def __init__(self, items, page, per_page, total):
+                    self.items = items
+                    self.page = page
+                    self.per_page = per_page
+                    self.total = total
+                    self.pages = math.ceil(total / per_page) if per_page else 1
+                    self.has_prev = page > 1
+                    self.has_next = page < self.pages
+                    self.prev_num = page - 1 if self.has_prev else None
+                    self.next_num = page + 1 if self.has_next else None
+                
+                def iter_pages(self, left_edge=2, left_current=2, right_current=3, right_edge=2):
+                    last = self.pages
+                    for num in range(1, last + 1):
+                        if num <= left_edge or \
+                           (num > self.page - left_current - 1 and num < self.page + right_current) or \
+                           num > last - right_edge:
+                            yield num
+                        else:
+                            if num == left_edge + 1 or num == last - right_edge - 1:
+                                yield None
+            
+            pagination = PaginationObj(customers_list, page, per_page, total_filtered)
     else:
-        pagination = ordered_query.paginate(page=page, per_page=per_page, error_out=False)
-        customers_list = pagination.items
+        total_filtered = q.count()
+        current_app.logger.debug(f"Query order_by clauses: {[str(clause) for clause in q._order_by_clauses] if hasattr(q, '_order_by_clauses') else 'None'}")
+        
+        if print_mode:
+            if print_scope == "all":
+                customers_list = q.limit(10000).all()
+                pagination = None
+            elif print_scope == "range":
+                start_index = max(1, range_start or 1)
+                end_index = range_end or total_filtered or start_index
+                if end_index < start_index:
+                    end_index = start_index
+                limit_count = end_index - start_index + 1
+                customers_list = q.offset(start_index - 1).limit(limit_count).all()
+                pagination = None
+            else:
+                page_number = max(1, target_page or page or 1)
+                start_idx = (page_number - 1) * per_page
+                customers_list = q.offset(start_idx).limit(per_page).all()
+                pagination = None
+        else:
+            pag = q.paginate(page=page, per_page=per_page, error_out=False)
+            customers_list = list(pag.items)
+            pagination = pag
 
     args = request.args.to_dict(flat=True)
     for key in ["page", "print", "scope", "range_start", "range_end", "page_number", "ajax"]:
@@ -264,6 +383,8 @@ def list_customers():
     }
 
     if _is_ajax() and not print_mode:
+        current_sort = request.args.get("sort", "balance")
+        current_order = request.args.get("order", "asc")
         table_html = render_template(
             "customers/_table.html",
             customers=customers_list,
@@ -271,6 +392,8 @@ def list_customers():
             row_offset=row_offset,
             print_mode=False,
             table_id="customersTable",
+            current_sort=current_sort,
+            current_order=current_order,
         )
         pagination_html = ""
         if pagination:
@@ -350,6 +473,7 @@ def customer_analytics(customer_id):
     customer = db.session.get(Customer, customer_id) or abort(404)
 
     from utils import D, q0
+    from models import convert_amount
 
     def _f2(v):
         try:
@@ -388,9 +512,15 @@ def customer_analytics(customer_id):
             return int(q0(grand))
         return int(q0(getattr(svc, "total_amount", getattr(svc, "total_cost", 0)) or 0))
 
-    invoices = Invoice.query.filter_by(customer_id=customer_id).all()
-    sales = Sale.query.filter_by(customer_id=customer_id).all()
-    services = ServiceRequest.query.filter_by(customer_id=customer_id).all()
+    invoices = Invoice.query.filter_by(customer_id=customer_id).options(
+        load_only(Invoice.id, Invoice.invoice_date, Invoice.total_amount, Invoice.currency, Invoice.cancelled_at)
+    ).all()
+    sales = Sale.query.filter_by(customer_id=customer_id).options(
+        load_only(Sale.id, Sale.sale_date, Sale.total_amount, Sale.currency, Sale.status)
+    ).all()
+    services = ServiceRequest.query.filter_by(customer_id=customer_id).options(
+        load_only(ServiceRequest.id, ServiceRequest.received_at, ServiceRequest.total_amount, ServiceRequest.currency)
+    ).all()
 
     total_invoices = sum((D(inv.total_amount or 0)) for inv in invoices)
     total_sales = sum((D(s.total_amount or 0)) for s in sales)
@@ -404,22 +534,32 @@ def customer_analytics(customer_id):
     payments_direct = Payment.query.filter_by(
         customer_id=customer_id,
         status=PaymentStatus.COMPLETED.value
+    ).options(
+        load_only(Payment.id, Payment.total_amount, Payment.currency, Payment.payment_date)
     ).all()
     payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(
         Sale.customer_id == customer_id,
         Payment.status == PaymentStatus.COMPLETED.value
+    ).options(
+        load_only(Payment.id, Payment.total_amount, Payment.currency, Payment.payment_date)
     ).all()
     payments_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(
         Invoice.customer_id == customer_id,
         Payment.status == PaymentStatus.COMPLETED.value
+    ).options(
+        load_only(Payment.id, Payment.total_amount, Payment.currency, Payment.payment_date)
     ).all()
     payments_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(
         ServiceRequest.customer_id == customer_id,
         Payment.status == PaymentStatus.COMPLETED.value
+    ).options(
+        load_only(Payment.id, Payment.total_amount, Payment.currency, Payment.payment_date)
     ).all()
     payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(
         PreOrder.customer_id == customer_id,
         Payment.status == PaymentStatus.COMPLETED.value
+    ).options(
+        load_only(Payment.id, Payment.total_amount, Payment.currency, Payment.payment_date)
     ).all()
 
     seen = set()
@@ -475,7 +615,7 @@ def customer_analytics(customer_id):
             {
                 "name": name,
                 "count": count,
-                "total": total,
+                "total": total_ils,
                 "percentage": (float(total_ils) / float(total_purchases) * 100.0) if total_purchases else 0.0,
             }
             for name, count, total_ils in [
@@ -777,6 +917,8 @@ def export_customer_vcf(customer_id):
 @login_required
 # @permission_required("manage_customers")  # Commented out - function not available
 def account_statement(customer_id):
+    from models import Check
+    
     c = db.session.get(Customer, customer_id) or abort(404)
     
     # ✅ تواريخ الفلترة (افتراضياً: من إنشاء العميل حتى الآن)
@@ -874,7 +1016,10 @@ def account_statement(customer_id):
             "notes": getattr(inv, 'notes', '') or '',
         })
 
-    sales = Sale.query.filter_by(customer_id=customer_id).order_by(Sale.sale_date, Sale.id).all()
+    sales = Sale.query.filter_by(customer_id=customer_id).options(
+        joinedload(Sale.lines).load_only(SaleLine.id, SaleLine.quantity, SaleLine.unit_price, SaleLine.line_total, SaleLine.line_receiver, SaleLine.note),
+        joinedload(Sale.lines).joinedload(SaleLine.product).load_only(Product.id, Product.name)
+    ).order_by(Sale.sale_date, Sale.id).all()
     for s in sales:
         # جلب البنود المباعة
         sale_lines = getattr(s, 'lines', []) or []
@@ -1108,8 +1253,74 @@ def account_statement(customer_id):
             "statement": payment_statement,
             "debit": debit_val,
             "credit": credit_val,
-            "payment_details": payment_details,  # تفاصيل الدفعة
+            "payment_details": payment_details,
             "notes": notes,
+        })
+
+    manual_checks = Check.query.filter(
+        Check.customer_id == customer_id,
+        Check.payment_id.is_(None)
+    ).order_by(Check.check_date, Check.id).all()
+    
+    for check in manual_checks:
+        check_status = str(getattr(check, 'status', 'PENDING') or 'PENDING').upper()
+        is_bounced = check_status in ['RETURNED', 'BOUNCED']
+        is_pending = check_status == 'PENDING'
+        
+        direction_value = str(getattr(check, 'direction', 'IN') or 'IN')
+        is_out = direction_value == 'OUT'
+        
+        amount = D(check.amount or 0)
+        if check.currency and check.currency != "ILS":
+            try:
+                from models import convert_amount
+                amount = convert_amount(amount, check.currency, "ILS", check.check_date or check.created_at)
+            except Exception:
+                pass
+        
+        if is_bounced:
+            debit_val = amount if is_out else D(0)
+            credit_val = D(0) if is_out else amount
+            payment_statement = f"❌ شيك مرفوض يدوي"
+            entry_type = "CHECK_BOUNCED"
+        elif is_pending:
+            debit_val = amount if is_out else D(0)
+            credit_val = D(0) if is_out else amount
+            payment_statement = f"⏳ شيك معلق يدوي"
+            entry_type = "CHECK_PENDING"
+        else:
+            debit_val = amount if is_out else D(0)
+            credit_val = D(0) if is_out else amount
+            payment_statement = f"شيك يدوي"
+            entry_type = "PAYMENT"
+        
+        if check.check_number:
+            payment_statement += f" #{check.check_number}"
+        if check.check_bank:
+            payment_statement += f" - {check.check_bank}"
+        
+        payment_details = {
+            'method': 'شيك',
+            'method_raw': 'cheque',
+            'check_number': check.check_number,
+            'check_bank': check.check_bank,
+            'check_due_date': check.check_due_date,
+            'status': check_status,
+            'is_bounced': is_bounced,
+            'is_pending': is_pending,
+            'is_manual_check': True,
+            'splits': [],
+        }
+        
+        entries.append({
+            "date": check.check_date or check.created_at,
+            "type": entry_type,
+            "ref": f"CHK-{check.id}",
+            "statement": payment_statement,
+            "debit": debit_val,
+            "credit": credit_val,
+            "payment_details": payment_details,
+            "notes": check.notes or "شيك يدوي",
         })
 
     # إضافة الرصيد الافتتاحي كأول قيد
@@ -1150,7 +1361,7 @@ def account_statement(customer_id):
 
     total_debit = sum(e["debit"] for e in entries)
     total_credit = sum(e["credit"] for e in entries)
-    balance = total_debit - total_credit  # ✅ الرصيد من كشف الحساب هو الصحيح
+    balance = D(c.balance or 0)
 
     total_invoices_calc = D('0.00')
     for inv in invoices:
@@ -1192,6 +1403,17 @@ def account_statement(customer_id):
             try:
                 from models import convert_amount
                 amt = convert_amount(amt, p.currency, "ILS", p.payment_date)
+            except Exception:
+                pass
+        total_payments_calc += amt
+    
+    # إضافة الشيكات اليدوية إلى إجمالي الدفعات
+    for check in manual_checks:
+        amt = D(check.amount or 0)
+        if check.currency and check.currency != "ILS":
+            try:
+                from models import convert_amount
+                amt = convert_amount(amt, check.currency, "ILS", check.check_date or check.created_at)
             except Exception:
                 pass
         total_payments_calc += amt
@@ -1320,8 +1542,8 @@ def advanced_filter():
 @login_required
 # @permission_required("manage_customers")  # Commented out - function not available
 def export_customers():
-    format_type = request.args.get("format", "excel")  # Default to excel since PDF generator not implemented
-    customers = Customer.query.all()
+    format_type = request.args.get("format", "excel")
+    customers = Customer.query.filter(Customer.is_archived == False).limit(10000).all()
     if format_type == "pdf":
         # PDF export not implemented yet
         flash("تصدير PDF غير متاح حالياً. سيتم التصدير إلى Excel", "warning")

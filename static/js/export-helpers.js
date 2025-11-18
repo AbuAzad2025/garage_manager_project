@@ -52,26 +52,15 @@ function exportTableToCSV(filename = 'export.csv', tableId = 'report-table') {
         link.click();
         document.body.removeChild(link);
         
-        // تنظيف
         setTimeout(() => URL.revokeObjectURL(url), 100);
-        
-        // رسالة نجاح
         if (typeof showToast === 'function') {
             showToast('✅ تم تصدير الملف بنجاح', 'success');
-        } else {
-            console.log('✅ تم تصدير: ' + filename);
         }
     } else {
         alert('المتصفح لا يدعم التحميل التلقائي');
     }
 }
 
-/**
- * تصدير بيانات JSON إلى CSV
- * @param {Array} data - البيانات
- * @param {string} filename - اسم الملف
- * @param {Array} columns - الأعمدة المطلوبة (اختياري)
- */
 function exportJSONToCSV(data, filename = 'export.csv', columns = null) {
     if (!data || data.length === 0) {
         alert('لا توجد بيانات للتصدير');
@@ -119,5 +108,5 @@ function exportJSONToCSV(data, filename = 'export.csv', columns = null) {
     setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
-console.log('✅ Export Helpers loaded');
+
 

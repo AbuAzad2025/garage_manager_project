@@ -10,8 +10,6 @@
       this.addTabAnimations();
       this.addTabShortcuts();
       this.addTabCounter();
-      
-      console.log('✅ Enhanced Tabs System Ready');
     },
     
     enhanceAllTabs: function() {
@@ -154,7 +152,6 @@
       if (savedTab) {
         const tabLink = document.querySelector(`.nav-link[href*="tab=${savedTab}"]`);
         if (tabLink && !tabLink.classList.contains('active')) {
-          console.log('📌 استعادة آخر تاب:', savedTab);
         }
       }
     },
@@ -165,7 +162,6 @@
         memory[page] = tab;
         localStorage.setItem(this.activeTabKey, JSON.stringify(memory));
       } catch (e) {
-        console.warn('⚠️ فشل حفظ التاب:', e);
       }
     },
     
@@ -410,7 +406,5 @@
     });
   });
 
-  console.log('✅ Enhanced Tabs Module Loaded');
-  
 })();
 

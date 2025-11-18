@@ -33,15 +33,21 @@ def _check_database() -> Dict[str, Any]:
                 "type": "SQLite" if "sqlite" in current_app.config.get("SQLALCHEMY_DATABASE_URI", "") else "PostgreSQL",
             }
 
-            # عدد السجلات الأساسية
             try:
-                stats["records"] = {
-                    "users": db.session.query(User).count(),
-                    "products": db.session.query(Product).count(),
-                    "services": db.session.query(ServiceRequest).count(),
-                    "sales": db.session.query(Sale).count(),
-                    "payments": db.session.query(Payment).count(),
-                }
+                from extensions import cache
+                cache_key = 'health_records_stats'
+                cached = cache.get(cache_key)
+                if cached is not None:
+                    stats["records"] = cached
+                else:
+                    stats["records"] = {
+                        "users": db.session.query(User).count(),
+                        "products": db.session.query(Product).count(),
+                        "services": db.session.query(ServiceRequest).count(),
+                        "sales": db.session.query(Sale).count(),
+                        "payments": db.session.query(Payment).count(),
+                    }
+                    cache.set(cache_key, stats["records"], timeout=60)
             except Exception:
                 pass
 

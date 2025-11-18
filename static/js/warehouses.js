@@ -2,8 +2,6 @@
   if (window.__WAREHOUSES_INIT__) return;
   window.__WAREHOUSES_INIT__ = true;
 
-  // ✅ getCSRFToken نُقلت إلى csrf-utils.js (global)
-
   function showNotification(message, type) {
     type = type || 'info';
     var c = document.getElementById('notification-container');

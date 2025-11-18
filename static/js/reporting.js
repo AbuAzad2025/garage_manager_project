@@ -1,4 +1,3 @@
-/* global FIELD_LABELS */
 (function () {
   'use strict';
 

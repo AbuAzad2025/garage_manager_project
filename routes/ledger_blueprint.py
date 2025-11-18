@@ -425,7 +425,7 @@ def get_ledger_data():
             if to_date:
                 sales_query = sales_query.filter(Sale.sale_date <= to_date)
             
-            for sale in sales_query.order_by(Sale.sale_date).all():
+            for sale in sales_query.order_by(Sale.sale_date).limit(50000).all():
                 from models import fx_rate
                 
                 customer_name = sale.customer.name if sale.customer else "عميل غير محدد"
@@ -464,7 +464,7 @@ def get_ledger_data():
             if to_date:
                 expenses_query = expenses_query.filter(Expense.date <= to_date)
             
-            for expense in expenses_query.order_by(Expense.date).all():
+            for expense in expenses_query.order_by(Expense.date).limit(50000).all():
                 from models import fx_rate
                 
                 # تحويل للشيقل
@@ -523,7 +523,7 @@ def get_ledger_data():
             if to_date:
                 payments_query = payments_query.filter(Payment.payment_date <= to_date)
             
-            for payment in payments_query.order_by(Payment.payment_date).all():
+            for payment in payments_query.order_by(Payment.payment_date).limit(50000).all():
                 from models import fx_rate as get_fx_rate
                 
                 # ✅ فحص حالة الدفعة
@@ -606,22 +606,34 @@ def get_ledger_data():
                 
                 description_parts = []
                 if payment.entity_type and payment.entity_type.upper() == "EXPENSE":
-                    extra_parts = []
-                    if payment.reference:
-                        extra_parts.append(payment.reference)
-                    if getattr(payment, "notes", ""):
-                        extra_parts.append(payment.notes)
                     if payment.expense_id:
                         expense = db.session.get(Expense, payment.expense_id)
                         if expense:
-                            expense_type = getattr(expense.type, "name", "") if getattr(expense, "type", None) else ""
-                            if expense_type:
-                                extra_parts.append(f"نوع المصروف: {expense_type}")
-                            elif expense.description:
-                                extra_parts.append(expense.description)
-                    extra_text = " | ".join([p for p in extra_parts if p])
-                    if extra_text:
-                        description_parts.append(f"مصروف: {extra_text}")
+                            expense_info = f"مصروف #{expense.id}"
+                            if expense.description:
+                                expense_info += f" - {expense.description}"
+                            elif expense.type and expense.type.name:
+                                expense_info += f" - {expense.type.name}"
+                            
+                            if payment.reference and expense_info not in payment.reference:
+                                description_parts.append(f"{expense_info} | {payment.reference}")
+                            elif payment.reference:
+                                description_parts.append(payment.reference)
+                            else:
+                                description_parts.append(expense_info)
+                            
+                            if payment.notes and payment.notes not in (payment.reference or ""):
+                                description_parts.append(payment.notes)
+                        else:
+                            if payment.reference:
+                                description_parts.append(payment.reference)
+                            if payment.notes:
+                                description_parts.append(payment.notes)
+                    else:
+                        if payment.reference:
+                            description_parts.append(payment.reference)
+                        if payment.notes:
+                            description_parts.append(payment.notes)
                 else:
                     description_parts.append(f"دفعة - {entity_name}")
                 
@@ -748,7 +760,7 @@ def get_ledger_data():
                 services_query = services_query.filter(ServiceRequest.created_at >= from_date)
             if to_date:
                 services_query = services_query.filter(ServiceRequest.created_at <= to_date)
-            for service in services_query.order_by(ServiceRequest.created_at).all():
+            for service in services_query.order_by(ServiceRequest.created_at).limit(10000).all():
                 text_notes = " ".join(filter(None, [
                     getattr(service, "description", None),
                     getattr(service, "engineer_notes", None),
@@ -848,7 +860,36 @@ def get_ledger_data():
                     })
         
         # ترتيب حسب التاريخ
-        ledger_entries.sort(key=lambda x: x['date'])
+        sort = request.args.get('sort', 'date')
+        order = request.args.get('order', 'asc')
+        
+        if sort == 'date':
+            if order == 'asc':
+                ledger_entries.sort(key=lambda x: (x['date'], x.get('id', 0)))
+            else:
+                ledger_entries.sort(key=lambda x: (x['date'], x.get('id', 0)), reverse=True)
+        elif sort == 'debit':
+            if order == 'asc':
+                ledger_entries.sort(key=lambda x: (x['debit'], x.get('id', 0)))
+            else:
+                ledger_entries.sort(key=lambda x: (x['debit'], x.get('id', 0)), reverse=True)
+        elif sort == 'credit':
+            if order == 'asc':
+                ledger_entries.sort(key=lambda x: (x['credit'], x.get('id', 0)))
+            else:
+                ledger_entries.sort(key=lambda x: (x['credit'], x.get('id', 0)), reverse=True)
+        elif sort == 'balance':
+            if order == 'asc':
+                ledger_entries.sort(key=lambda x: (x.get('balance', 0), x.get('id', 0)))
+            else:
+                ledger_entries.sort(key=lambda x: (x.get('balance', 0), x.get('id', 0)), reverse=True)
+        elif sort == 'type':
+            if order == 'asc':
+                ledger_entries.sort(key=lambda x: (x.get('type_ar', ''), x.get('id', 0)))
+            else:
+                ledger_entries.sort(key=lambda x: (x.get('type_ar', ''), x.get('id', 0)), reverse=True)
+        else:
+            ledger_entries.sort(key=lambda x: (x['date'], x.get('id', 0)))
         
         # إعادة حساب الرصيد المتراكم
         running_balance = 0.0
@@ -909,7 +950,7 @@ def get_ledger_data():
             services_query = services_query.filter(ServiceRequest.created_at <= to_date)
         
         total_services = 0.0
-        for service in services_query.all():
+        for service in services_query.limit(10000).all():
             # حساب إجمالي الخدمة من parts_total + labor_total + tax - discount
             parts_total = float(service.parts_total or 0)
             labor_total = float(service.labor_total or 0)
@@ -955,7 +996,7 @@ def get_ledger_data():
         if to_date:
             sale_lines_query = sale_lines_query.filter(Sale.sale_date <= to_date)
         
-        for line in sale_lines_query.all():
+        for line in sale_lines_query.limit(100000).all():
             if line.product:
                 qty_sold = float(line.quantity or 0)
                 product = line.product
@@ -1032,7 +1073,7 @@ def get_ledger_data():
         if to_date:
             service_parts_query = service_parts_query.filter(ServiceRequest.created_at <= to_date)
         
-        for part in service_parts_query.all():
+        for part in service_parts_query.limit(50000).all():
             if part.part:  # part هو المنتج
                 qty_used = float(part.quantity or 0)
                 product = part.part
@@ -1085,7 +1126,7 @@ def get_ledger_data():
             preorders_query = preorders_query.filter(PreOrder.created_at <= to_date)
         
         total_preorders = 0.0
-        for preorder in preorders_query.all():
+        for preorder in preorders_query.limit(10000).all():
             amount = float(preorder.total_amount or 0)
             preorder_currency = getattr(preorder, 'currency', 'ILS') or 'ILS'
             if preorder_currency != 'ILS':
@@ -1190,6 +1231,13 @@ def get_ledger_data():
 
             filtered_entries = [entry for entry in ledger_entries if _entry_matches(entry)]
 
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
+        total_entries = len(filtered_entries)
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_entries = filtered_entries[start_idx:end_idx]
+        
         # حساب إجماليات البيانات (لدفتر الأستاذ)
         ledger_totals = {
             'total_debit': sum(entry['debit'] for entry in filtered_entries),
@@ -1198,9 +1246,15 @@ def get_ledger_data():
         }
         
         return jsonify({
-            "data": filtered_entries,
+            "data": paginated_entries,
             "statistics": statistics,
-            "totals": ledger_totals
+            "totals": ledger_totals,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total_entries,
+                "pages": (total_entries + per_page - 1) // per_page if total_entries > 0 else 1
+            }
         })
         
     except Exception as e:
@@ -1208,6 +1262,157 @@ def get_ledger_data():
         current_app.logger.error(f"Error in get_ledger_data: {str(e)}")
         current_app.logger.error(traceback.format_exc())
         return jsonify({"error": str(e), "data": [], "statistics": {}}), 500
+
+@ledger_bp.route("/cogs-audit", methods=["GET"], endpoint="cogs_audit_report")
+@login_required
+def cogs_audit_report():
+    """تقرير شامل لفحص تكلفة البضاعة المباعة (COGS) بدقة"""
+    try:
+        from models import SaleLine, fx_rate
+        
+        from_date_str = request.args.get('from_date')
+        to_date_str = request.args.get('to_date')
+        
+        from_date = datetime.strptime(from_date_str, '%Y-%m-%d') if from_date_str else None
+        to_date = datetime.strptime(to_date_str, '%Y-%m-%d').replace(hour=23, minute=59, second=59) if to_date_str else None
+        
+        sale_lines_query = (
+            db.session.query(SaleLine)
+            .join(Sale, Sale.id == SaleLine.sale_id)
+            .filter(Sale.status == 'CONFIRMED')
+        )
+        if from_date:
+            sale_lines_query = sale_lines_query.filter(Sale.sale_date >= from_date)
+        if to_date:
+            sale_lines_query = sale_lines_query.filter(Sale.sale_date <= to_date)
+        
+        products_audit = []
+        total_cogs_actual = 0.0
+        total_cogs_estimated = 0.0
+        total_cogs_missing = 0.0
+        total_sales_value = 0.0
+        
+        estimated_count = 0
+        missing_count = 0
+        actual_count = 0
+        
+        for line in sale_lines_query.limit(100000).all():
+            if not line.product:
+                continue
+                
+            product = line.product
+            qty_sold = float(line.quantity or 0)
+            unit_price = float(line.unit_price or 0)
+            line_total = qty_sold * unit_price
+            
+            sale_currency = line.sale.currency or 'ILS'
+            if sale_currency != 'ILS':
+                try:
+                    rate = fx_rate(sale_currency, 'ILS', line.sale.sale_date, raise_on_missing=False)
+                    if rate > 0:
+                        line_total = float(line_total * float(rate))
+                except Exception:
+                    pass
+            
+            total_sales_value += line_total
+            
+            unit_cost = None
+            cost_source = None
+            cost_status = None
+            
+            if product.purchase_price and product.purchase_price > 0:
+                unit_cost = float(product.purchase_price)
+                cost_source = "purchase_price"
+                cost_status = "actual"
+                actual_count += 1
+            elif product.cost_after_shipping and product.cost_after_shipping > 0:
+                unit_cost = float(product.cost_after_shipping)
+                cost_source = "cost_after_shipping"
+                cost_status = "actual"
+                actual_count += 1
+            elif product.cost_before_shipping and product.cost_before_shipping > 0:
+                unit_cost = float(product.cost_before_shipping)
+                cost_source = "cost_before_shipping"
+                cost_status = "actual"
+                actual_count += 1
+            elif product.price and product.price > 0:
+                unit_cost = float(product.price) * 0.70
+                cost_source = "estimated_70%"
+                cost_status = "estimated"
+                estimated_count += 1
+            else:
+                unit_cost = 0.0
+                cost_source = "missing"
+                cost_status = "missing"
+                missing_count += 1
+            
+            line_cogs = qty_sold * unit_cost
+            
+            if cost_status == "actual":
+                total_cogs_actual += line_cogs
+            elif cost_status == "estimated":
+                total_cogs_estimated += line_cogs
+            else:
+                total_cogs_missing += line_cogs
+            
+            products_audit.append({
+                'product_id': product.id,
+                'product_name': product.name,
+                'product_sku': product.sku or 'N/A',
+                'sale_id': line.sale_id,
+                'sale_number': line.sale.sale_number or f'SAL-{line.sale_id}',
+                'sale_date': line.sale.sale_date.strftime('%Y-%m-%d') if line.sale.sale_date else 'N/A',
+                'qty_sold': qty_sold,
+                'unit_price': unit_price,
+                'line_total': line_total,
+                'unit_cost': unit_cost,
+                'cost_source': cost_source,
+                'cost_status': cost_status,
+                'line_cogs': line_cogs,
+                'gross_profit': line_total - line_cogs,
+                'profit_margin': ((line_total - line_cogs) / line_total * 100) if line_total > 0 else 0,
+                'purchase_price': float(product.purchase_price) if product.purchase_price else None,
+                'cost_after_shipping': float(product.cost_after_shipping) if product.cost_after_shipping else None,
+                'cost_before_shipping': float(product.cost_before_shipping) if product.cost_before_shipping else None,
+                'selling_price': float(product.price) if product.price else None
+            })
+        
+        total_cogs = total_cogs_actual + total_cogs_estimated + total_cogs_missing
+        total_gross_profit = total_sales_value - total_cogs
+        overall_margin = (total_gross_profit / total_sales_value * 100) if total_sales_value > 0 else 0
+        
+        summary = {
+            'total_products_sold': len(products_audit),
+            'total_sales_value': total_sales_value,
+            'total_cogs': total_cogs,
+            'total_cogs_actual': total_cogs_actual,
+            'total_cogs_estimated': total_cogs_estimated,
+            'total_cogs_missing': total_cogs_missing,
+            'total_gross_profit': total_gross_profit,
+            'overall_margin': overall_margin,
+            'actual_count': actual_count,
+            'estimated_count': estimated_count,
+            'missing_count': missing_count,
+            'actual_percentage': (actual_count / len(products_audit) * 100) if products_audit else 0,
+            'estimated_percentage': (estimated_count / len(products_audit) * 100) if products_audit else 0,
+            'missing_percentage': (missing_count / len(products_audit) * 100) if products_audit else 0,
+            'estimated_impact': (total_cogs_estimated / total_cogs * 100) if total_cogs > 0 else 0,
+            'missing_impact': (total_cogs_missing / total_cogs * 100) if total_cogs > 0 else 0
+        }
+        
+        return jsonify({
+            'success': True,
+            'summary': summary,
+            'products': products_audit,
+            'from_date': from_date_str,
+            'to_date': to_date_str
+        })
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Error in cogs_audit_report: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @ledger_bp.route("/accounts-summary", methods=["GET"], endpoint="get_accounts_summary")
 @login_required
@@ -1362,7 +1567,7 @@ def get_receivables_detailed_summary():
         # 1. العملاء (Customers) مع أعمار الديون
         from models import fx_rate
         
-        customers = Customer.query.all()
+        customers = Customer.query.limit(10000).all()
         for customer in customers:
             from decimal import Decimal
             from models import convert_amount, SaleReturn, PreOrder, OnlinePreOrder, ServiceRequest, Invoice
@@ -1378,7 +1583,7 @@ def get_receivables_detailed_summary():
             if to_date:
                 sales_query = sales_query.filter(Sale.sale_date <= to_date)
             
-            for s in sales_query.all():
+            for s in sales_query.limit(10000).all():
                 amt = Decimal(str(s.total_amount or 0))
                 if s.currency == "ILS":
                     total_receivable += amt
@@ -1396,7 +1601,7 @@ def get_receivables_detailed_summary():
             if to_date:
                 invoices_query = invoices_query.filter(Invoice.invoice_date <= to_date)
             
-            for inv in invoices_query.all():
+            for inv in invoices_query.limit(10000).all():
                 amt = Decimal(str(inv.total_amount or 0))
                 if inv.currency == "ILS":
                     total_receivable += amt
@@ -1415,7 +1620,7 @@ def get_receivables_detailed_summary():
             if to_date:
                 services_query = services_query.filter(ServiceRequest.received_at <= to_date)
             
-            for srv in services_query.all():
+            for srv in services_query.limit(10000).all():
                 amt = Decimal(str(srv.total_amount or 0))
                 if srv.currency == "ILS":
                     total_receivable += amt
@@ -1434,7 +1639,7 @@ def get_receivables_detailed_summary():
             if to_date:
                 preorders_query = preorders_query.filter(PreOrder.preorder_date <= to_date)
             
-            for p in preorders_query.all():
+            for p in preorders_query.limit(10000).all():
                 amt = Decimal(str(p.total_amount or 0))
                 if p.currency == "ILS":
                     total_receivable += amt
@@ -1453,7 +1658,7 @@ def get_receivables_detailed_summary():
             if to_date:
                 online_orders_query = online_orders_query.filter(OnlinePreOrder.created_at <= to_date)
             
-            for oo in online_orders_query.all():
+            for oo in online_orders_query.limit(10000).all():
                 amt = Decimal(str(oo.total_amount or 0))
                 if oo.currency == "ILS":
                     total_receivable += amt
@@ -1471,7 +1676,7 @@ def get_receivables_detailed_summary():
             if to_date:
                 returns_query = returns_query.filter(SaleReturn.created_at <= to_date)
             
-            for r in returns_query.all():
+            for r in returns_query.limit(10000).all():
                 amt = Decimal(str(r.total_amount or 0))
                 if r.currency == "ILS":
                     total_receivable -= amt
@@ -1553,7 +1758,7 @@ def get_receivables_detailed_summary():
             })
         
         # 2. الموردين (Suppliers) مع أعمار الديون
-        suppliers = Supplier.query.all()
+        suppliers = Supplier.query.limit(10000).all()
         for supplier in suppliers:
             # حساب المشتريات من المورد (النفقات)
             expenses_query = Expense.query.filter(
@@ -1568,7 +1773,7 @@ def get_receivables_detailed_summary():
             total_purchases = 0.0
             oldest_expense_date = None
             
-            for expense in expenses_query.all():
+            for expense in expenses_query.limit(10000).all():
                 amount = float(expense.amount or 0)
                 if expense.currency and expense.currency != 'ILS':
                     try:
@@ -1596,7 +1801,7 @@ def get_receivables_detailed_summary():
             total_payments = 0.0
             last_payment_date = None
             
-            for payment in payments_query.all():
+            for payment in payments_query.limit(10000).all():
                 amount = float(payment.total_amount or 0)
                 if payment.currency and payment.currency != 'ILS':
                     try:
@@ -1631,7 +1836,7 @@ def get_receivables_detailed_summary():
                 })
         
         # 3. الشركاء (Partners)
-        partners = Partner.query.all()
+        partners = Partner.query.limit(10000).all()
         for partner in partners:
             # حساب النفقات المرتبطة بالشريك
             expenses_query = Expense.query.filter(
@@ -1646,7 +1851,7 @@ def get_receivables_detailed_summary():
             total_expenses = 0.0
             oldest_expense_date = None
             
-            for expense in expenses_query.all():
+            for expense in expenses_query.limit(10000).all():
                 amount = float(expense.amount or 0)
                 if expense.currency and expense.currency != 'ILS':
                     try:
@@ -1767,7 +1972,7 @@ def get_receivables_summary():
         # 1. العملاء (Customers)
         from models import fx_rate
         
-        customers = Customer.query.all()
+        customers = Customer.query.limit(10000).all()
         for customer in customers:
             # حساب المبيعات للعميل
             sales_query = Sale.query.filter(
@@ -1780,7 +1985,7 @@ def get_receivables_summary():
                 sales_query = sales_query.filter(Sale.sale_date <= to_date)
             
             total_sales = 0.0
-            for sale in sales_query.all():
+            for sale in sales_query.limit(10000).all():
                 amount = float(sale.total_amount or 0)
                 if sale.currency and sale.currency != 'ILS':
                     try:
@@ -1805,7 +2010,7 @@ def get_receivables_summary():
                 payments_query = payments_query.filter(Payment.payment_date <= to_date)
             
             total_payments = 0.0
-            for payment in payments_query.all():
+            for payment in payments_query.limit(10000).all():
                 amount = float(payment.total_amount or 0)
                 if payment.currency and payment.currency != 'ILS':
                     try:
@@ -1828,7 +2033,7 @@ def get_receivables_summary():
                 })
         
         # 2. الموردين (Suppliers)
-        suppliers = Supplier.query.all()
+        suppliers = Supplier.query.limit(10000).all()
         for supplier in suppliers:
             # حساب المشتريات من المورد (النفقات)
             expenses_query = Expense.query.filter(
@@ -1841,7 +2046,7 @@ def get_receivables_summary():
                 expenses_query = expenses_query.filter(Expense.date <= to_date)
             
             total_purchases = 0.0
-            for expense in expenses_query.all():
+            for expense in expenses_query.limit(10000).all():
                 amount = float(expense.amount or 0)
                 if expense.currency and expense.currency != 'ILS':
                     try:
@@ -1866,7 +2071,7 @@ def get_receivables_summary():
                 payments_query = payments_query.filter(Payment.payment_date <= to_date)
             
             total_payments = 0.0
-            for payment in payments_query.all():
+            for payment in payments_query.limit(10000).all():
                 amount = float(payment.total_amount or 0)
                 if payment.currency and payment.currency != 'ILS':
                     try:
@@ -1889,7 +2094,7 @@ def get_receivables_summary():
                 })
         
         # 3. الشركاء (Partners)
-        partners = Partner.query.all()
+        partners = Partner.query.limit(10000).all()
         for partner in partners:
             # حساب النفقات المرتبطة بالشريك
             expenses_query = Expense.query.filter(
@@ -1902,7 +2107,7 @@ def get_receivables_summary():
                 expenses_query = expenses_query.filter(Expense.date <= to_date)
             
             total_expenses = 0.0
-            for expense in expenses_query.all():
+            for expense in expenses_query.limit(10000).all():
                 amount = float(expense.amount or 0)
                 if expense.currency and expense.currency != 'ILS':
                     try:
@@ -2029,7 +2234,7 @@ def _get_pagination():
     page = request.args.get("page", type=int)
     per_page = request.args.get("per_page", type=int)
     if page and page > 0:
-        pp = 50 if not per_page else max(1, min(per_page, 200))
+        pp = 10 if not per_page else max(1, min(per_page, 200))
         return page, pp
     return None, None
 

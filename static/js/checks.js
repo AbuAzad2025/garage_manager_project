@@ -56,6 +56,7 @@
     }
 
     // جلب وتصنيف الشيكات
+    let checksLoadErrorShown = false;
     window.loadAndCategorizeChecks = function() {
         $.ajax({
             url: '/checks/api/checks',
@@ -66,6 +67,7 @@
                 withCredentials: true
             },
             success: function(response) {
+                    checksLoadErrorShown = false; // إعادة تعيين عند النجاح
                     const checks = response.checks;
                     
                     // تصنيف
@@ -74,8 +76,11 @@
                         overdue: [],
                         cashed: [],
                         returned: [],
-                        bounced: [],  // ✅ إضافة bounced منفصل
-                        cancelled: []
+                        bounced: [],
+                        cancelled: [],
+                        settled: [],
+                        legal: [],
+                        all: checks
                     };
                     
                     checks.forEach(function(check) {
@@ -84,10 +89,10 @@
                         const isOverdue = daysUntilDue < 0;
                         
                         const notes = (check.notes || '').toLowerCase();
-                        const isSettled = notes.indexOf('[settled=true]'.toLowerCase()) !== -1;
+                        const isSettled = check.is_settled || notes.indexOf('[settled=true]'.toLowerCase()) !== -1;
+                        const isLegal = check.is_legal || notes.indexOf('دائرة قانونية') !== -1;
                         let actualStatus = status;
                         
-                        // إذا كان في الملاحظات حالة جديدة، استخدمها
                         if (notes.includes('حالة الشيك: مسحوب') || notes.includes('حالة الشيك: تم الصرف')) {
                             actualStatus = 'CASHED';
                         } else if (notes.includes('حالة الشيك: مرتجع')) {
@@ -100,10 +105,11 @@
                             actualStatus = 'CANCELLED';
                         }
                         
-                        // 🚨 التصنيف مع أولوية للمتأخر
-                        // الأولوية: متأخر > حالة أخرى
-                        if (isOverdue && (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED')) {
-                            // ✅ شيك معلق لكن تاريخه فات = متأخر
+                        if (isLegal) {
+                            categorized.legal.push(check);
+                        } else if (isSettled) {
+                            categorized.settled.push(check);
+                        } else if (isOverdue && (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED')) {
                             categorized.overdue.push(check);
                         } else if (actualStatus === 'CASHED') {
                             categorized.cashed.push(check);
@@ -114,17 +120,17 @@
                         } else if (actualStatus === 'PENDING' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED') {
                             categorized.pending.push(check);
                         } else {
-                            // default: معلق
                             categorized.pending.push(check);
                         }
                     });
 
-                    // تحديث العدادات
                     $('#badge-pending').text(categorized.pending.length);
                     $('#badge-overdue').text(categorized.overdue.length);
                     $('#badge-cashed').text(categorized.cashed.length);
                     $('#badge-returned').text(categorized.returned.length);
                     $('#badge-cancelled').text(categorized.cancelled.length);
+                    $('#badge-settled').text(categorized.settled.length);
+                    $('#badge-legal').text(categorized.legal.length);
                     $('#badge-all').text(checks.length);
                     
                     // 🚨 تحديث تحذير الشيكات المتأخرة
@@ -148,6 +154,8 @@
                     fillTable('cashed', categorized.cashed);
                     fillTable('returned', categorized.returned);
                     fillTable('cancelled', categorized.cancelled);
+                    fillTable('settled', categorized.settled);
+                    fillTable('legal', categorized.legal);
                     fillTable('all', checks);
                     
                     // 🔥 فرض إظهار .tab-content والجداول (الحل النهائي!)
@@ -177,7 +185,12 @@
                     }
             },
             error: function(xhr, status, error) {
-                showNotification('فشل جلب الشيكات', 'danger');
+                // فقط عرض الرسالة مرة واحدة وليس لكل محاولة
+                if (!checksLoadErrorShown && xhr.status !== 0) {
+                    checksLoadErrorShown = true;
+                    console.error('فشل جلب الشيكات:', status, error);
+                    showNotification('فشل جلب الشيكات', 'danger');
+                }
             }
         });
     };
@@ -259,6 +272,9 @@
             
             if (isSettled) {
                 actionButtons = '<span class="badge badge-secondary">مسوّى</span> <button class="btn btn-sm btn-info" onclick="viewCheckDetails(\'' + (viewId || '') + '\')" title="عرض"><i class="fas fa-eye"></i></button> ';
+                if (IS_OWNER) {
+                    actionButtons += '<button class="btn btn-sm btn-warning" onclick="unsettleCheck(\'' + token + '\')" title="إلغاء التسوية"><i class="fas fa-undo"></i></button> ';
+                }
             }
             
             if (IS_OWNER) {
@@ -380,17 +396,20 @@
                 }
             }
         }).fail(function() {
-            console.warn('فشل تحميل الإحصائيات من الباكند');
+            // تجاهل الأخطاء بصمت - لا حاجة لإزعاج المستخدم
+            console.debug('فشل جلب الإحصائيات (غير حرج)');
         });
     };
     
     // تحميل التنبيهات
     window.loadAlerts = function() {
-
         $.get('/checks/api/alerts', function(response) {
             if (response.success) {
-
+                // معالجة التنبيهات
             }
+        }).fail(function() {
+            // تجاهل الأخطاء بصمت - لا حاجة لإزعاج المستخدم
+            console.debug('فشل جلب التنبيهات (غير حرج)');
         });
     };
     
@@ -766,30 +785,12 @@
             return;
         }
         Swal.fire({
-            title: 'تأكيد تسوية الشيك',
-            text: 'سيتم تعليم الشيك كمسوّى وفتح نموذج الدفع لتسجيل التسوية.',
-            icon: 'question',
+            title: 'تسوية الشيك',
+            text: 'سيتم فتح نموذج الدفع لتسجيل التسوية. سيتم تعليم الشيك كمسوّى بعد إكمال الدفعة وحفظها.',
+            icon: 'info',
             showCancelButton: true,
-            confirmButtonText: 'متابعة للتسوية',
-            cancelButtonText: 'إلغاء',
-            showLoaderOnConfirm: true,
-            preConfirm: () => {
-                return $.ajax({
-                    url: '/checks/api/mark-settled/' + token,
-                    method: 'POST',
-                    contentType: 'application/json',
-                    xhrFields: { withCredentials: true },
-                    data: JSON.stringify({})
-                }).then(response => {
-                    if (!response.success) {
-                        throw new Error(response.message || 'فشل تعليم الشيك كمُسوّى');
-                    }
-                    return response;
-                }).catch(error => {
-                    Swal.showValidationMessage('خطأ: ' + (error.responseJSON?.message || error.message || 'حدث خطأ غير متوقع'));
-                });
-            },
-            allowOutsideClick: () => !Swal.isLoading()
+            confirmButtonText: 'فتح نموذج الدفع',
+            cancelButtonText: 'إلغاء'
         }).then((result) => {
             if (!result.isConfirmed) {
                 return;
@@ -800,9 +801,55 @@
                 amount: amount,
                 currency: currency,
                 notes: `تسوية شيك مرتجع رقم ${checkNumber}`,
-                reference: `CHK-SETTLE-${checkNumber}`
+                reference: `CHK-SETTLE-${checkNumber}`,
+                check_token: token
             });
             window.location.href = '/payments/create?' + params.toString();
+        });
+    };
+
+    window.unsettleCheck = function(checkToken) {
+        if (!IS_OWNER) {
+            Swal.fire('تنبيه', 'هذا الإجراء متاح للمالك فقط.', 'warning');
+            return;
+        }
+        Swal.fire({
+            title: 'إلغاء التسوية',
+            text: 'سيتم إلغاء تسوية الشيك وإرجاعه لحالته السابقة. إذا تم إنشاء قيود محاسبية، سيتم عكسها.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، إلغاء التسوية',
+            cancelButtonText: 'إلغاء',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return $.ajax({
+                    url: '/checks/api/unsettle/' + checkToken,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    xhrFields: { withCredentials: true },
+                    data: JSON.stringify({})
+                }).then(response => {
+                    if (!response.success) {
+                        throw new Error(response.message || 'فشل إلغاء التسوية');
+                    }
+                    return response;
+                }).catch(error => {
+                    Swal.showValidationMessage('خطأ: ' + (error.responseJSON?.message || error.message || 'حدث خطأ غير متوقع'));
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'تم إلغاء التسوية',
+                    text: 'تم إلغاء تسوية الشيك بنجاح وإرجاعه لحالته السابقة.',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    loadAndCategorizeChecks();
+                });
+            }
         });
     };
 

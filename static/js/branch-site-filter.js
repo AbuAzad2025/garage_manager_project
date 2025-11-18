@@ -1,12 +1,6 @@
-/**
- * فلترة ذكية للمواقع حسب الفرع المختار
- * تُستخدم في نماذج الموظفين والمصاريف
- */
-
 (function() {
   'use strict';
 
-  // تهيئة عند تحميل الصفحة
   document.addEventListener('DOMContentLoaded', function() {
     const branchSelect = document.getElementById('branch_id');
     const siteSelect = document.getElementById('site_id');
@@ -15,27 +9,21 @@
       return; // الحقول غير موجودة في هذه الصفحة
     }
 
-    // حفظ كل المواقع الأصلية
     const allSitesOptions = Array.from(siteSelect.options).map(opt => ({
       value: opt.value,
       text: opt.text,
       branchId: opt.getAttribute('data-branch-id')
     }));
 
-    /**
-     * فلترة المواقع بناءً على الفرع المختار
-     */
     function filterSitesByBranch() {
       const selectedBranchId = branchSelect.value;
       
-      if (!selectedBranchId || selectedBranchId === '0' || selectedBranchId === '') {
-        // إذا لم يُختر فرع، أظهر كل المواقع
+      if (!selectedBranchId || selectedLimited === '0' || selectedBranchId === '') {
         repopulateSites(allSitesOptions);
         siteSelect.disabled = true;
         return;
       }
 
-      // فلترة المواقع التي تنتمي للفرع المختار
       const filtered = allSitesOptions.filter(opt => {
         return opt.value === '0' || opt.branchId === selectedBranchId;
       });
@@ -44,9 +32,6 @@
       siteSelect.disabled = false;
     }
 
-    /**
-     * إعادة ملء قائمة المواقع
-     */
     function repopulateSites(options) {
       const currentValue = siteSelect.value;
       siteSelect.innerHTML = '';
@@ -61,7 +46,6 @@
         siteSelect.appendChild(option);
       });
 
-      // استعادة القيمة المختارة إن كانت ضمن القائمة المفلترة
       if (options.some(o => o.value === currentValue)) {
         siteSelect.value = currentValue;
       } else {
@@ -69,9 +53,6 @@
       }
     }
 
-    /**
-     * جلب المواقع من API بناءً على الفرع (للتحميل الديناميكي)
-     */
     async function loadSitesFromAPI(branchId) {
       if (!branchId || branchId === '0') {
         siteSelect.innerHTML = '<option value="0">-- بدون موقع --</option>';
@@ -97,7 +78,6 @@
 
         siteSelect.disabled = false;
       } catch (error) {
-        console.error('خطأ في تحميل المواقع:', error);
         siteSelect.innerHTML = '<option value="0">-- خطأ في التحميل --</option>';
         siteSelect.disabled = true;
       }

@@ -64,9 +64,8 @@
         const qstr=urlObj.searchParams.toString();
         const nextUrl=qstr?`${urlObj.pathname}?${qstr}`:urlObj.pathname;
         window.history.replaceState({},'',nextUrl);
-      }).catch(err=>{
+      }).catch(()=>{
         if(requestId!==salesRequestId) return;
-        console.error(err);
         salesTableWrapper.innerHTML=previousTable;
         if(paginationWrapper){paginationWrapper.innerHTML=previousPagination;}
         if(salesSummaryWrapper){salesSummaryWrapper.innerHTML=previousSummary;}
@@ -357,7 +356,6 @@
               if(info && toNum(info.price)>0){
                 priceInp.value=toNum(info.price).toFixed(2);
                 if(info.original_currency && info.original_currency !== info.target_currency){
-                  console.log(`💱 تحويل: ${info.original_price} ${info.original_currency} → ${info.price} ${info.target_currency}`);
                   updateFxRateDisplay(info);
                 }
                 recalc();
@@ -478,36 +476,27 @@
     if (currency) {
       on(currency,'change', async () => {
         const newCurrency = currency.value || 'ILS';
-        console.log('🔄 تغيير العملة إلى:', newCurrency);
-        
         clearFxRateDisplay();
-        
-        // إعادة تحويل أسعار كل البنود
         const rows = qsa('.sale-line', wrap);
         for (const row of rows) {
           const $pd = window.jQuery ? window.jQuery(row).find('select.product-select') : null;
           const $wh = window.jQuery ? window.jQuery(row).find('select.warehouse-select') : null;
           const priceInp = row.querySelector('input[name$="-unit_price"]');
-          
           if ($pd && $pd.val() && $wh && $wh.val() && priceInp && row.dataset.priceManual !== '1') {
             const pid = +$pd.val();
             const wid = +$wh.val();
-            
             try {
               const info = await fetchProductInfo(pid, wid, newCurrency);
               if (info && toNum(info.price) > 0) {
                 priceInp.value = toNum(info.price).toFixed(2);
                 if(info.original_currency && info.original_currency !== info.target_currency){
-                  console.log(`  💱 تحديث السعر: ${info.original_price} ${info.original_currency} → ${info.price} ${info.target_currency}`);
                   updateFxRateDisplay(info);
                 }
               }
             } catch (e) {
-              console.error('خطأ في تحديث السعر:', e);
             }
           }
         }
-        
         recalcDebounced();
       });
     }

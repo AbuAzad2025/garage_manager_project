@@ -1,29 +1,3 @@
-"""
-🏦 وحدة التحكم الشاملة لدفتر الأستاذ - Ledger Control Panel
-===============================================================
-
-📋 الوصف:
-    وحدة تحكم متقدمة لإدارة دفتر الأستاذ والحسابات المحاسبية
-    مخصصة للمالك فقط (@owner_only)
-    
-🎯 الوظائف:
-    ✅ إدارة الحسابات المحاسبية (إضافة/تعديل/حذف)
-    ✅ إدارة الصناديق والمحافظ
-    ✅ إدارة القيود المحاسبية
-    ✅ تقارير مالية متقدمة
-    ✅ إعدادات النظام المحاسبي
-    ✅ مراقبة الأداء والاتساق
-    
-🔒 الأمان:
-    - Owner only (@owner_only)
-    - حتى Super Admin لا يستطيع الدخول
-    
-📝 الملفات:
-    - routes/ledger_control.py (هذا الملف)
-    - templates/security/ledger_control.html
-    - static/js/ledger_control.js
-"""
-
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from functools import wraps
@@ -91,10 +65,25 @@ def index():
     suppliers_count = Supplier.query.count()
     partners_count = Partner.query.count()
     
-    # حساب إجمالي الأرصدة
-    total_customer_balance = sum([c.balance for c in Customer.query.all()])
-    total_supplier_balance = sum([s.balance for s in Supplier.query.all()])
-    total_partner_balance = sum([p.balance for p in Partner.query.all()])
+    from extensions import cache
+    cache_key_cust = "ledger_total_customer_balance"
+    cache_key_supp = "ledger_total_supplier_balance"
+    cache_key_part = "ledger_total_partner_balance"
+    
+    total_customer_balance = cache.get(cache_key_cust)
+    if total_customer_balance is None:
+        total_customer_balance = sum([c.balance for c in Customer.query.limit(10000).all()])
+        cache.set(cache_key_cust, total_customer_balance, timeout=300)
+    
+    total_supplier_balance = cache.get(cache_key_supp)
+    if total_supplier_balance is None:
+        total_supplier_balance = sum([s.balance for s in Supplier.query.limit(10000).all()])
+        cache.set(cache_key_supp, total_supplier_balance, timeout=300)
+    
+    total_partner_balance = cache.get(cache_key_part)
+    if total_partner_balance is None:
+        total_partner_balance = sum([p.balance for p in Partner.query.limit(10000).all()])
+        cache.set(cache_key_part, total_partner_balance, timeout=300)
     
     stats = {
         'accounts': {
@@ -876,19 +865,19 @@ def recalculate_all_balances():
         }
         
         # إعادة حساب أرصدة العملاء
-        customers = Customer.query.all()
+        customers = Customer.query.limit(10000).all()
         for customer in customers:
             balance = customer.balance  # hybrid_property
             recalculated['customers'] += 1
         
         # إعادة حساب أرصدة الشركاء
-        partners = Partner.query.all()
+        partners = Partner.query.limit(10000).all()
         for partner in partners:
             balance = partner.balance
             recalculated['partners'] += 1
         
         # إعادة حساب أرصدة الموردين
-        suppliers = Supplier.query.all()
+        suppliers = Supplier.query.limit(10000).all()
         for supplier in suppliers:
             balance = supplier.balance
             recalculated['suppliers'] += 1

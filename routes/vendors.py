@@ -1,7 +1,7 @@
 
 from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
-from flask import abort, Blueprint, flash, jsonify, redirect, render_template, render_template_string, request, url_for
+from flask import abort, Blueprint, current_app, flash, jsonify, redirect, render_template, render_template_string, request, url_for
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
 from flask_wtf.csrf import generate_csrf
@@ -54,7 +54,6 @@ def _get_or_404(model, ident, options=None):
 
 @vendors_bp.route("/suppliers", methods=["GET"], endpoint="suppliers_list")
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def suppliers_list():
     form = CSRFProtectForm()
     search_term = (request.args.get("q") or request.args.get("search") or "").strip()
@@ -62,9 +61,8 @@ def suppliers_list():
     if search_term:
         term = f"%{search_term}%"
         q = q.filter(or_(Supplier.name.ilike(term), Supplier.phone.ilike(term), Supplier.identity_number.ilike(term)))
-    suppliers = q.order_by(Supplier.name).all()
+    suppliers = q.order_by(Supplier.name).limit(10000).all()
     
-    # ✅ حساب الملخصات الإجمالية لجميع الموردين - موحد من balance_in_ils
     total_balance = 0.0
     total_debit = 0.0
     total_credit = 0.0
@@ -72,7 +70,13 @@ def suppliers_list():
     suppliers_with_credit = 0
     
     for supplier in suppliers:
-        balance = float(supplier.balance_in_ils or 0)
+        try:
+            from extensions import cache
+            cache_key = f'supplier_balance_unified_{supplier.id}'
+            cache.delete(cache_key)
+        except:
+            pass
+        balance = float(supplier.balance or 0)
         total_balance += balance
         
         if balance > 0:
@@ -589,27 +593,55 @@ def suppliers_statement(supplier_id: int):
             total_credit += amt
             preorders_data.append({"ref": ref, "date": d, "amount": amt, "items": items})
 
-    # ✅ جميع الدفعات (IN و OUT) للمورد
+    # ✅ جميع الدفعات (IN و OUT) للمورد: مباشرة + عبر المصروفات
+    # 1. الدفعات المباشرة
     pay_q = (
         db.session.query(Payment)
         .filter(
             Payment.supplier_id == supplier.id,
-            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value]),
         )
     )
     if df:
         pay_q = pay_q.filter(Payment.payment_date >= df)
     if dt:
         pay_q = pay_q.filter(Payment.payment_date < dt)
-
-    for pmt in pay_q.all():
+    direct_payments = pay_q.all()
+    
+    # 2. الدفعات المرتبطة بمصروفات المورد
+    expense_pay_q = (
+        db.session.query(Payment)
+        .join(Expense, Payment.expense_id == Expense.id)
+        .filter(
+            or_(
+                Expense.supplier_id == supplier.id,
+                and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == supplier.id)
+            ),
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value]),
+        )
+    )
+    if df:
+        expense_pay_q = expense_pay_q.filter(Payment.payment_date >= df)
+    if dt:
+        expense_pay_q = expense_pay_q.filter(Payment.payment_date < dt)
+    expense_payments = expense_pay_q.all()
+    
+    # دمج الدفعات وتجنب التكرار (باستخدام IDs)
+    payment_ids = set()
+    all_payments = []
+    for p in direct_payments + expense_payments:
+        if p.id not in payment_ids:
+            payment_ids.add(p.id)
+            all_payments.append(p)
+    
+    for pmt in all_payments:
         d = pmt.payment_date
         amt = q2(pmt.total_amount)
         ref = pmt.reference or f"دفعة #{pmt.id}"
         
         # فحص حالة الدفعة
         payment_status = getattr(pmt, 'status', 'COMPLETED')
-        is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED']
+        is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED', 'RETURNED']
         is_pending = payment_status == 'PENDING'
         
         method_map = {
@@ -682,14 +714,20 @@ def suppliers_statement(supplier_id: int):
         # البيان حسب Direction
         if is_out:
             if is_bounced:
-                statement = f"❌ شيك مرفوض - {method_arabic} للمورد"
+                if payment_status == 'RETURNED':
+                    statement = f"↩️ شيك مرتجع - {method_arabic} للمورد"
+                else:
+                    statement = f"❌ شيك مرفوض - {method_arabic} للمورد"
             elif is_pending and method_raw == 'cheque':
                 statement = f"⏳ شيك معلق - {method_arabic} للمورد"
             else:
                 statement = f"سداد {method_arabic} للمورد"
         else:  # IN
             if is_bounced:
-                statement = f"❌ شيك مرفوض - {method_arabic} من المورد"
+                if payment_status == 'RETURNED':
+                    statement = f"↩️ شيك مرتجع - {method_arabic} من المورد"
+                else:
+                    statement = f"❌ شيك مرفوض - {method_arabic} من المورد"
             elif is_pending and method_raw == 'cheque':
                 statement = f"⏳ شيك معلق - {method_arabic} من المورد"
             else:
@@ -916,14 +954,9 @@ def partners_list():
     if search_term:
         term = f"%{search_term}%"
         q = q.filter(or_(Partner.name.ilike(term), Partner.phone_number.ilike(term), Partner.identity_number.ilike(term)))
-    partners = q.order_by(Partner.name).all()
+    partners = q.order_by(Partner.name).limit(10000).all()
     
-    # ✅ حساب الرصيد الحقيقي باستخدام التسوية الذكية لكل شريك
-    from routes.partner_settlements import _calculate_smart_partner_balance
-    smart_start = datetime(2024, 1, 1)
-    smart_end = datetime.utcnow()
-    
-    # ✅ حساب الملخصات الإجمالية لجميع الشركاء - بناءً على الرصيد الذكي
+    # ✅ حساب الرصيد الحقيقي لكل شريك
     total_balance = 0.0
     total_debit = 0.0
     total_credit = 0.0
@@ -931,17 +964,32 @@ def partners_list():
     partners_with_credit = 0
     
     for partner in partners:
-        smart_balance = None
+        balance = 0.0
         try:
-            balance_data = _calculate_smart_partner_balance(partner.id, smart_start, smart_end)
-            if balance_data.get("success"):
-                smart_balance = float(balance_data.get("balance", {}).get("amount", 0) or 0)
-        except Exception:
-            smart_balance = None
-        
-        balance = smart_balance if smart_balance is not None else float(partner.balance_in_ils or 0)
-        partner.current_balance = balance
-        partner.current_balance_source = "smart" if smart_balance is not None else "stored"
+            from utils import get_partner_balance_unified
+            balance = float(get_partner_balance_unified(partner.id))
+            partner.current_balance = balance
+            partner.current_balance_source = "smart"
+        except Exception as e:
+            current_app.logger.error(f"خطأ في حساب رصيد الشريك {getattr(partner, 'id', 'unknown')}: {str(e)}", exc_info=True)
+            try:
+                balance_value = partner.balance
+                if balance_value is not None:
+                    if isinstance(balance_value, (int, float)):
+                        balance = float(balance_value)
+                    elif isinstance(balance_value, Decimal):
+                        balance = float(balance_value)
+                    else:
+                        try:
+                            balance = float(balance_value)
+                        except (ValueError, TypeError, OverflowError):
+                            balance = 0.0
+                else:
+                    balance = 0.0
+            except:
+                balance = 0.0
+            partner.current_balance = balance
+            partner.current_balance_source = "stored"
         
         total_balance += balance
         
@@ -1223,20 +1271,48 @@ def partners_statement(partner_id: int):
             })
             total_credit += amt
 
-    # الدفعات
-    q = (
+    # ✅ جميع الدفعات (IN و OUT) للشريك: مباشرة + عبر المصروفات
+    # 1. الدفعات المباشرة
+    pay_q = (
         db.session.query(Payment)
         .filter(
             Payment.partner_id == partner.id,
-            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value]),
         )
     )
     if df:
-        q = q.filter(Payment.payment_date >= df)
+        pay_q = pay_q.filter(Payment.payment_date >= df)
     if dt:
-        q = q.filter(Payment.payment_date < dt)
+        pay_q = pay_q.filter(Payment.payment_date < dt)
+    direct_payments = pay_q.all()
+    
+    # 2. الدفعات المرتبطة بمصروفات الشريك
+    expense_pay_q = (
+        db.session.query(Payment)
+        .join(Expense, Payment.expense_id == Expense.id)
+        .filter(
+            or_(
+                Expense.partner_id == partner.id,
+                and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id)
+            ),
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value]),
+        )
+    )
+    if df:
+        expense_pay_q = expense_pay_q.filter(Payment.payment_date >= df)
+    if dt:
+        expense_pay_q = expense_pay_q.filter(Payment.payment_date < dt)
+    expense_payments = expense_pay_q.all()
+    
+    # دمج الدفعات وتجنب التكرار (باستخدام IDs)
+    payment_ids = set()
+    all_payments = []
+    for p in direct_payments + expense_payments:
+        if p.id not in payment_ids:
+            payment_ids.add(p.id)
+            all_payments.append(p)
 
-    for p in q.all():
+    for p in all_payments:
         d = p.payment_date
         amt = q2(p.total_amount or 0)
         ref = p.reference or f"سند #{p.id}"
@@ -1244,7 +1320,7 @@ def partners_statement(partner_id: int):
         
         # فحص حالة الدفعة
         payment_status = getattr(p, 'status', 'COMPLETED')
-        is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED']
+        is_bounced = payment_status in ['BOUNCED', 'FAILED', 'REJECTED', 'RETURNED']
         is_pending = payment_status == 'PENDING'
         
         method_map = {
@@ -1313,7 +1389,10 @@ def partners_statement(partner_id: int):
         # IN => دائن (وارد منا من الشريك)
         if dirv == PaymentDirection.OUT.value:
             if is_bounced:
-                statement = f"❌ شيك مرفوض - {method_arabic} للشريك"
+                if payment_status == 'RETURNED':
+                    statement = f"↩️ شيك مرتجع - {method_arabic} للشريك"
+                else:
+                    statement = f"❌ شيك مرفوض - {method_arabic} للشريك"
             elif is_pending and method_raw == 'cheque':
                 statement = f"⏳ شيك معلق - {method_arabic} للشريك"
             else:
@@ -1341,7 +1420,10 @@ def partners_statement(partner_id: int):
                 total_debit += amt
         else:
             if is_bounced:
-                statement = f"❌ شيك مرفوض - {method_arabic} من الشريك"
+                if payment_status == 'RETURNED':
+                    statement = f"↩️ شيك مرتجع - {method_arabic} من الشريك"
+                else:
+                    statement = f"❌ شيك مرفوض - {method_arabic} من الشريك"
             elif is_pending and method_raw == 'cheque':
                 statement = f"⏳ شيك معلق - {method_arabic} من الشريك"
             else:
@@ -1679,6 +1761,7 @@ def partner_smart_settlement(partner_id):
         date_to = datetime.utcnow()
     
     # حساب الرصيد الذكي
+    from routes.partner_settlements import _calculate_smart_partner_balance
     balance_data = _calculate_smart_partner_balance(partner_id, date_from, date_to)
     
     # إنشاء object بسيط للتوافق مع القالب
@@ -1707,122 +1790,6 @@ def partner_smart_settlement(partner_id):
     
     return redirect(url_for('partner_settlements_bp.partner_settlement', 
                            partner_id=partner_id, **params))
-
-
-def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, date_to: datetime):
-    """حساب الرصيد الذكي للمورد"""
-    try:
-        supplier = db.session.get(Supplier, supplier_id)
-        if not supplier:
-            return {"success": False, "error": "المورد غير موجود"}
-        
-        # 1. الوارد من المورد (المشتريات + القطع المعطاة له)
-        incoming = _calculate_supplier_incoming(supplier_id, date_from, date_to)
-        
-        # 2. الصادر للمورد (المبيعات + القطع المأخوذة منه)
-        outgoing = _calculate_supplier_outgoing(supplier_id, date_from, date_to)
-        
-        # 3. الدفعات
-        payments_to_supplier = _calculate_payments_to_supplier(supplier_id, date_from, date_to)
-        payments_from_supplier = _calculate_payments_from_supplier(supplier_id, date_from, date_to)
-        
-        # 4. حساب الرصيد النهائي
-        total_incoming = incoming["total"] + payments_from_supplier
-        total_outgoing = outgoing["total"] + payments_to_supplier
-        
-        balance = total_incoming - total_outgoing
-        
-        return {
-            "success": True,
-            "supplier": {
-                "id": supplier.id,
-                "name": supplier.name,
-                "currency": supplier.currency
-            },
-            "period": {
-                "from": date_from.isoformat(),
-                "to": date_to.isoformat()
-            },
-            "incoming": {
-                "purchases": incoming["purchases"],
-                "products_given": incoming["products_given"],
-                "payments_received": payments_from_supplier,
-                "total": total_incoming
-            },
-            "outgoing": {
-                "sales": outgoing["sales"],
-                "products_taken": outgoing["products_taken"],
-                "payments_made": payments_to_supplier,
-                "total": total_outgoing
-            },
-            "balance": {
-                "amount": balance,
-                "direction": "للمورد" if balance > 0 else "على المورد" if balance < 0 else "متوازن",
-                "currency": supplier.currency
-            },
-            "recommendation": _get_settlement_recommendation(balance, supplier.currency)
-        }
-        
-    except Exception as e:
-        return {"success": False, "error": f"خطأ في حساب رصيد المورد: {str(e)}"}
-
-
-def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_to: datetime):
-    """حساب الرصيد الذكي للشريك"""
-    try:
-        partner = db.session.get(Partner, partner_id)
-        if not partner:
-            return {"success": False, "error": "الشريك غير موجود"}
-        
-        # 1. الوارد من الشريك
-        incoming = _calculate_partner_incoming(partner_id, date_from, date_to)
-        
-        # 2. الصادر للشريك
-        outgoing = _calculate_partner_outgoing(partner_id, date_from, date_to)
-        
-        # 3. الدفعات
-        payments_to_partner = _calculate_payments_to_partner(partner_id, date_from, date_to)
-        payments_from_partner = _calculate_payments_from_partner(partner_id, date_from, date_to)
-        
-        # 4. حساب الرصيد النهائي
-        total_incoming = incoming["total"] + payments_from_partner
-        total_outgoing = outgoing["total"] + payments_to_partner
-        
-        balance = total_incoming - total_outgoing
-        
-        return {
-            "success": True,
-            "partner": {
-                "id": partner.id,
-                "name": partner.name,
-                "currency": partner.currency
-            },
-            "period": {
-                "from": date_from.isoformat(),
-                "to": date_to.isoformat()
-            },
-            "incoming": {
-                "sales_share": incoming["sales_share"],
-                "products_given": incoming["products_given"],
-                "payments_received": payments_from_partner,
-                "total": total_incoming
-            },
-            "outgoing": {
-                "purchases_share": outgoing["purchases_share"],
-                "products_taken": outgoing["products_taken"],
-                "payments_made": payments_to_partner,
-                "total": total_outgoing
-            },
-            "balance": {
-                "amount": balance,
-                "direction": "للشريك" if balance > 0 else "على الشريك" if balance < 0 else "متوازن",
-                "currency": partner.currency
-            },
-            "recommendation": _get_settlement_recommendation(balance, partner.currency)
-        }
-        
-    except Exception as e:
-        return {"success": False, "error": f"خطأ في حساب رصيد الشريك: {str(e)}"}
 
 
 def _calculate_supplier_incoming(supplier_id: int, date_from: datetime, date_to: datetime):

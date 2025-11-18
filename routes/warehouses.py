@@ -361,20 +361,17 @@ def api_warehouse_info():
 
 @warehouse_bp.route("/api/upload_product_image", methods=["POST"], endpoint="api_upload_product_image")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def api_upload_product_image():
     file = request.files.get("file")
     if not file or not getattr(file, "filename", ""):
         return jsonify({"ok": False, "error": "no_file"}), 400
 
-    # فحص الامتداد
     filename = secure_filename(file.filename or "")
     ext = os.path.splitext(filename)[1].lower()
     allowed_exts = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
     if ext not in allowed_exts:
         return jsonify({"ok": False, "error": "unsupported_type"}), 400
 
-    # فحص MIME
     allowed_mimes = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
     if file.mimetype not in allowed_mimes:
         return jsonify({"ok": False, "error": "unsupported_type"}), 400
@@ -423,7 +420,7 @@ def api_prepare_online_fields():
     schema = {
         "base_fields": ["name", "sku", "brand", "part_number",
                         "price", "selling_price", "purchase_price",
-                        "category_name", "quantity"],  # توحيد مع ما يستخدمه الاستيراد
+                        "category_name", "quantity"],
         "extra_fields": [],
         "is_online": is_online
     }

@@ -1,4 +1,3 @@
-/* Performance Utilities - أدوات تحسين الأداء */
 (function(window) {
   'use strict';
 

@@ -1,5 +1,4 @@
-﻿// archive.js - Archive Functions
-// Location: /garage_manager/static/js/archive.js
+﻿
 function archiveCustomer(customerId) {
     const reason = prompt('أدخل سبب أرشفة هذا العميل:');
     if (!reason) {

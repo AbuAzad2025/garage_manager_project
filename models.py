@@ -665,6 +665,15 @@ class SystemSettings(db.Model):
     @classmethod
     def get_setting(cls, key, default=None):
         """Get a system setting value"""
+        try:
+            from extensions import cache
+            cache_key = f"system_setting_{key}"
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
+        except Exception:
+            pass
+        
         setting = cls.query.filter_by(key=key).first()
         if not setting:
             return default
@@ -678,15 +687,28 @@ class SystemSettings(db.Model):
                 return default
         elif setting.data_type == 'json':
             try:
-                return json.loads(setting.value)
+                result = json.loads(setting.value)
             except (ValueError, TypeError):
-                return default
+                result = default
         else:
-            return setting.value or default
+            result = setting.value or default
+        
+        try:
+            cache.set(cache_key, result, timeout=600)
+        except Exception:
+            pass
+        return result
 
     @classmethod
     def set_setting(cls, key, value, description=None, data_type='string', is_public=False, commit=True):
         """Set a system setting value"""
+        try:
+            from extensions import cache
+            cache_key = f"system_setting_{key}"
+            cache.delete(cache_key)
+        except Exception:
+            pass
+        
         setting = cls.query.filter_by(key=key).first()
         if not setting:
             setting = cls(
@@ -1960,8 +1982,14 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     def balance(self):
         """الرصيد الحقيقي = الرصيد الافتتاحي + المعاملات - الدفعات (مع تحويل العملات)"""
         try:
+            from extensions import cache
             from sqlalchemy.orm import object_session
             from decimal import Decimal
+            cache_key = f"customer_balance_{self.id}"
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return float(cached)
+            
             session = object_session(self)
             if not session:
                 return 0.0
@@ -1974,142 +2002,196 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                 except Exception:
                     pass  # استخدم القيمة الأصلية إذا فشل التحويل
             
-            # ✅ المبيعات المؤكدة - جلب كل سجل وتحويله
-            sales = session.query(Sale).filter(
-                Sale.customer_id == self.id,
-                Sale.status == 'CONFIRMED'
-            ).all()
             sales_total = Decimal('0.00')
-            for s in sales:
+            ils_sales_sum = session.query(func.coalesce(func.sum(Sale.total_amount), 0)).filter(
+                Sale.customer_id == self.id,
+                Sale.status == 'CONFIRMED',
+                Sale.currency == 'ILS'
+            ).scalar() or 0
+            sales_total += Decimal(str(ils_sales_sum))
+            
+            other_currency_sales = session.query(Sale).filter(
+                Sale.customer_id == self.id,
+                Sale.status == 'CONFIRMED',
+                Sale.currency != 'ILS'
+            ).all()
+            for s in other_currency_sales:
                 amt = Decimal(str(s.total_amount or 0))
-                if s.currency == "ILS":
-                    sales_total += amt
-                else:
-                    try:
-                        sales_total += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                    except Exception:
-                        pass
+                try:
+                    sales_total += convert_amount(amt, s.currency, "ILS", s.sale_date)
+                except Exception:
+                    pass
             
-            # ✅ المرتجعات المؤكدة (تخفض من الدين)
-            returns = session.query(SaleReturn).filter(
-                SaleReturn.customer_id == self.id,
-                SaleReturn.status == 'CONFIRMED'
-            ).all()
             returns_total = Decimal('0.00')
-            for r in returns:
+            ils_returns_sum = session.query(func.coalesce(func.sum(SaleReturn.total_amount), 0)).filter(
+                SaleReturn.customer_id == self.id,
+                SaleReturn.status == 'CONFIRMED',
+                SaleReturn.currency == 'ILS'
+            ).scalar() or 0
+            returns_total += Decimal(str(ils_returns_sum))
+            
+            other_currency_returns = session.query(SaleReturn).filter(
+                SaleReturn.customer_id == self.id,
+                SaleReturn.status == 'CONFIRMED',
+                SaleReturn.currency != 'ILS'
+            ).all()
+            for r in other_currency_returns:
                 amt = Decimal(str(r.total_amount or 0))
-                if r.currency == "ILS":
-                    returns_total += amt
-                else:
-                    try:
-                        returns_total += convert_amount(amt, r.currency, "ILS", r.created_at)
-                    except Exception:
-                        pass
+                try:
+                    returns_total += convert_amount(amt, r.currency, "ILS", r.created_at)
+                except Exception:
+                    pass
             
-            # ✅ الفواتير (كل الفواتير غير الملغاة) - جلب كل سجل وتحويله
-            invoices = session.query(Invoice).filter(
-                Invoice.customer_id == self.id,
-                Invoice.cancelled_at.is_(None)
-            ).all()
             invoices_total = Decimal('0.00')
-            for inv in invoices:
+            ils_invoices_sum = session.query(func.coalesce(func.sum(Invoice.total_amount), 0)).filter(
+                Invoice.customer_id == self.id,
+                Invoice.cancelled_at.is_(None),
+                Invoice.currency == 'ILS'
+            ).scalar() or 0
+            invoices_total += Decimal(str(ils_invoices_sum))
+            
+            other_currency_invoices = session.query(Invoice).filter(
+                Invoice.customer_id == self.id,
+                Invoice.cancelled_at.is_(None),
+                Invoice.currency != 'ILS'
+            ).all()
+            for inv in other_currency_invoices:
                 amt = Decimal(str(inv.total_amount or 0))
-                if inv.currency == "ILS":
-                    invoices_total += amt
-                else:
-                    try:
-                        invoices_total += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
-                    except Exception:
-                        pass
+                try:
+                    invoices_total += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
+                except Exception:
+                    pass
             
-            services = session.query(ServiceRequest).filter(
-                ServiceRequest.customer_id == self.id
-            ).all()
             services_total = Decimal('0.00')
-            for srv in services:
+            ils_services_sum = session.query(func.coalesce(func.sum(ServiceRequest.total_amount), 0)).filter(
+                ServiceRequest.customer_id == self.id,
+                ServiceRequest.currency == 'ILS'
+            ).scalar() or 0
+            services_total += Decimal(str(ils_services_sum))
+            
+            other_currency_services = session.query(ServiceRequest).filter(
+                ServiceRequest.customer_id == self.id,
+                ServiceRequest.currency != 'ILS'
+            ).all()
+            for srv in other_currency_services:
                 amt = Decimal(str(srv.total_amount or 0))
-                if srv.currency == "ILS":
-                    services_total += amt
-                else:
-                    try:
-                        services_total += convert_amount(amt, srv.currency, "ILS", srv.received_at)
-                    except Exception:
-                        pass
+                try:
+                    services_total += convert_amount(amt, srv.currency, "ILS", srv.received_at)
+                except Exception:
+                    pass
             
-            # ✅ الحجوزات المسبقة - جلب كل سجل وتحويله
-            preorders = session.query(PreOrder).filter(
-                PreOrder.customer_id == self.id,
-                PreOrder.status != 'CANCELLED'
-            ).all()
             preorders_total = Decimal('0.00')
-            for p in preorders:
-                amt = Decimal(str(p.total_amount or 0))
-                if p.currency == "ILS":
-                    preorders_total += amt
-                else:
-                    try:
-                        preorders_total += convert_amount(amt, p.currency, "ILS", p.preorder_date)
-                    except Exception:
-                        pass
+            ils_preorders_sum = session.query(func.coalesce(func.sum(PreOrder.total_amount), 0)).filter(
+                PreOrder.customer_id == self.id,
+                PreOrder.status != 'CANCELLED',
+                PreOrder.currency == 'ILS'
+            ).scalar() or 0
+            preorders_total += Decimal(str(ils_preorders_sum))
             
-            # ✅ الطلبات الأونلاين - جلب كل سجل وتحويله
-            online_orders = session.query(OnlinePreOrder).filter(
-                OnlinePreOrder.customer_id == self.id,
-                OnlinePreOrder.payment_status != 'CANCELLED'
+            other_currency_preorders = session.query(PreOrder).filter(
+                PreOrder.customer_id == self.id,
+                PreOrder.status != 'CANCELLED',
+                PreOrder.currency != 'ILS'
             ).all()
+            for p in other_currency_preorders:
+                amt = Decimal(str(p.total_amount or 0))
+                try:
+                    preorders_total += convert_amount(amt, p.currency, "ILS", p.preorder_date)
+                except Exception:
+                    pass
+            
             online_orders_total = Decimal('0.00')
-            for oo in online_orders:
+            ils_online_orders_sum = session.query(func.coalesce(func.sum(OnlinePreOrder.total_amount), 0)).filter(
+                OnlinePreOrder.customer_id == self.id,
+                OnlinePreOrder.payment_status != 'CANCELLED',
+                OnlinePreOrder.currency == 'ILS'
+            ).scalar() or 0
+            online_orders_total += Decimal(str(ils_online_orders_sum))
+            
+            other_currency_online_orders = session.query(OnlinePreOrder).filter(
+                OnlinePreOrder.customer_id == self.id,
+                OnlinePreOrder.payment_status != 'CANCELLED',
+                OnlinePreOrder.currency != 'ILS'
+            ).all()
+            for oo in other_currency_online_orders:
                 amt = Decimal(str(oo.total_amount or 0))
-                if oo.currency == "ILS":
-                    online_orders_total += amt
-                else:
-                    try:
-                        online_orders_total += convert_amount(amt, oo.currency, "ILS", oo.created_at)
-                    except Exception:
-                        pass
+                try:
+                    online_orders_total += convert_amount(amt, oo.currency, "ILS", oo.created_at)
+                except Exception:
+                    pass
             
             # ✅ الدفعات الواردة - جلب من جميع المصادر المرتبطة بالعميل
-            # 1. الدفعات المباشرة المرتبطة بالعميل
-            payments_in_direct = session.query(Payment).filter(
+            # 1. الدفعات المباشرة المرتبطة بالعميل (استثناء الشيكات المرتدة)
+            payments_in_direct = session.query(Payment).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'IN',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
-            # 2. الدفعات المرتبطة بمبيعات العميل
+            # 2. الدفعات المرتبطة بمبيعات العميل (استثناء الشيكات المرتدة)
             payments_in_from_sales = session.query(Payment).join(
                 Sale, Payment.sale_id == Sale.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
             ).filter(
                 Sale.customer_id == self.id,
                 Payment.direction == 'IN',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
-            # 3. الدفعات المرتبطة بفواتير العميل
+            # 3. الدفعات المرتبطة بفواتير العميل (استثناء الشيكات المرتدة)
             payments_in_from_invoices = session.query(Payment).join(
                 Invoice, Payment.invoice_id == Invoice.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
             ).filter(
                 Invoice.customer_id == self.id,
                 Payment.direction == 'IN',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
-            # 4. الدفعات المرتبطة بخدمات العميل
+            # 4. الدفعات المرتبطة بخدمات العميل (استثناء الشيكات المرتدة)
             payments_in_from_services = session.query(Payment).join(
                 ServiceRequest, Payment.service_id == ServiceRequest.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
             ).filter(
                 ServiceRequest.customer_id == self.id,
                 Payment.direction == 'IN',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
-            # 5. الدفعات المرتبطة بحجوزات العميل المسبقة
+            # 5. الدفعات المرتبطة بحجوزات العميل المسبقة (استثناء الشيكات المرتدة)
             payments_in_from_preorders = session.query(Payment).join(
                 PreOrder, Payment.preorder_id == PreOrder.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
             ).filter(
                 PreOrder.customer_id == self.id,
                 Payment.direction == 'IN',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
             # دمج جميع الدفعات وإزالة التكرار
@@ -2132,48 +2214,101 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                     except Exception:
                         pass
             
+            ils_manual_checks_in_sum = session.query(func.coalesce(func.sum(Check.amount), 0)).filter(
+                Check.customer_id == self.id,
+                Check.payment_id.is_(None),
+                Check.direction == 'IN',
+                ~Check.status.in_(['RETURNED', 'BOUNCED', 'CANCELLED', 'ARCHIVED']),
+                Check.currency == 'ILS'
+            ).scalar() or 0
+            payments_in += Decimal(str(ils_manual_checks_in_sum))
+            
+            other_currency_manual_checks_in = session.query(Check).filter(
+                Check.customer_id == self.id,
+                Check.payment_id.is_(None),
+                Check.direction == 'IN',
+                ~Check.status.in_(['RETURNED', 'BOUNCED', 'CANCELLED', 'ARCHIVED']),
+                Check.currency != 'ILS'
+            ).all()
+            for check in other_currency_manual_checks_in:
+                amt = Decimal(str(check.amount or 0))
+                try:
+                    payments_in += convert_amount(amt, check.currency, "ILS", check.check_date)
+                except Exception:
+                    pass
+            
             # ✅ الدفعات الصادرة - جلب من جميع المصادر المرتبطة بالعميل
-            # 1. الدفعات المباشرة المرتبطة بالعميل
-            payments_out_direct = session.query(Payment).filter(
+            # 1. الدفعات المباشرة المرتبطة بالعميل (استثناء الشيكات المرتدة)
+            payments_out_direct = session.query(Payment).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
                 Payment.customer_id == self.id,
                 Payment.direction == 'OUT',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
-            # 2. الدفعات المرتبطة بمبيعات العميل
+            # 2. الدفعات المرتبطة بمبيعات العميل (استثناء الشيكات المرتدة)
             payments_out_from_sales = session.query(Payment).join(
                 Sale, Payment.sale_id == Sale.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
             ).filter(
                 Sale.customer_id == self.id,
                 Payment.direction == 'OUT',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
-            # 3. الدفعات المرتبطة بفواتير العميل
+            # 3. الدفعات المرتبطة بفواتير العميل (استثناء الشيكات المرتدة)
             payments_out_from_invoices = session.query(Payment).join(
                 Invoice, Payment.invoice_id == Invoice.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
             ).filter(
                 Invoice.customer_id == self.id,
                 Payment.direction == 'OUT',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
-            # 4. الدفعات المرتبطة بخدمات العميل
+            # 4. الدفعات المرتبطة بخدمات العميل (استثناء الشيكات المرتدة)
             payments_out_from_services = session.query(Payment).join(
                 ServiceRequest, Payment.service_id == ServiceRequest.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
             ).filter(
                 ServiceRequest.customer_id == self.id,
                 Payment.direction == 'OUT',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
-            # 5. الدفعات المرتبطة بحجوزات العميل المسبقة
+            # 5. الدفعات المرتبطة بحجوزات العميل المسبقة (استثناء الشيكات المرتدة)
             payments_out_from_preorders = session.query(Payment).join(
                 PreOrder, Payment.preorder_id == PreOrder.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
             ).filter(
                 PreOrder.customer_id == self.id,
                 Payment.direction == 'OUT',
-                Payment.status.in_(['COMPLETED', 'PENDING'])
+                Payment.status.in_(['COMPLETED', 'PENDING']),
+                or_(
+                    Check.status.is_(None),
+                    ~Check.status.in_(['RETURNED', 'BOUNCED'])
+                )
             ).all()
             
             # دمج جميع الدفعات وإزالة التكرار
@@ -2196,9 +2331,278 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                     except Exception:
                         pass
             
-            final_balance = ob + payments_in - (sales_total + invoices_total + services_total + preorders_total + online_orders_total - returns_total) - payments_out
+            ils_manual_checks_out_sum = session.query(func.coalesce(func.sum(Check.amount), 0)).filter(
+                Check.customer_id == self.id,
+                Check.payment_id.is_(None),
+                Check.direction == 'OUT',
+                ~Check.status.in_(['RETURNED', 'BOUNCED', 'CANCELLED', 'ARCHIVED']),
+                Check.currency == 'ILS'
+            ).scalar() or 0
+            payments_out += Decimal(str(ils_manual_checks_out_sum))
             
-            return float(final_balance)
+            other_currency_manual_checks_out = session.query(Check).filter(
+                Check.customer_id == self.id,
+                Check.payment_id.is_(None),
+                Check.direction == 'OUT',
+                ~Check.status.in_(['RETURNED', 'BOUNCED', 'CANCELLED', 'ARCHIVED']),
+                Check.currency != 'ILS'
+            ).all()
+            for check in other_currency_manual_checks_out:
+                amt = Decimal(str(check.amount or 0))
+                try:
+                    payments_out += convert_amount(amt, check.currency, "ILS", check.check_date)
+                except Exception:
+                    pass
+            
+            returned_checks_in = Decimal('0.00')
+            returned_checks_out = Decimal('0.00')
+            
+            returned_in_direct = session.query(Payment).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                Payment.customer_id == self.id,
+                Payment.direction == 'IN',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            returned_in_from_sales = session.query(Payment).join(
+                Sale, Payment.sale_id == Sale.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                Sale.customer_id == self.id,
+                Payment.direction == 'IN',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            returned_in_from_invoices = session.query(Payment).join(
+                Invoice, Payment.invoice_id == Invoice.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                Invoice.customer_id == self.id,
+                Payment.direction == 'IN',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            returned_in_from_services = session.query(Payment).join(
+                ServiceRequest, Payment.service_id == ServiceRequest.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                ServiceRequest.customer_id == self.id,
+                Payment.direction == 'IN',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            returned_in_from_preorders = session.query(Payment).join(
+                PreOrder, Payment.preorder_id == PreOrder.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                PreOrder.customer_id == self.id,
+                Payment.direction == 'IN',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            seen_returned_in_ids = set()
+            returned_in_all = []
+            for p in (returned_in_direct + returned_in_from_sales + returned_in_from_invoices + 
+                     returned_in_from_services + returned_in_from_preorders):
+                if p.id not in seen_returned_in_ids:
+                    seen_returned_in_ids.add(p.id)
+                    returned_in_all.append(p)
+            
+            for p in returned_in_all:
+                amt = Decimal(str(p.total_amount or 0))
+                if p.currency == "ILS":
+                    returned_checks_in += amt
+                else:
+                    try:
+                        returned_checks_in += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                    except Exception:
+                        pass
+            
+            ils_manual_returned_checks_in_sum = session.query(func.coalesce(func.sum(Check.amount), 0)).filter(
+                Check.customer_id == self.id,
+                Check.payment_id.is_(None),
+                Check.direction == 'IN',
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                Check.currency == 'ILS'
+            ).scalar() or 0
+            returned_checks_in += Decimal(str(ils_manual_returned_checks_in_sum))
+            
+            other_currency_manual_returned_checks_in = session.query(Check).filter(
+                Check.customer_id == self.id,
+                Check.payment_id.is_(None),
+                Check.direction == 'IN',
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                Check.currency != 'ILS'
+            ).all()
+            for check in other_currency_manual_returned_checks_in:
+                amt = Decimal(str(check.amount or 0))
+                try:
+                    returned_checks_in += convert_amount(amt, check.currency, "ILS", check.check_date)
+                except Exception:
+                    pass
+            
+            returned_out_direct = session.query(Payment).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                Payment.customer_id == self.id,
+                Payment.direction == 'OUT',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            returned_out_from_sales = session.query(Payment).join(
+                Sale, Payment.sale_id == Sale.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                Sale.customer_id == self.id,
+                Payment.direction == 'OUT',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            returned_out_from_invoices = session.query(Payment).join(
+                Invoice, Payment.invoice_id == Invoice.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                Invoice.customer_id == self.id,
+                Payment.direction == 'OUT',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            returned_out_from_services = session.query(Payment).join(
+                ServiceRequest, Payment.service_id == ServiceRequest.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                ServiceRequest.customer_id == self.id,
+                Payment.direction == 'OUT',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            returned_out_from_preorders = session.query(Payment).join(
+                PreOrder, Payment.preorder_id == PreOrder.id
+            ).outerjoin(
+                Check, Check.payment_id == Payment.id
+            ).filter(
+                PreOrder.customer_id == self.id,
+                Payment.direction == 'OUT',
+                or_(
+                    Check.status.in_(['RETURNED', 'BOUNCED']),
+                    and_(
+                        Payment.status == 'FAILED',
+                        Payment.method == PaymentMethod.CHEQUE.value
+                    )
+                )
+            ).all()
+            
+            seen_returned_out_ids = set()
+            returned_out_all = []
+            for p in (returned_out_direct + returned_out_from_sales + returned_out_from_invoices + 
+                     returned_out_from_services + returned_out_from_preorders):
+                if p.id not in seen_returned_out_ids:
+                    seen_returned_out_ids.add(p.id)
+                    returned_out_all.append(p)
+            
+            for p in returned_out_all:
+                amt = Decimal(str(p.total_amount or 0))
+                if p.currency == "ILS":
+                    returned_checks_out += amt
+                else:
+                    try:
+                        returned_checks_out += convert_amount(amt, p.currency, "ILS", p.payment_date)
+                    except Exception:
+                        pass
+            
+            ils_manual_returned_checks_out_sum = session.query(func.coalesce(func.sum(Check.amount), 0)).filter(
+                Check.customer_id == self.id,
+                Check.payment_id.is_(None),
+                Check.direction == 'OUT',
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                Check.currency == 'ILS'
+            ).scalar() or 0
+            returned_checks_out += Decimal(str(ils_manual_returned_checks_out_sum))
+            
+            other_currency_manual_returned_checks_out = session.query(Check).filter(
+                Check.customer_id == self.id,
+                Check.payment_id.is_(None),
+                Check.direction == 'OUT',
+                Check.status.in_(['RETURNED', 'BOUNCED']),
+                Check.currency != 'ILS'
+            ).all()
+            for check in other_currency_manual_returned_checks_out:
+                amt = Decimal(str(check.amount or 0))
+                try:
+                    returned_checks_out += convert_amount(amt, check.currency, "ILS", check.check_date)
+                except Exception:
+                    pass
+            
+            final_balance = ob + payments_in - (sales_total + invoices_total + services_total + preorders_total + online_orders_total - returns_total) - payments_out - returned_checks_in + returned_checks_out
+            
+            result = float(final_balance)
+            try:
+                cache.set(cache_key, result, timeout=600)
+            except Exception:
+                pass
+            return result
         except Exception as e:
             from flask import current_app
             current_app.logger.warning(f"⚠️ خطأ في حساب رصيد العميل #{self.id}: {e}")
@@ -2211,71 +2615,9 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
 
     @hybrid_property
     def balance_in_ils(self):
-        """الرصيد بالشيكل - حساب دقيق مع تحويل العملات"""
+        """الرصيد بالشيكل - استخدام المعادلة الموحدة"""
         try:
-            # حساب المدفوعات بالشيكل
-            payments = db.session.query(Payment).filter(
-                Payment.customer_id == self.id,
-                Payment.status == PaymentStatus.COMPLETED.value
-            ).all()
-            
-            total_paid_ils = Decimal("0.00")
-            for payment in payments:
-                amount = Decimal(str(payment.total_amount or 0))
-                currency = payment.currency or "ILS"
-                direction = payment.direction
-                
-                # تحويل للشيكل باستخدام الأسعار الحقيقية
-                if currency == "ILS":
-                    converted_amount = amount
-                else:
-                    try:
-                        # استخدام الأسعار اليدوية فقط لتجنب مشاكل قاعدة البيانات
-                        converted_amount = convert_amount(amount, currency, "ILS", payment.payment_date)
-                    except Exception as e:
-                        # تسجيل الخطأ - لا نستخدم المبلغ الأصلي لأنه بعملة مختلفة
-                        try:
-                            from flask import current_app
-                            current_app.logger.error(f"❌ خطأ في تحويل العملة لحساب رصيد العميل #{self.id}: {str(e)}")
-                        except Exception:
-                            pass
-                        # تجاهل هذا المبلغ من الحساب
-                        continue
-                
-                # تطبيق اتجاه الدفع
-                if direction == PaymentDirection.IN.value:
-                    total_paid_ils += converted_amount
-                else:
-                    total_paid_ils -= converted_amount
-            
-            # حساب الفواتير بالشيكل
-            invoices = db.session.query(Invoice).filter(
-                Invoice.customer_id == self.id,
-                Invoice.cancelled_at.is_(None)
-            ).all()
-            
-            total_invoiced_ils = Decimal("0.00")
-            for invoice in invoices:
-                amount = Decimal(str(invoice.total_amount or 0))
-                currency = getattr(invoice, 'currency', 'ILS')
-                
-                if currency == "ILS":
-                    total_invoiced_ils += amount
-                else:
-                    try:
-                        converted_amount = convert_amount(amount, currency, "ILS", invoice.invoice_date)
-                        total_invoiced_ils += converted_amount
-                    except Exception as e:
-                        # تسجيل الخطأ عند فشل التحويل
-                        try:
-                            from flask import current_app
-                            current_app.logger.error(f"❌ خطأ في تحويل العملة للفاتورة #{invoice.id}: {str(e)}")
-                        except Exception:
-                            pass
-                        # تجاهل هذا المبلغ
-                        continue
-            
-            return total_invoiced_ils - total_paid_ils
+            return Decimal(str(self.balance or 0))
         except Exception:
             return Decimal("0.00")
 
@@ -2585,114 +2927,8 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     @hybrid_property
     def balance(self):
         try:
-            from extensions import cache
-            cache_key = f'supplier_balance_{self.id}'
-            cached = cache.get(cache_key)
-            if cached is not None:
-                return cached
-            
-            from sqlalchemy.orm import object_session
-            from decimal import Decimal
-            session = object_session(self)
-            if not session:
-                return 0.0
-            
-            def _to_ils(amt, curr, dt):
-                amt = Decimal(str(amt or 0))
-                if not amt:
-                    return Decimal('0.00')
-                curr = (curr or "ILS").strip().upper()
-                if curr == "ILS":
-                    return amt
-                try:
-                    return convert_amount(amt, curr, "ILS", dt)
-                except Exception:
-                    return Decimal('0.00')
-            
-            ob = _to_ils(self.opening_balance, self.currency, None)
-            
-            exchange_in = session.query(ExchangeTransaction).filter(
-                ExchangeTransaction.supplier_id == self.id,
-                ExchangeTransaction.direction.in_(['IN', 'PURCHASE', 'CONSIGN_IN'])
-            ).all()
-            exchange_total = sum(_to_ils(tx.quantity * (tx.unit_cost or 0), 'ILS', tx.created_at) for tx in exchange_in)
-            
-            sales_total = Decimal('0.00')
-            services_total = Decimal('0.00')
-            preorders_total = Decimal('0.00')
-            
-            if self.customer_id:
-                sales = session.query(Sale).filter(
-                    Sale.customer_id == self.customer_id,
-                    Sale.status == SaleStatus.CONFIRMED
-                ).all()
-                sales_total = sum(_to_ils(s.total_amount, s.currency, s.sale_date) for s in sales)
-                
-                services = session.query(ServiceRequest).filter(
-                    ServiceRequest.customer_id == self.customer_id,
-                    ServiceRequest.status == ServiceStatus.COMPLETED
-                ).all()
-                services_total = sum(_to_ils(srv.total_amount, srv.currency, srv.received_at) for srv in services)
-                
-                preorders = session.query(PreOrder).filter(
-                    PreOrder.customer_id == self.customer_id,
-                    PreOrder.status.in_(['CONFIRMED', 'COMPLETED', 'DELIVERED', 'FULFILLED'])
-                ).all()
-                preorders_total = sum(_to_ils(po.total_amount, po.currency, po.preorder_date) for po in preorders)
-            
-            payments_out = session.query(Payment).filter(
-                Payment.supplier_id == self.id,
-                Payment.direction == PaymentDirection.OUT,
-                Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-            ).all()
-            paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out)
-            
-            payments_in = session.query(Payment).filter(
-                Payment.supplier_id == self.id,
-                Payment.direction == PaymentDirection.IN,
-                Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-            ).all()
-            received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in)
-            
-            returns = session.query(ExchangeTransaction).filter(
-                ExchangeTransaction.supplier_id == self.id,
-                ExchangeTransaction.direction.in_(['OUT', 'RETURN'])
-            ).all()
-            returns_total = sum(_to_ils(tx.quantity * (tx.unit_cost or 0), 'ILS', tx.created_at) for tx in returns)
-            
-            expenses = session.query(Expense).filter(
-                or_(
-                    Expense.supplier_id == self.id,
-                    and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == self.id)
-                )
-            ).options(joinedload(Expense.type)).all()
-            supplier_service_total = Decimal("0.00")
-            other_expenses_total = Decimal("0.00")
-            for exp in expenses:
-                amount_ils = _to_ils(exp.amount, exp.currency, exp.date)
-                code = (getattr(exp.type, "code", "") or "").strip().upper()
-                if code == "SUPPLIER_EXPENSE":
-                    supplier_service_total += amount_ils
-                else:
-                    other_expenses_total += amount_ils
-            
-            final_balance = (
-                ob
-                + exchange_total
-                + supplier_service_total
-                - sales_total
-                - services_total
-                - preorders_total
-                - paid_out
-                + received_in
-                - returns_total
-                - other_expenses_total
-            )
-            
-            result = float(final_balance)
-            cache.set(cache_key, result, timeout=300)
-            return result
-            
+            import utils
+            return utils.get_supplier_balance_unified(self.id)
         except Exception as e:
             from flask import current_app
             try:
@@ -3254,96 +3490,8 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     @hybrid_property
     def balance(self):
         try:
-            from extensions import cache
-            cache_key = f'partner_balance_{self.id}'
-            cached = cache.get(cache_key)
-            if cached is not None:
-                return cached
-            
-            from sqlalchemy.orm import object_session
-            from decimal import Decimal
-            session = object_session(self)
-            if not session:
-                return 0.0
-            
-            def _to_ils(amt, curr, dt):
-                amt = Decimal(str(amt or 0))
-                if not amt:
-                    return Decimal('0.00')
-                curr = (curr or "ILS").strip().upper()
-                if curr == "ILS":
-                    return amt
-                try:
-                    return convert_amount(amt, curr, "ILS", dt)
-                except Exception:
-                    return Decimal('0.00')
-            
-            ob = _to_ils(self.opening_balance, self.currency, None)
-            
-            inventory_share = Decimal('0.00')
-            sales_share = Decimal('0.00')
-            sales_to_partner = Decimal('0.00')
-            services_total = Decimal('0.00')
-            
-            if self.customer_id:
-                sales = session.query(Sale).filter(
-                    Sale.customer_id == self.customer_id,
-                    Sale.status == SaleStatus.CONFIRMED
-                ).all()
-                sales_to_partner = sum(_to_ils(s.total_amount, s.currency, s.sale_date) for s in sales)
-                
-                services = session.query(ServiceRequest).filter(
-                    ServiceRequest.customer_id == self.customer_id,
-                    ServiceRequest.status == ServiceStatus.COMPLETED
-                ).all()
-                services_total = sum(_to_ils(srv.total_amount, srv.currency, srv.received_at) for srv in services)
-            
-            payments_out = session.query(Payment).filter(
-                Payment.partner_id == self.id,
-                Payment.direction == PaymentDirection.OUT,
-                Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-            ).all()
-            paid_out = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_out)
-            
-            payments_in = session.query(Payment).filter(
-                Payment.partner_id == self.id,
-                Payment.direction == PaymentDirection.IN,
-                Payment.status.in_([PaymentStatus.COMPLETED, PaymentStatus.PENDING])
-            ).all()
-            received_in = sum(_to_ils(p.total_amount, p.currency, p.payment_date) for p in payments_in)
-            
-            expenses = session.query(Expense).filter(
-                or_(
-                    Expense.partner_id == self.id,
-                    and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == self.id)
-                )
-            ).options(joinedload(Expense.type)).all()
-            partner_service_total = Decimal("0.00")
-            other_expenses_total = Decimal("0.00")
-            for exp in expenses:
-                amount_ils = _to_ils(exp.amount, exp.currency, exp.date)
-                code = (getattr(exp.type, "code", "") or "").strip().upper()
-                if code == "PARTNER_EXPENSE":
-                    partner_service_total += amount_ils
-                else:
-                    other_expenses_total += amount_ils
-            
-            final_balance = (
-                ob
-                + inventory_share
-                + sales_share
-                + partner_service_total
-                - sales_to_partner
-                - services_total
-                - paid_out
-                + received_in
-                - other_expenses_total
-            )
-            
-            result = float(final_balance)
-            cache.set(cache_key, result, timeout=300)
-            return result
-            
+            import utils
+            return utils.get_partner_balance_unified(self.id)
         except Exception as e:
             from flask import current_app
             try:
@@ -5374,6 +5522,17 @@ def _reserve_release_on_status_change(target, value, oldvalue, initiator):
 
 @event.listens_for(Sale, "after_insert")
 @event.listens_for(Sale, "after_update")
+def _sale_clear_balance_cache(mapper, connection, target: "Sale"):
+    try:
+        from extensions import cache
+        if target.customer_id:
+            cache.delete(f"customer_balance_{target.customer_id}")
+            cache.delete(f"entity_balance_CUSTOMER_{target.customer_id}")
+    except Exception:
+        pass
+
+@event.listens_for(Sale, "after_insert")
+@event.listens_for(Sale, "after_update")
 def _sale_create_tax_entry(mapper, connection, target: "Sale"):
     """إنشاء/تحديث سجل ضريبي للبيع تلقائياً"""
     if target.status != SaleStatus.CONFIRMED.value:
@@ -7033,8 +7192,32 @@ def _payment_entity_id_for(target: "Payment") -> int:
 
 @event.listens_for(Payment, "after_insert")
 @event.listens_for(Payment, "after_update")
+def _payment_clear_balance_cache(mapper, connection, target: "Payment"):
+    try:
+        from extensions import cache
+        if target.customer_id:
+            cache.delete(f"customer_balance_{target.customer_id}")
+            cache.delete(f"entity_balance_CUSTOMER_{target.customer_id}")
+        if target.supplier_id:
+            cache.delete(f"entity_balance_SUPPLIER_{target.supplier_id}")
+        if target.partner_id:
+            cache.delete(f"entity_balance_PARTNER_{target.partner_id}")
+    except Exception:
+        pass
+
+@event.listens_for(Payment, "after_insert")
+@event.listens_for(Payment, "after_update")
 def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
     """إنشاء/تحديث GLBatch للدفعة تلقائياً"""
+    if hasattr(target, '_skip_gl_entry') and target._skip_gl_entry:
+        return
+    
+    if '[SETTLED=true]' in (target.notes or ''):
+        return
+    
+    if '[FROM_MANUAL_CHECK=true]' in (target.notes or ''):
+        return
+    
     # ✅ التعامل مع الحالات المختلفة:
     # PENDING (شيك معلق) → قيد: شيكات تحت التحصيل ↔ AR
     # COMPLETED → قيد: بنك/صندوق ↔ AR (للنقد) أو تحديث الشيك (للشيك)
@@ -10964,10 +11147,42 @@ def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
             except Exception:
                 pass
 
-        entries = [
-            (expense_account, amount_ils, 0.0),
-            (counterparty_account, 0.0, amount_ils),
-        ]
+        # ✅ تحديد نوع المصروف: توريد خدمة للمورد أم مصروف عادي
+        exp_type_code = None
+        try:
+            if getattr(target, "type_id", None):
+                exp_type_row = connection.execute(
+                    select(ExpenseType.code).where(ExpenseType.id == target.type_id)
+                ).scalar_one_or_none()
+                exp_type_code = (exp_type_row or "").strip().upper() if exp_type_row else None
+        except Exception:
+            pass
+        
+        # ✅ للمصروفات من نوع SUPPLIER_EXPENSE أو PARTNER_EXPENSE (توريد خدمة):
+        # القيد: مدين AP (دين المورد/الشريك علينا) / دائن Expense (توريد خدمة = ورد لنا خدمة)
+        # عند الدفع لاحقاً: مدين Cash / دائن AP (تسديد الدين)
+        is_supplier_service = (
+            exp_type_code == "SUPPLIER_EXPENSE" or
+            (getattr(target, "supplier_id", None) and getattr(target, "payee_type", "").upper() == "SUPPLIER")
+        )
+        is_partner_service = (
+            exp_type_code == "PARTNER_EXPENSE" or
+            (getattr(target, "partner_id", None) and getattr(target, "payee_type", "").upper() == "PARTNER")
+        )
+        
+        if is_supplier_service or is_partner_service:
+            # ✅ توريد خدمة = ورد لنا خدمة = زاد ديننا له
+            # القيد: مدين AP / دائن Expense
+            entries = [
+                (counterparty_account, amount_ils, 0.0),  # مدين: AP (دين المورد/الشريك علينا)
+                (expense_account, 0.0, amount_ils),      # دائن: Expense (توريد خدمة)
+            ]
+        else:
+            # ✅ المصروفات العادية: مدين Expense / دائن Cash أو AP
+            entries = [
+                (expense_account, amount_ils, 0.0),
+                (counterparty_account, 0.0, amount_ils),
+            ]
         entity_type, entity_id = _expense_entity_pair(target)
         _gl_upsert_batch_and_entries(
             connection,
@@ -10975,7 +11190,7 @@ def _expense_gl_batch_upsert(mapper, connection, target: "Expense"):
             source_id=target.id,
             purpose="ACCRUAL",
             currency=posting_currency,
-            memo=f"قيد مصروف #{target.id}",
+            memo=f"قيد {'توريد خدمة' if (is_supplier_service or is_partner_service) else 'مصروف'} #{target.id}",
             entries=entries,
             ref=f"EXP-{target.id}",
             entity_type=entity_type,
