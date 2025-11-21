@@ -314,7 +314,7 @@ section.content .container-fluid {
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <div class="text-muted small">🎯 الرصيد الحالي</div>
-              <div class="fs-4 fw-bold {{ balance_ledger > 0 and 'text-success' or balance_ledger < 0 and 'text-danger' or 'text-secondary' }}">
+              <div class="fs-4 fw-bold {{ balance_ledger > 0 and 'text-danger' or balance_ledger < 0 and 'text-success' or 'text-secondary' }}">
                 {{ balance_ledger|format_currency }}
               </div>
               {% if opening_balance_for_period is defined and opening_balance_for_period != 0 %}
@@ -491,7 +491,7 @@ section.content .container-fluid {
               </td>
               <td class="text-end">{{ e.debit|format_currency }}</td>
               <td class="text-end">{{ e.credit|format_currency }}</td>
-              <td class="text-end fw-bold {% if e.balance > 0 %}text-success{% elif e.balance < 0 %}text-danger{% endif %}">
+              <td class="text-end fw-bold {% if e.balance > 0 %}text-danger{% elif e.balance < 0 %}text-success{% endif %}">
                 {{ e.balance|format_currency }}
               </td>
             </tr>

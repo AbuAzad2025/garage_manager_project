@@ -80,10 +80,10 @@ def suppliers_list():
         
         if balance > 0:
             suppliers_with_debt += 1
-            total_credit += balance
+            total_debit += balance
         elif balance < 0:
             suppliers_with_credit += 1
-            total_debit += abs(balance)
+            total_credit += abs(balance)
     
     summary = {
         'total_suppliers': len(suppliers),
@@ -128,7 +128,7 @@ def suppliers_list():
       <td class="supplier-name">{{ s.name }}</td>
       <td class="supplier-phone">{{ s.phone or '—' }}</td>
       <td data-sort-value="{{ s.current_balance or 0 }}">
-        <span class="badge {% if (s.current_balance or 0) < 0 %}bg-danger{% elif (s.current_balance or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+        <span class="badge {% if (s.current_balance or 0) > 0 %}bg-danger{% elif (s.current_balance or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
           {{ '%.2f'|format(s.current_balance or 0) }} ₪
         </span>
       </td>
@@ -202,8 +202,8 @@ def suppliers_list():
     {% if suppliers %}
     <tr class="table-info fw-bold">
       <td colspan="3" class="text-end">الإجمالي:</td>
-      <td class="{% if summary.total_balance > 0 %}text-success{% elif summary.total_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
-        <span class="badge {% if summary.total_balance > 0 %}bg-success{% elif summary.total_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
+      <td class="{% if summary.total_balance > 0 %}text-danger{% elif summary.total_balance < 0 %}text-success{% else %}text-secondary{% endif %}">
+        <span class="badge {% if summary.total_balance > 0 %}bg-danger{% elif summary.total_balance < 0 %}bg-success{% else %}bg-secondary{% endif %} fs-6">
           {{ '%.2f'|format(summary.total_balance) }} ₪
         </span>
       </td>
