@@ -72,10 +72,10 @@
                             <div class="card border-secondary">
                                 <div class="card-body text-center">
                                     <h6 class="text-muted">الافتتاحي</h6>
-                                    <h3 class="{% if settlement.opening_balance > 0 %}text-success{% elif settlement.opening_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                                    <h3 class="{% if settlement.opening_balance > 0 %}text-danger{% elif settlement.opening_balance < 0 %}text-success{% else %}text-secondary{% endif %}">
                                         {{ "%.2f"|format(settlement.opening_balance|abs) }}
                                     </h3>
-                                    <small class="badge {% if settlement.opening_balance > 0 %}bg-success{% elif settlement.opening_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    <small class="badge {% if settlement.opening_balance > 0 %}bg-danger{% elif settlement.opening_balance < 0 %}bg-success{% else %}bg-secondary{% endif %}">
                                         {{ "له" if settlement.opening_balance > 0 else "عليه" if settlement.opening_balance < 0 else "0" }}
                                     </small>
                                 </div>
@@ -106,10 +106,10 @@
                             <div class="card border-primary shadow">
                                 <div class="card-body text-center" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);">
                                     <h6 class="text-primary">🎯 الختامي</h6>
-                                    <h2 class="{% if settlement.closing_balance > 0 %}text-success{% elif settlement.closing_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                                    <h2 class="{% if settlement.closing_balance > 0 %}text-danger{% elif settlement.closing_balance < 0 %}text-success{% else %}text-secondary{% endif %}">
                                         {{ "%.2f"|format(settlement.closing_balance|abs) }}
                                     </h2>
-                                    <span class="badge {% if settlement.closing_balance > 0 %}bg-success{% elif settlement.closing_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    <span class="badge {% if settlement.closing_balance > 0 %}bg-danger{% elif settlement.closing_balance < 0 %}bg-success{% else %}bg-secondary{% endif %}">
                                         {{ "له علينا" if settlement.closing_balance > 0 else "عليه لنا" if settlement.closing_balance < 0 else "متوازن" }}
                                     </span>
                                 </div>

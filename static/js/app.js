@@ -1,6 +1,144 @@
-(function ($) {
+(function ($, window, document) {
   "use strict";
   if (!$) return;
+
+  const rawEventAdd = $.event && $.event.add;
+  const rawEventRemove = $.event && $.event.remove;
+  const registryStore = new WeakMap();
+  let registryCount = 0;
+
+  function normalizeTypes(types) {
+    if (typeof types !== "string") {
+      return [];
+    }
+    return types
+      .split(/\s+/)
+      .map(t => t && t.split(".")[0])
+      .filter(Boolean);
+  }
+
+  function getEntries(element) {
+    return registryStore.get(element) || [];
+  }
+
+  function remember(element, type, selector, handler) {
+    if (!element || !type || !handler) return;
+    const entries = getEntries(element);
+    entries.push({ type, selector: selector || null, handler, guid: handler.guid });
+    registryStore.set(element, entries);
+    registryCount += 1;
+  }
+
+  function forget(element, predicate) {
+    if (!element || !registryStore.has(element)) return;
+    const entries = registryStore.get(element);
+    if (!entries || !entries.length) {
+      registryStore.delete(element);
+      return;
+    }
+    const filtered = entries.filter(entry => !(predicate && predicate(entry)));
+    registryCount -= entries.length - filtered.length;
+    if (filtered.length) {
+      registryStore.set(element, filtered);
+    } else {
+      registryStore.delete(element);
+    }
+  }
+
+  function detachElement(element) {
+    if (!element || !rawEventRemove) return;
+    if (!registryStore.has(element)) return;
+    const entries = registryStore.get(element) || [];
+    entries.forEach(entry => {
+      try {
+        rawEventRemove.call($.event, element, entry.type, entry.handler, entry.selector || undefined);
+      } catch (err) {
+      }
+    });
+    registryStore.delete(element);
+  }
+
+  function detachTree(node) {
+    if (!node) return;
+    if (node.nodeType === 1 || node.nodeType === 9) {
+      detachElement(node);
+      if (node.querySelectorAll) {
+        node.querySelectorAll("*").forEach(child => detachElement(child));
+      }
+    }
+  }
+
+  if (rawEventAdd && rawEventRemove) {
+    $.event.add = function (elem, types, handler, data, selector) {
+      if (!elem || !types || !handler) {
+        return rawEventAdd.call(this, elem, types, handler, data, selector);
+      }
+      handler.guid = handler.guid || $.guid++;
+      const normalizedTypes = normalizeTypes(types);
+      if (normalizedTypes.length) {
+        normalizedTypes.forEach(type => {
+          const duplicates = getEntries(elem).filter(entry =>
+            entry.type === type &&
+            entry.selector === (selector || null) &&
+            entry.guid === handler.guid
+          );
+          if (duplicates.length) {
+            rawEventRemove.call(this, elem, type, handler, selector);
+            forget(elem, entry =>
+              entry.type === type &&
+              entry.selector === (selector || null) &&
+              entry.guid === handler.guid
+            );
+          }
+        });
+      }
+      const result = rawEventAdd.call(this, elem, types, handler, data, selector);
+      if (normalizedTypes.length) {
+        normalizedTypes.forEach(type => remember(elem, type, selector, handler));
+      }
+      return result;
+    };
+
+    $.event.remove = function (elem, types, handler, selector, mappedTypes) {
+      const result = rawEventRemove.call(this, elem, types, handler, selector, mappedTypes);
+      if (!elem) return result;
+      if (!types) {
+        forget(elem);
+        return result;
+      }
+      const normalizedTypes = normalizeTypes(types);
+      if (normalizedTypes.length) {
+        normalizedTypes.forEach(type => {
+          forget(elem, entry =>
+            entry.type === type &&
+            (selector ? entry.selector === selector : true) &&
+            (handler ? entry.guid === (handler.guid || handler.__guid) : true)
+          );
+        });
+      } else {
+        forget(elem);
+      }
+      return result;
+    };
+  }
+
+  if (!window.EventRegistry) {
+    window.EventRegistry = {
+      detach(element) {
+        detachTree(element);
+      },
+      activeCount() {
+        return registryCount;
+      }
+    };
+  }
+
+  const registryObserver = new MutationObserver(mutations => {
+    mutations.forEach(mutation => {
+      mutation.removedNodes.forEach(node => detachTree(node));
+    });
+  });
+  registryObserver.observe(document.documentElement || document.body, { childList: true, subtree: true });
 
   const dataTablesAssets = {
     css: [
@@ -401,4 +539,4 @@
     // Disabled: notifications can cause performance issues
     return;
   }
-})(jQuery);
+})(jQuery, window, document);

@@ -1,23 +1,19 @@
-{% set ns = namespace(parts_total=0.0, tasks_total=0.0, net_sub=0.0) %}
-
-{% for p in service.parts or [] %}
-  {% set line = (p.line_total or 0)|float %}
-  {% set ns.parts_total = ns.parts_total + line %}
-  {% set ns.net_sub = ns.net_sub + line %}
-{% endfor %}
-
-{% for t in service.tasks or [] %}
-  {% set line = (t.line_total or 0)|float %}
-  {% set ns.tasks_total = ns.tasks_total + line %}
-  {% set ns.net_sub = ns.net_sub + line %}
-{% endfor %}
-
-{% set subtotal = ns.parts_total + ns.tasks_total %}
+{% set parts_total = service.summary_parts_total %}
+{% set tasks_total = service.summary_tasks_total %}
+{% set parts_discount = service.summary_parts_discount %}
+{% set tasks_discount = service.summary_tasks_discount %}
+{% set parts_base = service.summary_parts_base %}
+{% set tasks_base = service.summary_tasks_base %}
+{% set parts_tax = service.summary_parts_tax %}
+{% set tasks_tax = service.summary_tasks_tax %}
+{% set subtotal = service.summary_subtotal %}
+{% set base_total = service.summary_base_total %}
+{% set tax_total = service.summary_tax_total %}
 {% set discount_total = (service.discount_total or 0)|float %}
-{% set subtotal_after_discount = (subtotal - discount_total) if (subtotal - discount_total) > 0 else 0 %}
-{% set tax_rate = (service.tax_rate or 0)|float %}
-{% set tax_amount = subtotal_after_discount * (tax_rate/100.0) %}
-{% set total_amount = subtotal_after_discount + tax_amount %}
+{% set subtotal_after_discount = service.summary_subtotal_after_discount %}
+{% set base_after_discount = service.summary_base_after_discount %}
+{% set tax_rate_display = service.summary_tax_rate_display %}
+{% set total_amount = service.total %}
 
 <div class="card border-0 shadow-lg mb-4">
   <div class="card-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
@@ -29,21 +25,37 @@
   <div class="card-body">
     <div class="row g-3">
       <div class="col-md-6">
-        <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
-          <div>
-            <i class="fas fa-cogs text-primary"></i>
-            <strong>قطع الغيار</strong>
+        <div class="p-3 bg-light rounded">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <i class="fas fa-cogs text-primary"></i>
+              <strong>قطع الغيار</strong>
+            </div>
+            <span class="fw-bold text-primary">{{ '%.2f'|format(parts_total) }} ₪</span>
           </div>
-          <span class="fw-bold text-primary">{{ '%.2f'|format(ns.parts_total) }} ₪</span>
+          {% if parts_discount > 0 %}
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted"><i class="fas fa-tag"></i> خصم قطع الغيار:</small>
+            <small class="text-danger fw-bold">-{{ '%.2f'|format(parts_discount) }} ₪</small>
+          </div>
+          {% endif %}
         </div>
       </div>
       <div class="col-md-6">
-        <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
-          <div>
-            <i class="fas fa-tasks text-warning"></i>
-            <strong>المهام</strong>
+        <div class="p-3 bg-light rounded">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <i class="fas fa-tasks text-warning"></i>
+              <strong>المهام</strong>
+            </div>
+            <span class="fw-bold text-warning">{{ '%.2f'|format(tasks_total) }} ₪</span>
           </div>
-          <span class="fw-bold text-warning">{{ '%.2f'|format(ns.tasks_total) }} ₪</span>
+          {% if tasks_discount > 0 %}
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted"><i class="fas fa-tag"></i> خصم المهام:</small>
+            <small class="text-danger fw-bold">-{{ '%.2f'|format(tasks_discount) }} ₪</small>
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -71,18 +83,26 @@
           <span class="fw-bold text-primary">{{ '%.2f'|format(subtotal_after_discount) }} ₪</span>
         </div>
       </div>
+      {% if tax_total > 0 %}
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center p-2">
-          <span><i class="fas fa-receipt text-success"></i> نسبة الضريبة:</span>
-          <span class="fw-bold">{{ tax_rate|round(0, 'floor') }}%</span>
+          <span><i class="fas fa-receipt text-success"></i> الصافي قبل الضريبة:</span>
+          <span class="fw-bold">{{ '%.2f'|format(base_after_discount) }} ₪</span>
         </div>
       </div>
       <div class="col-12">
         <div class="d-flex justify-content-between align-items-center p-2">
-          <span><i class="fas fa-calculator text-warning"></i> قيمة الضريبة:</span>
-          <span class="fw-bold">{{ '%.2f'|format(tax_amount) }} ₪</span>
+          <span><i class="fas fa-receipt text-success"></i> نسبة الضريبة الإجمالية:</span>
+          <span class="fw-bold">{{ '%.1f'|format(tax_rate_display) }}%</span>
         </div>
       </div>
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center p-2">
+          <span><i class="fas fa-calculator text-warning"></i> قيمة الضريبة الإجمالية:</span>
+          <span class="fw-bold">{{ '%.2f'|format(tax_total) }} ₪</span>
+        </div>
+      </div>
+      {% endif %}
     </div>
     
     <hr class="my-3">
@@ -100,7 +120,7 @@
         <i class="fas fa-coins text-primary"></i>
         <strong>المدفوع</strong>
       </div>
-      <span class="fw-bold text-primary">{{ '%.2f'|format(total_paid_amount|default(0.0)) }} ₪</span>
+      <span class="fw-bold text-primary">{{ '%.2f'|format(service.total_paid) }} ₪</span>
     </div>
 
     <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded mt-2">
@@ -108,7 +128,7 @@
         <i class="fas fa-balance-scale text-danger"></i>
         <strong>المتبقي</strong>
       </div>
-      <span class="fw-bold text-danger">{{ '%.2f'|format(due_amount|default(0.0)) }} ₪</span>
+      <span class="fw-bold text-danger">{{ '%.2f'|format(service.balance_due) }} ₪</span>
     </div>
   </div>
 </div>

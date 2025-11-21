@@ -311,114 +311,19 @@ def format_currency_in_ils(value: Any) -> str:
         return "0.00 شيكل"
 
 
-def get_supplier_balance_unified(supplier_id: int) -> float:
-    """
-    دالة موحدة لحساب رصيد المورد - تستخدم نفس المعادلة في كل مكان
-    """
-    try:
-        from extensions import cache
-        from datetime import datetime
-        from flask import current_app
-        
-        cache_key = f'supplier_balance_unified_{supplier_id}'
-        cached = cache.get(cache_key)
-        if cached is not None:
-            return float(cached)
-        
-        try:
-            from routes.supplier_settlements import _calculate_smart_supplier_balance
-            date_from = datetime(2024, 1, 1)
-            date_to = datetime.utcnow()
-            
-            balance_data = _calculate_smart_supplier_balance(supplier_id, date_from, date_to)
-            
-            if balance_data.get("success"):
-                result = float(balance_data.get("balance", {}).get("amount", 0) or 0)
-                try:
-                    current_app.logger.info(f"✅ حساب رصيد المورد #{supplier_id}: {result} (من {balance_data.get('balance', {}).get('formula', 'N/A')})")
-                except:
-                    pass
-            else:
-                error_msg = balance_data.get("error", "خطأ غير معروف")
-                result = 0.0
-                try:
-                    current_app.logger.error(f"❌ فشل حساب رصيد المورد #{supplier_id}: {error_msg}")
-                except:
-                    pass
-        except ImportError as e:
-            result = 0.0
-            try:
-                current_app.logger.error(f"❌ خطأ Import في حساب رصيد المورد الموحد #{supplier_id}: {e}")
-            except:
-                pass
-        except Exception as e:
-            result = 0.0
-            try:
-                current_app.logger.error(f"❌ خطأ في حساب رصيد المورد الموحد #{supplier_id}: {e}")
-                import traceback
-                current_app.logger.error(traceback.format_exc())
-            except:
-                pass
-        
-        try:
-            cache.set(cache_key, result, timeout=300)
-        except:
-            pass
-        
-        return result
-    except Exception as e:
-        try:
-            from flask import current_app
-            current_app.logger.error(f"❌ خطأ عام في get_supplier_balance_unified #{supplier_id}: {e}")
-        except:
-            pass
-        return 0.0
-
 def get_partner_balance_unified(partner_id: int) -> float:
     """
-    دالة موحدة لحساب رصيد الشريك - تستخدم نفس المعادلة في كل مكان
+    دالة موحدة لحساب رصيد الشريك - تستخدم current_balance من قاعدة البيانات
     """
     try:
-        from extensions import cache
-        from datetime import datetime
-        from flask import current_app
+        from models import Partner
+        from extensions import db
         
-        cache_key = f'partner_balance_unified_{partner_id}'
+        partner = db.session.get(Partner, partner_id)
+        if not partner:
+            return 0.0
         
-        try:
-            from routes.partner_settlements import _calculate_smart_partner_balance
-            date_from = datetime(2024, 1, 1)
-            date_to = datetime.utcnow()
-            
-            balance_data = _calculate_smart_partner_balance(partner_id, date_from, date_to)
-            
-            if balance_data.get("success"):
-                result = float(balance_data.get("balance", {}).get("amount", 0) or 0)
-            else:
-                result = 0.0
-                try:
-                    current_app.logger.warning(f"⚠️ فشل حساب رصيد الشريك الموحد #{partner_id}: {balance_data.get('error', 'unknown')}")
-                except:
-                    pass
-        except ImportError as e:
-            try:
-                current_app.logger.warning(f"⚠️ خطأ في استيراد _calculate_smart_partner_balance: {e}")
-            except:
-                pass
-            result = 0.0
-        except Exception as e:
-            try:
-                current_app.logger.warning(f"⚠️ خطأ في حساب رصيد الشريك الموحد #{partner_id}: {e}")
-            except:
-                pass
-            result = 0.0
-        
-        try:
-            cache.set(cache_key, result, timeout=60)
-        except:
-            pass
-        
-        return result
+        return float(partner.current_balance or 0)
     except Exception as e:
         try:
             from flask import current_app
@@ -442,7 +347,9 @@ def get_entity_balance_in_ils(entity_type: str, entity_id: int) -> Decimal:
             if obj:
                 result = Decimal(str(getattr(obj, "balance_in_ils", 0) or 0))
         elif et == "SUPPLIER":
-            result = Decimal(str(get_supplier_balance_unified(entity_id)))
+            obj = db.session.get(Supplier, entity_id)
+            if obj:
+                result = Decimal(str(getattr(obj, "balance_in_ils", 0) or 0))
         elif et == "PARTNER":
             result = Decimal(str(get_partner_balance_unified(entity_id)))
         
@@ -458,32 +365,31 @@ def get_entity_balance_in_ils(entity_type: str, entity_id: int) -> Decimal:
 def validate_currency_consistency(entity_type: str, entity_id: int) -> dict:
     """التحقق من اتساق العملات"""
     try:
-        # حساب الرصيد بالطريقة الجديدة
-        new_balance = get_entity_balance_in_ils(entity_type, entity_id)
+        from models import Customer, Supplier, Partner
+        balance = get_entity_balance_in_ils(entity_type, entity_id)
         
-        # حساب الرصيد بالطريقة القديمة
-        old_balance = Decimal("0.00")
-        if entity_type.upper() == "CUSTOMER":
+        et = (entity_type or "").upper()
+        stored_balance = Decimal("0.00")
+        if et == "CUSTOMER":
             customer = db.session.get(Customer, entity_id)
             if customer:
-                old_balance = Decimal(str(customer.balance or 0))
-        elif entity_type.upper() == "SUPPLIER":
+                stored_balance = Decimal(str(customer.balance or 0))
+        elif et == "SUPPLIER":
             supplier = db.session.get(Supplier, entity_id)
             if supplier:
-                old_balance = Decimal(str(supplier.balance or 0))
-        elif entity_type.upper() == "PARTNER":
+                stored_balance = Decimal(str(supplier.balance or 0))
+        elif et == "PARTNER":
             partner = db.session.get(Partner, entity_id)
             if partner:
-                old_balance = Decimal(str(partner.balance or 0))
+                stored_balance = Decimal(str(partner.balance or 0))
         
-        # مقارنة النتائج
-        difference = abs(new_balance - old_balance)
-        tolerance = Decimal("0.01")  # فرق أقل من قرش
+        difference = abs(balance - stored_balance)
+        tolerance = Decimal("0.01")
         
         return {
             'is_consistent': difference <= tolerance,
-            'new_balance': new_balance,
-            'old_balance': old_balance,
+            'calculated_balance': balance,
+            'stored_balance': stored_balance,
             'difference': difference,
             'tolerance': tolerance,
             'validation_date': datetime.now(timezone.utc)
@@ -888,10 +794,12 @@ def get_cached_inventory_status():
         StockLevel.quantity <= Product.min_stock_level
     ).limit(10).all()
     
-    # إجمالي قيمة المخزون
+    # إجمالي قيمة المخزون (بسعر التكلفة)
     total_inventory_value = db.session.query(
-        func.sum(StockLevel.quantity * Product.cost_price)
-    ).join(Product).scalar() or 0
+        func.sum(StockLevel.quantity * Product.purchase_price)
+    ).join(Product).filter(
+        StockLevel.quantity > 0
+    ).scalar() or 0
     
     return {
         'low_stock_count': len(low_stock_products),
@@ -1407,36 +1315,29 @@ def prepare_payment_form_choices(form, *, compat_post: bool = False, arabic_labe
         form.entity_type.choices = _enum_choices(PaymentEntityType, arabic_labels)
 
 def update_entity_balance(entity: str, eid: int) -> float:
-    from models import Payment, PaymentSplit, PaymentStatus
-
     entity = entity.upper()
-    col = getattr(Payment, f"{entity.lower()}_id")
-    total = (
-        db.session.query(
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Payment.direction.in_(("INCOMING", "IN")), PaymentSplit.amount),
-                        else_=-PaymentSplit.amount,
-                    )
-                ),
-                0,
-            )
-        )
-        .join(Payment, Payment.id == PaymentSplit.payment_id)
-        .filter(
-            Payment.entity_type == entity,
-            col == eid,
-            Payment.status == PaymentStatus.COMPLETED.value,
-        )
-        .scalar()
-        or 0
-    )
     try:
-        current_app.logger.debug("update_entity_balance(%s, %s) -> %.2f", entity, eid, float(total))
+        if entity == "SUPPLIER":
+            from utils.supplier_balance_updater import update_supplier_balance_components
+            from models import Supplier
+            update_supplier_balance_components(eid)
+            supplier = db.session.get(Supplier, eid)
+            return float(supplier.current_balance or 0) if supplier else 0.0
+        elif entity == "CUSTOMER":
+            from utils.customer_balance_updater import update_customer_balance_components
+            from models import Customer
+            update_customer_balance_components(eid)
+            customer = db.session.get(Customer, eid)
+            return float(customer.current_balance or 0) if customer else 0.0
+        elif entity == "PARTNER":
+            from utils.partner_balance_updater import update_partner_balance_components
+            from models import Partner
+            update_partner_balance_components(eid)
+            partner = db.session.get(Partner, eid)
+            return float(partner.current_balance or 0) if partner else 0.0
+        return 0.0
     except Exception:
-        pass
-    return float(_q2(total))
+        return 0.0
 
 
 def customer_required(f):

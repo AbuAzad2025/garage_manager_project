@@ -172,8 +172,17 @@ def start_scheduler():
 
 def stop_scheduler():
     """إيقاف الجدولة"""
-    scheduler.shutdown()
-    logger.info("🛑 AI Scheduler stopped")
+    global _scheduler_started
+    if not _scheduler_started:
+        return
+    try:
+        if scheduler.running:
+            scheduler.shutdown(wait=False)
+        _scheduler_started = False
+        logger.info("🛑 AI Scheduler stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping scheduler: {e}")
+        _scheduler_started = False
 
 
 def run_manual_scan():

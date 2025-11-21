@@ -25,8 +25,12 @@
 
   function normalizeArabicDigits(str) {
     if (!str) return "";
+    var arabicDigits = "٠١٢٣٤٥٦٧٨٩";
     return String(str)
-      .replace(/[٠-٩]/g, function(d){ return "٠١٢٣٤٥٦٧٨٩".indexOf(d); })
+      .replace(/[٠-٩]/g, function(d){ 
+        var idx = arabicDigits.indexOf(d);
+        return idx >= 0 ? idx.toString() : d;
+      })
       .replace(/[٬،\s]/g, "")
       .replace("٫", ".")
       .replace(",", ".");
@@ -322,7 +326,6 @@ var partnersRequestSeq = 0;
   function openSettlementModal(payload) {
     var modalEl = document.getElementById("settlementModal");
     if (!modalEl) return;
-    // استخدام jQuery للـ modal
 
     var dom = {
       name: document.getElementById("stlName"),

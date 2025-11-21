@@ -60,7 +60,6 @@ def get_unpriced_supplier_products():
             continue
         seen_products.add(key)
         
-        # التحقق من وجود مخزون
         has_stock = db.session.query(StockLevel).filter(
             StockLevel.product_id == tx.product_id,
             StockLevel.quantity > 0
@@ -110,6 +109,11 @@ def settlements_list():
     settlements = db.session.query(SupplierSettlement).options(
         joinedload(SupplierSettlement.supplier)
     ).order_by(desc(SupplierSettlement.created_at)).limit(1000).all()
+    
+    for settlement in settlements:
+        db.session.refresh(settlement)
+        if settlement.supplier:
+            db.session.refresh(settlement.supplier)
     
     return render_template(
         "supplier_settlements/list.html",
@@ -180,14 +184,12 @@ def _overlap_exists(supplier_id: int, dfrom: datetime, dto: datetime) -> bool:
 
 @supplier_settlements_bp.route("/<int:supplier_id>/settlements/preview", methods=["GET"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def preview(supplier_id):
     from flask import redirect
     return redirect(url_for('supplier_settlements_bp.supplier_settlement', supplier_id=supplier_id))
 
 @supplier_settlements_bp.route("/<int:supplier_id>/settlements/create", methods=["POST"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def create(supplier_id):
     supplier = _get_supplier_or_404(supplier_id)
     dfrom, dto, err = _extract_range_from_request()
@@ -234,11 +236,13 @@ def create(supplier_id):
 
 @supplier_settlements_bp.route("/settlements/<int:settlement_id>/confirm", methods=["POST"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def confirm(settlement_id):
     ss = db.session.get(SupplierSettlement, settlement_id)
     if not ss:
         abort(404)
+    db.session.refresh(ss)
+    if ss.supplier:
+        db.session.refresh(ss.supplier)
     if ss.status != SupplierSettlementStatus.DRAFT.value:
         return jsonify({"success": False, "error": "Only DRAFT can be confirmed"}), 400
     recalc = build_supplier_settlement_draft(ss.supplier_id, ss.from_date, ss.to_date, currency=ss.currency)
@@ -253,13 +257,14 @@ def confirm(settlement_id):
             db.session.add(AuditLog(model_name="SupplierSettlement", record_id=ss.id, action="CONFIRM", old_data=None, new_data=json.dumps({
                 "code": ss.code, "from": ss.from_date.isoformat(), "to": ss.to_date.isoformat(), "total_due": str(orig)
             })))
+        from utils.supplier_balance_updater import update_supplier_balance_components
+        update_supplier_balance_components(ss.supplier_id)
     except SQLAlchemyError as e:
         return jsonify({"success": False, "error": str(e)}), 400
     return jsonify({"success": True, "id": ss.id, "code": ss.code})
 
 @supplier_settlements_bp.route("/settlements/<int:settlement_id>/void", methods=["POST"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def void(settlement_id):
     ss = db.session.get(SupplierSettlement, settlement_id)
     if not ss:
@@ -282,15 +287,22 @@ def show(settlement_id):
     if not settlement:
         abort(404)
     
+    db.session.refresh(settlement)
     supplier = settlement.supplier
-    balance_data = None
+    if supplier:
+        db.session.refresh(supplier)
+    
+    balance_data = _calculate_smart_supplier_balance(
+        supplier.id if supplier else 0,
+        settlement.from_date,
+        settlement.to_date
+    ) if supplier else None
     
     return render_template("vendors/suppliers/settlement_preview.html", ss=settlement, supplier=supplier, balance_data=balance_data, date_from=settlement.from_date, date_to=settlement.to_date)
 
 
 @supplier_settlements_bp.route("/exchange-transaction/<int:tx_id>/update-price", methods=["POST"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def update_exchange_transaction_price(tx_id):
     """تحديث سعر قطعة في مستودع التبادل - API"""
     from models import ExchangeTransaction
@@ -333,16 +345,13 @@ def update_exchange_transaction_price(tx_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ===== نظام التسوية الذكي للموردين =====
-
 @supplier_settlements_bp.route("/<int:supplier_id>/settlement", methods=["GET"], endpoint="supplier_settlement")
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def supplier_settlement(supplier_id):
     """التسوية الذكية للمورد"""
     supplier = _get_supplier_or_404(supplier_id)
+    db.session.refresh(supplier)
     
-    # الحصول على الفترة الزمنية
     date_from = request.args.get('date_from')
     date_to = request.args.get('date_to')
     
@@ -356,13 +365,12 @@ def supplier_settlement(supplier_id):
     else:
         date_to = datetime.utcnow()
     
-    # حساب الرصيد الذكي
     balance_data = _calculate_smart_supplier_balance(supplier_id, date_from, date_to)
     
     # إنشاء object بسيط للتوافق مع القالب
     from types import SimpleNamespace
     ss = SimpleNamespace(
-        id=None,  # لا يوجد id لأنها تسوية ذكية (غير محفوظة)
+        id=None,
         supplier=supplier,
         from_date=date_from,
         to_date=date_to,
@@ -744,76 +752,70 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         )
         from sqlalchemy import func, desc, or_
         
-        supplier = db.session.get(Supplier, supplier_id)
+        if supplier_id is None or (hasattr(supplier_id, '__clause_element__')):
+            return {"success": False, "error": "معرّف المورد غير صحيح"}
+        
+        supplier_id_int = int(supplier_id) if supplier_id else None
+        if supplier_id_int is None:
+            return {"success": False, "error": "معرّف المورد غير صحيح"}
+        
+        supplier = db.session.get(Supplier, supplier_id_int)
         if not supplier:
             return {"success": False, "error": "المورد غير موجود"}
-        
-        # ═══════════════════════════════════════════════════════════
-        # 🔵 الرصيد الافتتاحي (الرصيد السابق قبل الفترة)
-        # ═══════════════════════════════════════════════════════════
         
         opening_balance = Decimal(str(getattr(supplier, 'opening_balance', 0) or 0))
         supplier_currency = getattr(supplier, 'currency', 'ILS') or 'ILS'
         
         if supplier_currency != 'ILS' and opening_balance != 0:
             try:
-                opening_balance = convert_amount(opening_balance, supplier_currency, 'ILS', date_from)
+                opening_balance = _convert_to_ils(opening_balance, supplier_currency, date_from)
             except Exception:
                 pass
         
-        # ═══════════════════════════════════════════════════════════
-        # 🟢 حقوق المورد (ما له علينا - قطع أخذناها منه)
-        # ═══════════════════════════════════════════════════════════
-        
-        # 1. القطع من مستودع التبادل (IN)
         exchange_items = _get_supplier_exchange_items(supplier_id, date_from, date_to)
         
-        # حقوق المورد
-        supplier_rights = Decimal(str(exchange_items.get("total_value_ils", 0)))
-        
-        # ═══════════════════════════════════════════════════════════
-        # 🔴 التزامات المورد (ما عليه لنا)
-        # ═══════════════════════════════════════════════════════════
-        
-        # 2. مبيعات له (كعميل)
         sales_to_supplier = _get_sales_to_supplier(supplier_id, date_from, date_to)
-        
-        # 3. صيانة له (كعميل)
         services_to_supplier = _get_services_to_supplier(supplier_id, date_from, date_to)
-        
-        # 4. الحجوزات المسبقة (إذا كان عميلاً)
         preorders_to_supplier = _get_supplier_preorders(supplier_id, date_from, date_to)
-        
-        # 7. مرتجعات له (OUT في Exchange)
         returns_to_supplier = _get_returns_to_supplier(supplier_id, date_from, date_to)
         
-        supplier_obligations = Decimal(str(sales_to_supplier.get("total_ils", 0))) + \
-                               Decimal(str(services_to_supplier.get("total_ils", 0))) + \
-                               Decimal(str(preorders_to_supplier.get("total_ils", 0) if isinstance(preorders_to_supplier, dict) else 0))
-        
-        from models import ExpenseType
-        expenses_to_supplier = Expense.query.join(ExpenseType).filter(
+        from models import ExpenseType, SaleReturn, SaleReturnLine
+        expenses_service = Expense.query.join(ExpenseType).filter(
             or_(
                 Expense.supplier_id == supplier_id,
                 and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == supplier_id)
             ),
             Expense.date >= date_from,
             Expense.date <= date_to,
-            func.upper(ExpenseType.code) == "PARTNER_EXPENSE"
+            or_(
+                func.upper(ExpenseType.code) == "PARTNER_EXPENSE",
+                func.upper(ExpenseType.code) == "SUPPLIER_EXPENSE"
+            )
         ).all()
         
-        expenses_total = Decimal('0.00')
+        expenses_normal = Expense.query.join(ExpenseType).filter(
+            or_(
+                Expense.supplier_id == supplier_id,
+                and_(Expense.payee_type == "SUPPLIER", Expense.payee_entity_id == supplier_id)
+            ),
+            Expense.date >= date_from,
+            Expense.date <= date_to,
+            ~func.upper(ExpenseType.code).in_(["PARTNER_EXPENSE", "SUPPLIER_EXPENSE"])
+        ).all()
+        
+        expenses_service_total = Decimal('0.00')
+        expenses_normal_total = Decimal('0.00')
         expenses_items = []
-        for exp in expenses_to_supplier:
+        
+        for exp in expenses_service:
             amt = Decimal(str(exp.amount or 0))
             amt_ils = amt
             if exp.currency == "ILS":
-                expenses_total += amt
+                expenses_service_total += amt
             else:
                 try:
-                    from models import convert_amount
-                    amt_ils = convert_amount(amt, exp.currency, "ILS", exp.date)
-                    expenses_total += amt_ils
+                    amt_ils = _convert_to_ils(amt, exp.currency, exp.date)
+                    expenses_service_total += amt_ils
                 except Exception:
                     pass
             
@@ -829,43 +831,71 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
                 "reference": f"مصروف #{exp.id}"
             })
         
-        # ═══════════════════════════════════════════════════════════
-        # 💰 الدفعات والمرتجعات
-        # ═══════════════════════════════════════════════════════════
+        for exp in expenses_normal:
+            amt = Decimal(str(exp.amount or 0))
+            amt_ils = amt
+            if exp.currency == "ILS":
+                expenses_normal_total += amt
+            else:
+                try:
+                    amt_ils = _convert_to_ils(amt, exp.currency, exp.date)
+                    expenses_normal_total += amt_ils
+                except Exception:
+                    pass
         
-        # 4. دفعنا له (OUT)
+        sale_returns_from_supplier = Decimal('0.00')
+        sale_returns_from_customer = Decimal('0.00')
+        
+        if supplier.customer_id:
+            sale_returns = SaleReturn.query.filter(
+                SaleReturn.customer_id == supplier.customer_id,
+                SaleReturn.status == 'CONFIRMED',
+                SaleReturn.created_at >= date_from,
+                SaleReturn.created_at <= date_to
+            ).all()
+            
+            for sr in sale_returns:
+                amt = Decimal(str(sr.total_amount or 0))
+                if sr.currency != "ILS":
+                    try:
+                        amt = _convert_to_ils(amt, sr.currency, sr.created_at)
+                    except Exception:
+                        pass
+                
+                has_supplier_liability = SaleReturnLine.query.filter(
+                    SaleReturnLine.sale_return_id == sr.id,
+                    SaleReturnLine.liability_party == 'SUPPLIER'
+                ).first()
+                
+                if has_supplier_liability:
+                    sale_returns_from_customer += amt
+                else:
+                    sale_returns_from_supplier += amt
+        
+        supplier_rights = Decimal(str(exchange_items.get("total_value_ils", 0))) + expenses_service_total + sale_returns_from_supplier
+        
+        supplier_obligations = Decimal(str(sales_to_supplier.get("total_ils", 0))) + \
+                               Decimal(str(services_to_supplier.get("total_ils", 0))) + \
+                               Decimal(str(preorders_to_supplier.get("total_ils", 0) if isinstance(preorders_to_supplier, dict) else 0)) + \
+                               expenses_normal_total + sale_returns_from_customer
+        
         payments_to_supplier = _get_payments_to_supplier(supplier_id, supplier, date_from, date_to)
-        
-        # 5. دفع لنا (IN)
         payments_from_supplier = _get_payments_from_supplier(supplier_id, supplier, date_from, date_to)
-        
-        # 6. أرصدة الحجوزات المسبقة (العربون) - تُحسب كدفعة واردة
         preorders_prepaid = _get_supplier_preorders_prepaid(supplier_id, supplier, date_from, date_to)
-        
-        # ✅ 7. الشيكات المرتدة - تُحسب بشكل منفصل
         returned_checks_in = _get_returned_checks_from_supplier(supplier_id, supplier, date_from, date_to)
         returned_checks_out = _get_returned_checks_to_supplier(supplier_id, supplier, date_from, date_to)
         
-        # ═══════════════════════════════════════════════════════════
-        # الحساب المحاسبي الصحيح
-        # ═══════════════════════════════════════════════════════════
-        
-        # صافي قبل الدفعات
         net_before_payments = supplier_rights - supplier_obligations
         
-        # الدفعات والمرتجعات
         paid_to_supplier = Decimal(str(payments_to_supplier.get("total_ils", 0)))
-        received_from_supplier = Decimal(str(payments_from_supplier.get("total_ils", 0))) + \
-                                 Decimal(str(preorders_prepaid.get("total_ils", 0)))
+        received_from_supplier = Decimal(str(payments_from_supplier.get("total_ils", 0)))
+        preorders_prepaid_total = Decimal(str(preorders_prepaid.get("total_ils", 0)))
         returns_value = Decimal(str(returns_to_supplier.get("total_value_ils", 0)))
         
-        # الشيكات المرتدة
         returned_checks_in_total = Decimal(str(returned_checks_in.get("total_ils", 0)))
         returned_checks_out_total = Decimal(str(returned_checks_out.get("total_ils", 0)))
         
-        # ✅ المعادلة النهائية: balance = ob + payments_in - obligations - payments_out - returned_checks_in + returned_checks_out
-        # ✅ توريد الخدمة = ورد لنا خدمة = زاد ديننا له = نضيف للرصيد
-        balance = opening_balance + net_before_payments - paid_to_supplier + received_from_supplier - returns_value + expenses_total - returned_checks_in_total + returned_checks_out_total
+        balance = opening_balance + net_before_payments - paid_to_supplier + received_from_supplier - preorders_prepaid_total - returns_value + returned_checks_in_total + returned_checks_out_total
         
         # القطع غير المسعرة
         unpriced_items = exchange_items.get("unpriced_items", [])
@@ -890,19 +920,24 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
                 "currency": "ILS",
                 "direction": "له علينا" if opening_balance > 0 else "عليه لنا" if opening_balance < 0 else "متوازن"
             },
-            # 🟢 حقوق المورد
             "rights": {
                 "exchange_items": exchange_items,
+                "services": {
+                    "items": expenses_items,
+                    "total_ils": float(expenses_service_total),
+                    "count": len(expenses_service)
+                },
+                "sale_returns_from_supplier": float(sale_returns_from_supplier),
                 "total": float(supplier_rights)
             },
-            # 🔴 التزامات المورد
             "obligations": {
                 "sales_to_supplier": sales_to_supplier,
                 "services_to_supplier": services_to_supplier,
                 "preorders_to_supplier": preorders_to_supplier,
+                "expenses_normal": float(expenses_normal_total),
+                "sale_returns_from_customer": float(sale_returns_from_customer),
                 "total": float(supplier_obligations)
             },
-            # 💰 الدفعات والمرتجعات
             "payments": {
                 "paid_to_supplier": payments_to_supplier,
                 "received_from_supplier": payments_from_supplier,
@@ -917,13 +952,13 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
                 "total_returned_checks_out": float(returned_checks_out_total),
                 "total_settled": float(paid_to_supplier + received_from_supplier + returns_value)
             },
-            # 💸 المصاريف (توريد خدمة = ورد لنا خدمة = زاد ديننا له)
             "expenses": {
                 "items": expenses_items,
-                "total_ils": float(expenses_total),
-                "count": len(expenses_to_supplier)
+                "service_total_ils": float(expenses_service_total),
+                "normal_total_ils": float(expenses_normal_total),
+                "total_ils": float(expenses_service_total + expenses_normal_total),
+                "count": len(expenses_service) + len(expenses_normal)
             },
-            # 🎯 الرصيد
             "balance": {
                 "gross": float(net_before_payments),
                 "net": float(balance),
@@ -932,9 +967,8 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
                 "payment_direction": "OUT" if balance > 0 else "IN" if balance < 0 else None,
                 "action": "ندفع له" if balance > 0 else "يدفع لنا" if balance < 0 else "لا شيء",
                 "currency": "ILS",
-                "formula": f"({float(opening_balance):.2f} + {float(supplier_rights):.2f} - {float(supplier_obligations):.2f} - {float(paid_to_supplier):.2f} + {float(received_from_supplier):.2f} - {float(returns_value):.2f} + {float(expenses_total):.2f} - {float(returned_checks_in_total):.2f} + {float(returned_checks_out_total):.2f}) = {float(balance):.2f}"
+                "formula": f"({float(opening_balance):.2f} + {float(supplier_rights):.2f} - {float(supplier_obligations):.2f} - {float(paid_to_supplier):.2f} + {float(received_from_supplier):.2f} - {float(preorders_prepaid_total):.2f} - {float(returns_value):.2f} + {float(returned_checks_in_total):.2f} + {float(returned_checks_out_total):.2f}) = {float(balance):.2f}"
             },
-            # معلومات إضافية
             "unpriced_items": unpriced_items,
             "has_unpriced": len(unpriced_items) > 0,
             "previous_settlements": previous_settlements,
@@ -942,7 +976,6 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
         }
         
     except ValueError as e:
-        # خطأ في تحويل العملة - سعر الصرف غير متوفر
         if "fx.rate_unavailable" in str(e) or "rate_unavailable" in str(e):
             return {
                 "success": False,
@@ -1116,14 +1149,12 @@ def _get_supplier_operations_details(supplier_id: int, date_from: datetime, date
         ExchangeTransaction.created_at <= date_to
     ).order_by(desc(ExchangeTransaction.created_at)).limit(10).all()
     
-    # الدفعات الأخيرة
     recent_payments = db.session.query(Payment).filter(
         Payment.supplier_id == supplier_id,
         Payment.payment_date >= date_from,
         Payment.payment_date <= date_to
     ).order_by(desc(Payment.payment_date)).limit(10).all()
     
-    # النفقات الأخيرة
     recent_expenses = db.session.query(Expense).filter(
         or_(
             Expense.supplier_id == supplier_id,
@@ -1133,7 +1164,6 @@ def _get_supplier_operations_details(supplier_id: int, date_from: datetime, date
         Expense.date <= date_to
     ).order_by(desc(Expense.date)).limit(10).all()
     
-    # المبيعات الأخيرة (إذا كان المورد عميلاً أيضاً)
     recent_sales = db.session.query(Sale).filter(
         Sale.customer_id == supplier_id,
         Sale.sale_date >= date_from,
@@ -1280,10 +1310,11 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
     جلب القطع من مستودع التبادل (ما أخذناه من المورد)
     مع تحويل العملات إلى ILS
     
-    ✅ يجلب من ExchangeTransaction فقط (المعاملات التاريخية)
-    ⚠️ لا يجلب StockLevel لأن المخزون الحالي هو نتيجة المعاملات نفسها
+    ✅ يجلب من ExchangeTransaction (المعاملات التاريخية في الفترة)
+    ✅ يجلب أيضاً المخزون الحالي (StockLevel) غير المباع من مستودعات التبادل
     """
-    from models import ExchangeTransaction
+    from models import ExchangeTransaction, Warehouse, WarehouseType, StockLevel, Product
+    from sqlalchemy import func
     
     transactions = db.session.query(ExchangeTransaction).options(
         joinedload(ExchangeTransaction.product)
@@ -1341,8 +1372,76 @@ def _get_supplier_exchange_items(supplier_id: int, date_from: datetime, date_to:
             "unit_cost": float(unit_cost),
             "total_value": float(value_ils),
             "date": tx.created_at.strftime("%Y-%m-%d") if tx.created_at else "",
-            "currency": "ILS"
+            "currency": "ILS",
+            "type": "transaction"
         })
+    
+    exchange_warehouses = db.session.query(Warehouse.id).filter(
+        Warehouse.supplier_id == supplier_id,
+        Warehouse.warehouse_type == WarehouseType.EXCHANGE.value
+    ).all()
+    
+    warehouse_ids = [w[0] for w in exchange_warehouses]
+    
+    if warehouse_ids:
+        current_stock = db.session.query(
+            Product.id.label("product_id"),
+            Product.name.label("product_name"),
+            Product.sku,
+            Product.purchase_price,
+            Product.currency,
+            func.sum(StockLevel.quantity).label("total_qty")
+        ).join(
+            StockLevel, StockLevel.product_id == Product.id
+        ).filter(
+            StockLevel.warehouse_id.in_(warehouse_ids),
+            StockLevel.quantity > 0
+        ).group_by(
+            Product.id, Product.name, Product.sku, Product.purchase_price, Product.currency
+        ).all()
+        
+        for stock in current_stock:
+            qty = Decimal(str(stock.total_qty or 0))
+            unit_cost = Decimal(str(stock.purchase_price or 0))
+            
+            if unit_cost == 0:
+                unpriced_items.append({
+                    "id": None,
+                    "product_id": stock.product_id,
+                    "product_name": stock.product_name or "غير محدد",
+                    "product_sku": stock.sku,
+                    "quantity": int(qty),
+                    "date": "",
+                    "suggested_price": 0,
+                    "is_current_stock": True
+                })
+                continue
+            
+            value = qty * unit_cost
+            product_currency = stock.currency or 'ILS'
+            
+            if product_currency != 'ILS':
+                try:
+                    value_ils = _convert_to_ils(value, product_currency, datetime.utcnow())
+                except Exception:
+                    value_ils = value
+            else:
+                value_ils = value
+            
+            total_ils += value_ils
+            
+            items.append({
+                "id": None,
+                "product_id": stock.product_id,
+                "product_name": stock.product_name or "غير محدد",
+                "product_sku": stock.sku,
+                "quantity": int(qty),
+                "unit_cost": float(unit_cost),
+                "total_value": float(value_ils),
+                "date": "",
+                "currency": "ILS",
+                "type": "current_stock"
+            })
     
     return {
         "items": items,
@@ -2259,6 +2358,7 @@ def approve_settlement(supplier_id):
     supplier = db.session.get(Supplier, supplier_id)
     if not supplier:
         abort(404)
+    db.session.refresh(supplier)
     
     date_from = request.form.get("date_from")
     date_to = request.form.get("date_to")
@@ -2355,6 +2455,9 @@ def approve_settlement(supplier_id):
     
     db.session.commit()
     
+    from utils.supplier_balance_updater import update_supplier_balance_components
+    update_supplier_balance_components(supplier_id)
+    
     flash(f"تم اعتماد التسوية {settlement.code} بنجاح", "success")
     return redirect(url_for("supplier_settlements_bp.show_settlement", settlement_id=settlement.id))
 
@@ -2368,6 +2471,11 @@ def approved_settlements_list():
         SupplierSettlement.is_approved == True
     ).order_by(desc(SupplierSettlement.approved_at)).all()
     
+    for settlement in settlements:
+        db.session.refresh(settlement)
+        if settlement.supplier:
+            db.session.refresh(settlement.supplier)
+    
     return render_template(
         "vendors/suppliers/settlements_list.html",
         settlements=settlements
@@ -2380,6 +2488,10 @@ def show_settlement(settlement_id):
     settlement = db.session.get(SupplierSettlement, settlement_id)
     if not settlement:
         abort(404)
+    
+    db.session.refresh(settlement)
+    if settlement.supplier:
+        db.session.refresh(settlement.supplier)
     
     if not settlement.is_approved:
         from flask import flash, redirect

@@ -329,18 +329,54 @@
     </div>
       <div class="d-flex align-items-center gap-2">
       <div><strong>الرصيد الحالي:</strong> {{ '%.2f'|format(selected_partner.balance) }} ₪</div>
-      {% if selected_partner.balance_source == 'smart' %}
-        <span class="badge bg-success">احتساب ذكي</span>
-      {% else %}
-        <span class="badge bg-secondary">رصيد مخزن</span>
-      {% endif %}
     </div>
   </div>
   {% if partner_ledger and partner_ledger.entries %}
+  {% set ledger_totals = partner_ledger.get('totals', {}) %}
+  {% set ledger_rights_total = ledger_totals.get('rights', 0) %}
+  {% set ledger_obligations_total = ledger_totals.get('obligations', 0) %}
+  {% set ledger_net_total = ledger_totals.get('net', 0) %}
+  {% set ledger_opening = ledger_totals.get('opening', 0) %}
+  {% set ledger_closing = partner_ledger.get('closing_balance', 0) %}
+  {% set ledger_closing_class = partner_ledger.get('closing_direction_class', 'text-secondary') %}
+  {% set ledger_closing_text = partner_ledger.get('closing_direction_text', 'متوازن') %}
+  {% set ledger_net_class = 'text-success' if ledger_net_total > 0 else 'text-danger' if ledger_net_total < 0 else 'text-secondary' %}
   <div class="card shadow-sm mb-4 screen-only" id="partnerLedgerCard">
     <div class="card-body p-0">
       <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom bg-light no-print">
         <h5 class="mb-0">كشف حساب الشريك</h5>
+      </div>
+      <div class="px-3 pt-3 pb-2 border-bottom bg-white">
+        <div class="row g-3">
+          <div class="col-md-3 col-6">
+            <div class="border rounded-3 p-3 h-100">
+              <div class="text-muted small fw-semibold">إجمالي الحقوق (له)</div>
+              <div class="fs-5 fw-bold text-success">{{ '%.2f'|format(ledger_rights_total) }} ₪</div>
+              <small class="text-muted">نصيب الشريك + الدفعات الواردة</small>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="border rounded-3 p-3 h-100">
+              <div class="text-muted small fw-semibold">إجمالي الالتزامات (عليه)</div>
+              <div class="fs-5 fw-bold text-danger">{{ '%.2f'|format(ledger_obligations_total) }} ₪</div>
+              <small class="text-muted">مبيعات/مصروفات/دفعات صادرة</small>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="border rounded-3 p-3 h-100">
+              <div class="text-muted small fw-semibold">صافي الحركة</div>
+              <div class="fs-5 fw-bold {{ ledger_net_class }}">{{ '%.2f'|format(ledger_net_total) }} ₪</div>
+              <small class="text-muted">الحقوق − الالتزامات</small>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div class="border rounded-3 p-3 h-100">
+              <div class="text-muted small fw-semibold">الرصيد الحالي</div>
+              <div class="fs-5 fw-bold {{ ledger_closing_class }}">{{ '%.2f'|format(ledger_closing) }} ₪</div>
+              <small class="{{ ledger_closing_class }}">{{ ledger_closing_text }}</small>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="table-responsive">
         <table class="table table-striped mb-0 table-sm printable-table" id="partnerLedgerTable">
@@ -349,7 +385,8 @@
               <th style="width:140px">التاريخ</th>
               <th>البيان</th>
               <th style="width:120px">النوع</th>
-              <th style="width:130px">المبلغ</th>
+              <th style="width:130px">له (دائن)</th>
+              <th style="width:130px">عليه (مدين)</th>
               <th style="width:150px">الرصيد بعد الحركة</th>
               <th style="width:160px">مرجع</th>
             </tr>
@@ -374,12 +411,22 @@
                   <span class="badge bg-secondary">رصيد افتتاحي</span>
                 {% endif %}
               </td>
-              <td>{{ '%.2f'|format(entry.amount) }} ₪</td>
-              <td>{{ '%.2f'|format(entry.balance_after) }} ₪</td>
+              <td class="text-success fw-semibold">{{ '%.2f'|format(entry.credit) if entry.credit else '—' }}</td>
+              <td class="text-danger fw-semibold">{{ '%.2f'|format(entry.debit) if entry.debit else '—' }}</td>
+              <td class="fw-bold {% if entry.balance_after > 0 %}text-success{% elif entry.balance_after < 0 %}text-danger{% else %}text-secondary{% endif %}">{{ '%.2f'|format(entry.balance_after) }} ₪</td>
               <td>{{ entry.reference or '-' }}</td>
             </tr>
             {% endfor %}
           </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <th colspan="3" class="text-end">الإجماليات</th>
+              <th class="text-success">{{ '%.2f'|format(ledger_rights_total) }} ₪</th>
+              <th class="text-danger">{{ '%.2f'|format(ledger_obligations_total) }} ₪</th>
+              <th class="{{ ledger_closing_class }}">{{ '%.2f'|format(ledger_closing) }} ₪</th>
+              <th></th>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>

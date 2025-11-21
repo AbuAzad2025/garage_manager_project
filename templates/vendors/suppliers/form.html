@@ -83,7 +83,7 @@
                       data-entity-type="supplier"
                       data-id="{{ supplier.id }}"
                       data-name="{{ supplier.name }}"
-                      data-balance="{{ '%.2f'|format(supplier.net_balance) }}"
+                      data-balance="{{ '%.2f'|format(supplier.balance or 0) }}"
                       data-currency="{{ supplier.currency or 'ILS' }}">
                 <i class="fas fa-scale-balanced"></i>
                 <span class="d-none d-md-inline mr-1">تسوية</span>
@@ -220,24 +220,24 @@
             </div>
 
             {% if supplier %}
-            <div class="card shadow-lg mb-4 border-0" style="background: linear-gradient(135deg, {{ '#ffebee' if supplier.net_balance < 0 else '#e8f5e9' }} 0%, {{ '#ffcdd2' if supplier.net_balance < 0 else '#c8e6c9' }} 100%);">
+            <div class="card shadow-lg mb-4 border-0" style="background: linear-gradient(135deg, {{ '#ffebee' if (supplier.balance or 0) < 0 else '#e8f5e9' }} 0%, {{ '#ffcdd2' if (supplier.balance or 0) < 0 else '#c8e6c9' }} 100%);">
               <div class="card-body p-4">
-                <h5 class="mb-3" style="color: {{ '#d32f2f' if supplier.net_balance < 0 else '#388e3c' }};">
+                <h5 class="mb-3" style="color: {{ '#d32f2f' if (supplier.balance or 0) < 0 else '#388e3c' }};">
                   <i class="fas fa-wallet ml-2"></i>الرصيد الحالي
                 </h5>
                 <div class="d-flex align-items-center justify-content-between">
                   <div>
-                    <h2 class="mb-0 fw-bold" style="color: {{ '#d32f2f' if supplier.net_balance < 0 else '#388e3c' }};">
-                      {{ '%.2f'|format(supplier.net_balance) }} 
+                    <h2 class="mb-0 fw-bold" style="color: {{ '#d32f2f' if (supplier.balance or 0) < 0 else '#388e3c' }};">
+                      {{ '%.2f'|format(supplier.balance or 0) }} 
                       <span class="fs-4">{{ supplier.currency or 'ILS' }}</span>
                     </h2>
                     <p class="mb-0 text-muted">
-                      <i class="fas fa-{{ 'arrow-down' if supplier.net_balance < 0 else 'arrow-up' }} ml-1"></i>
-                      <strong>{{ 'له علينا' if supplier.net_balance > 0 else ('عليه لنا' if supplier.net_balance < 0 else 'متوازن') }}</strong>
+                      <i class="fas fa-{{ 'arrow-down' if (supplier.balance or 0) < 0 else 'arrow-up' }} ml-1"></i>
+                      <strong>{{ 'له علينا' if (supplier.balance or 0) > 0 else ('عليه لنا' if (supplier.balance or 0) < 0 else 'متوازن') }}</strong>
                     </p>
                   </div>
                   <div>
-                    <i class="fas fa-{{ 'exclamation-triangle' if supplier.net_balance < 0 else 'check-circle' }} fa-3x" style="color: {{ '#d32f2f' if supplier.net_balance < 0 else '#388e3c' }};"></i>
+                    <i class="fas fa-{{ 'exclamation-triangle' if (supplier.balance or 0) < 0 else 'check-circle' }} fa-3x" style="color: {{ '#d32f2f' if (supplier.balance or 0) < 0 else '#388e3c' }};"></i>
                   </div>
                 </div>
               </div>

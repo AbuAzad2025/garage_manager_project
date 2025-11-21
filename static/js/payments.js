@@ -125,9 +125,9 @@ document.addEventListener('DOMContentLoaded', function() {
         btnApplyFilters.classList.add('btn-warning');
         btnApplyFilters.innerHTML = '<i class="fas fa-filter me-1"></i> تطبيق <span class="badge bg-light text-dark ms-1">تغييرات</span>';
       }
+      debouncedReload();
     }, { passive: true });
   }
-  // ✅ الدوال نُقلت إلى common-utils.js (normalizeEntity, normalizeMethod, normDir, validDates)
   function currentFilters(page = 1) {
     const urlParams = new URLSearchParams(window.location.search);
     const raw = {
@@ -211,10 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!tbody) return;
     if (is) tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>جارِ التحميل…</td></tr>';
   }
-  // ✅ جميع دوال العرض نُقلت إلى common-utils.js:
-  // badgeForDirection, badgeForStatus, toNumber, fmtAmount, deriveEntityLabel, 
-  // normalizeEntity, normalizeMethod, normDir, validDates
-  let _currentPageSum = {sum: 0, sumILS: 0}; // ✅ سيتم ملؤها من الباكند
+  let _currentPageSum = {sum: 0, sumILS: 0};
   
   function renderPaymentsTable(list) {
     const tbody = document.querySelector('#paymentsTable tbody');
@@ -260,7 +257,6 @@ document.addEventListener('DOMContentLoaded', function() {
           '<a href="/hard-delete/payment/' + p.id + '" class="btn btn-outline-danger" title="حذف قوي" onclick="return confirm(\'حذف قوي - سيتم حذف جميع البيانات المرتبطة!\')">حذف قوي</a>' +
         '</div>';
       const tr = document.createElement('tr');
-      // ✅ استخدام amountInILS من الباكند (سيتم إضافته لاحقاً)
       let amountInILS = p.amount_in_ils || p.total_amount; // fallback للبيانات القديمة
       let fxRateDisplay = '-';
       
@@ -276,7 +272,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const amountIlsNumeric = Number(amountInILS || 0);
       if (!Number.isNaN(amountIlsNumeric)) sumAmountIls += amountIlsNumeric;
       
-      // إنشاء عمود التفاصيل المحسّن
       const entityDetails = deriveEntityLabel(p);
       let notesHtml = '';
       if (p.is_manual_check) {
@@ -315,7 +310,6 @@ document.addEventListener('DOMContentLoaded', function() {
     totalRow.innerHTML = '<td></td><td class="text-end fw-bold">' + totalsLabel + '</td><td class="fw-bold">' + fmtAmount(totalsSource.sum) + '</td><td></td><td></td><td class="fw-bold" style="color: #0056b3;">' + fmtAmount(totalsSource.sumILS) + ' ₪</td><td colspan="7"></td>';
     tbody.appendChild(totalRow);
   }
-  // Event listener لحذف الدفعات
   document.addEventListener('click', async function (e) {
     const btn = e.target.closest('.btn-del');
     if (!btn) return;
@@ -343,7 +337,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // Event listener لأرشفة الدفعات
   document.addEventListener('click', async function (e) {
     const btn = e.target.closest('.btn-archive');
     if (!btn) return;
@@ -449,13 +442,10 @@ document.addEventListener('DOMContentLoaded', function() {
   window.addEventListener('popstate', function () { syncFiltersFromUrl(); loadPayments(1); });
 });
 
-// وظائف البحث الذكي - محسنة للأداء
 function initSmartSearch() {
-  // البحث عن جميع حقول البحث في الحقول الديناميكية
   const searchInputs = document.querySelectorAll('input[placeholder*="اكتب"], input[placeholder*="البحث"]');
   
   searchInputs.forEach(input => {
-    // تحديد نوع الجهة من الـ placeholder أو الـ name
     let entityType = 'customer'; // افتراضي
     
     if (input.placeholder.includes('مورد') || input.placeholder.includes('تاجر')) {
@@ -468,7 +458,6 @@ function initSmartSearch() {
     
     if (!entityType) return;
     
-    // تجنب إضافة event listeners متعددة
     if (input.hasAttribute('data-smart-search-initialized')) return;
     input.setAttribute('data-smart-search-initialized', 'true');
     
@@ -476,7 +465,6 @@ function initSmartSearch() {
     let currentResults = [];
     let selectedIndex = -1;
     
-    // إنشاء قائمة النتائج مرة واحدة فقط
     let resultsList = input.parentNode.querySelector('.smart-search-results');
     if (!resultsList) {
       resultsList = document.createElement('div');
@@ -490,7 +478,6 @@ function initSmartSearch() {
       input.parentNode.appendChild(resultsList);
     }
     
-    // وظيفة البحث
     function performSearch(query) {
       if (query.length < 1) {
         hideResults();
@@ -513,7 +500,6 @@ function initSmartSearch() {
       }, 300);
     }
     
-    // عرض النتائج
     function showResults(results) {
       if (results.length === 0) {
         hideResults();
@@ -529,27 +515,23 @@ function initSmartSearch() {
       
       resultsList.style.display = 'block';
       
-      // إضافة مستمعي الأحداث
       resultsList.querySelectorAll('.smart-search-item').forEach((item, index) => {
         item.addEventListener('click', () => selectResult(index));
         item.addEventListener('mouseenter', () => highlightItem(index));
       });
     }
     
-    // إخفاء النتائج
     function hideResults() {
       resultsList.style.display = 'none';
       currentResults = [];
       selectedIndex = -1;
     }
     
-    // تحديد نتيجة
     function selectResult(index) {
       if (index >= 0 && index < currentResults.length) {
         const result = currentResults[index];
         input.value = result.display;
         
-        // تعيين معرف الجهة
         const entityIdField = input.parentNode.querySelector('input[type="hidden"]');
         if (entityIdField) {
           entityIdField.value = result.id;
@@ -559,7 +541,6 @@ function initSmartSearch() {
       }
     }
     
-    // تمييز عنصر
     function highlightItem(index) {
       resultsList.querySelectorAll('.smart-search-item').forEach((item, i) => {
         item.classList.toggle('bg-light', i === index);
@@ -567,7 +548,6 @@ function initSmartSearch() {
       selectedIndex = index;
     }
     
-    // مستمعي الأحداث
     input.addEventListener('input', (e) => {
       performSearch(e.target.value);
     });
@@ -579,11 +559,9 @@ function initSmartSearch() {
     });
     
     input.addEventListener('blur', (e) => {
-      // تأخير إخفاء النتائج للسماح بالنقر
       setTimeout(() => hideResults(), 200);
     });
     
-    // التنقل بلوحة المفاتيح
     input.addEventListener('keydown', (e) => {
       if (resultsList.style.display === 'none') return;
       
@@ -619,19 +597,15 @@ function initSmartSearch() {
   });
 }
 
-// إعادة تشغيل البحث عند تغيير نوع الجهة فقط
 document.addEventListener('change', function(e) {
   if (e.target && e.target.name === 'entity_type') {
-    smartSearchInitialized = false; // إعادة تعيين للسماح بإعادة التشغيل
+    smartSearchInitialized = false;
     setTimeout(function() {
       initializeSmartSearchOnce();
     }, 200);
   }
 });
 
-// تم نقل استدعاء البحث الذكي إلى initializeSmartSearchOnce() في بداية الملف
-
-// معالج أحداث أرشفة الدفعات
 document.addEventListener('click', async function (e) {
   const btn = e.target.closest('.btn-archive');
   if (!btn) return;
@@ -647,19 +621,19 @@ document.addEventListener('click', async function (e) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'X-CSRFToken': document.getElementById('csrf_token').value
+        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.getElementById('csrf_token')?.value || ''
       },
       body: `reason=${encodeURIComponent(reason)}`
     });
     
     if (response.ok) {
       alert('تم أرشفة الدفعة بنجاح');
-      loadPayments(1); // إعادة تحميل الجدول
+      loadPayments(1);
     } else {
       alert('خطأ في أرشفة الدفعة');
     }
   } catch (error) {
-
+    console.error('Archive error:', error);
     alert('خطأ في أرشفة الدفعة');
   }
 });

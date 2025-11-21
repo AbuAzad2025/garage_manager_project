@@ -2,7 +2,9 @@ window.FXUtils = {
     formatFxRate: function(rate, source, decimals = 4) {
         if (!rate || rate <= 0) return '<span class="text-muted">-</span>';
         
-        const formattedRate = parseFloat(rate).toFixed(decimals);
+        const rateNum = parseFloat(rate) || 0;
+        if (isNaN(rateNum)) return '<span class="text-muted">-</span>';
+        const formattedRate = rateNum.toFixed(decimals);
         let icon = '';
         
         if (source) {
@@ -38,11 +40,13 @@ window.FXUtils = {
         if (!amount) return '0.00';
         
         if (currency === targetCurrency || !rate) {
-            return `${parseFloat(amount).toFixed(2)} ${targetSymbol}`;
+            const amtNum = parseFloat(amount) || 0;
+            return `${isNaN(amtNum) ? '0.00' : amtNum.toFixed(2)} ${targetSymbol}`;
         }
         
         const converted = this.convertAmount(amount, rate, currency, targetCurrency);
-        return `${converted.toFixed(2)} ${targetSymbol}`;
+        const convertedNum = parseFloat(converted) || 0;
+        return `${isNaN(convertedNum) ? '0.00' : convertedNum.toFixed(2)} ${targetSymbol}`;
     },
 
     createFxRateColumn: function(fxRateField = 'fx_rate_used', currencyField = 'currency', fxSourceField = 'fx_rate_source') {

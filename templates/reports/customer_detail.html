@@ -33,7 +33,7 @@
                         </div>
                         <div class="col-sm-6">
                             <strong>الرصيد الحالي:</strong> 
-                            <span class="badge {% if current_balance >= 0 %}bg-success{% else %}bg-danger{% endif %} fs-6">
+                            <span class="badge {% if current_balance > 0 %}bg-success{% elif current_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
                                 {{ current_balance|format_currency }}
                             </span><br>
                             <strong>حد الائتمان:</strong> {{ customer.credit_limit|format_currency if customer.credit_limit else 'غير محدد' }}<br>
@@ -49,24 +49,64 @@
                     <h5 class="mb-0"><i class="fas fa-chart-bar ml-2"></i>ملخص الإجماليات</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-6 mb-2">
-                            <div class="border-end">
-                                <strong class="text-success">إجمالي المبيعات</strong><br>
-                                <span class="fs-5">{{ total_sales|format_currency }}</span>
+                    {% if balance_data and balance_data.success %}
+                    <div class="row text-center g-3 mb-3">
+                        <div class="col-6 col-lg-4">
+                            <div class="p-2 border rounded">
+                                <strong class="text-success d-block">🟢 الحقوق</strong>
+                                <span class="fs-5 fw-bold text-success">{{ balance_data.rights.total|format_currency }}</span>
                             </div>
                         </div>
-                        <div class="col-6 mb-2">
-                            <strong class="text-primary">إجمالي الفواتير</strong><br>
+                        <div class="col-6 col-lg-4">
+                            <div class="p-2 border rounded">
+                                <strong class="text-danger d-block">🔴 الالتزامات</strong>
+                                <span class="fs-5 fw-bold text-danger">{{ balance_data.obligations.total|format_currency }}</span>
+                            </div>
+                        </div>
+                        <div class="col-12 col-lg-4">
+                            <div class="p-2 border rounded">
+                                <strong class="text-primary d-block">🎯 الرصيد</strong>
+                                <span class="fs-4 fw-bold {% if balance_data.balance.amount > 0 %}text-danger{% elif balance_data.balance.amount < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                    {{ balance_data.balance.amount|format_currency }}
+                                </span>
+                                <small class="text-muted d-block">{{ balance_data.balance.action }}</small>
+                            </div>
+                        </div>
+                        <div class="col-6 col-lg-6">
+                            <div class="p-2 border rounded">
+                                <strong class="text-info d-block">💰 قبضنا منه</strong>
+                                <span class="fs-5 fw-bold text-info">{{ balance_data.payments.received|format_currency }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-lg-6">
+                            <div class="p-2 border rounded">
+                                <strong class="text-warning d-block">💸 دفعنا له</strong>
+                                <span class="fs-5 fw-bold text-warning">{{ balance_data.payments.paid|format_currency }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="my-2">
+                    {% endif %}
+                    <div class="row text-center g-3">
+                        <div class="col-6 col-lg-4">
+                            <strong class="text-success d-block">إجمالي المبيعات</strong>
+                            <span class="fs-5">{{ total_sales|format_currency }}</span>
+                        </div>
+                        <div class="col-6 col-lg-4">
+                            <strong class="text-primary d-block">إجمالي الفواتير</strong>
                             <span class="fs-5">{{ total_invoices|format_currency }}</span>
                         </div>
-                        <div class="col-6">
-                            <strong class="text-warning">إجمالي الصيانة</strong><br>
+                        <div class="col-6 col-lg-4">
+                            <strong class="text-warning d-block">إجمالي الصيانة</strong>
                             <span class="fs-5">{{ total_services|format_currency }}</span>
                         </div>
-                        <div class="col-6">
-                            <strong class="text-info">إجمالي المدفوعات</strong><br>
+                        <div class="col-6 col-lg-4">
+                            <strong class="text-info d-block">إجمالي المدفوعات</strong>
                             <span class="fs-5">{{ total_payments|format_currency }}</span>
+                        </div>
+                        <div class="col-6 col-lg-4">
+                            <strong class="text-secondary d-block">الطلبات المسبقة</strong>
+                            <span class="fs-5">{{ total_preorders|format_currency }}</span>
                         </div>
                     </div>
                 </div>
@@ -99,6 +139,86 @@
             </form>
         </div>
     </div>
+
+    
+
+    {% if balance_data and balance_data.success %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-scale-balanced ml-2"></i>تفاصيل الحقوق والالتزامات</h5>
+            <small class="text-muted">{{ balance_data.balance.formula }}</small>
+        </div>
+        <div class="card-body">
+            <div class="row gy-4">
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-success mb-0">🟢 الحقوق</h6>
+                        <span class="badge bg-success text-white">{{ balance_data.rights.total|format_currency }}</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0">
+                            <tbody>
+                                {% for item in balance_data.rights.items %}
+                                    {% if item.amount %}
+                                    <tr>
+                                        <td>{{ item.label }}</td>
+                                        <td class="text-end text-success fw-semibold">{{ item.amount|format_currency }}</td>
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-danger mb-0">🔴 الالتزامات</h6>
+                        <span class="badge bg-danger text-white">{{ balance_data.obligations.total|format_currency }}</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0">
+                            <tbody>
+                                {% for item in balance_data.obligations.items %}
+                                    {% if item.amount %}
+                                    <tr>
+                                        <td>{{ item.label }}</td>
+                                        <td class="text-end text-danger fw-semibold">{{ item.amount|format_currency }}</td>
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4 g-3">
+                <div class="col-md-4">
+                    <div class="alert alert-secondary mb-0">
+                        <div class="small text-muted">الرصيد الافتتاحي</div>
+                        <div class="fw-bold">{{ balance_data.opening_balance.amount|format_currency }}</div>
+                        <small class="text-muted">{{ balance_data.opening_balance.direction }}</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="alert alert-info mb-0">
+                        <div class="small text-muted">شيكات قيد التحصيل</div>
+                        <div class="fw-bold">{{ balance_data.checks.in_progress|format_currency }}</div>
+                        <small class="text-muted">شيكات على العميل: {{ balance_data.checks.outstanding|format_currency }}</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="alert alert-light border mb-0">
+                        <div class="small text-muted">الوضع الحالي</div>
+                        <div class="fw-bold {% if balance_data.balance.amount > 0 %}text-danger{% elif balance_data.balance.amount < 0 %}text-success{% else %}text-secondary{% endif %}">
+                            {{ balance_data.balance.amount|format_currency }}
+                        </div>
+                        <small class="text-muted">{{ balance_data.balance.action }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     
 

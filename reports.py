@@ -707,196 +707,57 @@ def ar_aging_report(start_date=None, end_date=None):
     acc = {}
     
     for cust in customers:
-        total_receivable = Decimal('0.00')
-        total_paid = Decimal('0.00')
+        db.session.refresh(cust)
+        outstanding = Decimal(str(cust.current_balance or 0))
+        
+        if outstanding <= 0:
+            continue
+        
         oldest_date = None
         
         sales = db.session.query(Sale).filter(
             Sale.customer_id == cust.id,
             Sale.status == 'CONFIRMED'
-        ).all()
-        for s in sales:
-            amt = Decimal(str(s.total_amount or 0))
-            if s.currency == "ILS":
-                total_receivable += amt
-            else:
-                try:
-                    total_receivable += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                except Exception:
-                    pass
-            ref_dt = s.sale_date or s.created_at
-            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+        ).order_by(Sale.sale_date.asc()).limit(1).all()
+        if sales:
+            ref_dt = sales[0].sale_date or sales[0].created_at
+            if ref_dt:
                 oldest_date = ref_dt
         
         invoices = db.session.query(Invoice).filter(
             Invoice.customer_id == cust.id,
             Invoice.cancelled_at.is_(None)
-        ).all()
-        for inv in invoices:
-            amt = Decimal(str(inv.total_amount or 0))
-            if inv.currency == "ILS":
-                total_receivable += amt
-            else:
-                try:
-                    total_receivable += convert_amount(amt, inv.currency, "ILS", inv.invoice_date)
-                except Exception:
-                    pass
-            ref_dt = inv.invoice_date or inv.created_at
-            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+        ).order_by(Invoice.invoice_date.asc()).limit(1).all()
+        if invoices:
+            ref_dt = invoices[0].invoice_date or invoices[0].created_at
+            if ref_dt and (oldest_date is None or ref_dt < oldest_date):
                 oldest_date = ref_dt
         
         services = db.session.query(ServiceRequest).filter(
             ServiceRequest.customer_id == cust.id
-        ).all()
-        for srv in services:
-            amt = Decimal(str(srv.total_amount or 0))
-            if srv.currency == "ILS":
-                total_receivable += amt
-            else:
-                try:
-                    total_receivable += convert_amount(amt, srv.currency, "ILS", srv.received_at)
-                except Exception:
-                    pass
-            ref_dt = srv.received_at or srv.created_at
-            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+        ).order_by(ServiceRequest.received_at.asc()).limit(1).all()
+        if services:
+            ref_dt = services[0].received_at or services[0].created_at
+            if ref_dt and (oldest_date is None or ref_dt < oldest_date):
                 oldest_date = ref_dt
         
         preorders = db.session.query(PreOrder).filter(
             PreOrder.customer_id == cust.id,
             PreOrder.status != 'CANCELLED'
-        ).all()
-        for p in preorders:
-            amt = Decimal(str(p.total_amount or 0))
-            if p.currency == "ILS":
-                total_receivable += amt
-            else:
-                try:
-                    total_receivable += convert_amount(amt, p.currency, "ILS", p.preorder_date)
-                except Exception:
-                    pass
-            ref_dt = p.preorder_date or p.created_at
-            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+        ).order_by(PreOrder.preorder_date.asc()).limit(1).all()
+        if preorders:
+            ref_dt = preorders[0].preorder_date or preorders[0].created_at
+            if ref_dt and (oldest_date is None or ref_dt < oldest_date):
                 oldest_date = ref_dt
         
         online_orders = db.session.query(OnlinePreOrder).filter(
             OnlinePreOrder.customer_id == cust.id,
             OnlinePreOrder.payment_status != 'CANCELLED'
-        ).all()
-        for oo in online_orders:
-            amt = Decimal(str(oo.total_amount or 0))
-            if oo.currency == "ILS":
-                total_receivable += amt
-            else:
-                try:
-                    total_receivable += convert_amount(amt, oo.currency, "ILS", oo.created_at)
-                except Exception:
-                    pass
-            ref_dt = oo.created_at
-            if oldest_date is None or (ref_dt and ref_dt < oldest_date):
+        ).order_by(OnlinePreOrder.created_at.asc()).limit(1).all()
+        if online_orders:
+            ref_dt = online_orders[0].created_at
+            if ref_dt and (oldest_date is None or ref_dt < oldest_date):
                 oldest_date = ref_dt
-        
-        returns = db.session.query(SaleReturn).filter(
-            SaleReturn.customer_id == cust.id,
-            SaleReturn.status == 'CONFIRMED'
-        ).all()
-        for r in returns:
-            amt = Decimal(str(r.total_amount or 0))
-            if r.currency == "ILS":
-                total_receivable -= amt
-            else:
-                try:
-                    total_receivable -= convert_amount(amt, r.currency, "ILS", r.created_at)
-                except Exception:
-                    pass
-        
-        as_of_dt = datetime.combine(as_of, datetime.max.time())
-        
-        payments_in_direct = db.session.query(Payment).filter(
-            Payment.customer_id == cust.id,
-            Payment.direction == PaymentDirection.IN.value,
-            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            Payment.payment_date <= as_of_dt
-        ).all()
-        
-        payments_in_from_sales = db.session.query(Payment).join(
-            Sale, Payment.sale_id == Sale.id
-        ).filter(
-            Sale.customer_id == cust.id,
-            Payment.direction == PaymentDirection.IN.value,
-            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            Payment.payment_date <= as_of_dt
-        ).all()
-        
-        payments_in_from_invoices = db.session.query(Payment).join(
-            Invoice, Payment.invoice_id == Invoice.id
-        ).filter(
-            Invoice.customer_id == cust.id,
-            Payment.direction == PaymentDirection.IN.value,
-            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            Payment.payment_date <= as_of_dt
-        ).all()
-        
-        payments_in_from_services = db.session.query(Payment).join(
-            ServiceRequest, Payment.service_id == ServiceRequest.id
-        ).filter(
-            ServiceRequest.customer_id == cust.id,
-            Payment.direction == PaymentDirection.IN.value,
-            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            Payment.payment_date <= as_of_dt
-        ).all()
-        
-        payments_in_from_preorders = db.session.query(Payment).join(
-            PreOrder, Payment.preorder_id == PreOrder.id
-        ).filter(
-            PreOrder.customer_id == cust.id,
-            Payment.direction == PaymentDirection.IN.value,
-            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            Payment.payment_date <= as_of_dt
-        ).all()
-        
-        payments_out_direct = db.session.query(Payment).filter(
-            Payment.customer_id == cust.id,
-            Payment.direction == PaymentDirection.OUT.value,
-            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            Payment.payment_date <= as_of_dt
-        ).all()
-        
-        payments_out_from_sales = db.session.query(Payment).join(
-            Sale, Payment.sale_id == Sale.id
-        ).filter(
-            Sale.customer_id == cust.id,
-            Payment.direction == PaymentDirection.OUT.value,
-            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]),
-            Payment.payment_date <= as_of_dt
-        ).all()
-        
-        seen_payment_ids = set()
-        payments_all = []
-        for p in (payments_in_direct + payments_in_from_sales + payments_in_from_invoices + 
-                 payments_in_from_services + payments_in_from_preorders +
-                 payments_out_direct + payments_out_from_sales):
-            if p.id not in seen_payment_ids:
-                seen_payment_ids.add(p.id)
-                payments_all.append(p)
-        
-        for p in payments_all:
-            amt = Decimal(str(p.total_amount or 0))
-            if p.currency == "ILS":
-                converted = amt
-            else:
-                try:
-                    converted = convert_amount(amt, p.currency, "ILS", p.payment_date)
-                except Exception:
-                    continue
-            
-            if p.direction == PaymentDirection.IN.value:
-                total_paid += converted
-            elif p.direction == PaymentDirection.OUT.value:
-                total_paid -= converted
-        
-        outstanding = total_receivable - total_paid
-        if outstanding <= 0:
-            continue
         
         if oldest_date:
             if isinstance(oldest_date, datetime):
@@ -1014,7 +875,7 @@ def ap_aging_report(start_date=None, end_date=None):
                 total_paid -= converted
         
         outstanding_manual = total_payable - total_paid
-        outstanding = Decimal(str(utils.get_supplier_balance_unified(sup.id)))
+        outstanding = Decimal(str(sup.balance_in_ils or 0))
         if outstanding <= 0:
             continue
         

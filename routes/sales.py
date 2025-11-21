@@ -10,8 +10,8 @@ from flask_login import current_user, login_required
 from sqlalchemy import func, or_, desc, extract, case, and_
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload, load_only
-from extensions import db
-from models import Sale, SaleLine, Invoice, Customer, Product, AuditLog, Warehouse, User, Payment, StockLevel, Employee
+from extensions import db, cache
+from models import Sale, SaleLine, Invoice, Customer, Product, AuditLog, Warehouse, User, Payment, StockLevel, Employee, CostCenter
 from forms import SaleForm
 import utils
 from utils import D, line_total_decimal, money_fmt, archive_record, restore_record  # Import from utils package
@@ -224,11 +224,14 @@ def _deduct_stock(sale: Sale) -> None:
         if not rec:
             continue
         
-        # خصم من الكمية الفعلية
-        new_quantity = max(0, int(rec.quantity or 0) - qty)
-        
-        # خصم من الكمية المحجوزة أيضاً
+        current_qty = int(rec.quantity or 0)
         current_reserved = int(rec.reserved_quantity or 0)
+        available = current_qty - current_reserved
+        
+        if available < qty:
+            raise ValueError(f"الكمية المتاحة غير كافية للمنتج {pid} في المستودع {wid}: المتاح {available}، المطلوب {qty}")
+        
+        new_quantity = current_qty - qty
         new_reserved = max(0, current_reserved - qty)
         
         rec.quantity = new_quantity
@@ -394,21 +397,6 @@ def dashboard():
 # @permission_required("manage_sales")  # Commented out - function not available
 def list_sales():
     f = request.args
-    subtotals = (
-        db.session.query(
-            Sale.id.label("sale_id"),
-            func.coalesce(
-                func.sum(
-                    SaleLine.quantity * SaleLine.unit_price *
-                    (1 - func.coalesce(SaleLine.discount_rate, 0) / 100.0) *
-                    (1 + func.coalesce(SaleLine.tax_rate, 0) / 100.0)
-                ),
-                0,
-            ).label("calc_total"),
-        )
-        .outerjoin(SaleLine, SaleLine.sale_id == Sale.id)
-        .group_by(Sale.id).subquery()
-    )
     q = (Sale.query
          .filter(Sale.is_archived == False)
         .options(
@@ -416,7 +404,6 @@ def list_sales():
             joinedload(Sale.seller).load_only(User.id, User.username),
             joinedload(Sale.seller_employee).load_only(Employee.id, Employee.name)
         )
-         .outerjoin(subtotals, subtotals.c.sale_id == Sale.id)
          .outerjoin(Customer))
     st = (f.get("status") or "").upper().strip()
     status_filter_enabled = bool(st and st != "ALL")
@@ -453,8 +440,26 @@ def list_sales():
         q = q.filter(or_(*search_filters))
     sort = f.get("sort", "date")
     order = f.get("order", "desc")
-    current_app.logger.info(f"Sales sort: {sort}, order: {order}, request.args: {dict(request.args)}")
+    subtotals = None
     if sort == "total":
+        subtotals = (
+            db.session.query(
+                Sale.id.label("sale_id"),
+                func.coalesce(
+                    func.sum(
+                        SaleLine.quantity * SaleLine.unit_price *
+                        (1 - func.coalesce(SaleLine.discount_rate, 0) / 100.0) *
+                        (1 + func.coalesce(SaleLine.tax_rate, 0) / 100.0)
+                    ),
+                    0,
+                ).label("calc_total"),
+            )
+            .outerjoin(SaleLine, SaleLine.sale_id == Sale.id)
+            .group_by(Sale.id).subquery()
+        )
+        q = q.outerjoin(subtotals, subtotals.c.sale_id == Sale.id)
+    current_app.logger.info(f"Sales sort: {sort}, order: {order}, request.args: {dict(request.args)}")
+    if sort == "total" and subtotals is not None:
         fld = subtotals.c.calc_total
         ordered_query = q.order_by(fld.asc() if order == "asc" else fld.desc())
     elif sort == "customer":
@@ -494,7 +499,7 @@ def list_sales():
     per_page = min(max(1, per_page), 500)
     
     # حساب total_filtered و total_pages
-    total_filtered = ordered_query.count()
+    total_filtered = q.count()
     total_pages = math.ceil(total_filtered / per_page) if total_filtered else 1
     
     if print_mode:
@@ -526,115 +531,129 @@ def list_sales():
     for s in sales_list:
         _format_sale(s)
     
-    # حساب الملخصات الحقيقية
     from models import fx_rate
     
-    # جلب جميع المبيعات (بدون pagination) لحساب الملخصات
-    all_sales_query = Sale.query.filter(Sale.is_archived.is_(False))
-    need_customer_join = bool(cust or search_term)
-    if status_filter_enabled:
-        all_sales_query = all_sales_query.filter(Sale.status == st)
-    if need_customer_join:
-        all_sales_query = all_sales_query.outerjoin(Customer)
-    if cust:
-        all_sales_query = all_sales_query.filter(
-            or_(Customer.name.ilike(f"%{cust}%"), Customer.phone.ilike(f"%{cust}%"))
+    cache_key_parts = [
+        'sales_summary',
+        str(status_filter_enabled),
+        st or '',
+        cust or '',
+        search_term or '',
+        df or '',
+        dt or ''
+    ]
+    cache_key = ':'.join(cache_key_parts)
+    
+    summary = cache.get(cache_key)
+    if summary is None:
+        all_sales_query = Sale.query.filter(Sale.is_archived.is_(False)).options(
+            selectinload(Sale.payments).load_only(Payment.total_amount, Payment.currency, Payment.direction, Payment.status, Payment.payment_date, Payment.fx_rate_used)
         )
-    if search_term:
-        like_all = f"%{search_term}%"
-        search_filters_all = [
-            Sale.sale_number.ilike(like_all),
-            Sale.notes.ilike(like_all),
-            Sale.currency.ilike(like_all),
-            Sale.receiver_name.ilike(like_all),
-            Customer.name.ilike(like_all),
-            Customer.phone.ilike(like_all),
-        ]
-        if search_term.isdigit():
-            search_filters_all.append(Sale.id == int(search_term))
-        all_sales_query = all_sales_query.filter(or_(*search_filters_all))
-    try:
-        if df:
-            all_sales_query = all_sales_query.filter(Sale.sale_date >= datetime.fromisoformat(df))
-        if dt:
-            all_sales_query = all_sales_query.filter(Sale.sale_date <= datetime.fromisoformat(dt))
-    except Exception:
-        pass
-    
-    all_sales = all_sales_query.limit(10000).all()
-    
-    # حساب الإحصائيات بدقة
-    def _to_ils(value, currency, fx_used, at_date):
-        amount = Decimal(str(value or 0))
-        code = (currency or "ILS").upper()
-        if code != "ILS":
-            if fx_used:
-                try:
-                    amount *= Decimal(str(fx_used))
-                except Exception:
-                    pass
-            else:
-                try:
-                    rate = fx_rate(code, "ILS", at_date, raise_on_missing=False)
-                    if rate and rate > 0:
-                        amount *= Decimal(str(rate))
-                except Exception:
-                    pass
-        return float(amount)
-    
-    total_sales = 0.0
-    total_paid = 0.0
-    total_pending = 0.0
-    sales_by_status: dict[str, dict[str, float | int]] = {}
-    contributing_sales = 0
-    
-    for sale in all_sales:
-        status = (sale.status or "DRAFT").upper()
+        need_customer_join = bool(cust or search_term)
+        if status_filter_enabled:
+            all_sales_query = all_sales_query.filter(Sale.status == st)
+        if need_customer_join:
+            all_sales_query = all_sales_query.outerjoin(Customer)
+        if cust:
+            all_sales_query = all_sales_query.filter(
+                or_(Customer.name.ilike(f"%{cust}%"), Customer.phone.ilike(f"%{cust}%"))
+            )
+        if search_term:
+            like_all = f"%{search_term}%"
+            search_filters_all = [
+                Sale.sale_number.ilike(like_all),
+                Sale.notes.ilike(like_all),
+                Sale.currency.ilike(like_all),
+                Sale.receiver_name.ilike(like_all),
+                Customer.name.ilike(like_all),
+                Customer.phone.ilike(like_all),
+            ]
+            if search_term.isdigit():
+                search_filters_all.append(Sale.id == int(search_term))
+            all_sales_query = all_sales_query.filter(or_(*search_filters_all))
+        try:
+            if df:
+                all_sales_query = all_sales_query.filter(Sale.sale_date >= datetime.fromisoformat(df))
+            if dt:
+                all_sales_query = all_sales_query.filter(Sale.sale_date <= datetime.fromisoformat(dt))
+        except Exception:
+            pass
         
-        sale_amount = _to_ils(sale.total_amount, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
-        balance_amount = _to_ils(sale.balance_due, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
-        refund_amount = _to_ils(sale.refunded_total, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
+        all_sales = all_sales_query.limit(5000).all()
         
-        paid_amount = 0.0
-        for payment in getattr(sale, "payments", []) or []:
-            if (payment.direction or "").upper() != "IN":
-                continue
-            if (payment.status or "").upper() != "COMPLETED":
-                continue
-            paid_amount += _to_ils(payment.total_amount, payment.currency, getattr(payment, "fx_rate_used", None), payment.payment_date)
+        def _to_ils(value, currency, fx_used, at_date):
+            amount = Decimal(str(value or 0))
+            code = (currency or "ILS").upper()
+            if code != "ILS":
+                if fx_used:
+                    try:
+                        amount *= Decimal(str(fx_used))
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        rate = fx_rate(code, "ILS", at_date, raise_on_missing=False)
+                        if rate and rate > 0:
+                            amount *= Decimal(str(rate))
+                    except Exception:
+                        pass
+            return float(amount)
         
-        net_amount = sale_amount
-        if status == "REFUNDED":
-            net_amount = max(sale_amount - refund_amount, 0.0)
-            balance_amount = 0.0
+        total_sales = 0.0
+        total_paid = 0.0
+        total_pending = 0.0
+        sales_by_status: dict[str, dict[str, float | int]] = {}
+        contributing_sales = 0
         
-        if status == "CONFIRMED":
-            total_sales += net_amount
-            total_paid += paid_amount
-            total_pending += max(balance_amount, 0.0)
-            contributing_sales += 1
-        elif status not in ("DRAFT", "CANCELLED", "REFUNDED"):
-            total_sales += net_amount
-            total_paid += paid_amount
-            total_pending += max(balance_amount, 0.0)
-            contributing_sales += 1
-        elif status == "REFUNDED":
-            total_paid += min(paid_amount, net_amount)
+        for sale in all_sales:
+            status = (sale.status or "DRAFT").upper()
+            
+            sale_amount = _to_ils(sale.total_amount, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
+            balance_amount = _to_ils(sale.balance_due, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
+            refund_amount = _to_ils(sale.refunded_total, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
+            
+            paid_amount = 0.0
+            for payment in getattr(sale, "payments", []) or []:
+                if (payment.direction or "").upper() != "IN":
+                    continue
+                if (payment.status or "").upper() != "COMPLETED":
+                    continue
+                paid_amount += _to_ils(payment.total_amount, payment.currency, getattr(payment, "fx_rate_used", None), payment.payment_date)
+            
+            net_amount = sale_amount
+            if status == "REFUNDED":
+                net_amount = max(sale_amount - refund_amount, 0.0)
+                balance_amount = 0.0
+            
+            if status == "CONFIRMED":
+                total_sales += net_amount
+                total_paid += paid_amount
+                total_pending += max(balance_amount, 0.0)
+                contributing_sales += 1
+            elif status not in ("DRAFT", "CANCELLED", "REFUNDED"):
+                total_sales += net_amount
+                total_paid += paid_amount
+                total_pending += max(balance_amount, 0.0)
+                contributing_sales += 1
+            elif status == "REFUNDED":
+                total_paid += min(paid_amount, net_amount)
+            
+            status_entry = sales_by_status.setdefault(status, {"count": 0, "amount": 0.0})
+            status_entry["count"] += 1
+            status_entry["amount"] += net_amount
         
-        status_entry = sales_by_status.setdefault(status, {"count": 0, "amount": 0.0})
-        status_entry["count"] += 1
-        status_entry["amount"] += net_amount
-    
-    average_sale = total_sales / contributing_sales if contributing_sales else 0.0
-    
-    summary = {
-        'total_sales': total_sales,
-        'total_paid': total_paid,
-        'total_pending': total_pending,
-        'average_sale': average_sale,
-        'sales_count': contributing_sales,
-        'sales_by_status': sales_by_status
-    }
+        average_sale = total_sales / contributing_sales if contributing_sales else 0.0
+        
+        summary = {
+            'total_sales': total_sales,
+            'total_paid': total_paid,
+            'total_pending': total_pending,
+            'average_sale': average_sale,
+            'sales_count': contributing_sales,
+            'sales_by_status': sales_by_status
+        }
+        
+        cache.set(cache_key, summary, timeout=60)
     
     query_args = request.args.to_dict()
     for key in ["page", "print", "scope", "range_start", "range_end", "page_number", "ajax"]:
@@ -1001,7 +1020,8 @@ def create_sale():
                                        ).filter(Product.is_active == True).order_by(Product.name).all(),
                                        warehouses=Warehouse.query.options(
                                            load_only(Warehouse.id, Warehouse.name)
-                                       ).order_by(Warehouse.name).all())
+                                       ).order_by(Warehouse.name).all(),
+                                       cost_centers=CostCenter.query.filter_by(is_active=True).order_by(CostCenter.code).all())
             for d in lines_payload:
                 if (d.get("unit_price") or 0) <= 0:
                     d["unit_price"] = _resolve_unit_price(d["product_id"], d.get("warehouse_id"))
@@ -1025,8 +1045,11 @@ def create_sale():
                 currency=(form.currency.data or "ILS").upper(),
                 tax_rate=form.tax_rate.data or 0,
                 discount_total=form.discount_total.data or 0,
+                shipping_address=(form.shipping_address.data or '').strip() or None,
+                billing_address=(form.billing_address.data or '').strip() or None,
                 shipping_cost=form.shipping_cost.data or 0,
-                notes=notes_clean
+                notes=notes_clean,
+                cost_center_id=int(form.cost_center_id.data) if form.cost_center_id.data else None
             )
             if hasattr(Sale, 'receiver_name'):
                 sale.receiver_name = form.receiver_name.data
@@ -1068,7 +1091,8 @@ def create_sale():
             flash(f"❌ خطأ أثناء الحفظ: {e}", "danger")
     return render_template("sales/form.html", form=form, title="إنشاء فاتورة جديدة",
                            products=Product.query.order_by(Product.name).all(),
-                           warehouses=Warehouse.query.order_by(Warehouse.name).all())
+                           warehouses=Warehouse.query.order_by(Warehouse.name).all(),
+                           cost_centers=CostCenter.query.filter_by(is_active=True).order_by(CostCenter.code).all())
 
 @sales_bp.route("/<int:id>", methods=["GET"], endpoint="sale_detail")
 @login_required
@@ -1193,8 +1217,10 @@ def edit_sale(id: int):
             sale.currency = (form.currency.data or sale.currency or "ILS").upper()
             sale.tax_rate = form.tax_rate.data or 0
             sale.discount_total = form.discount_total.data or 0
+            sale.shipping_address = (form.shipping_address.data or '').strip() or None
+            sale.billing_address = (form.billing_address.data or '').strip() or None
             sale.shipping_cost = form.shipping_cost.data or 0
-            # حقل receiver_name - آمن حتى لو مفقود
+            sale.cost_center_id = int(form.cost_center_id.data) if form.cost_center_id.data else None
             if hasattr(sale, 'receiver_name'):
                 sale.receiver_name = form.receiver_name.data
             # تنظيف notes من أي قيم غير صحيحة
@@ -1219,7 +1245,8 @@ def edit_sale(id: int):
             flash(f"❌ خطأ أثناء التعديل: {e}", "danger")
     return render_template("sales/form.html", form=form, sale=sale, title="تعديل الفاتورة",
                            products=Product.query.order_by(Product.name).all(),
-                           warehouses=Warehouse.query.order_by(Warehouse.name).all())
+                           warehouses=Warehouse.query.order_by(Warehouse.name).all(),
+                           cost_centers=CostCenter.query.filter_by(is_active=True).order_by(CostCenter.code).all())
 
 @sales_bp.route("/quick", methods=["POST"])
 @login_required

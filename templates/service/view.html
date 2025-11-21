@@ -95,6 +95,7 @@
     <div class="card-body">
       <div class="d-flex flex-wrap gap-2">
         {% set due = due_amount|default(0.0) %}
+        {% set total_value = (service.total_amount or service.total_cost or service.subtotal or 0) %}
         {% if due > 0 %}
         <a href="{{ url_for('service.add_payment', rid=service.id) }}" class="btn btn-primary fw-bold">
           <i class="fas fa-cash-register"></i> تسجيل دفعة ({{ '%.2f'|format(due) }} {{ service.currency or '₪' }})
@@ -106,9 +107,13 @@
             </small>
           {% endif %}
         </a>
-        {% else %}
+        {% elif total_value|float > 0 %}
         <span class="badge badge-success align-self-center px-4 py-2">
           <i class="fas fa-check-circle ml-1"></i> مسدد بالكامل
+        </span>
+        {% else %}
+        <span class="badge badge-secondary align-self-center px-4 py-2">
+          <i class="fas fa-info-circle ml-1"></i> لا يوجد مبلغ مستحق
         </span>
         {% endif %}
         {% if service.status.value != 'COMPLETED' %}
@@ -239,13 +244,9 @@
         <label class="form-label">سعر الوحدة</label>
         <input type="number" class="form-control" name="unit_price" step="0.01" min="0" required>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-4">
         <label class="form-label">الخصم (₪)</label>
         <input type="number" class="form-control" name="discount" step="0.01" min="0" max="999999" value="0" placeholder="مبلغ الخصم">
-      </div>
-      <div class="col-md-2">
-        <label class="form-label">ضريبة %</label>
-        <input type="number" class="form-control" name="tax_rate" step="0.01" min="0" value="0">
       </div>
       <div class="col-md-5">
         <label class="form-label">ملاحظة</label>
@@ -285,7 +286,7 @@
             <input type="number" class="form-control" name="tax_rate" id="tax_rate" 
                    step="0.01" min="0" max="100" 
                    value="{{ '%.2f'|format(service.tax_rate or 0) }}" 
-                   placeholder="نسبة الضريبة">
+                   placeholder="16.00">
             <small class="form-text text-muted">نسبة الضريبة على الصافي بعد الخصم</small>
           </div>
           <div class="col-md-4">

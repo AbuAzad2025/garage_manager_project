@@ -51,6 +51,8 @@ def register_ai_listeners(app):
             """فحص البيع بعد الحفظ"""
             try:
                 monitor = get_realtime_monitor()
+                if monitor is None:
+                    return
                 
                 # الحصول على user_id من العملية
                 user_id = sale.created_by_id or 1
@@ -69,7 +71,9 @@ def register_ai_listeners(app):
             """فحص الدفعة بعد الحفظ"""
             try:
                 monitor = get_realtime_monitor()
-                user_id = payment.created_by_id or 1
+                if monitor is None:
+                    return
+                user_id = getattr(payment, "created_by", None) or getattr(payment, "created_by_id", None) or 1
                 
                 alerts = monitor.check_operation('payment', payment, user_id)
                 
@@ -83,6 +87,8 @@ def register_ai_listeners(app):
             """فحص المخزون بعد التحديث"""
             try:
                 monitor = get_realtime_monitor()
+                if monitor is None:
+                    return
                 user_id = 1  # سيتم تحديثها في الـ frontend
                 
                 alerts = monitor.check_operation('stock', stock, user_id)
@@ -97,6 +103,8 @@ def register_ai_listeners(app):
             """فحص القيد المحاسبي بعد الحفظ"""
             try:
                 monitor = get_realtime_monitor()
+                if monitor is None:
+                    return
                 user_id = 1
                 
                 alerts = monitor.check_operation('gl_batch', gl_batch, user_id)
@@ -110,6 +118,8 @@ def register_ai_listeners(app):
             """فحص العميل بعد التحديث"""
             try:
                 monitor = get_realtime_monitor()
+                if monitor is None:
+                    return
                 user_id = 1
                 
                 alerts = monitor.check_operation('customer', customer, user_id)

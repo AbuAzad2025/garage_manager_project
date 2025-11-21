@@ -5,8 +5,9 @@
 from __future__ import annotations
 
 import json, os, re, uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from types import SimpleNamespace
 
 import click
 from flask.cli import with_appcontext
@@ -15,15 +16,19 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from extensions import db
 from utils import clear_role_permission_cache, clear_users_cache_by_role, get_entity_balance_in_ils, validate_currency_consistency
+from utils.balance_calculator import build_customer_balance_view
+from utils.customer_balance_updater import update_customer_balance_components
+from utils.supplier_balance_updater import update_supplier_balance_components, build_supplier_balance_view
+from utils.partner_balance_updater import update_partner_balance_components, build_partner_balance_view
 from permissions_config.permissions import PermissionsRegistry
 from models import (
-    Account, AuditLog, Customer, Employee, ExchangeTransaction, Expense, ExpenseType, GLBatch, GLEntry, GL_ACCOUNTS,
-    Invoice, Note, OnlineCart, OnlineCartItem, OnlinePayment, OnlinePreOrder, OnlinePreOrderItem,
+    Account, AuditLog, Check, CheckStatus, Customer, Employee, ExchangeTransaction, Expense, ExpenseType, GLBatch,
+    GLEntry, GL_ACCOUNTS, Invoice, Note, OnlineCart, OnlineCartItem, OnlinePayment, OnlinePreOrder, OnlinePreOrderItem,
     Partner, PartnerSettlement, Payment, PaymentDirection, PaymentEntityType, PaymentMethod, PaymentStatus, Permission,
     PreOrder, Product, Role, ServicePart, ServiceRequest, ServiceStatus, ServiceTask,
     Shipment, ShipmentItem, StockAdjustment, StockAdjustmentItem, StockLevel, Supplier,
     SupplierSettlement, Transfer, TransferDirection, Warehouse, _ensure_customer_for_counterparty, _gl_upsert_batch_and_entries,
-    build_partner_settlement_draft, build_supplier_settlement_draft, User,
+    build_partner_settlement_draft, build_supplier_settlement_draft, convert_amount, User,
 )
 
 RESERVED_CODES = PermissionsRegistry.get_protected_permissions()
@@ -2131,6 +2136,551 @@ def workflow_check_timeouts():
     except Exception as e:
         click.echo(click.style(f"❌ خطأ أثناء فحص الـ Workflows: {str(e)}", fg="red"))
 
+@click.command("gl-recreate-payments")
+@click.option("--dry-run", is_flag=True, help="عرض ما سيتم عمله دون تنفيذ")
+@click.option("--payment-id", type=int, help="إعادة إنشاء قيد لدفعة محددة فقط")
+@click.option("--from-date", help="تاريخ البداية (YYYY-MM-DD)")
+@click.option("--to-date", help="تاريخ النهاية (YYYY-MM-DD)")
+@click.option("--force", is_flag=True, help="إعادة إنشاء القيود حتى لو كانت موجودة")
+@click.option("--list-only", is_flag=True, help="عرض قائمة الدفعات فقط")
+@click.option("--show-details", is_flag=True, help="عرض تفاصيل القيود الموجودة")
+@with_appcontext
+def gl_recreate_payments(dry_run, payment_id, from_date, to_date, force, list_only, show_details):
+    """إعادة إنشاء قيود دفتر الأستاذ للدفعات المفقودة"""
+    from models import (
+        Payment, PaymentStatus, PaymentDirection, PaymentMethod, PaymentEntityType,
+        GLBatch, GL_ACCOUNTS, PAYMENT_GL_MAP, fx_rate, _payment_expense_ledger, _payment_entity_id_for
+    )
+    from datetime import datetime
+    
+    try:
+        query = Payment.query.filter(
+            Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value])
+        )
+        
+        if payment_id:
+            query = query.filter(Payment.id == payment_id)
+        
+        if from_date:
+            try:
+                fd = datetime.strptime(from_date, '%Y-%m-%d')
+                query = query.filter(Payment.payment_date >= fd)
+            except ValueError:
+                click.echo(f"❌ تاريخ غير صحيح: {from_date}")
+                return
+        
+        if to_date:
+            try:
+                td = datetime.strptime(to_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59)
+                query = query.filter(Payment.payment_date <= td)
+            except ValueError:
+                click.echo(f"❌ تاريخ غير صحيح: {to_date}")
+                return
+        
+        payments = query.all()
+        click.echo(f"📋 تم العثور على {len(payments)} دفعة")
+        
+        created = 0
+        skipped = 0
+        errors = 0
+        
+        for payment in payments:
+            try:
+                existing = GLBatch.query.filter(
+                    GLBatch.source_type == 'PAYMENT',
+                    GLBatch.source_id == payment.id,
+                    GLBatch.purpose == 'PAYMENT'
+                ).first()
+                
+                if existing and not force:
+                    if list_only or show_details:
+                        entries = GLEntry.query.filter(GLEntry.batch_id == existing.id).all()
+                        if show_details:
+                            click.echo(f"\n✅ الدفعة #{payment.id} - القيد: {existing.code}")
+                            click.echo(f"   التاريخ: {existing.posted_at}")
+                            click.echo(f"   المذكرة: {existing.memo}")
+                            click.echo(f"   الحسابات:")
+                            for entry in entries:
+                                click.echo(f"     - {entry.account}: مدين {entry.debit:.2f} | دائن {entry.credit:.2f}")
+                        elif list_only:
+                            click.echo(f"✅ الدفعة #{payment.id} - القيد موجود: {existing.code}")
+                    elif not dry_run:
+                        click.echo(f"⏭️  تخطي الدفعة #{payment.id} - القيد موجود بالفعل")
+                    skipped += 1
+                    continue
+                
+                if list_only:
+                    if existing:
+                        click.echo(f"✅ الدفعة #{payment.id} - {payment.payment_date} - {payment.total_amount} {payment.currency} - القيد موجود: {existing.code}")
+                    else:
+                        click.echo(f"❌ الدفعة #{payment.id} - {payment.payment_date} - {payment.total_amount} {payment.currency} - بدون قيد")
+                    continue
+                
+                if '[SETTLED=true]' in (payment.notes or ''):
+                    if not dry_run:
+                        click.echo(f"⏭️  تخطي الدفعة #{payment.id} - مستوطنة")
+                    skipped += 1
+                    continue
+                
+                if '[FROM_MANUAL_CHECK=true]' in (payment.notes or ''):
+                    if not dry_run:
+                        click.echo(f"⏭️  تخطي الدفعة #{payment.id} - من شيك يدوي")
+                    skipped += 1
+                    continue
+                
+                
+                amount = float(payment.total_amount or 0)
+                if amount <= 0:
+                    if not dry_run:
+                        click.echo(f"⏭️  تخطي الدفعة #{payment.id} - مبلغ صفر")
+                    skipped += 1
+                    continue
+                
+                amount_ils = amount
+                if payment.currency and payment.currency != 'ILS':
+                    try:
+                        rate = fx_rate(payment.currency, 'ILS', payment.payment_date or datetime.utcnow(), raise_on_missing=False)
+                        if rate and rate > 0:
+                            amount_ils = float(amount * float(rate))
+                    except Exception:
+                        pass
+                
+                is_pending_check = (payment.status == PaymentStatus.PENDING.value and 
+                                   payment.method == PaymentMethod.CHEQUE.value)
+                
+                if is_pending_check:
+                    if payment.direction == PaymentDirection.IN.value:
+                        cash_account = "1150_CHEQUES_RECEIVABLE"
+                    else:
+                        cash_account = "2150_CHEQUES_PAYABLE"
+                else:
+                    method_val = getattr(payment, 'method', 'CASH')
+                    if hasattr(method_val, 'value'):
+                        method_val = method_val.value
+                    payment_method = str(method_val or 'CASH').upper()
+                    
+                    if payment_method == PaymentMethod.BANK.value:
+                        cash_account = GL_ACCOUNTS.get("BANK", "1010_BANK")
+                    elif payment_method == PaymentMethod.CARD.value:
+                        cash_account = GL_ACCOUNTS.get("CARD", "1020_CARD_CLEARING")
+                    else:
+                        cash_account = GL_ACCOUNTS.get("CASH", "1000_CASH")
+                
+                expense_ledger_ctx = _payment_expense_ledger(db.session, payment) if payment.expense_id else None
+                
+                entity_account = GL_ACCOUNTS.get("AR", "1100_AR")
+                entity_name = "عميل"
+                
+                if payment.entity_type == PaymentEntityType.SUPPLIER.value or payment.supplier_id:
+                    entity_account = GL_ACCOUNTS.get("AP", "2000_AP")
+                    entity_name = "مورد"
+                elif payment.entity_type == PaymentEntityType.PARTNER.value or payment.partner_id:
+                    entity_account = GL_ACCOUNTS.get("AP", "2000_AP")
+                    entity_name = "شريك"
+                elif payment.entity_type == PaymentEntityType.EXPENSE.value or payment.expense_id:
+                    entity_account = GL_ACCOUNTS.get("AP", "2000_AP")
+                    entity_name = "مصروف"
+                
+                if expense_ledger_ctx:
+                    if expense_ledger_ctx.get("counterparty_account"):
+                        entity_account = expense_ledger_ctx["counterparty_account"]
+                    elif expense_ledger_ctx.get("behavior") == "IMMEDIATE" and expense_ledger_ctx.get("cash_account"):
+                        entity_account = expense_ledger_ctx["cash_account"]
+                    if not is_pending_check and expense_ledger_ctx.get("cash_account"):
+                        cash_account = expense_ledger_ctx["cash_account"]
+                
+                if payment.direction == PaymentDirection.IN.value:
+                    entries = [
+                        (cash_account, amount_ils, 0),
+                        (entity_account, 0, amount_ils),
+                    ]
+                    if is_pending_check:
+                        memo = f"شيك معلق من {entity_name} - {payment.check_number or payment.payment_number or payment.id}"
+                    else:
+                        memo = f"قبض من {entity_name} - {payment.payment_number or payment.id}"
+                else:
+                    entries = [
+                        (entity_account, amount_ils, 0),
+                        (cash_account, 0, amount_ils),
+                    ]
+                    if is_pending_check:
+                        memo = f"شيك صادر لـ {entity_name} - {payment.check_number or payment.payment_number or payment.id}"
+                    else:
+                        memo = f"سداد لـ {entity_name} - {payment.payment_number or payment.id}"
+                
+                if dry_run:
+                    click.echo(f"🔍 سينشئ قيد للدفعة #{payment.id}: {memo} - {amount_ils:.2f} ILS")
+                else:
+                    _gl_upsert_batch_and_entries(
+                        db.session,
+                        source_type="PAYMENT",
+                        source_id=payment.id,
+                        purpose="PAYMENT",
+                        currency="ILS",
+                        memo=memo,
+                        entries=entries,
+                        ref=payment.payment_number or f"PMT-{payment.id}",
+                        entity_type=payment.entity_type,
+                        entity_id=_payment_entity_id_for(payment)
+                    )
+                    db.session.commit()
+                    click.echo(f"✅ تم إنشاء قيد للدفعة #{payment.id}: {memo}")
+                    created += 1
+                    
+            except Exception as e:
+                errors += 1
+                click.echo(f"❌ خطأ في الدفعة #{payment.id}: {str(e)}")
+                if not dry_run:
+                    db.session.rollback()
+        
+        click.echo(f"\n📊 النتيجة:")
+        click.echo(f"  ✅ تم إنشاء: {created}")
+        click.echo(f"  ⏭️  تم التخطي: {skipped}")
+        click.echo(f"  ❌ أخطاء: {errors}")
+        
+    except Exception as e:
+        click.echo(f"❌ خطأ عام: {str(e)}")
+        if not dry_run:
+            db.session.rollback()
+
+
+@click.command("sync-balances")
+@click.option(
+    "--entity",
+    type=click.Choice(["customers", "suppliers", "partners", "all"], case_sensitive=False),
+    default="all",
+    help="حدد نوع الكيانات التي ترغب في مزامنة أرصدتها أو ALL للجميع.",
+)
+@click.option("--limit", type=int, default=None, help="حد أقصى لعدد السجلات لكل نوع.")
+@click.option("--dry-run", is_flag=True, help="عرض الفروقات فقط دون تعديل البيانات.")
+@click.option("--include-archived", is_flag=True, help="تضمين السجلات المؤرشفة.")
+@click.option("--batch-size", type=int, default=200, show_default=True, help="عدد التصحيحات قبل تنفيذ COMMIT.")
+@with_appcontext
+def sync_balances(entity, limit, dry_run, include_archived, batch_size):
+    """مزامنة جميع الأرصدة مع منطق الحقوق والالتزامات."""
+    entity = (entity or "all").lower()
+    tolerance = Decimal("0.01")
+    summary_rows = []
+
+    groups = [
+        ("customers", Customer, build_customer_balance_view, update_customer_balance_components),
+        ("suppliers", Supplier, build_supplier_balance_view, update_supplier_balance_components),
+        ("partners", Partner, build_partner_balance_view, update_partner_balance_components),
+    ]
+
+    def _should_process(label: str) -> bool:
+        return entity in ("all", label.lower())
+
+    for label, model_cls, breakdown_fn, updater_fn in groups:
+        if not _should_process(label):
+            continue
+
+        query = model_cls.query
+        if hasattr(model_cls, "is_archived") and not include_archived:
+            query = query.filter(model_cls.is_archived == False)  # noqa: E712
+        query = query.order_by(model_cls.id.asc())
+        if limit:
+            query = query.limit(limit)
+
+        total = mismatches = fixed = errors = 0
+        pending_commits = 0
+
+        click.echo(f"\n🔄 مراجعة {label} ...")
+        for obj in query:
+            total += 1
+            try:
+                breakdown = breakdown_fn(obj.id, db.session)
+            except Exception as exc:
+                errors += 1
+                db.session.rollback()
+                click.echo(f"  ⚠️ {label[:-1]} #{obj.id}: تعذر حساب الرصيد ({exc})")
+                continue
+
+            if not breakdown or not breakdown.get("success"):
+                errors += 1
+                click.echo(f"  ⚠️ {label[:-1]} #{obj.id}: نتيجة غير صالحة من الحاسبة")
+                continue
+
+            expected = Decimal(str(breakdown.get("balance", {}).get("amount", 0)))
+            stored = Decimal(str(getattr(obj, "current_balance", 0) or 0))
+            diff = (expected - stored).copy_abs()
+
+            if diff <= tolerance:
+                continue
+
+            mismatches += 1
+            click.echo(
+                f"  • {label[:-1].capitalize()} #{obj.id}: متوقع {expected:.2f} مقابل المخزن {stored:.2f} (فرق {diff:.2f})"
+            )
+
+            if dry_run:
+                continue
+
+            try:
+                updater_fn(obj.id, db.session)
+                pending_commits += 1
+                fixed += 1
+                if pending_commits >= batch_size:
+                    db.session.commit()
+                    pending_commits = 0
+            except Exception as exc:
+                db.session.rollback()
+                errors += 1
+                click.echo(f"    ❌ تعذر تصحيح السجل #{obj.id}: {exc}")
+
+        if not dry_run and pending_commits:
+            db.session.commit()
+
+        summary_rows.append(
+            {
+                "label": label,
+                "total": total,
+                "mismatches": mismatches,
+                "fixed": fixed,
+                "errors": errors,
+            }
+        )
+
+    click.echo("\n📊 الملخص:")
+    if not summary_rows:
+        click.echo("لا توجد كيانات مطابقة للمعايير المحددة.")
+        return
+    for row in summary_rows:
+        click.echo(
+            f"- {row['label'].capitalize():<10}: إجمالي={row['total']}, فروقات={row['mismatches']}, "
+            f"تم تصحيحها={row['fixed']}, أخطاء={row['errors']}"
+        )
+    if dry_run:
+        click.echo("\nوضع Dry-Run مفعّل: لم يتم تعديل أي بيانات.")
+    else:
+        click.echo("\n✅ تمت مزامنة الأرصدة بنجاح.")
+
+
+@click.command("checks-sync-due")
+@click.option(
+    "--target-date",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="تاريخ المعالجة (افتراضي اليوم). سيتم اعتبار أي شيك يستحق في هذا التاريخ أو قبله كمسحوب."
+)
+@click.option(
+    "--direction",
+    type=click.Choice(["all", "in", "out"], case_sensitive=False),
+    default="all",
+    show_default=True,
+    help="تصفية حسب اتجاه الشيك (وارد/صادر)."
+)
+@click.option("--limit", type=int, help="حد أقصى لعدد الشيكات التي سيتم معالجتها.")
+@click.option("--dry-run", is_flag=True, help="عرض ما سيتم تنفيذه دون تعديل فعلي.")
+@click.option("--note", type=str, default="", help="نص مخصص يضاف في مذكرة تحديث الحالة.")
+@with_appcontext
+def checks_sync_due(target_date, direction, limit, dry_run, note):
+    """تسوية حالات الشيكات بناءً على تاريخ الاستحقاق (معلق قبل الاستحقاق، مسحوب بعده)."""
+    from routes.checks import CheckActionService
+
+    target_day = target_date.date() if target_date else datetime.utcnow().date()
+    cutoff_dt = datetime.combine(target_day, datetime.max.time())
+    pending_like = [
+        CheckStatus.PENDING.value,
+        CheckStatus.RESUBMITTED.value,
+        CheckStatus.OVERDUE.value,
+    ]
+
+    query = (
+        Check.query
+        .filter(Check.check_due_date.isnot(None))
+        .filter(Check.status.in_(pending_like))
+        .filter(Check.check_due_date <= cutoff_dt)
+        .order_by(Check.check_due_date.asc(), Check.id.asc())
+    )
+
+    direction_key = (direction or "all").lower()
+    if direction_key in ("in", "out"):
+        dir_value = PaymentDirection.IN.value if direction_key == "in" else PaymentDirection.OUT.value
+        query = query.filter(Check.direction == dir_value)
+
+    if limit:
+        query = query.limit(limit)
+
+    candidates = query.all()
+    if not candidates:
+        click.echo("لا توجد شيكات بحاجة إلى تحديث بناءً على المعايير الحالية.")
+        return
+
+    def _due_as_date(value):
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.date()
+        return value
+
+    def _direction_code(value):
+        raw = getattr(value, "value", value)
+        return "IN" if str(raw or "").upper() == PaymentDirection.IN.value else "OUT"
+
+    def _resolve_token(check_obj: Check):
+        if check_obj.payment_id:
+            return f"payment-{check_obj.payment_id}"
+        reference = (check_obj.reference_number or "").strip()
+        if reference:
+            upper_ref = reference.upper()
+            if upper_ref.startswith("PMT-SPLIT-"):
+                try:
+                    split_id = int(upper_ref.split("PMT-SPLIT-")[-1].split("-")[0])
+                    return f"split-{split_id}"
+                except ValueError:
+                    pass
+            if upper_ref.startswith("EXPENSE-"):
+                try:
+                    exp_id = int(upper_ref.split("EXPENSE-")[-1].split("-")[0])
+                    return f"expense-{exp_id}"
+                except ValueError:
+                    pass
+            if upper_ref.startswith("EXP-") and check_obj.expense_id:
+                return f"expense-{check_obj.expense_id}"
+        if check_obj.expense_id:
+            return f"expense-{check_obj.expense_id}"
+        return f"check-{check_obj.id}"
+
+    def _amount_in_ils(check_obj: Check) -> Decimal:
+        amt = Decimal(str(check_obj.amount or 0))
+        if amt <= 0:
+            return Decimal("0")
+        currency = (check_obj.currency or "ILS").upper()
+        if currency == "ILS":
+            return amt
+        ref_dt = check_obj.check_due_date if isinstance(check_obj.check_due_date, datetime) else None
+        if not ref_dt:
+            ref_dt = datetime.utcnow()
+        try:
+            return convert_amount(amt, currency, "ILS", ref_dt)
+        except Exception:
+            return Decimal("0")
+
+    actor = SimpleNamespace(username="AUTO_CHECK_SYNC", id=0, is_system_account=True)
+    service = CheckActionService(actor)
+
+    processed_tokens = set()
+    stats = {
+        "total": len(candidates),
+        "updated": 0,
+        "errors": 0,
+        "skipped": 0,
+        "direction": {
+            "IN": {"count": 0, "amount_ils": Decimal("0")},
+            "OUT": {"count": 0, "amount_ils": Decimal("0")},
+        },
+    }
+    rows = []
+
+    for check_obj in candidates:
+        token = _resolve_token(check_obj)
+        if not token or token in processed_tokens:
+            stats["skipped"] += 1
+            continue
+        processed_tokens.add(token)
+
+        due_date = _due_as_date(check_obj.check_due_date)
+        if not due_date:
+            stats["skipped"] += 1
+            continue
+
+        current_status = check_obj.status.value if isinstance(check_obj.status, CheckStatus) else str(check_obj.status or "").upper()
+        if current_status == "CASHED":
+            stats["skipped"] += 1
+            continue
+
+        note_parts = [
+            f"تسوية آلية لتاريخ استحقاق {due_date.isoformat()}",
+            f"تشغيل {target_day.isoformat()}",
+        ]
+        if note:
+            note_parts.append(note.strip())
+        note_text = " - ".join(part for part in note_parts if part)
+
+        amount_ils = _amount_in_ils(check_obj)
+        entry = {
+            "token": token,
+            "check_id": check_obj.id,
+            "target_status": "CASHED",
+            "current_status": current_status,
+            "due_date": due_date.isoformat(),
+            "direction": _direction_code(check_obj.direction),
+            "amount": float(check_obj.amount or 0),
+            "amount_ils": float(amount_ils),
+            "currency": check_obj.currency or "ILS",
+            "entity_type": check_obj.entity_type or "",
+            "entity_id": check_obj.entity_id,
+            "reference": check_obj.reference_number,
+        }
+
+        if dry_run:
+            stats["updated"] += 1
+            stats["direction"][entry["direction"]]["count"] += 1
+            stats["direction"][entry["direction"]]["amount_ils"] += amount_ils
+            rows.append(entry)
+            continue
+
+        try:
+            result = service.run(token, "CASHED", note_text)
+            db.session.commit()
+            balance_after = result.get("balance")
+            if balance_after is not None:
+                entry["balance_after"] = balance_after
+            stats["updated"] += 1
+            stats["direction"][entry["direction"]]["count"] += 1
+            stats["direction"][entry["direction"]]["amount_ils"] += amount_ils
+            rows.append(entry)
+        except Exception as exc:
+            stats["errors"] += 1
+            db.session.rollback()
+            click.echo(f"❌ فشل في تحديث الشيك #{check_obj.id} ({token}): {exc}")
+
+    click.echo(f"\n📊 النتائج حتى {target_day.isoformat()}:")
+    click.echo(f"- إجمالي المرشحين: {stats['total']}")
+    click.echo(f"- تم تحديثه: {stats['updated']}")
+    click.echo(f"- تم تخطيه: {stats['skipped']}")
+    click.echo(f"- أخطاء: {stats['errors']}")
+
+    for dir_key in ("IN", "OUT"):
+        dir_stats = stats["direction"][dir_key]
+        click.echo(
+            f"  • {('الواردة' if dir_key == 'IN' else 'الصادرة')}: "
+            f"{dir_stats['count']} شيكات | {dir_stats['amount_ils']:.2f} ILS"
+        )
+
+    if rows:
+        click.echo("\nتفاصيل الشيكات التي تمت معالجتها:")
+        for row in rows:
+            click.echo(
+                f"- #{row['check_id']} ({row['token']}) | استحقاق {row['due_date']} | "
+                f"{row['direction']} | {row['amount']:.2f} {row['currency']} -> CASHED"
+            )
+
+    if dry_run:
+        click.echo("\nوضع Dry-Run مفعّل: لم يتم تعديل أي بيانات.")
+        return
+
+    if stats["updated"]:
+        audit_payload = {
+            "executed_at": datetime.utcnow().isoformat(),
+            "target_date": target_day.isoformat(),
+            "updated": stats["updated"],
+            "direction": {
+                k: {
+                    "count": v["count"],
+                    "amount_ils": float(v["amount_ils"]),
+                }
+                for k, v in stats["direction"].items()
+            },
+        }
+        db.session.add(AuditLog(
+            model_name="Check",
+            action="CHECK_AUTO_CLASSIFY",
+            new_data=json.dumps(audit_payload, ensure_ascii=False)
+        ))
+        db.session.commit()
+        click.echo("\n📝 تم تسجيل العملية في سجل التدقيق.")
+
 def register_cli(app) -> None:
     commands=[
         seed_roles, sync_permissions, list_permissions, list_roles, role_add_perms, create_role, export_rbac,
@@ -2150,6 +2700,6 @@ def register_cli(app) -> None:
         create_superadmin,
         optimize_db, link_missing_counterparties,
         seed_employees, seed_salaries, seed_expenses_demo, seed_branches,
-        workflow_check_timeouts
+        workflow_check_timeouts, gl_recreate_payments, sync_balances, checks_sync_due
     ]
     for cmd in commands: app.cli.add_command(cmd)

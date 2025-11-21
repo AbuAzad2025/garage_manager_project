@@ -47,7 +47,15 @@
           <div class="col-md-6 mb-3">
             {{ form.customer_id.label(class="form-label fw-bold") }}<span class="text-danger ms-1">*</span>
             <div class="input-group">
-              {{ form.customer_id(class="custom-select select2", id="customerSelect", data_endpoint=url_for('api.search_customers')) }}
+              {{ form.customer_id(
+                class="form-control select2 ajax-select",
+                id=form.customer_id.id,
+                **{
+                  'data-endpoint': url_for('api.customers'),
+                  'data-placeholder': 'اختر العميل',
+                  'data-allow-clear': 1
+                }
+              ) }}
               <a href="{{ url_for('customers_bp.create_form', return_to=url_for('service.create_request')) }}" 
                  class="btn btn-outline-primary" title="إضافة عميل جديد" target="_blank">
                 <i class="fa fa-user-plus"></i>
@@ -68,9 +76,9 @@
       <div class="card-body">
         <div class="row">
           <div class="col-md-3 mb-3">
-            {{ form.vehicle_type_id.label(class="form-label fw-bold") }}
+            {{ form.vehicle_type_id.label(class="form-label fw-bold", for=form.vehicle_type_id.id) }}
             <div class="input-group">
-              {{ form.vehicle_type_id(class="custom-select select2", id="vehicleTypeSelect", data_endpoint=url_for('api.search_equipment_types'), data_placeholder="اختر نوعًا أو أضف جديدًا") }}
+              {{ form.vehicle_type_id(class="custom-select select2", id=form.vehicle_type_id.id, data_endpoint=url_for('api.search_equipment_types'), data_placeholder="اختر نوعًا أو أضف جديدًا") }}
               <button type="button" class="btn btn-outline-primary" id="addTypeBtn" title="إضافة نوع">
                 <i class="fa fa-plus"></i>
               </button>
@@ -133,7 +141,7 @@
 
     {% if form.parts %}
     <div class="mb-3">
-      <label class="form-label">القطع المستخدمة</label>
+      <div class="form-label fw-bold">القطع المستخدمة</div>
       <div id="parts-list">
         {% for part in form.parts %}
         <div class="row g-2 mb-2 part-line">
@@ -163,11 +171,11 @@
 
     {% if form.tasks %}
     <div class="mb-3">
-      <label class="form-label">المهام المنفذة</label>
+      <div class="form-label fw-bold">المهام المنفذة</div>
       <div id="tasks-list">
         {% for task in form.tasks %}
         <div class="row g-2 mb-2 task-line">
-          <div class="col-md-6">{{ task.description(class="form-control") }}</div>
+          <div class="col-md-6">{{ task.description(class="form-control", data_endpoint=url_for('api.search_service_tasks')) }}</div>
           <div class="col-md-2">{{ task.quantity(class="form-control", min="1") }}</div>
           <div class="col-md-2">{{ task.unit_price(class="form-control", min="0", step="0.01") }}</div>
           <div class="col-auto d-flex align-items-center">
@@ -195,20 +203,20 @@
     <form id="equipmentTypeForm">
       <div class="custom-modal-body">
         <div class="mb-2">
-          <label>الاسم *</label>
-          <input type="text" class="form-control" id="et_name" required>
+          <label for="et_name">الاسم *</label>
+          <input type="text" class="form-control" id="et_name" name="et_name" required>
         </div>
         <div class="mb-2">
-          <label>الموديل</label>
-          <input type="text" class="form-control" id="et_model">
+          <label for="et_model">الموديل</label>
+          <input type="text" class="form-control" id="et_model" name="et_model">
         </div>
         <div class="mb-2">
-          <label>الفئة</label>
-          <input type="text" class="form-control" id="et_category">
+          <label for="et_category">الفئة</label>
+          <input type="text" class="form-control" id="et_category" name="et_category">
         </div>
         <div class="mb-2">
-          <label>وصف</label>
-          <textarea class="form-control" id="et_notes" rows="2"></textarea>
+          <label for="et_notes">وصف</label>
+          <textarea class="form-control" id="et_notes" name="et_notes" rows="2"></textarea>
         </div>
       </div>
       <div class="custom-modal-footer">
@@ -288,7 +296,7 @@
           });
           const data = await res.json();
           if (!res.ok || !data.id) throw new Error(data.error || 'فشل إنشاء النوع');
-          const $type = $('#vehicleTypeSelect');
+          const $type = $('#{{ form.vehicle_type_id.id }}');
           const opt = new Option(data.text, data.id, true, true);
           $type.append(opt).trigger('change');
           $('#equipmentTypeModal').hide();

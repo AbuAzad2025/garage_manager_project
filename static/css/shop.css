@@ -578,7 +578,7 @@ body {
 }
 
 .card-img-top {
-  height: 250px;
+  height: 220px;
   object-fit: cover;
   width: 100%;
   transition: var(--transition);
@@ -586,12 +586,6 @@ body {
 
 .card:hover .card-img-top {
   transform: scale(1.05);
-}
-
-.card-img-top {
-  height: 220px;
-  object-fit: cover;
-  width: 100%;
 }
 
 .card-title {

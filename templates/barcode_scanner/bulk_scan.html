@@ -523,10 +523,16 @@
                         </div>
                         <div class="card-body p-4">
                             <!-- توضيح المسح الجماعي -->
+                            <div class="alert alert-success mb-4" style="border-right: 4px solid #56ab2f;">
+                                <h6 class="mb-2"><i class="fas fa-lightbulb ml-2"></i><strong>💡 للمنتجات الموجودة (إضافة كمية):</strong></h6>
+                                <p class="mb-2" style="font-size: 0.9rem;">
+                                    استخدم <a href="{{ url_for('barcode_scanner.index') }}" target="_blank" class="text-white"><strong>صفحة تحديث المخزون</strong></a> لإضافة كمية لمنتجات موجودة بسرعة
+                                </p>
+                            </div>
                             <div class="alert alert-info mb-4" style="border-right: 4px solid #4facfe;">
-                                <h6 class="mb-2"><i class="fas fa-info-circle ml-2"></i><strong>عن المسح الجماعي:</strong></h6>
+                                <h6 class="mb-2"><i class="fas fa-info-circle ml-2"></i><strong>عن المسح الجماعي (للمنتجات الجديدة):</strong></h6>
                                 <ul class="mb-0" style="font-size: 0.9rem; line-height: 1.8;">
-                                    <li>يمكنك استيراد عدة منتجات دفعة واحدة باستخدام الباركود</li>
+                                    <li>لإضافة منتجات جديدة مع بيانات كاملة (اسم، ماركة، سعر، إلخ)</li>
                                     <li>الحقول المطلوبة تختلف حسب نوع المستودع المختار</li>
                                     <li><strong>مستودع شريك:</strong> يتطلب تحديد الشريك ونسبة المساهمة</li>
                                     <li><strong>مستودع تبادل:</strong> يتطلب تحديد المورد/التاجر المحلي</li>

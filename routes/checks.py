@@ -4,8 +4,8 @@ from typing import Optional
 from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
 from flask_login import current_user, login_required
 from datetime import datetime, timedelta, date
-from sqlalchemy import and_, or_, desc, func
-from sqlalchemy.orm import joinedload
+from sqlalchemy import and_, or_, desc, func, select
+from sqlalchemy.orm import joinedload, sessionmaker
 from extensions import db
 try:
     from extensions import limiter
@@ -25,6 +25,312 @@ checks_bp = Blueprint('checks', __name__, url_prefix='/checks')
 
 
 from sqlalchemy import event
+
+
+class CheckException(Exception):
+    def __init__(self, message, code=None, details=None):
+        super().__init__(message)
+        self.message = message
+        self.code = code
+        self.details = details or {}
+
+
+class CheckValidationError(CheckException):
+    pass
+
+
+class CheckAccountingError(CheckException):
+    pass
+
+
+class CheckStateError(CheckException):
+    pass
+
+
+class PaymentStatusSyncService:
+    @staticmethod
+    def sync_payment_status_from_check(check, connection):
+        from sqlalchemy import text as sa_text
+        from models import PaymentMethod, PaymentStatus
+        
+        payment_id = getattr(check, 'payment_id', None)
+        if not payment_id:
+            return None
+        
+        check_status = str(getattr(check, 'status', '')).upper()
+        
+        payment_query = connection.execute(
+            sa_text("SELECT id, status, total_amount FROM payments WHERE id = :payment_id"),
+            {"payment_id": payment_id}
+        ).fetchone()
+        
+        if not payment_query:
+            return None
+        
+        payment_status = payment_query[1] or 'PENDING'
+        
+        payment_notes_query = connection.execute(
+            sa_text("SELECT notes FROM payments WHERE id = :payment_id"),
+            {"payment_id": payment_id}
+        ).fetchone()
+        payment_notes = payment_notes_query[0] if payment_notes_query else ''
+        is_settled = '[SETTLED=true]' in (payment_notes or '').upper()
+        
+        splits_query = connection.execute(
+            sa_text("""
+                SELECT ps.id, ps.method, ps.amount 
+                FROM payment_splits ps 
+                WHERE ps.payment_id = :payment_id
+            """),
+            {"payment_id": payment_id}
+        ).fetchall()
+        
+        has_splits = len(splits_query) > 0
+        
+        new_payment_status = None
+        
+        if has_splits:
+            cheque_method = PaymentMethod.CHEQUE.value
+            cheque_splits = [s for s in splits_query if str(s[1]).upper() == str(cheque_method).upper()]
+            non_cheque_splits = [s for s in splits_query if str(s[1]).upper() != str(cheque_method).upper()]
+            
+            new_payment_status = PaymentStatusSyncService._calculate_status_with_splits(
+                check, check_status, cheque_splits, non_cheque_splits, is_settled, connection
+            )
+        else:
+            new_payment_status = PaymentStatusSyncService._calculate_status_without_splits(check_status)
+        
+        if new_payment_status and new_payment_status != payment_status:
+            connection.execute(
+                sa_text("UPDATE payments SET status = :new_status WHERE id = :payment_id"),
+                {"new_status": new_payment_status, "payment_id": payment_id}
+            )
+            from flask import current_app
+            current_app.logger.info(f"✅ تمت مزامنة حالة الدفعة #{payment_id} مع الشيك #{getattr(check, 'id', '?')} - {check_status} → {new_payment_status}")
+            return new_payment_status
+        
+        return None
+    
+    @staticmethod
+    def _calculate_status_with_splits(check, check_status, cheque_splits, non_cheque_splits, is_settled, connection):
+        from sqlalchemy import text as sa_text
+        from models import PaymentMethod, PaymentStatus
+        
+        if check_status in ['RETURNED', 'BOUNCED']:
+            if is_settled:
+                if len(non_cheque_splits) > 0:
+                    return PaymentStatus.COMPLETED.value
+                else:
+                    all_cheque_splits_settled = True
+                    for split in cheque_splits:
+                        split_check = connection.execute(
+                            sa_text("""
+                                SELECT c.status, p.notes 
+                                FROM checks c
+                                JOIN payments p ON c.payment_id = p.id
+                                WHERE c.reference_number LIKE :ref_pattern
+                            """),
+                            {"ref_pattern": f"PMT-SPLIT-{split[0]}-%"}
+                        ).fetchone()
+                        
+                        if split_check:
+                            split_status = split_check[0]
+                            split_payment_notes = split_check[1] if len(split_check) > 1 else ''
+                            split_is_settled = '[SETTLED=true]' in (split_payment_notes or '').upper()
+                            
+                            if split_status in ['RETURNED', 'BOUNCED'] and not split_is_settled:
+                                all_cheque_splits_settled = False
+                                break
+                    
+                    if all_cheque_splits_settled:
+                        return PaymentStatus.COMPLETED.value
+                    else:
+                        return None
+            else:
+                check_reference = getattr(check, 'reference_number', '') or ''
+                is_split_check = 'PMT-SPLIT-' in check_reference
+                
+                if is_split_check:
+                    try:
+                        split_id_str = check_reference.split('PMT-SPLIT-')[1].split('-')[0]
+                        split_id = int(split_id_str)
+                        
+                        affected_split = next((s for s in cheque_splits if s[0] == split_id), None)
+                        
+                        if affected_split:
+                            if len(non_cheque_splits) > 0:
+                                return PaymentStatus.COMPLETED.value
+                            else:
+                                all_cheque_splits_returned = True
+                                for split in cheque_splits:
+                                    split_check = connection.execute(
+                                        sa_text("""
+                                            SELECT status FROM checks 
+                                            WHERE reference_number LIKE :ref_pattern
+                                        """),
+                                        {"ref_pattern": f"PMT-SPLIT-{split[0]}-%"}
+                                    ).fetchone()
+                                    
+                                    if not split_check or split_check[0] not in ['RETURNED', 'BOUNCED']:
+                                        all_cheque_splits_returned = False
+                                        break
+                                
+                                if all_cheque_splits_returned:
+                                    return PaymentStatus.FAILED.value
+                                else:
+                                    return PaymentStatus.COMPLETED.value
+                        else:
+                            return None
+                    except (ValueError, IndexError):
+                        return None
+                else:
+                    if len(non_cheque_splits) > 0:
+                        return PaymentStatus.COMPLETED.value
+                    elif len(cheque_splits) == 1:
+                        return PaymentStatus.FAILED.value
+                    else:
+                        return None
+        
+        elif check_status == 'RESUBMITTED':
+            check_reference = getattr(check, 'reference_number', '') or ''
+            is_split_check = 'PMT-SPLIT-' in check_reference
+            
+            if is_split_check:
+                try:
+                    split_id_str = check_reference.split('PMT-SPLIT-')[1].split('-')[0]
+                    split_id = int(split_id_str)
+                    
+                    affected_split = next((s for s in cheque_splits if s[0] == split_id), None)
+                    
+                    if affected_split:
+                        if len(non_cheque_splits) > 0:
+                            return PaymentStatus.COMPLETED.value
+                        else:
+                            all_cheque_splits_resubmitted_or_cashed = True
+                            has_pending_cheque_splits = False
+                            
+                            for split in cheque_splits:
+                                if split[0] != split_id:
+                                    split_check = connection.execute(
+                                        sa_text("""
+                                            SELECT status FROM checks 
+                                            WHERE reference_number LIKE :ref_pattern
+                                        """),
+                                        {"ref_pattern": f"PMT-SPLIT-{split[0]}-%"}
+                                    ).fetchone()
+                                    
+                                    if split_check:
+                                        split_status = split_check[0]
+                                        if split_status not in ['CASHED', 'RESUBMITTED', 'PENDING']:
+                                            all_cheque_splits_resubmitted_or_cashed = False
+                                        if split_status in ['PENDING', 'RESUBMITTED']:
+                                            has_pending_cheque_splits = True
+                            
+                            if all_cheque_splits_resubmitted_or_cashed and not has_pending_cheque_splits:
+                                return PaymentStatus.COMPLETED.value
+                            else:
+                                return PaymentStatus.PENDING.value
+                    else:
+                        return None
+                except (ValueError, IndexError):
+                    return None
+            else:
+                if len(non_cheque_splits) > 0:
+                    return PaymentStatus.COMPLETED.value
+                else:
+                    return PaymentStatus.PENDING.value
+        
+        elif check_status == 'CASHED':
+            if len(non_cheque_splits) == 0:
+                all_cheque_splits_cashed = True
+                for split in cheque_splits:
+                    split_check = connection.execute(
+                        sa_text("""
+                            SELECT status FROM checks 
+                            WHERE reference_number LIKE :ref_pattern
+                        """),
+                        {"ref_pattern": f"PMT-SPLIT-{split[0]}-%"}
+                    ).fetchone()
+                    
+                    if not split_check or split_check[0] != 'CASHED':
+                        all_cheque_splits_cashed = False
+                        break
+                
+                if all_cheque_splits_cashed:
+                    return PaymentStatus.COMPLETED.value
+                else:
+                    return PaymentStatus.PENDING.value
+            else:
+                return PaymentStatus.COMPLETED.value
+        
+        elif check_status == 'CANCELLED':
+            check_reference = getattr(check, 'reference_number', '') or ''
+            is_split_check = 'PMT-SPLIT-' in check_reference
+            
+            if is_split_check:
+                try:
+                    split_id_str = check_reference.split('PMT-SPLIT-')[1].split('-')[0]
+                    split_id = int(split_id_str)
+                    
+                    affected_split = next((s for s in cheque_splits if s[0] == split_id), None)
+                    
+                    if affected_split:
+                        all_cheque_splits_settled_or_cashed = True
+                        has_active_cheque_splits = False
+                        
+                        for split in cheque_splits:
+                            if split[0] != split_id:
+                                split_check = connection.execute(
+                                    sa_text("""
+                                        SELECT status FROM checks 
+                                        WHERE reference_number LIKE :ref_pattern
+                                    """),
+                                    {"ref_pattern": f"PMT-SPLIT-{split[0]}-%"}
+                                ).fetchone()
+                                
+                                if split_check:
+                                    split_status = split_check[0]
+                                    if split_status not in ['CASHED', 'CANCELLED']:
+                                        all_cheque_splits_settled_or_cashed = False
+                                    if split_status not in ['CANCELLED']:
+                                        has_active_cheque_splits = True
+                        
+                        if len(non_cheque_splits) > 0:
+                            return PaymentStatus.COMPLETED.value
+                        elif all_cheque_splits_settled_or_cashed and not has_active_cheque_splits:
+                            return PaymentStatus.COMPLETED.value
+                        else:
+                            return PaymentStatus.COMPLETED.value
+                    else:
+                        return None
+                except (ValueError, IndexError):
+                    return None
+            else:
+                if len(cheque_splits) == 1 and len(non_cheque_splits) == 0:
+                    return PaymentStatus.COMPLETED.value
+                elif len(non_cheque_splits) > 0:
+                    return PaymentStatus.COMPLETED.value
+                else:
+                    return PaymentStatus.COMPLETED.value
+        
+        return None
+    
+    @staticmethod
+    def _calculate_status_without_splits(check_status):
+        from models import PaymentStatus
+        
+        if check_status in ['RETURNED', 'BOUNCED']:
+            return PaymentStatus.FAILED.value
+        elif check_status == 'PENDING':
+            return PaymentStatus.PENDING.value
+        elif check_status == 'RESUBMITTED':
+            return PaymentStatus.PENDING.value
+        elif check_status == 'CASHED':
+            return PaymentStatus.COMPLETED.value
+        elif check_status == 'CANCELLED':
+            return PaymentStatus.CANCELLED.value
+        else:
+            return None
 
 
 def create_check_record(
@@ -151,8 +457,13 @@ def _check_gl_batch_reverse(mapper, connection, target):
             entity_id=None
         )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في عكس قيد الشيك #{target.id}: {e}", file=sys.stderr)
+        try:
+            current_app.logger.error(f"⚠️ خطأ في عكس قيد الشيك #{getattr(target, 'id', '?')}: {e}")
+            import traceback
+            current_app.logger.debug(traceback.format_exc())
+        except Exception:
+            import sys
+            print(f"⚠️ خطأ في عكس قيد الشيك #{getattr(target, 'id', '?')}: {e}", file=sys.stderr)
 
 
 @event.listens_for(Payment, 'before_delete')
@@ -166,34 +477,60 @@ def _payment_check_before_delete(mapper, connection, target):
                 )
             )
     except Exception as e:
-        current_app.logger.error(f"خطأ في حذف القيود المحاسبية للدفعة {target.id}: {str(e)}")
+        try:
+            current_app.logger.error(f"خطأ في حذف القيود المحاسبية للدفعة {getattr(target, 'id', '?')}: {str(e)}")
+            import traceback
+            current_app.logger.debug(traceback.format_exc())
+        except Exception:
+            pass
 
 
 @event.listens_for(GLBatch, 'before_delete')
 def _glbatch_before_delete(mapper, connection, target):
     """عند حذف قيد محاسبي مرتبط بشيك، إلغاء الشيك تلقائياً"""
     try:
-        source_type = target.source_type
-        source_id = target.source_id
+        source_type = getattr(target, 'source_type', None)
+        source_id = getattr(target, 'source_id', None)
         
+        if not source_type or not source_id:
+            return
+        
+        warning_line = '⚠️ تم إلغاء الشيك بسبب حذف القيد المحاسبي'
         if source_type == 'check_check':
+            existing_notes = connection.execute(
+                select(Check.notes).where(Check.id == source_id)
+            ).scalar()
+            combined_notes = warning_line if not existing_notes else f"{existing_notes}\n{warning_line}"
             connection.execute(
                 Check.__table__.update().where(Check.id == source_id).values(
                     status='CANCELLED',
-                    notes=Check.notes + '\n⚠️ تم إلغاء الشيك بسبب حذف القيد المحاسبي'
+                    notes=combined_notes
                 )
             )
         elif source_type == 'check_payment':
+            existing_notes = connection.execute(
+                select(Payment.notes).where(Payment.id == source_id)
+            ).scalar()
+            combined_notes = warning_line if not existing_notes else f"{existing_notes}\n{warning_line}"
             connection.execute(
                 Payment.__table__.update().where(Payment.id == source_id).values(
-                    notes=Payment.notes + '\n⚠️ تم إلغاء الشيك بسبب حذف القيد المحاسبي'
+                    notes=combined_notes
                 )
             )
     except Exception as e:
-        current_app.logger.error(f"خطأ في إلغاء الشيك عند حذف القيد: {str(e)}")
+        try:
+            current_app.logger.error(f"خطأ في إلغاء الشيك عند حذف القيد (type={getattr(target, 'source_type', '?')}, id={getattr(target, 'source_id', '?')}): {str(e)}")
+            import traceback
+            current_app.logger.debug(traceback.format_exc())
+        except Exception:
+            pass
 
 
 _check_gl_queue = []
+
+@event.listens_for(db.session, 'after_commit')
+def _process_check_gl_queue(session):
+    _create_check_gl_after_commit()
 
 def _create_check_gl_after_commit():
     """إنشاء GL للشيكات المعلقة بعد commit"""
@@ -228,6 +565,9 @@ def _check_manual_gl_on_insert(mapper, connection, target):
     """ترحيل الشيكات اليدوية (بدون payment_id) لدفتر الأستاذ عند إنشائها"""
     try:
         if target.payment_id is not None:
+            return
+        
+        if hasattr(target, '_skip_gl_creation') and target._skip_gl_creation:
             return
         
         check_status = str(getattr(target, 'status', 'PENDING') or 'PENDING').upper()
@@ -267,6 +607,8 @@ def _check_manual_gl_on_insert(mapper, connection, target):
                 entity_type = 'PARTNER'
         except Exception as e:
             current_app.logger.warning(f"⚠️ خطأ في جلب اسم الكيان للشيك #{getattr(target, 'id', '?')}: {e}")
+            import traceback
+            current_app.logger.debug(traceback.format_exc())
             return
         
         if not entity_id:
@@ -290,6 +632,8 @@ def _check_manual_gl_on_insert(mapper, connection, target):
         })
     except Exception as e:
         current_app.logger.warning(f"⚠️ خطأ في وضع علامة لإنشاء GL للشيك #{getattr(target, 'id', '?')}: {e}")
+        import traceback
+        current_app.logger.debug(traceback.format_exc())
 
 
 @event.listens_for(Check, 'after_insert', propagate=True)
@@ -412,6 +756,7 @@ def _check_create_payment_auto(mapper, connection, target):
                 supplier_id=target.supplier_id,
                 partner_id=target.partner_id,
                 entity_type=entity_type,
+                created_by_id=created_by_id,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
@@ -469,6 +814,9 @@ def _check_manual_gl_on_update(mapper, connection, target):
         from extensions import cache
         
         if target.payment_id is not None:
+            return
+        
+        if hasattr(target, '_skip_gl_creation') and target._skip_gl_creation:
             return
         
         history = get_history(target, 'status')
@@ -534,6 +882,26 @@ def _check_manual_gl_on_update(mapper, connection, target):
         currency = target.currency or 'ILS'
         
         check_type = 'manual'
+        
+        existing_batch = connection.execute(
+            sa_text("""
+                SELECT id FROM gl_batches 
+                WHERE source_type = :source_type 
+                AND source_id = :source_id 
+                AND status = 'POSTED'
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """),
+            {
+                "source_type": f'check_{check_type}',
+                "source_id": target.id
+            }
+        ).fetchone()
+        
+        if existing_batch:
+            current_app.logger.info(f"⚠️ يوجد GL batch موجود للشيك اليدوي #{target.id} - تخطي الإنشاء")
+            return
+        
         create_gl_entry_for_check(
             check_id=target.id,
             check_type=check_type,
@@ -550,6 +918,8 @@ def _check_manual_gl_on_update(mapper, connection, target):
         )
     except Exception as e:
         current_app.logger.warning(f"⚠️ خطأ في ترحيل الشيك اليدوي #{getattr(target, 'id', '?')} لدفتر الأستاذ عند التحديث: {e}")
+        import traceback
+        current_app.logger.debug(traceback.format_exc())
 
 
 def ensure_check_accounts():
@@ -584,6 +954,352 @@ def ensure_check_accounts():
     except Exception as e:
         current_app.logger.error(f"❌ خطأ في إنشاء حسابات دفتر الأستاذ: {str(e)}")
         db.session.rollback()
+
+
+def _create_gl_batch(connection, batch_code, check_type, check_id, currency, entity_name, notes, entity_type, entity_id, check_type_label):
+    from sqlalchemy import text as sa_text
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    is_sqlite = uri.startswith("sqlite")
+    
+    batch_data = {
+        "code": batch_code,
+        "source_type": f'check_{check_type}',
+        "source_id": int(check_id) if str(check_id).replace('-', '').isdigit() else check_id,
+        "currency": currency or 'ILS',
+        "status": 'POSTED',
+        "memo": f"قيد {check_type_label}: {entity_name} - {notes}",
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "created_at": datetime.utcnow(),
+        "updated_at": datetime.utcnow()
+    }
+    
+    if is_sqlite:
+        connection.execute(
+            sa_text("""
+                INSERT INTO gl_batches (code, source_type, source_id, currency, status, memo, entity_type, entity_id, created_at, updated_at)
+                VALUES (:code, :source_type, :source_id, :currency, :status, :memo, :entity_type, :entity_id, :created_at, :updated_at)
+            """),
+            batch_data
+        )
+        return connection.execute(sa_text("SELECT last_insert_rowid()")).scalar()
+    else:
+        result = connection.execute(
+            sa_text("""
+                INSERT INTO gl_batches (code, source_type, source_id, currency, status, memo, entity_type, entity_id, created_at, updated_at)
+                VALUES (:code, :source_type, :source_id, :currency, :status, :memo, :entity_type, :entity_id, :created_at, :updated_at)
+                RETURNING id
+            """),
+            batch_data
+        )
+        return result.scalar()
+
+
+def _create_gl_entries_for_pending(amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming):
+    entries = []
+    if is_incoming:
+        entries.extend([
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
+                "debit": float(amount_decimal),
+                "credit": 0.0,
+                "currency": currency or 'ILS',
+                "ref": f"{check_type_label} وارد معلق من {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['AR'],
+                "debit": 0.0,
+                "credit": float(amount_decimal),
+                "currency": currency or 'ILS',
+                "ref": f"{check_type_label} وارد معلق من {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ])
+    else:
+        entries.extend([
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['AP'],
+                "debit": float(amount_decimal),
+                "credit": 0.0,
+                "currency": currency or 'ILS',
+                "ref": f"{check_type_label} صادر معلق إلى {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
+                "debit": 0.0,
+                "credit": float(amount_decimal),
+                "currency": currency or 'ILS',
+                "ref": f"{check_type_label} صادر معلق إلى {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ])
+    return entries
+
+
+def _create_gl_entries_for_cashed(amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming):
+    entries = []
+    if is_incoming:
+        entries.extend([
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['BANK'],
+                "debit": float(amount_decimal),
+                "credit": 0.0,
+                "currency": currency or 'ILS',
+                "ref": f"صرف {check_type_label} وارد من {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
+                "debit": 0.0,
+                "credit": float(amount_decimal),
+                "currency": currency or 'ILS',
+                "ref": f"صرف {check_type_label} وارد من {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ])
+    else:
+        entries.extend([
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
+                "debit": float(amount_decimal),
+                "credit": 0.0,
+                "currency": currency or 'ILS',
+                "ref": f"صرف {check_type_label} صادر إلى {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['BANK'],
+                "debit": 0.0,
+                "credit": float(amount_decimal),
+                "currency": currency or 'ILS',
+                "ref": f"صرف {check_type_label} صادر إلى {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ])
+    return entries
+
+
+def _create_gl_entries_for_returned(amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming):
+    entries = []
+    if is_incoming:
+        entries.extend([
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['AR'],
+                "debit": float(amount_decimal),
+                "credit": 0.0,
+                "currency": currency or 'ILS',
+                "ref": f"إرجاع {check_type_label} من {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
+                "debit": 0.0,
+                "credit": float(amount_decimal),
+                "currency": currency or 'ILS',
+                "ref": f"إرجاع {check_type_label} من {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ])
+    else:
+        entries.extend([
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
+                "debit": float(amount_decimal),
+                "credit": 0.0,
+                "currency": currency or 'ILS',
+                "ref": f"إرجاع {check_type_label} إلى {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['AP'],
+                "debit": 0.0,
+                "credit": float(amount_decimal),
+                "currency": currency or 'ILS',
+                "ref": f"إرجاع {check_type_label} إلى {entity_name}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ])
+    return entries
+
+
+def _create_gl_entries_for_resubmitted(amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming):
+    return _create_gl_entries_for_pending(amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming)
+
+
+def _create_gl_entries_for_cancelled(amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming, old_status):
+    entries = []
+    if old_status in ['RETURNED', 'BOUNCED']:
+        if is_incoming:
+            entries.extend([
+                {
+                    "batch_id": batch_id,
+                    "account": GL_ACCOUNTS_CHECKS['AR'],
+                    "debit": 0.0,
+                    "credit": float(amount_decimal),
+                    "currency": currency or 'ILS',
+                    "ref": f"✅ تسوية {check_type_label} وارد من {entity_name} (كان مرتد)",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "batch_id": batch_id,
+                    "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
+                    "debit": float(amount_decimal),
+                    "credit": 0.0,
+                    "currency": currency or 'ILS',
+                    "ref": f"✅ تسوية {check_type_label} وارد من {entity_name} (كان مرتد)",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+            ])
+        else:
+            entries.extend([
+                {
+                    "batch_id": batch_id,
+                    "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
+                    "debit": 0.0,
+                    "credit": float(amount_decimal),
+                    "currency": currency or 'ILS',
+                    "ref": f"✅ تسوية {check_type_label} صادر إلى {entity_name} (كان مرتد)",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "batch_id": batch_id,
+                    "account": GL_ACCOUNTS_CHECKS['AP'],
+                    "debit": float(amount_decimal),
+                    "credit": 0.0,
+                    "currency": currency or 'ILS',
+                    "ref": f"✅ تسوية {check_type_label} صادر إلى {entity_name} (كان مرتد)",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+            ])
+    else:
+        if is_incoming:
+            entries.extend([
+                {
+                    "batch_id": batch_id,
+                    "account": GL_ACCOUNTS_CHECKS['AR'],
+                    "debit": float(amount_decimal),
+                    "credit": 0.0,
+                    "currency": currency or 'ILS',
+                    "ref": f"⛔ إلغاء {check_type_label} وارد من {entity_name}",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "batch_id": batch_id,
+                    "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
+                    "debit": 0.0,
+                    "credit": float(amount_decimal),
+                    "currency": currency or 'ILS',
+                    "ref": f"⛔ إلغاء {check_type_label} وارد من {entity_name}",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+            ])
+        else:
+            entries.extend([
+                {
+                    "batch_id": batch_id,
+                    "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
+                    "debit": float(amount_decimal),
+                    "credit": 0.0,
+                    "currency": currency or 'ILS',
+                    "ref": f"⛔ إلغاء {check_type_label} صادر إلى {entity_name}",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                },
+                {
+                    "batch_id": batch_id,
+                    "account": GL_ACCOUNTS_CHECKS['AP'],
+                    "debit": 0.0,
+                    "credit": float(amount_decimal),
+                    "currency": currency or 'ILS',
+                    "ref": f"⛔ إلغاء {check_type_label} صادر إلى {entity_name}",
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                }
+            ])
+    return entries
+
+
+def _create_gl_entries_for_reverse_cancelled(amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming, new_status):
+    entries = []
+    if is_incoming:
+        entries.extend([
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['AR'],
+                "debit": 0.0,
+                "credit": float(amount_decimal),
+                "currency": currency or 'ILS',
+                "ref": f"↩️ عكس إلغاء {check_type_label} وارد من {entity_name} - إرجاع للحالة: {new_status}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
+                "debit": float(amount_decimal),
+                "credit": 0.0,
+                "currency": currency or 'ILS',
+                "ref": f"↩️ عكس إلغاء {check_type_label} وارد من {entity_name} - إرجاع للحالة: {new_status}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ])
+    else:
+        entries.extend([
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
+                "debit": 0.0,
+                "credit": float(amount_decimal),
+                "currency": currency or 'ILS',
+                "ref": f"↩️ عكس إلغاء {check_type_label} صادر إلى {entity_name} - إرجاع للحالة: {new_status}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            },
+            {
+                "batch_id": batch_id,
+                "account": GL_ACCOUNTS_CHECKS['AP'],
+                "debit": float(amount_decimal),
+                "credit": 0.0,
+                "currency": currency or 'ILS',
+                "ref": f"↩️ عكس إلغاء {check_type_label} صادر إلى {entity_name} - إرجاع للحالة: {new_status}",
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }
+        ])
+    return entries
 
 
 def create_gl_entry_for_check(check_id, check_type, amount, currency, direction, 
@@ -626,7 +1342,6 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
         is_incoming = (direction == 'IN')
         amount_decimal = Decimal(str(amount))
         
-        # إضافة "يدوي" للشيكات اليدوية
         check_type_label = "شيك يدوي" if check_type == "manual" else "شيك"
         
         batch_code = f"CHK-{check_type.upper()}-{check_id}-{uuid.uuid4().hex[:8].upper()}"
@@ -641,346 +1356,100 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
             connection = db.engine.connect()
             should_close_connection = True
         elif isinstance(connection, SQLSession):
-            connection = connection.connection()
+            try:
+                connection = connection.connection()
+            except Exception:
+                connection = db.engine.connect()
+                should_close_connection = True
+                connection_from_event = False
         
         if connection_from_event:
             try:
                 if hasattr(connection, 'closed') and connection.closed:
                     current_app.logger.warning(f"⚠️ connection مغلق في create_gl_entry_for_check - استخدام db.engine.connect()")
+                    if should_close_connection:
+                        try:
+                            connection.close()
+                        except:
+                            pass
                     connection = db.engine.connect()
                     should_close_connection = True
                     connection_from_event = False
-            except:
-                pass
+            except Exception:
+                if should_close_connection:
+                    try:
+                        connection.close()
+                    except:
+                        pass
+                connection = db.engine.connect()
+                should_close_connection = True
+                connection_from_event = False
         
         try:
-            uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
-            is_sqlite = uri.startswith("sqlite")
-            
-            if is_sqlite:
-                try:
-                    connection.execute(
-                        sa_text("""
-                            INSERT INTO gl_batches (code, source_type, source_id, currency, status, memo, entity_type, entity_id, created_at, updated_at)
-                            VALUES (:code, :source_type, :source_id, :currency, :status, :memo, :entity_type, :entity_id, :created_at, :updated_at)
-                        """),
-                        {
-                            "code": batch_code,
-                            "source_type": f'check_{check_type}',
-                            "source_id": int(check_id) if str(check_id).replace('-', '').isdigit() else check_id,
-                            "currency": currency or 'ILS',
-                            "status": 'POSTED',
-                            "memo": f"قيد {check_type_label}: {entity_name} - {notes}",
-                            "entity_type": entity_type,
-                            "entity_id": entity_id,
-                            "created_at": datetime.utcnow(),
-                            "updated_at": datetime.utcnow()
-                        }
-                    )
-                    batch_id = connection.execute(sa_text("SELECT last_insert_rowid()")).scalar()
-                except Exception as conn_e:
-                    if connection_from_event and "closed" in str(conn_e).lower():
-                        current_app.logger.warning(f"⚠️ connection مغلق - استخدام connection جديد")
-                        if should_close_connection:
-                            try:
-                                connection.close()
-                            except:
-                                pass
-                        connection = db.engine.connect()
-                        should_close_connection = True
-                        connection_from_event = False
-                        
-                        connection.execute(
-                            sa_text("""
-                                INSERT INTO gl_batches (code, source_type, source_id, currency, status, memo, entity_type, entity_id, created_at, updated_at)
-                                VALUES (:code, :source_type, :source_id, :currency, :status, :memo, :entity_type, :entity_id, :created_at, :updated_at)
-                            """),
-                            {
-                                "code": batch_code,
-                                "source_type": f'check_{check_type}',
-                                "source_id": int(check_id) if str(check_id).replace('-', '').isdigit() else check_id,
-                                "currency": currency or 'ILS',
-                                "status": 'POSTED',
-                                "memo": f"قيد {check_type_label}: {entity_name} - {notes}",
-                                "entity_type": entity_type,
-                                "entity_id": entity_id,
-                                "created_at": datetime.utcnow(),
-                                "updated_at": datetime.utcnow()
-                            }
-                        )
-                        batch_id = connection.execute(sa_text("SELECT last_insert_rowid()")).scalar()
-                    else:
-                        raise
-            else:
-                batch_id_result = connection.execute(
-                    sa_text("""
-                        INSERT INTO gl_batches (code, source_type, source_id, currency, status, memo, entity_type, entity_id, created_at, updated_at)
-                        VALUES (:code, :source_type, :source_id, :currency, :status, :memo, :entity_type, :entity_id, :created_at, :updated_at)
-                        RETURNING id
-                    """),
-                    {
-                        "code": batch_code,
-                        "source_type": f'check_{check_type}',
-                        "source_id": int(check_id) if str(check_id).replace('-', '').isdigit() else check_id,
-                        "currency": currency or 'ILS',
-                        "status": 'POSTED',
-                        "memo": f"قيد {check_type_label}: {entity_name} - {notes}",
-                        "entity_type": entity_type,
-                        "entity_id": entity_id,
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
+            batch_id = _create_gl_batch(
+                connection, batch_code, check_type, check_id, currency, 
+                entity_name, notes, entity_type, entity_id, check_type_label
+            )
+        except Exception as conn_e:
+            if "closed" in str(conn_e).lower() or "not connected" in str(conn_e).lower():
+                current_app.logger.warning(f"⚠️ connection مغلق - استخدام connection جديد")
+                if should_close_connection:
+                    try:
+                        connection.close()
+                    except:
+                        pass
+                connection = db.engine.connect()
+                should_close_connection = True
+                connection_from_event = False
+                batch_id = _create_gl_batch(
+                    connection, batch_code, check_type, check_id, currency, 
+                    entity_name, notes, entity_type, entity_id, check_type_label
                 )
-                batch_id = batch_id_result.scalar()
+            else:
+                if should_close_connection:
+                    try:
+                        connection.close()
+                    except:
+                        pass
+                raise CheckAccountingError(f"فشل إنشاء GL batch: {str(conn_e)}", code='GL_BATCH_CREATION_FAILED')
         except Exception as e:
             if should_close_connection:
                 try:
                     connection.close()
                 except:
                     pass
-            raise e
+            raise CheckAccountingError(f"خطأ في إنشاء GL batch: {str(e)}", code='GL_BATCH_ERROR')
         
         entries_data = []
         
-        if new_status == 'PENDING' and old_status is None:
-            if is_incoming:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"{check_type_label} وارد معلق من {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['AR'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"{check_type_label} وارد معلق من {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
-            else:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['AP'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"{check_type_label} صادر معلق إلى {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"{check_type_label} صادر معلق إلى {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
-        
-        elif new_status == 'CASHED':
-            if is_incoming:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['BANK'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"صرف {check_type_label} وارد من {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"صرف {check_type_label} وارد من {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
-            else:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"صرف {check_type_label} صادر إلى {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['BANK'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"صرف {check_type_label} صادر إلى {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
-                
-        elif new_status == 'RETURNED' or new_status == 'BOUNCED':
-            if is_incoming:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['AR'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"إرجاع {check_type_label} من {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"إرجاع {check_type_label} من {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
-            else:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"إرجاع {check_type_label} إلى {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['AP'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"إرجاع {check_type_label} إلى {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
-                
-        elif new_status == 'CANCELLED':
-            if is_incoming:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['AR'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"⛔ إلغاء/إتلاف {check_type_label} وارد من {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"⛔ إلغاء/إتلاف {check_type_label} وارد من {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
-            else:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"⛔ إلغاء/إتلاف {check_type_label} صادر إلى {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['AP'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"⛔ إلغاء/إتلاف {check_type_label} صادر إلى {entity_name}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
-        
-        elif old_status == 'CANCELLED' and new_status in ['RETURNED', 'PENDING', 'RESUBMITTED']:
-            if is_incoming:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['AR'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"↩️ عكس إلغاء {check_type_label} وارد من {entity_name} - إرجاع للحالة: {new_status}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_RECEIVABLE'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"↩️ عكس إلغاء {check_type_label} وارد من {entity_name} - إرجاع للحالة: {new_status}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
-            else:
-                entries_data.extend([
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['CHEQUES_PAYABLE'],
-                        "debit": 0.0,
-                        "credit": float(amount_decimal),
-                        "currency": currency or 'ILS',
-                        "ref": f"↩️ عكس إلغاء {check_type_label} صادر إلى {entity_name} - إرجاع للحالة: {new_status}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    },
-                    {
-                        "batch_id": batch_id,
-                        "account": GL_ACCOUNTS_CHECKS['AP'],
-                        "debit": float(amount_decimal),
-                        "credit": 0.0,
-                        "currency": currency or 'ILS',
-                        "ref": f"↩️ عكس إلغاء {check_type_label} صادر إلى {entity_name} - إرجاع للحالة: {new_status}",
-                        "created_at": datetime.utcnow(),
-                        "updated_at": datetime.utcnow()
-                    }
-                ])
+        try:
+            if new_status == 'PENDING' and old_status is None:
+                entries_data = _create_gl_entries_for_pending(
+                    amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming
+                )
+            elif new_status == 'CASHED':
+                entries_data = _create_gl_entries_for_cashed(
+                    amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming
+                )
+            elif new_status == 'RETURNED' or new_status == 'BOUNCED':
+                entries_data = _create_gl_entries_for_returned(
+                    amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming
+                )
+            elif new_status == 'RESUBMITTED':
+                entries_data = _create_gl_entries_for_resubmitted(
+                    amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming
+                )
+            elif new_status == 'CANCELLED':
+                entries_data = _create_gl_entries_for_cancelled(
+                    amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming, old_status
+                )
+            elif old_status == 'CANCELLED' and new_status in ['RETURNED', 'PENDING', 'RESUBMITTED']:
+                entries_data = _create_gl_entries_for_reverse_cancelled(
+                    amount_decimal, currency, batch_id, check_type_label, entity_name, is_incoming, new_status
+                )
+        except Exception as e:
+            current_app.logger.error(f"خطأ في إنشاء GL entries: {e}")
+            raise CheckAccountingError(f"فشل إنشاء GL entries: {str(e)}", code='GL_ENTRIES_CREATION_FAILED')
         
         if entries_data:
             from sqlalchemy import insert
@@ -988,7 +1457,7 @@ def create_gl_entry_for_check(check_id, check_type, amount, currency, direction,
                 stmt = insert(GLEntry.__table__).values(entries_data)
                 connection.execute(stmt)
             except Exception as entries_e:
-                if connection_from_event and "closed" in str(entries_e).lower():
+                if "closed" in str(entries_e).lower() or "not connected" in str(entries_e).lower():
                     current_app.logger.warning(f"⚠️ connection مغلق عند إضافة entries - استخدام connection جديد")
                     if should_close_connection:
                         try:
@@ -1049,12 +1518,12 @@ CHECK_STATUS = {
 }
 
 GL_ACCOUNTS_CHECKS = {
-    'CHEQUES_RECEIVABLE': '1150_CHEQUES_RECEIVABLE',  # شيكات تحت التحصيل (أصول)
-    'CHEQUES_PAYABLE': '2150_CHEQUES_PAYABLE',        # شيكات تحت الدفع (خصوم)
-    'BANK': '1010_BANK',                               # البنك
-    'CASH': '1000_CASH',                               # الصندوق
-    'AR': '1100_AR',                                   # العملاء (Accounts Receivable)
-    'AP': '2000_AP',                                   # الموردين (Accounts Payable)
+    'CHEQUES_RECEIVABLE': '1150_CHEQUES_RECEIVABLE',
+    'CHEQUES_PAYABLE': '2150_CHEQUES_PAYABLE',
+    'BANK': '1010_BANK',
+    'CASH': '1000_CASH',
+    'AR': '1100_AR',
+    'AP': '2000_AP',
 }
 
 CHECK_LIFECYCLE = {
@@ -1063,8 +1532,8 @@ CHECK_LIFECYCLE = {
     'BOUNCED': ['RESUBMITTED', 'CANCELLED'],
     'RESUBMITTED': ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED'],
     'OVERDUE': ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED'],
-    'CASHED': [],  # نهائية
-    'CANCELLED': ['RETURNED', 'PENDING', 'RESUBMITTED']  # ✅ يمكن إرجاع الشيك المسوى
+    'CASHED': [],
+    'CANCELLED': ['RETURNED', 'PENDING', 'RESUBMITTED']
 }
 
 def _current_user_is_owner() -> bool:
@@ -1124,53 +1593,234 @@ class CheckActionService:
         self.actor = actor
 
     def run(self, identifier, target_status, note_text):
-        ctx = self._resolve(identifier)
-        status = (target_status or '').strip().upper()
-        if status not in self.STATUS_SET:
-            raise ValueError('حالة غير صالحة')
-        previous = self._current_status(ctx)
-        if previous == status:
-            raise ValueError('الحالة الحالية مطابقة بالفعل')
-        if previous and CHECK_LIFECYCLE.get(previous):
-            allowed = CHECK_LIFECYCLE[previous]
-            if status not in allowed:
-                raise ValueError('الانتقال غير مسموح من هذه الحالة')
-        if status == 'RESUBMITTED' and self._has_state_record(ctx, 'RESUBMITTED'):
-            raise ValueError('لا يمكن إعادة تقديم الشيك أكثر من مرة')
-        result = self._apply(ctx, status, note_text or '', previous)
-        result['previous_status'] = previous
-        return result
+        try:
+            ctx = self._resolve(identifier)
+            status = (target_status or '').strip().upper()
+            
+            if status not in self.STATUS_SET:
+                raise CheckValidationError(
+                    f'حالة غير صالحة: {status}. الحالات المسموحة: {", ".join(sorted(self.STATUS_SET))}',
+                    code='INVALID_STATUS'
+                )
+            
+            previous = self._current_status(ctx)
+            
+            if previous == status:
+                raise CheckStateError(
+                    f'الحالة الحالية ({previous}) مطابقة بالفعل للحالة المطلوبة ({status})',
+                    code='SAME_STATUS'
+                )
+            
+            if previous and CHECK_LIFECYCLE.get(previous):
+                allowed = CHECK_LIFECYCLE[previous]
+                if status not in allowed:
+                    raise CheckStateError(
+                        f'الانتقال غير مسموح من {previous} إلى {status}. الانتقالات المسموحة: {", ".join(allowed)}',
+                        code='INVALID_TRANSITION',
+                        details={'from': previous, 'to': status, 'allowed': allowed}
+                    )
+            
+            if status == 'RESUBMITTED':
+                if ctx.kind == 'manual' and ctx.manual:
+                    resubmit_count = self._count_state_records(ctx, 'RESUBMITTED')
+                    allowed_count = self._get_resubmit_allowed_count(ctx)
+                    if resubmit_count >= allowed_count:
+                        raise CheckStateError(
+                            f'لا يمكن إعادة تقديم الشيك أكثر من {allowed_count} مرة (تم الإعادة {resubmit_count} مرة)',
+                            code='RESUBMIT_LIMIT_EXCEEDED'
+                        )
+            
+            self._validate_check_context(ctx)
+            
+            savepoint = None
+            try:
+                # التحقق من وجود transaction نشط بطريقة متوافقة مع SQLAlchemy 2.0
+                try:
+                    # محاولة استخدام db.session.in_transaction() مباشرة (SQLAlchemy 2.0)
+                    if hasattr(db.session, 'in_transaction') and db.session.in_transaction():
+                        savepoint = db.session.begin_nested()
+                    else:
+                        # محاولة استخدام inspect على session
+                        from sqlalchemy import inspect as sa_inspect
+                        session_inspect = sa_inspect(db.session.bind) if db.session.bind else None
+                        if session_inspect and hasattr(session_inspect, 'in_transaction') and session_inspect.in_transaction():
+                            savepoint = db.session.begin_nested()
+                except (AttributeError, TypeError):
+                    # إذا فشل التحقق، نحاول إنشاء savepoint مباشرة
+                    try:
+                        savepoint = db.session.begin_nested()
+                    except Exception:
+                        # لا يوجد transaction نشط، لا نحتاج savepoint
+                        pass
+                
+                result = self._apply(ctx, status, note_text or '', previous)
+                result['previous_status'] = previous
+                if savepoint:
+                    savepoint.commit()
+                return result
+            except Exception as e:
+                if savepoint:
+                    savepoint.rollback()
+                raise
+            
+        except (CheckValidationError, CheckStateError, CheckAccountingError):
+            raise
+        except Exception as e:
+            current_app.logger.error(f"خطأ غير متوقع في CheckActionService.run: {e}")
+            raise CheckException(f"خطأ في معالجة الشيك: {str(e)}", code='UNEXPECTED_ERROR')
+
+    def _validate_check_context(self, ctx):
+        if not ctx:
+            raise CheckValidationError("سياق الشيك غير صالح", code='INVALID_CONTEXT')
+        
+        if ctx.amount is None or ctx.amount <= 0:
+            raise CheckValidationError("مبلغ الشيك يجب أن يكون أكبر من الصفر", code='INVALID_AMOUNT')
+        
+        if ctx.kind == 'manual' and ctx.manual:
+            if not ctx.manual.check_number or not ctx.manual.check_bank:
+                raise CheckValidationError("رقم الشيك والبنك مطلوبان", code='MISSING_CHECK_DETAILS')
+        
+        if ctx.entity_type and ctx.entity_id:
+            if ctx.entity_type == 'CUSTOMER':
+                customer = Customer.query.get(ctx.entity_id)
+                if not customer:
+                    raise CheckValidationError(f"العميل #{ctx.entity_id} غير موجود", code='ENTITY_NOT_FOUND')
+            elif ctx.entity_type == 'SUPPLIER':
+                supplier = Supplier.query.get(ctx.entity_id)
+                if not supplier:
+                    raise CheckValidationError(f"المورد #{ctx.entity_id} غير موجود", code='ENTITY_NOT_FOUND')
+            elif ctx.entity_type == 'PARTNER':
+                partner = Partner.query.get(ctx.entity_id)
+                if not partner:
+                    raise CheckValidationError(f"الشريك #{ctx.entity_id} غير موجود", code='ENTITY_NOT_FOUND')
 
     def _apply(self, ctx, status, note_text, previous):
-        if ctx.kind == 'payment':
-            self._apply_payment(ctx, status, note_text)
-        elif ctx.kind == 'payment_split':
-            self._apply_split(ctx, status, note_text)
-        elif ctx.kind == 'expense':
-            self._apply_expense(ctx, status, note_text)
-        elif ctx.kind == 'manual':
-            self._apply_manual(ctx, status, note_text)
-        else:
-            raise ValueError('نوع شيك غير مدعوم')
-        balance_value = None
-        if ctx.entity_type and ctx.entity_id:
-            balance_value = self._update_balance(ctx.entity_type, ctx.entity_id)
-        gl_batch = self._maybe_create_gl(ctx, status, previous, note_text)
-        return {
-            'token': ctx.token,
-            'kind': ctx.kind,
-            'new_status': status,
-            'new_status_ar': CHECK_STATUS.get(status, {}).get('ar', status),
-            'balance': balance_value,
-            'gl_batch_id': getattr(gl_batch, 'id', None),
-        }
+        try:
+            if ctx.kind == 'payment':
+                self._apply_payment(ctx, status, note_text)
+            elif ctx.kind == 'payment_split':
+                self._apply_split(ctx, status, note_text)
+            elif ctx.kind == 'expense':
+                self._apply_expense(ctx, status, note_text)
+            elif ctx.kind == 'manual':
+                self._apply_manual(ctx, status, note_text)
+            else:
+                raise CheckValidationError(f'نوع شيك غير مدعوم: {ctx.kind}', code='UNSUPPORTED_CHECK_TYPE')
+            
+            balance_value = None
+            if ctx.entity_type and ctx.entity_id:
+                try:
+                    balance_value = self._update_balance(ctx.entity_type, ctx.entity_id)
+                except Exception as e:
+                    current_app.logger.warning(f"خطأ في تحديث الرصيد للجهة {ctx.entity_type} #{ctx.entity_id}: {e}")
+            
+            gl_batch = None
+            try:
+                gl_batch = self._maybe_create_gl(ctx, status, previous, note_text)
+            except Exception as e:
+                current_app.logger.error(f"خطأ في إنشاء القيد المحاسبي: {e}")
+                raise CheckAccountingError(f"فشل إنشاء القيد المحاسبي: {str(e)}", code='GL_CREATION_FAILED')
+            
+            return {
+                'token': ctx.token,
+                'kind': ctx.kind,
+                'new_status': status,
+                'new_status_ar': CHECK_STATUS.get(status, {}).get('ar', status),
+                'balance': balance_value,
+                'gl_batch_id': getattr(gl_batch, 'id', None),
+            }
+        except (CheckValidationError, CheckAccountingError, CheckStateError):
+            raise
+        except Exception as e:
+            current_app.logger.error(f"خطأ في _apply: {e}")
+            raise CheckException(f"خطأ في تطبيق تغيير الحالة: {str(e)}", code='APPLY_FAILED')
+
+    def _link_check_to_entity(self, check, ctx, expense=None):
+        if ctx.entity_type == 'CUSTOMER' and ctx.entity_id:
+            check.customer_id = ctx.entity_id
+            check.supplier_id = None
+            check.partner_id = None
+        elif ctx.entity_type == 'SUPPLIER' and ctx.entity_id:
+            check.supplier_id = ctx.entity_id
+            check.customer_id = None
+            check.partner_id = None
+        elif ctx.entity_type == 'PARTNER' and ctx.entity_id:
+            check.partner_id = ctx.entity_id
+            check.customer_id = None
+            check.supplier_id = None
+        elif expense:
+            if expense.customer_id:
+                check.customer_id = expense.customer_id
+                check.supplier_id = None
+                check.partner_id = None
+            elif expense.supplier_id:
+                check.supplier_id = expense.supplier_id
+                check.customer_id = None
+                check.partner_id = None
+            elif expense.partner_id:
+                check.partner_id = expense.partner_id
+                check.customer_id = None
+                check.supplier_id = None
+            else:
+                check.customer_id = None
+                check.supplier_id = None
+                check.partner_id = None
+        elif ctx.payment:
+            if ctx.payment.customer_id:
+                check.customer_id = ctx.payment.customer_id
+                check.supplier_id = None
+                check.partner_id = None
+            elif ctx.payment.supplier_id:
+                check.supplier_id = ctx.payment.supplier_id
+                check.customer_id = None
+                check.partner_id = None
+            elif ctx.payment.partner_id:
+                check.partner_id = ctx.payment.partner_id
+                check.customer_id = None
+                check.supplier_id = None
+            else:
+                from models import Sale, Invoice, ServiceRequest, PreOrder
+                if ctx.payment.sale_id:
+                    sale = Sale.query.get(ctx.payment.sale_id)
+                    if sale and sale.customer_id:
+                        check.customer_id = sale.customer_id
+                        check.supplier_id = None
+                        check.partner_id = None
+                elif ctx.payment.invoice_id:
+                    invoice = Invoice.query.get(ctx.payment.invoice_id)
+                    if invoice and invoice.customer_id:
+                        check.customer_id = invoice.customer_id
+                        check.supplier_id = None
+                        check.partner_id = None
+                elif ctx.payment.service_id:
+                    service = ServiceRequest.query.get(ctx.payment.service_id)
+                    if service and service.customer_id:
+                        check.customer_id = service.customer_id
+                        check.supplier_id = None
+                        check.partner_id = None
+                elif ctx.payment.preorder_id:
+                    preorder = PreOrder.query.get(ctx.payment.preorder_id)
+                    if preorder and preorder.customer_id:
+                        check.customer_id = preorder.customer_id
+                        check.supplier_id = None
+                        check.partner_id = None
 
     def _apply_payment(self, ctx, status, note_text):
         self._touch_payment(ctx.payment, status, note_text, None)
+        
+        check = Check.query.filter(
+            Check.payment_id == ctx.payment.id
+        ).first()
+        if check:
+            check.status = status
+            if note_text:
+                check.notes = (check.notes or '') + self._compose_note(status, note_text, None)
+            self._link_check_to_entity(check, ctx)
 
     def _apply_split(self, ctx, status, note_text):
         split = ctx.split
         details = self._load_split_details(split)
+        previous_check_status = str(details.get('check_status') or 'PENDING').upper()
         history = details.get('check_history')
         if not isinstance(history, list):
             history = []
@@ -1180,11 +1830,75 @@ class CheckActionService:
         if note_text:
             details['check_note'] = note_text
         split.details = details
-        self._touch_payment(ctx.payment, status, note_text, f"Split #{split.id}")
+        
+        check = Check.query.filter(
+            Check.reference_number == f"PMT-SPLIT-{split.id}"
+        ).first()
+        if check:
+            check.status = status
+            if note_text:
+                check.notes = (check.notes or '') + self._compose_note(status, note_text, f"Split #{split.id}")
+            self._link_check_to_entity(check, ctx)
+            
+            connection = db.engine.connect()
+            try:
+                if status in ['RETURNED', 'BOUNCED', 'CASHED', 'CANCELLED']:
+                    check_amount = Decimal(str(check.amount or split.amount or 0))
+                    check_currency = check.currency or split.currency or ctx.currency or 'ILS'
+                    
+                    create_gl_entry_for_check(
+                        check_id=check.id,
+                        check_type='payment_split',
+                        amount=float(check_amount),
+                        currency=check_currency,
+                        direction=ctx.direction,
+                        new_status=status,
+                        old_status=previous_check_status,
+                        entity_name=ctx.entity_name or '',
+                        notes=f"{note_text or ''} - Split #{split.id}",
+                        entity_type=ctx.entity_type,
+                        entity_id=ctx.entity_id,
+                        connection=connection
+                    )
+                
+                new_payment_status = PaymentStatusSyncService.sync_payment_status_from_check(check, connection)
+                if new_payment_status:
+                    old_status_val = getattr(ctx.payment, 'status', None)
+                    old = getattr(old_status_val, 'value', old_status_val) if old_status_val else 'PENDING'
+                    if str(old).upper() != new_payment_status.upper():
+                        ctx.payment.status = new_payment_status
+                        ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note(status, note_text, f"Split #{split.id}")
+                else:
+                    ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note(status, note_text, f"Split #{split.id}")
+            finally:
+                try:
+                    connection.close()
+                except Exception:
+                    pass
+        else:
+            ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note(status, note_text, f"Split #{split.id}")
 
     def _apply_expense(self, ctx, status, note_text):
         exp = ctx.expense
         exp.notes = (exp.notes or '') + self._compose_note(status, note_text, None)
+        
+        check = None
+        if exp.payments:
+            for payment in exp.payments:
+                check = Check.query.filter(Check.payment_id == payment.id).first()
+                if check:
+                    break
+        
+        if not check:
+            check = Check.query.filter(
+                Check.reference_number.in_([f"EXP-{exp.id}", f"EXPENSE-{exp.id}"])
+            ).first()
+        
+        if check:
+            check.status = status
+            if note_text:
+                check.notes = (check.notes or '') + self._compose_note(status, note_text, None)
+            self._link_check_to_entity(check, ctx, expense=exp)
 
     def _apply_manual(self, ctx, status, note_text):
         manual = ctx.manual
@@ -1194,6 +1908,7 @@ class CheckActionService:
         except Exception:
             pass
         manual.notes = (manual.notes or '') + self._compose_note(status, note_text, None)
+        manual._skip_gl_creation = True
 
     def _touch_payment(self, payment, status, note_text, label):
         if not payment:
@@ -1208,7 +1923,10 @@ class CheckActionService:
             if o != n:
                 allowed = _ALLOWED_TRANSITIONS.get(o, set())
                 if n not in allowed:
-                    raise ValueError("payment.invalid_status_transition")
+                    raise CheckStateError(
+                        f"انتقال حالة الدفعة غير مسموح: من {o} إلى {n}. الانتقالات المسموحة: {', '.join(allowed) if allowed else 'لا يوجد'}",
+                        code='INVALID_PAYMENT_TRANSITION'
+                    )
             payment.status = mapped
         payment.notes = (payment.notes or '') + self._compose_note(status, note_text, label)
 
@@ -1220,30 +1938,48 @@ class CheckActionService:
             return None
         direction = 'IN' if ctx.direction == PaymentDirection.IN.value else 'OUT'
         
+        source_id = self._ledger_source_id(ctx)
+        check_type_for_gl = ctx.kind
+        
+        if ctx.kind == 'manual' and ctx.manual:
+            existing_batch = GLBatch.query.filter(
+                GLBatch.source_type == f'check_{check_type_for_gl}',
+                GLBatch.source_id == source_id,
+                GLBatch.status == 'POSTED'
+            ).order_by(GLBatch.created_at.desc()).first()
+            
+            if existing_batch:
+                current_app.logger.info(f"⚠️ يوجد GL batch موجود للشيك اليدوي #{source_id} - تخطي الإنشاء")
+                return existing_batch
+        
         if previous == 'CANCELLED' and status in ['RETURNED', 'PENDING', 'RESUBMITTED']:
             return create_gl_entry_for_check(
-                check_id=self._ledger_source_id(ctx),
-                check_type=ctx.kind,
+                check_id=source_id,
+                check_type=check_type_for_gl,
                 amount=float(amount),
                 currency=ctx.currency or 'ILS',
                 direction=direction,
                 new_status=status,
                 old_status=previous,
                 entity_name=ctx.entity_name or '',
-                notes=f"إرجاع شيك مسوى - {note_text or ''}"
+                notes=f"إرجاع شيك مسوى - {note_text or ''}",
+                entity_type=ctx.entity_type,
+                entity_id=ctx.entity_id
             )
         
         if status in self.LEDGER_STATUSES:
             return create_gl_entry_for_check(
-                check_id=self._ledger_source_id(ctx),
-                check_type=ctx.kind,
+                check_id=source_id,
+                check_type=check_type_for_gl,
                 amount=float(amount),
                 currency=ctx.currency or 'ILS',
                 direction=direction,
                 new_status=status,
                 old_status=previous,
                 entity_name=ctx.entity_name or '',
-                notes=note_text or ''
+                notes=note_text or '',
+                entity_type=ctx.entity_type,
+                entity_id=ctx.entity_id
             )
         return None
 
@@ -1260,7 +1996,20 @@ class CheckActionService:
 
     def _update_balance(self, entity_type, entity_id):
         try:
-            return utils.update_entity_balance(entity_type.lower(), entity_id)
+            entity_type_lower = entity_type.lower() if entity_type else ""
+            if entity_type_lower == "customer":
+                from utils.customer_balance_updater import update_customer_balance_components
+                SessionFactory = sessionmaker(bind=db.engine)
+                session = SessionFactory()
+                try:
+                    update_customer_balance_components(entity_id, session)
+                    session.commit()
+                    customer = session.get(Customer, entity_id)
+                    return float(customer.current_balance or 0) if customer else None
+                finally:
+                    session.close()
+            else:
+                return utils.update_entity_balance(entity_type_lower, entity_id)
         except Exception:
             return None
 
@@ -1310,7 +2059,52 @@ class CheckActionService:
     def _notes_state_marker(self, notes, status):
         marker = f"[STATE={status}]"
         return marker in (notes or '')
-
+    
+    def _count_state_records(self, ctx, status):
+        """حساب عدد مرات ظهور حالة معينة في السجل"""
+        status = (status or '').upper()
+        if not status:
+            return 0
+        count = 0
+        if ctx.kind == 'payment_split' and ctx.split:
+            details = self._load_split_details(ctx.split)
+            history = details.get('check_history') or []
+            count = sum(1 for entry in history if (entry.get('status') or '').upper() == status)
+        elif ctx.kind == 'payment' and ctx.payment:
+            notes = ctx.payment.notes or ''
+            marker = f"[STATE={status}]"
+            count = notes.count(marker)
+        elif ctx.kind == 'expense' and ctx.expense:
+            notes = ctx.expense.notes or ''
+            marker = f"[STATE={status}]"
+            count = notes.count(marker)
+        elif ctx.kind == 'manual' and ctx.manual:
+            try:
+                history = ctx.manual.get_status_history()
+            except Exception:
+                history = []
+            if history:
+                count = sum(1 for entry in history if (entry.get('new_status') or '').upper() == status)
+            else:
+                notes = ctx.manual.notes or ''
+                marker = f"[STATE={status}]"
+                count = notes.count(marker)
+        return count
+    
+    def _get_resubmit_allowed_count(self, ctx):
+        if ctx.kind == 'manual' and ctx.manual:
+            count = getattr(ctx.manual, 'resubmit_allowed_count', None)
+            if count is None:
+                return 1
+            return int(count) if count else 1
+        return 1
+    
+    def _get_legal_return_allowed_count(self, ctx):
+        """الحصول على عدد مرات السماح بالرجوع من الحالة القانونية"""
+        if ctx.kind == 'manual' and ctx.manual:
+            return getattr(ctx.manual, 'legal_return_allowed_count', 1) or 1
+        return 1
+    
     def _current_status(self, ctx):
         if ctx.kind == 'manual' and ctx.manual:
             return self._normalize_status(getattr(ctx.manual, 'status', None))
@@ -1362,7 +2156,7 @@ class CheckActionService:
     def _resolve_numeric(self, token):
         numeric = self._safe_int(token)
         if numeric is None:
-            raise ValueError('معرف غير صالح')
+            raise CheckValidationError(f'معرف غير صالح: {token}', code='INVALID_IDENTIFIER')
         split = PaymentSplit.query.get(numeric)
         if split and self._is_cheque_split(split):
             return self._ctx_from_split(token, split)
@@ -1375,7 +2169,7 @@ class CheckActionService:
         payment = Payment.query.get(numeric)
         if payment and self._is_cheque_payment(payment):
             return self._ctx_from_payment(token, payment)
-        raise ValueError('لم يتم العثور على الشيك المطلوب')
+        raise CheckValidationError(f'لم يتم العثور على الشيك المطلوب بالمعرف: {token}', code='CHECK_NOT_FOUND')
 
     def _ctx_from_payment(self, token, payment):
         entity_type, entity_id, entity_name = self._entity_from_payment(payment)
@@ -1543,34 +2337,40 @@ class CheckActionService:
 
     def _fetch_payment(self, pid):
         if pid is None:
-            raise ValueError('دفعة غير معروفة')
+            raise CheckValidationError('دفعة غير معروفة: معرف فارغ', code='EMPTY_PAYMENT_ID')
         payment = Payment.query.get(pid)
-        if not payment or not self._is_cheque_payment(payment):
-            raise ValueError('الدفعة ليست شيكاً')
+        if not payment:
+            raise CheckValidationError(f'الدفعة غير موجودة: {pid}', code='PAYMENT_NOT_FOUND')
+        if not self._is_cheque_payment(payment):
+            raise CheckValidationError(f'الدفعة #{pid} ليست شيكاً', code='NOT_A_CHEQUE_PAYMENT')
         return payment
 
     def _fetch_split(self, sid):
         if sid is None:
-            raise ValueError('الجزء غير معروف')
+            raise CheckValidationError('الجزء غير معروف: معرف فارغ', code='EMPTY_SPLIT_ID')
         split = PaymentSplit.query.get(sid)
-        if not split or not self._is_cheque_split(split):
-            raise ValueError('هذا الجزء ليس شيكاً')
+        if not split:
+            raise CheckValidationError(f'الجزء غير موجود: {sid}', code='SPLIT_NOT_FOUND')
+        if not self._is_cheque_split(split):
+            raise CheckValidationError(f'الجزء #{sid} ليس شيكاً', code='NOT_A_CHEQUE_SPLIT')
         return split
 
     def _fetch_expense(self, eid):
         if eid is None:
-            raise ValueError('المصروف غير معروف')
+            raise CheckValidationError('المصروف غير معروف: معرف فارغ', code='EMPTY_EXPENSE_ID')
         exp = Expense.query.get(eid)
-        if not exp or not self._is_cheque_expense(exp):
-            raise ValueError('المصروف ليس شيكاً')
+        if not exp:
+            raise CheckValidationError(f'المصروف غير موجود: {eid}', code='EXPENSE_NOT_FOUND')
+        if not self._is_cheque_expense(exp):
+            raise CheckValidationError(f'المصروف #{eid} ليس شيكاً', code='NOT_A_CHEQUE_EXPENSE')
         return exp
 
     def _fetch_manual(self, cid):
         if cid is None:
-            raise ValueError('شيك غير معروف')
+            raise CheckValidationError('شيك غير معروف: معرف فارغ', code='EMPTY_CHECK_ID')
         chk = Check.query.get(cid)
         if not chk:
-            raise ValueError('لم يتم العثور على الشيك اليدوي')
+            raise CheckValidationError(f'لم يتم العثور على الشيك اليدوي: {cid}', code='MANUAL_CHECK_NOT_FOUND')
         return chk
 
     def _is_cheque_payment(self, payment):
@@ -1630,7 +2430,6 @@ def _build_check_groups(checks):
 
 
 @checks_bp.route('/')
-# @permission_required('view_payments')  # Commented out
 def index():
     """صفحة عرض الشيكات"""
     return render_template('checks/index.html', is_owner=_current_user_is_owner())
@@ -1644,15 +2443,15 @@ def get_checks():
     المصادر: Payment + Expense + Check (اليدوي)
     """
     try:
-        direction = request.args.get('direction')  # 'in' أو 'out' أو 'all'
-        status = request.args.get('status')  # 'pending', 'completed', 'overdue', 'all'
+        direction = request.args.get('direction')
+        status = request.args.get('status')
         from_date = request.args.get('from_date')
         to_date = request.args.get('to_date')
-        source_filter = request.args.get('source')  # 'payment', 'expense', 'manual', 'all'
+        source_filter = request.args.get('source')
         
         checks = []
         today = datetime.utcnow().date()
-        check_ids = set()  # لتتبع الـ IDs وتجنب التكرار
+        check_ids = set()
 
         current_app.logger.info(f"🔍 get_checks API - بدء الجلب من جميع المصادر...")
         
@@ -1700,15 +2499,17 @@ def get_checks():
                 if manual == 'CANCELLED':
                     return 'CANCELLED', 'ملغي', 'secondary'
                 if manual == 'RESUBMITTED':
-                    return 'RESUBMITTED', 'أعيد للبنك', 'info'
+                    if due_days is not None:
+                        if due_days < 0:
+                            return 'OVERDUE', 'متأخر', 'danger'
+                        if due_days <= 7:
+                            return 'DUE_SOON', 'قريب الاستحقاق', 'warning'
+                    return 'PENDING', 'معلق', 'info'
                 if manual == 'ARCHIVED':
                     return 'CANCELLED', 'ملغي', 'secondary'
                 if manual == 'CASHED':
-                    if due_days is not None and due_days > 0:
-                        # لم يحِن ميعاد الاستحقاق بعد
-                        pass
-                    else:
-                        return 'CASHED', 'تم الصرف', 'success'
+                    # إذا كان الشيك مسحوب، يجب أن يظهر كمسحوب بغض النظر عن ميعاد الاستحقاق
+                    return 'CASHED', 'تم الصرف', 'success'
 
                 if due_days is not None:
                     if due_days < 0:
@@ -1809,6 +2610,37 @@ def get_checks():
                 Payment.id.asc()
             ).all()
 
+            # تحسين الأداء: جلب جميع الشيكات المرتبطة بـ Splits في استعلام واحد
+            all_split_ids = []
+            for payment in payments:
+                for split in payment.splits or []:
+                    split_method = getattr(split.method, 'value', split.method)
+                    if split_method == PaymentMethod.CHEQUE.value:
+                        all_split_ids.append(split.id)
+            
+            # جلب جميع الشيكات المرتبطة بـ Splits في استعلام واحد
+            split_checks_map = {}
+            if all_split_ids:
+                # بناء شروط البحث بشكل صحيح
+                conditions = []
+                for sid in all_split_ids:
+                    conditions.append(Check.reference_number == f"PMT-SPLIT-{sid}")
+                    conditions.append(Check.reference_number.like(f"PMT-SPLIT-{sid}-%"))
+                
+                if conditions:
+                    split_checks = Check.query.filter(or_(*conditions)).all()
+                    # إنشاء map للبحث السريع: split_id -> check
+                    for check in split_checks:
+                        ref = check.reference_number or ''
+                        if ref.startswith('PMT-SPLIT-'):
+                            split_id_str = ref.replace('PMT-SPLIT-', '').split('-')[0]
+                            try:
+                                split_id = int(split_id_str)
+                                if split_id not in split_checks_map:
+                                    split_checks_map[split_id] = check
+                            except ValueError:
+                                pass
+
             processed_split_count = 0
             for payment in payments:
                 entity_name, entity_type, entity_link, entity_type_code, entity_id = _resolve_entity(payment)
@@ -1840,7 +2672,7 @@ def get_checks():
                         skip_entry = True
                     if parsed_to and due_date and due_date > parsed_to:
                         skip_entry = True
-                    if status == 'pending' and check_status not in ('PENDING', 'due_soon'):
+                    if status == 'pending' and (check_status or '').upper() not in ('PENDING', 'DUE_SOON'):
                         skip_entry = True
                     if status == 'completed' and check_status != 'CASHED':
                         skip_entry = True
@@ -1899,15 +2731,49 @@ def get_checks():
                     if split_method != PaymentMethod.CHEQUE.value:
                         continue
 
+                    # التحقق من حالة الشيك الفعلية من جدول checks إذا كان موجوداً
+                    split_manual_status = manual_status  # نبدأ بالحالة من payment.notes
+                    # استخدام الـ map للبحث السريع بدلاً من استعلام منفصل
+                    split_check = split_checks_map.get(split.id)
+                    if split_check:
+                        # استخراج حالة الشيك من enum - CheckStatus هو str, enum.Enum
+                        check_status_obj = getattr(split_check, 'status', None)
+                        if check_status_obj:
+                            # استخراج القيمة من enum - CheckStatus.value يعطي القيمة الفعلية
+                            split_check_status = (check_status_obj.value if hasattr(check_status_obj, 'value') else str(check_status_obj)).upper()
+                        else:
+                            split_check_status = 'PENDING'
+                        # إذا كان الشيك موجود في جدول checks، نستخدم حالته مباشرة
+                        if split_check_status == 'CASHED':
+                            split_manual_status = 'CASHED'
+                        elif split_check_status in ['RETURNED', 'BOUNCED', 'CANCELLED', 'RESUBMITTED']:
+                            split_manual_status = split_check_status
+                    
+                    # إذا لم يكن هناك شيك في جدول checks، نتحقق من details
+                    if not split_check:
+                        details = getattr(split, 'details', {}) or {}
+                        if isinstance(details, str):
+                            try:
+                                details = json.loads(details)
+                            except Exception:
+                                details = {}
+                        split_details_status = details.get('check_status')
+                        if split_details_status:
+                            split_details_status = str(split_details_status).upper()
+                            if split_details_status == 'CASHED':
+                                split_manual_status = 'CASHED'
+                            elif split_details_status in ['RETURNED', 'BOUNCED', 'CANCELLED', 'RESUBMITTED']:
+                                split_manual_status = split_details_status
+
                     due_date = _split_due_date(payment, split) or today
                     days_until_due = (due_date - today).days if due_date else None
-                    check_status, status_ar, badge_color = _status_snapshot(manual_status, status_value, days_until_due)
+                    check_status, status_ar, badge_color = _status_snapshot(split_manual_status, status_value, days_until_due)
 
                     if parsed_from and due_date and due_date < parsed_from:
                         continue
                     if parsed_to and due_date and due_date > parsed_to:
                         continue
-                    if status == 'pending' and check_status not in ('PENDING', 'due_soon'):
+                    if status == 'pending' and (check_status or '').upper() not in ('PENDING', 'DUE_SOON'):
                         continue
                     if status == 'completed' and check_status != 'CASHED':
                         continue
@@ -2033,7 +2899,7 @@ def get_checks():
                     status_ar = 'متأخر'
                     badge_color = 'danger'
                 elif days_until_due <= 7:
-                    check_status = 'due_soon'
+                    check_status = 'DUE_SOON'
                     status_ar = 'قريب الاستحقاق'
                     badge_color = 'warning'
                 else:
@@ -2096,7 +2962,16 @@ def get_checks():
                 })
         
         if not source_filter or source_filter in ['all', 'manual']:
-            manual_checks_query = Check.query.filter(Check.payment_id.is_(None))
+            # عرض الشيكات اليدوية فقط (تخطي الشيكات المرتبطة بـ Splits لأنها تظهر من PaymentSplit)
+            manual_checks_query = Check.query.filter(
+                and_(
+                    Check.payment_id.is_(None),
+                    or_(
+                        Check.reference_number.is_(None),
+                        ~Check.reference_number.like('PMT-SPLIT-%')
+                    )
+                )
+            )
 
             if direction == 'in':
                 manual_checks_query = manual_checks_query.filter(Check.direction == PaymentDirection.IN.value)
@@ -2480,7 +3355,6 @@ def get_first_incomplete_check():
 
 
 @checks_bp.route('/api/check-lifecycle/<int:check_id>/<check_type>')
-# @permission_required('view_payments')  # Commented out
 def get_check_lifecycle(check_id, check_type):
     """
     الحصول على دورة حياة الشيك الكاملة
@@ -2561,30 +3435,62 @@ def update_check_status(check_id):
         if not new_status:
             return jsonify({'success': False, 'message': 'بيانات ناقصة'}), 400
         notes = (data.get('notes') or '').strip()
-        service = CheckActionService(current_user)
-        result = service.run(check_id, new_status, notes)
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'message': f"تم تحديث حالة الشيك إلى: {result['new_status_ar']}",
-            'new_status': result['new_status'],
-            'new_status_ar': result['new_status_ar'],
-            'previous_status': result.get('previous_status'),
-            'balance': result.get('balance'),
-            'gl_batch_id': result.get('gl_batch_id'),
-            'token': result['token'],
-            'kind': result['kind'],
-        })
-    except ValueError as err:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(err)}), 400
+        
+        try:
+            service = CheckActionService(current_user)
+            result = service.run(check_id, new_status, notes)
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f"تم تحديث حالة الشيك إلى: {result['new_status_ar']}",
+                'new_status': result['new_status'],
+                'new_status_ar': result['new_status_ar'],
+                'previous_status': result.get('previous_status'),
+                'balance': result.get('balance'),
+                'gl_batch_id': result.get('gl_batch_id'),
+                'token': result['token'],
+                'kind': result['kind'],
+            })
+        except (CheckValidationError, CheckStateError) as err:
+            db.session.rollback()
+            current_app.logger.warning(f"Validation/State error updating check status {check_id}: {str(err)}")
+            return jsonify({'success': False, 'message': str(err), 'code': getattr(err, 'code', None)}), 400
+        except CheckAccountingError as err:
+            db.session.rollback()
+            current_app.logger.error(f"Accounting error updating check status {check_id}: {str(err)}")
+            return jsonify({'success': False, 'message': f"خطأ محاسبي: {str(err)}", 'code': getattr(err, 'code', None)}), 500
+        except CheckException as err:
+            db.session.rollback()
+            current_app.logger.error(f"Check error updating check status {check_id}: {str(err)}")
+            return jsonify({'success': False, 'message': str(err), 'code': getattr(err, 'code', None)}), 500
     except Exception as err:
         db.session.rollback()
-        current_app.logger.error(f"Error updating check status: {err}")
+        current_app.logger.error(f"Unexpected error updating check status {check_id}: {err}")
         import traceback
         current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(err)}), 500
 
+
+@checks_bp.route('/api/get-details/<check_token>', methods=['GET'])
+@login_required
+def get_check_details(check_token):
+    if not _current_user_is_owner():
+        return jsonify({'success': False, 'message': 'مسموح للمالك فقط'}), 403
+    try:
+        service = CheckActionService(current_user)
+        ctx = service._resolve(check_token)
+        result = {
+            'success': True,
+            'resubmit_allowed_count': 1,
+            'legal_return_allowed_count': 1
+        }
+        if ctx.kind == 'manual' and ctx.manual:
+            result['resubmit_allowed_count'] = getattr(ctx.manual, 'resubmit_allowed_count', 1) or 1
+            result['legal_return_allowed_count'] = getattr(ctx.manual, 'legal_return_allowed_count', 1) or 1
+        return jsonify(result)
+    except Exception as err:
+        current_app.logger.error(f"Error getting check details {check_token}: {err}")
+        return jsonify({'success': False, 'error': str(err)}), 500
 
 @checks_bp.route('/api/update-details/<check_token>', methods=['POST'])
 @login_required
@@ -2598,12 +3504,13 @@ def update_check_details(check_token):
         _update_check_details(ctx, payload, service)
         db.session.commit()
         return jsonify({'success': True, 'message': 'تم تحديث بيانات الشيك بنجاح'})
-    except ValueError as err:
+    except (CheckValidationError, CheckStateError) as err:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(err)}), 400
+        current_app.logger.warning(f"Validation/State error updating check details {check_token}: {str(err)}")
+        return jsonify({'success': False, 'message': str(err), 'code': getattr(err, 'code', None)}), 400
     except Exception as err:
         db.session.rollback()
-        current_app.logger.error(f"Error updating check details: {err}")
+        current_app.logger.error(f"Error updating check details {check_token}: {err}")
         import traceback
         current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(err)}), 500
@@ -2638,6 +3545,35 @@ def mark_check_settled(check_token):
                 if '[SETTLED=true]' in (ctx.payment.notes or ''):
                     return jsonify({'success': True, 'message': 'تمت التسوية مسبقاً'})
                 ctx.payment.notes = (ctx.payment.notes or '') + note_suffix
+                
+                from models import PaymentSplit, PaymentMethod
+                splits = PaymentSplit.query.filter(PaymentSplit.payment_id == ctx.payment.id).all()
+                if splits:
+                    cheque_splits = [s for s in splits if s.method == PaymentMethod.CHEQUE.value]
+                    non_cheque_splits = [s for s in splits if s.method != PaymentMethod.CHEQUE.value]
+                    
+                    if len(non_cheque_splits) > 0:
+                        ctx.payment.status = PaymentStatus.COMPLETED
+                    else:
+                        all_cheque_splits_settled = True
+                        for split in cheque_splits:
+                            split_check = Check.query.filter(
+                                or_(
+                                    Check.reference_number == f"PMT-SPLIT-{split.id}",
+                                    Check.reference_number.like(f"PMT-SPLIT-{split.id}-%")
+                                )
+                            ).first()
+                            
+                            if split_check and split_check.status in ['RETURNED', 'BOUNCED']:
+                                split_payment_notes = ctx.payment.notes or ''
+                                if '[SETTLED=true]' not in split_payment_notes.upper():
+                                    all_cheque_splits_settled = False
+                                    break
+                        
+                        if all_cheque_splits_settled:
+                            ctx.payment.status = PaymentStatus.COMPLETED
+                else:
+                    ctx.payment.status = PaymentStatus.COMPLETED
         elif ctx.kind == 'payment_split' and ctx.payment:
             if current_status == 'PENDING':
                 result = service.run(check_token, 'CANCELLED', note_text)
@@ -2652,6 +3588,35 @@ def mark_check_settled(check_token):
                 if '[SETTLED=true]' in (ctx.payment.notes or ''):
                     return jsonify({'success': True, 'message': 'تمت التسوية مسبقاً'})
                 ctx.payment.notes = (ctx.payment.notes or '') + note_suffix
+                
+                from models import PaymentSplit, PaymentMethod
+                splits = PaymentSplit.query.filter(PaymentSplit.payment_id == ctx.payment.id).all()
+                if splits:
+                    cheque_splits = [s for s in splits if s.method == PaymentMethod.CHEQUE.value]
+                    non_cheque_splits = [s for s in splits if s.method != PaymentMethod.CHEQUE.value]
+                    
+                    if len(non_cheque_splits) > 0:
+                        ctx.payment.status = PaymentStatus.COMPLETED
+                    else:
+                        all_cheque_splits_settled = True
+                        for split in cheque_splits:
+                            split_check = Check.query.filter(
+                                or_(
+                                    Check.reference_number == f"PMT-SPLIT-{split.id}",
+                                    Check.reference_number.like(f"PMT-SPLIT-{split.id}-%")
+                                )
+                            ).first()
+                            
+                            if split_check and split_check.status in ['RETURNED', 'BOUNCED']:
+                                split_payment_notes = ctx.payment.notes or ''
+                                if '[SETTLED=true]' not in split_payment_notes.upper():
+                                    all_cheque_splits_settled = False
+                                    break
+                        
+                        if all_cheque_splits_settled:
+                            ctx.payment.status = PaymentStatus.COMPLETED
+                else:
+                    ctx.payment.status = PaymentStatus.COMPLETED
         elif ctx.kind == 'expense' and ctx.expense:
             note_suffix = "\n[SETTLED=true] " + note_text
             if '[SETTLED=true]' in (ctx.expense.notes or ''):
@@ -2672,15 +3637,16 @@ def mark_check_settled(check_token):
                     return jsonify({'success': True, 'message': 'تمت التسوية مسبقاً'})
                 ctx.manual.notes = (ctx.manual.notes or '') + note_suffix
         else:
-            raise ValueError("نوع الشيك غير مدعوم للتسوية")
+            raise CheckValidationError("نوع الشيك غير مدعوم للتسوية", code='UNSUPPORTED_SETTLEMENT_TYPE')
         db.session.commit()
         return jsonify({'success': True, 'message': 'تم تعليم الشيك كمُسوّى بنجاح'})
-    except ValueError as err:
+    except (CheckValidationError, CheckStateError) as err:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(err)}), 400
+        current_app.logger.warning(f"Validation/State error marking check settled {check_token}: {str(err)}")
+        return jsonify({'success': False, 'message': str(err), 'code': getattr(err, 'code', None)}), 400
     except Exception as err:
         db.session.rollback()
-        current_app.logger.error(f"Error marking check settled: {err}")
+        current_app.logger.error(f"Error marking check settled {check_token}: {err}")
         import traceback
         current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(err)}), 500
@@ -2712,16 +3678,73 @@ def unsettle_check(check_token):
             
             if current_status == 'CANCELLED':
                 previous_status = 'RETURNED'
-                if ctx.payment.status == PaymentStatus.CANCELLED:
-                    result = service.run(check_token, previous_status, 'تم إلغاء التسوية وإرجاع الشيك لحالته السابقة')
-                    db.session.commit()
-                    return jsonify({
-                        'success': True,
-                        'message': f'تم إلغاء التسوية وإرجاع الشيك من CANCELLED إلى {previous_status}',
-                        'new_status': result.get('new_status'),
-                        'new_status_ar': result.get('new_status_ar'),
-                        'gl_batch_id': result.get('gl_batch_id')
-                    })
+                
+                from models import PaymentSplit, PaymentMethod, Check, Payment
+                splits = PaymentSplit.query.filter(PaymentSplit.payment_id == ctx.payment.id).all()
+                has_non_cheque = False
+                if splits:
+                    non_cheque_splits = [s for s in splits if s.method != PaymentMethod.CHEQUE.value]
+                    has_non_cheque = len(non_cheque_splits) > 0
+                
+                result = service.run(check_token, previous_status, 'تم إلغاء التسوية وإرجاع الشيك لحالته السابقة')
+                
+                if not has_non_cheque:
+                    cheque_splits = [s for s in splits if s.method == PaymentMethod.CHEQUE.value] if splits else []
+                    all_cheque_splits_returned = True
+                    for split in cheque_splits:
+                        split_check = Check.query.filter(
+                            or_(
+                                Check.reference_number == f"PMT-SPLIT-{split.id}",
+                                Check.reference_number.like(f"PMT-SPLIT-{split.id}-%")
+                            )
+                        ).first()
+                        if split_check and split_check.status not in ['RETURNED', 'BOUNCED']:
+                            all_cheque_splits_returned = False
+                            break
+                    
+                    if all_cheque_splits_returned and ctx.payment.status == PaymentStatus.COMPLETED:
+                        ctx.payment.status = PaymentStatus.FAILED
+                
+                entity_id = ctx.entity_id
+                entity_type = ctx.entity_type
+                if entity_id and entity_type:
+                    if entity_type == 'CUSTOMER':
+                        settlement_payments = Payment.query.filter(
+                            Payment.customer_id == entity_id,
+                            Payment.notes.like(f'%{check_token}%'),
+                            Payment.notes.like('%[SETTLED=true]%'),
+                            Payment.notes.like('%تم تسوية الشيك مرتجع%')
+                        ).all()
+                    elif entity_type == 'SUPPLIER':
+                        settlement_payments = Payment.query.filter(
+                            Payment.supplier_id == entity_id,
+                            Payment.notes.like(f'%{check_token}%'),
+                            Payment.notes.like('%[SETTLED=true]%'),
+                            Payment.notes.like('%تم تسوية الشيك مرتجع%')
+                        ).all()
+                    elif entity_type == 'PARTNER':
+                        settlement_payments = Payment.query.filter(
+                            Payment.partner_id == entity_id,
+                            Payment.notes.like(f'%{check_token}%'),
+                            Payment.notes.like('%[SETTLED=true]%'),
+                            Payment.notes.like('%تم تسوية الشيك مرتجع%')
+                        ).all()
+                    else:
+                        settlement_payments = []
+                    
+                    for settlement_payment in settlement_payments:
+                        settlement_payment._skip_gl_reversal = True
+                        db.session.delete(settlement_payment)
+                
+                db.session.commit()
+                return jsonify({
+                    'success': True,
+                    'message': f'تم إلغاء التسوية وإرجاع الشيك من CANCELLED إلى {previous_status}',
+                    'new_status': result.get('new_status'),
+                    'new_status_ar': result.get('new_status_ar'),
+                    'gl_batch_id': result.get('gl_batch_id'),
+                    'payment_status': ctx.payment.status.value if ctx.payment.status else None
+                })
             
         elif ctx.kind == 'payment_split' and ctx.payment:
             notes = ctx.payment.notes or ''
@@ -2735,6 +3758,76 @@ def unsettle_check(check_token):
                     new_lines.append(line)
             
             ctx.payment.notes = '\n'.join(new_lines).strip()
+            
+            if current_status == 'CANCELLED':
+                previous_status = 'RETURNED'
+                
+                from models import PaymentSplit, PaymentMethod, Check, Payment
+                splits = PaymentSplit.query.filter(PaymentSplit.payment_id == ctx.payment.id).all()
+                has_non_cheque = False
+                if splits:
+                    non_cheque_splits = [s for s in splits if s.method != PaymentMethod.CHEQUE.value]
+                    has_non_cheque = len(non_cheque_splits) > 0
+                
+                result = service.run(check_token, previous_status, 'تم إلغاء التسوية وإرجاع الشيك لحالته السابقة')
+                
+                if not has_non_cheque:
+                    cheque_splits = [s for s in splits if s.method == PaymentMethod.CHEQUE.value] if splits else []
+                    all_cheque_splits_returned = True
+                    for split in cheque_splits:
+                        split_check = Check.query.filter(
+                            or_(
+                                Check.reference_number == f"PMT-SPLIT-{split.id}",
+                                Check.reference_number.like(f"PMT-SPLIT-{split.id}-%")
+                            )
+                        ).first()
+                        if split_check and split_check.status not in ['RETURNED', 'BOUNCED']:
+                            all_cheque_splits_returned = False
+                            break
+                    
+                    if all_cheque_splits_returned and ctx.payment.status == PaymentStatus.COMPLETED:
+                        ctx.payment.status = PaymentStatus.FAILED
+                
+                entity_id = ctx.entity_id
+                entity_type = ctx.entity_type
+                if entity_id and entity_type:
+                    if entity_type == 'CUSTOMER':
+                        settlement_payments = Payment.query.filter(
+                            Payment.customer_id == entity_id,
+                            Payment.notes.like(f'%{check_token}%'),
+                            Payment.notes.like('%[SETTLED=true]%'),
+                            Payment.notes.like('%تم تسوية الشيك مرتجع%')
+                        ).all()
+                    elif entity_type == 'SUPPLIER':
+                        settlement_payments = Payment.query.filter(
+                            Payment.supplier_id == entity_id,
+                            Payment.notes.like(f'%{check_token}%'),
+                            Payment.notes.like('%[SETTLED=true]%'),
+                            Payment.notes.like('%تم تسوية الشيك مرتجع%')
+                        ).all()
+                    elif entity_type == 'PARTNER':
+                        settlement_payments = Payment.query.filter(
+                            Payment.partner_id == entity_id,
+                            Payment.notes.like(f'%{check_token}%'),
+                            Payment.notes.like('%[SETTLED=true]%'),
+                            Payment.notes.like('%تم تسوية الشيك مرتجع%')
+                        ).all()
+                    else:
+                        settlement_payments = []
+                    
+                    for settlement_payment in settlement_payments:
+                        settlement_payment._skip_gl_reversal = True
+                        db.session.delete(settlement_payment)
+                
+                db.session.commit()
+                return jsonify({
+                    'success': True,
+                    'message': f'تم إلغاء التسوية وإرجاع الشيك من CANCELLED إلى {previous_status}',
+                    'new_status': result.get('new_status'),
+                    'new_status_ar': result.get('new_status_ar'),
+                    'gl_batch_id': result.get('gl_batch_id'),
+                    'payment_status': ctx.payment.status.value if ctx.payment.status else None
+                })
             
         elif ctx.kind == 'expense' and ctx.expense:
             notes = ctx.expense.notes or ''
@@ -2774,7 +3867,7 @@ def unsettle_check(check_token):
                     'gl_batch_id': result.get('gl_batch_id')
                 })
         else:
-            raise ValueError("نوع الشيك غير مدعوم")
+            raise CheckValidationError("نوع الشيك غير مدعوم", code='UNSUPPORTED_CHECK_TYPE')
         
         db.session.commit()
         
@@ -2786,12 +3879,13 @@ def unsettle_check(check_token):
             'message': 'تم إلغاء التسوية بنجاح. الشيك عاد لحالته السابقة.',
             'current_status': current_status
         })
-    except ValueError as err:
+    except (CheckValidationError, CheckStateError) as err:
         db.session.rollback()
-        return jsonify({'success': False, 'message': str(err)}), 400
+        current_app.logger.warning(f"Validation/State error unsetting check {check_token}: {str(err)}")
+        return jsonify({'success': False, 'message': str(err), 'code': getattr(err, 'code', None)}), 400
     except Exception as err:
         db.session.rollback()
-        current_app.logger.error(f"Error unsetting check: {err}")
+        current_app.logger.error(f"Error unsetting check {check_token}: {err}")
         import traceback
         current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(err)}), 500
@@ -2954,7 +4048,6 @@ def get_alerts():
 
 @checks_bp.route("/new", methods=["GET", "POST"])
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def add_check():
     """إضافة شيك يدوي جديد"""
     if request.method == "POST":
@@ -2979,9 +4072,9 @@ def add_check():
             internal_notes = request.form.get("internal_notes")
             reference_number = request.form.get("reference_number")
             
-            customer_id = request.form.get("customer_id") or None
-            supplier_id = request.form.get("supplier_id") or None
-            partner_id = request.form.get("partner_id") or None
+            customer_id_raw = request.form.get("customer_id") or None
+            supplier_id_raw = request.form.get("supplier_id") or None
+            partner_id_raw = request.form.get("partner_id") or None
             
             if not check_number or not check_bank or not amount or not direction:
                 flash("يرجى ملء جميع الحقول المطلوبة", "danger")
@@ -2989,6 +4082,10 @@ def add_check():
             
             check_date = datetime.strptime(check_date_str, "%Y-%m-%d") if check_date_str else datetime.utcnow()
             check_due_date = datetime.strptime(check_due_date_str, "%Y-%m-%d") if check_due_date_str else datetime.utcnow()
+            
+            customer_id = int(customer_id_raw) if customer_id_raw else None
+            supplier_id = int(supplier_id_raw) if supplier_id_raw else None
+            partner_id = int(partner_id_raw) if partner_id_raw else None
             
             new_check = Check(
                 check_number=check_number,
@@ -3009,9 +4106,9 @@ def add_check():
                 notes=notes,
                 internal_notes=internal_notes,
                 reference_number=reference_number,
-                customer_id=int(customer_id) if customer_id else None,
-                supplier_id=int(supplier_id) if supplier_id else None,
-                partner_id=int(partner_id) if partner_id else None,
+                customer_id=customer_id,
+                supplier_id=supplier_id,
+                partner_id=partner_id,
                 created_by_id=current_user.id
             )
             
@@ -3045,7 +4142,6 @@ def add_check():
 
 @checks_bp.route("/edit/<int:check_id>", methods=["GET", "POST"])
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def edit_check(check_id):
     """تعديل شيك"""
     check = Check.query.get_or_404(check_id)
@@ -3072,13 +4168,13 @@ def edit_check(check_id):
             check.internal_notes = request.form.get("internal_notes")
             check.reference_number = request.form.get("reference_number")
             
-            customer_id = request.form.get("customer_id")
-            supplier_id = request.form.get("supplier_id")
-            partner_id = request.form.get("partner_id")
+            customer_id_raw = request.form.get("customer_id")
+            supplier_id_raw = request.form.get("supplier_id")
+            partner_id_raw = request.form.get("partner_id")
             
-            check.customer_id = int(customer_id) if customer_id else None
-            check.supplier_id = int(supplier_id) if supplier_id else None
-            check.partner_id = int(partner_id) if partner_id else None
+            check.customer_id = int(customer_id_raw) if customer_id_raw else None
+            check.supplier_id = int(supplier_id_raw) if supplier_id_raw else None
+            check.partner_id = int(partner_id_raw) if partner_id_raw else None
             
             db.session.commit()
             
@@ -3118,7 +4214,6 @@ def check_detail(check_id):
 
 @checks_bp.route("/delete/<int:check_id>", methods=["POST"])
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def delete_check(check_id):
     """حذف شيك"""
     try:
@@ -3373,17 +4468,36 @@ def _update_check_details(ctx: CheckActionContext, payload: dict, service: Check
         ctx.currency = currency_val
     elif ctx.kind == 'manual':
         if not ctx.manual:
-            raise ValueError("تعذر العثور على الشيك")
-        manual = ctx.manual
-        _assign_manual_entity(manual, entity_type, entity_id)
-        manual.amount = amount_decimal
-        manual.currency = currency_val
+            raise ValueError("تعذر العثور على الشيك اليدوي")
+        check = ctx.manual
+        _assign_manual_entity(check, entity_type, entity_id)
+        check.amount = amount_decimal
+        check.currency = currency_val
         if due_dt:
-            manual.check_due_date = due_dt
+            check.check_due_date = due_dt
         if bank_val or bank_val == "":
-            manual.check_bank = bank_val or None
+            check.check_bank = bank_val or None
+        # تحديث عدد مرات السماح إذا تم توفيره
+        resubmit_count = payload.get("resubmit_allowed_count")
+        if resubmit_count is not None:
+            try:
+                count_val = int(resubmit_count)
+                if count_val >= 1:
+                    check.resubmit_allowed_count = count_val
+                    current_app.logger.info(f"Updated resubmit_allowed_count to {count_val} for check {check.id}")
+            except (ValueError, TypeError) as e:
+                current_app.logger.warning(f"Failed to update resubmit_allowed_count: {e}")
+        legal_return_count = payload.get("legal_return_allowed_count")
+        if legal_return_count is not None:
+            try:
+                count_val = int(legal_return_count)
+                if count_val >= 1:
+                    check.legal_return_allowed_count = count_val
+                    current_app.logger.info(f"Updated legal_return_allowed_count to {count_val} for check {check.id}")
+            except (ValueError, TypeError) as e:
+                current_app.logger.warning(f"Failed to update legal_return_allowed_count: {e}")
         ctx.amount = amount_decimal
         ctx.currency = currency_val
     else:
-        raise ValueError("نوع الشيك غير مدعوم للتعديل")
+        raise CheckValidationError("نوع الشيك غير مدعوم للتعديل", code='UNSUPPORTED_EDIT_TYPE')
 

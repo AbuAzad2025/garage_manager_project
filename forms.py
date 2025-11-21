@@ -996,7 +996,6 @@ class BaseServicePartForm(FlaskForm):
     quantity = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1)])
     unit_price = MoneyField('سعر الوحدة', validators=[DataRequired(), NumberRange(min=0)])
     discount = MoneyField('الخصم (قيمة ثابتة)', validators=[Optional(), NumberRange(min=0)])
-    tax_rate = PercentField('ضريبة (%)', validators=[Optional()])
     note = StringField('ملاحظة', validators=[Optional(), Length(max=200)])
     submit = SubmitField('حفظ')
 
@@ -3386,7 +3385,6 @@ class ServiceTaskForm(FlaskForm):
     quantity    = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1)])
     unit_price  = MoneyField('سعر الوحدة', validators=[DataRequired(), NumberRange(min=0)])
     discount    = MoneyField('خصم (قيمة ثابتة)', validators=[Optional(), NumberRange(min=0)])
-    tax_rate    = PercentField('ضريبة %', validators=[Optional()])
     note        = StrippedStringField('ملاحظات', validators=[Optional(), Length(max=200)])
     submit      = SubmitField('حفظ المهمة')
 
@@ -3398,7 +3396,6 @@ class ServiceTaskForm(FlaskForm):
         task.quantity    = int(self.quantity.data or 0)
         task.unit_price  = self.unit_price.data or 0
         task.discount    = self.discount.data or 0
-        task.tax_rate    = self.tax_rate.data or 0
         task.note        = (self.note.data or '').strip() or None
         return task
 
@@ -3431,7 +3428,6 @@ class ServicePartForm(FlaskForm):
     quantity  = IntegerField('الكمية', validators=[DataRequired(), NumberRange(min=1)])
     unit_price= MoneyField('سعر الوحدة', validators=[DataRequired(), NumberRange(min=0)])
     discount  = MoneyField('خصم (قيمة ثابتة)', validators=[Optional(), NumberRange(min=0)])
-    tax_rate  = PercentField('ضريبة %', validators=[Optional()])
     note      = StrippedStringField('ملاحظة قصيرة', validators=[Optional(), Length(max=200)])
     notes     = TextAreaField('ملاحظات إضافية', validators=[Optional(), Length(max=1000)])
     submit    = SubmitField('حفظ')
@@ -3443,7 +3439,6 @@ class ServicePartForm(FlaskForm):
         sp.quantity    = int(self.quantity.data or 0)
         sp.unit_price  = self.unit_price.data or 0
         sp.discount    = self.discount.data or 0
-        sp.tax_rate    = self.tax_rate.data or 0
         sp.note        = (self.note.data or '').strip() or None
         sp.notes       = (self.notes.data or '').strip() or None
         return sp
@@ -3481,6 +3476,7 @@ class SaleForm(FlaskForm):
     total_amount = MoneyField('الإجمالي النهائي', validators=[Optional(), NumberRange(min=0)], render_kw={"readonly": True})
     lines        = FieldList(FormField(SaleLineForm), min_entries=1)
     preorder_id  = IntegerField('رقم الحجز', validators=[Optional()])
+    cost_center_id = SelectField('مركز التكلفة', validators=[Optional()], coerce=int, choices=[], validate_choice=False)
     submit       = SubmitField('حفظ البيع')
 
     def validate(self, extra_validators=None):
@@ -3500,6 +3496,7 @@ class SaleForm(FlaskForm):
         sale.customer_id = int(self.customer_id.data) if self.customer_id.data else None
         sale.seller_employee_id = int(self.seller_employee_id.data) if self.seller_employee_id.data else None
         sale.preorder_id = int(self.preorder_id.data) if self.preorder_id.data else None
+        sale.cost_center_id = int(self.cost_center_id.data) if self.cost_center_id.data else None
         sale.currency     = (self.currency.data or 'ILS').upper()
         sale.tax_rate     = self.tax_rate.data or 0
         sale.discount_total = self.discount_total.data or 0
@@ -4857,9 +4854,7 @@ class SaleReturnForm(FlaskForm):
     currency = SelectField('العملة', validators=[DataRequired()], 
                           choices=[('ILS', 'شيكل'), ('USD', 'دولار'), ('JOD', 'دينار'), ('EUR', 'يورو')],
                           default='ILS')
-    status = SelectField('الحالة', 
-                        choices=[('DRAFT', 'مسودة'), ('CONFIRMED', 'مؤكد'), ('CANCELLED', 'ملغي')],
-                        default='DRAFT')
+    status = HiddenField(default='CONFIRMED')
     
     lines = FieldList(FormField(SaleReturnLineForm), min_entries=0)
     submit = SubmitField('حفظ المرتجع')
@@ -4892,6 +4887,9 @@ class SaleReturnForm(FlaskForm):
     def validate(self, extra_validators=None):
         if not super().validate(extra_validators):
             return False
+        
+        if not self.status.data:
+            self.status.data = 'CONFIRMED'
         
         if len(self.lines.data) == 0:
             self.lines.errors.append('يجب إضافة منتج واحد على الأقل')

@@ -24,7 +24,7 @@
               <h6 class="text-muted mb-1"><i class="fas fa-truck ml-1"></i> الموردون</h6>
               <h3 class="mb-0 entity-count">{{ summary.suppliers.count }}</h3>
               <p class="text-sm mb-0 mt-2">
-                <span class="total-balance {% if summary.suppliers.total_balance > 0 %}text-success{% elif summary.suppliers.total_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                <span class="total-balance {% if summary.suppliers.total_balance > 0 %}text-danger{% elif summary.suppliers.total_balance < 0 %}text-success{% else %}text-secondary{% endif %}">
                   {{ "%.2f"|format(summary.suppliers.total_balance) }} ₪
                 </span>
               </p>
@@ -35,8 +35,8 @@
           </div>
           <hr>
           <div class="d-flex justify-content-between text-sm">
-            <span class="text-success">له علينا: {{ summary.suppliers.positive }}</span>
-            <span class="text-danger">عليه لنا: {{ summary.suppliers.negative }}</span>
+            <span class="text-danger">له علينا: {{ summary.suppliers.positive }}</span>
+            <span class="text-success">عليه لنا: {{ summary.suppliers.negative }}</span>
           </div>
         </div>
       </div>
@@ -50,7 +50,7 @@
               <h6 class="text-muted mb-1"><i class="fas fa-handshake ml-1"></i> الشركاء</h6>
               <h3 class="mb-0 entity-count">{{ summary.partners.count }}</h3>
               <p class="text-sm mb-0 mt-2">
-                <span class="total-balance {% if summary.partners.total_balance > 0 %}text-success{% elif summary.partners.total_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                <span class="total-balance {% if summary.partners.total_balance > 0 %}text-danger{% elif summary.partners.total_balance < 0 %}text-success{% else %}text-secondary{% endif %}">
                   {{ "%.2f"|format(summary.partners.total_balance) }} ₪
                 </span>
               </p>
@@ -61,8 +61,8 @@
           </div>
           <hr>
           <div class="d-flex justify-content-between text-sm">
-            <span class="text-success">له علينا: {{ summary.partners.positive }}</span>
-            <span class="text-danger">عليه لنا: {{ summary.partners.negative }}</span>
+            <span class="text-danger">له علينا: {{ summary.partners.positive }}</span>
+            <span class="text-success">عليه لنا: {{ summary.partners.negative }}</span>
           </div>
         </div>
       </div>
@@ -76,7 +76,7 @@
               <h6 class="text-muted mb-1"><i class="fas fa-users ml-1"></i> العملاء</h6>
               <h3 class="mb-0 entity-count">{{ summary.customers.count }}</h3>
               <p class="text-sm mb-0 mt-2">
-                <span class="total-balance {% if summary.customers.total_balance > 0 %}text-danger{% elif summary.customers.total_balance < 0 %}text-success{% else %}text-secondary{% endif %}">
+                <span class="total-balance {% if summary.customers.total_balance > 0 %}text-success{% elif summary.customers.total_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
                   {{ "%.2f"|format(summary.customers.total_balance) }} ₪
                 </span>
               </p>
@@ -111,7 +111,7 @@
   <div class="row mt-4">
     <div class="col-md-6">
       <div class="card border-0 shadow-sm">
-        <div class="card-header bg-success text-white">
+        <div class="card-header bg-danger text-white">
           <h5 class="mb-0"><i class="fas fa-arrow-up ml-2"></i> أعلى 10 موردين (له علينا)</h5>
         </div>
         <div class="card-body">
@@ -126,7 +126,7 @@
               {% for s in top_suppliers %}
               <tr>
                 <td>{{ s.name }}</td>
-                <td class="text-success">{{ "%.2f"|format(s.balance) }} ₪</td>
+                <td class="text-danger">{{ "%.2f"|format(s.balance) }} ₪</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -203,20 +203,29 @@ async function clearCache() {
 function updateDashboard(data) {
   if (data.suppliers) {
     document.querySelector('#suppliers-summary .entity-count').textContent = data.suppliers.count;
-    document.querySelector('#suppliers-summary .total-balance').textContent = 
-      data.suppliers.total_balance.toFixed(2) + ' ₪';
+    const suppliersBalanceEl = document.querySelector('#suppliers-summary .total-balance');
+    suppliersBalanceEl.textContent = data.suppliers.total_balance.toFixed(2) + ' ₪';
+    suppliersBalanceEl.className = 'total-balance ' + 
+      (data.suppliers.total_balance > 0 ? 'text-danger' : 
+       data.suppliers.total_balance < 0 ? 'text-success' : 'text-secondary');
   }
   
   if (data.partners) {
     document.querySelector('#partners-summary .entity-count').textContent = data.partners.count;
-    document.querySelector('#partners-summary .total-balance').textContent = 
-      data.partners.total_balance.toFixed(2) + ' ₪';
+    const partnersBalanceEl = document.querySelector('#partners-summary .total-balance');
+    partnersBalanceEl.textContent = data.partners.total_balance.toFixed(2) + ' ₪';
+    partnersBalanceEl.className = 'total-balance ' + 
+      (data.partners.total_balance > 0 ? 'text-danger' : 
+       data.partners.total_balance < 0 ? 'text-success' : 'text-secondary');
   }
   
   if (data.customers) {
     document.querySelector('#customers-summary .entity-count').textContent = data.customers.count;
-    document.querySelector('#customers-summary .total-balance').textContent = 
-      data.customers.total_balance.toFixed(2) + ' ₪';
+    const customersBalanceEl = document.querySelector('#customers-summary .total-balance');
+    customersBalanceEl.textContent = data.customers.total_balance.toFixed(2) + ' ₪';
+    customersBalanceEl.className = 'total-balance ' + 
+      (data.customers.total_balance > 0 ? 'text-success' : 
+       data.customers.total_balance < 0 ? 'text-danger' : 'text-secondary');
   }
   
   initCharts(data);
@@ -244,7 +253,7 @@ function initCharts(data) {
       labels: ['له علينا', 'عليه لنا'],
       datasets: [{
         data: [suppliersData.positive, suppliersData.negative],
-        backgroundColor: ['#28a745', '#dc3545']
+        backgroundColor: ['#dc3545', '#28a745']
       }]
     },
     options: {
@@ -260,7 +269,7 @@ function initCharts(data) {
       labels: ['له علينا', 'عليه لنا'],
       datasets: [{
         data: [partnersData.positive, partnersData.negative],
-        backgroundColor: ['#28a745', '#dc3545']
+        backgroundColor: ['#dc3545', '#28a745']
       }]
     },
     options: {

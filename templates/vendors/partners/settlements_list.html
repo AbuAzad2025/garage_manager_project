@@ -62,7 +62,7 @@
                                         <small>→ {{ settlement.to_date.strftime('%Y-%m-%d') }}</small>
                                     </td>
                                     <td class="text-end">
-                                        <span class="{% if settlement.opening_balance > 0 %}text-success{% elif settlement.opening_balance < 0 %}text-danger{% endif %}">
+                                        <span class="{% if settlement.opening_balance > 0 %}text-danger{% elif settlement.opening_balance < 0 %}text-success{% endif %}">
                                             {{ "%.2f"|format(settlement.opening_balance|abs) }} ₪
                                         </span>
                                     </td>
@@ -90,7 +90,7 @@
                                         </small>
                                     </td>
                                     <td class="text-end">
-                                        <strong class="{% if settlement.closing_balance > 0 %}text-success{% elif settlement.closing_balance < 0 %}text-danger{% endif %}">
+                                        <strong class="{% if settlement.closing_balance > 0 %}text-danger{% elif settlement.closing_balance < 0 %}text-success{% endif %}">
                                             {{ "%.2f"|format(settlement.closing_balance|abs) }} ₪
                                         </strong>
                                         <br><small>{{ "له علينا" if settlement.closing_balance > 0 else "عليه لنا" if settlement.closing_balance < 0 else "متوازن" }}</small>

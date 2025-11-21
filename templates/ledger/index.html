@@ -279,6 +279,16 @@
     font-size: 1.1rem !important;
 }
 
+.ledger-pagination-wrapper {
+    border-top: 1px solid #e9ecef;
+    padding-top: 10px;
+}
+
+.ledger-pagination-wrapper .page-link {
+    min-width: 36px;
+    text-align: center;
+}
+
 .form-label {
     color: #343a40 !important;
     font-weight: 600 !important;
@@ -844,19 +854,19 @@
             <div class="row mb-3">
                 <div class="col-12">
                     <div class="btn-group btn-group-lg" role="group">
-                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('today')">
+                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('today', event)">
                             <i class="fas fa-calendar-day"></i> اليوم
                         </button>
-                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('week')">
+                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('week', event)">
                             <i class="fas fa-calendar-week"></i> هذا الأسبوع
                         </button>
-                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('month')">
+                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('month', event)">
                             <i class="fas fa-calendar-alt"></i> هذا الشهر
                         </button>
-                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('quarter')">
+                        <button type="button" class="btn btn-outline-primary" onclick="quickFilter('quarter', event)">
                             <i class="fas fa-calendar"></i> هذا الربع
                         </button>
-                        <button type="button" class="btn btn-outline-primary active" onclick="quickFilter('year')">
+                        <button type="button" class="btn btn-outline-primary active" onclick="quickFilter('year', event)">
                             <i class="fas fa-calendar-check"></i> هذه السنة
                         </button>
                         <button type="button" class="btn btn-outline-secondary" onclick="$('#advanced-filters').slideToggle()">
@@ -954,7 +964,19 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <div class="row mb-3">
+                            <div class="row mb-3 align-items-end">
+                                <div class="col-md-2">
+                                    <label class="small text-muted mb-1" for="ledger-per-page">عدد السجلات</label>
+                                    <select id="ledger-per-page" class="form-control form-control-sm">
+                                        <option value="10">10</option>
+                                        <option value="25">25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                        <option value="250">250</option>
+                                        <option value="500">500</option>
+                                        <option value="all">الكل</option>
+                                    </select>
+                                </div>
                                 <div class="col-md-4 ml-auto">
                                     <div class="input-group input-group-sm">
                                         <div class="input-group-prepend">
@@ -965,7 +987,7 @@
                                 </div>
                             </div>
                             <div class="table-responsive">
-                                <table class="table table-bordered table-hover table-sm datatable" id="ledger-table" data-dt-skip="1">
+                                <table class="table table-bordered table-hover table-sm" id="ledger-table">
                                     <thead class="table-light">
                                         <tr>
                                             <th style="width: 7%;">
@@ -1046,6 +1068,10 @@
                                         </tr>
                                     </tfoot>
                                 </table>
+                            </div>
+                            <div class="ledger-pagination-wrapper d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3 d-none">
+                                <div class="text-muted small" id="ledger-pagination-summary"></div>
+                                <div id="ledger-pagination"></div>
                             </div>
                         </div>
                     </div>
@@ -1575,6 +1601,34 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
+let ledgerPerPage = localStorage.getItem('ledgerPerPage') || '25';
+
+function resolvePerPageParam() {
+    if (!ledgerPerPage) {
+        ledgerPerPage = '25';
+    }
+    if (ledgerPerPage === 'all') {
+        return 'all';
+    }
+    const parsed = parseInt(ledgerPerPage, 10);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+        ledgerPerPage = '25';
+        return '25';
+    }
+    return String(parsed);
+}
+
+function resolvePerPageNumber(defaultValue = 25) {
+    if (ledgerPerPage === 'all') {
+        return defaultValue;
+    }
+    const parsed = parseInt(ledgerPerPage, 10);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+        return defaultValue;
+    }
+    return parsed;
+}
+
 function bindSortButtons() {
     const currentSort = new URL(window.location.href).searchParams.get('sort') || 'date';
     const currentOrder = new URL(window.location.href).searchParams.get('order') || 'asc';
@@ -1596,52 +1650,64 @@ function handleSortClick(e) {
     const url = new URL(window.location.href);
     url.searchParams.set('sort', sort);
     url.searchParams.set('order', order);
-    url.searchParams.delete('page');
     url.searchParams.set('page', '1');
-    
-    window.location.href = url.toString();
+    window.history.replaceState({}, '', url);
+    loadLedgerData();
+    loadAccountsSummary();
+    loadReceivablesSummary();
 }
 
 $(document).ready(function() {
     bindSortButtons();
-    
-    // تعيين التاريخ الحالي كافتراضي - لكن نترك الحقول فارغة لعرض كل البيانات
     const today = new Date().toISOString().split('T')[0];
     const firstDayOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
     const ledgerSearchInput = $('#ledger-search');
+    const perPageSelect = $('#ledger-per-page');
     let ledgerSearchTimer = null;
-    // تعيين من بداية السنة إلى اليوم
+    if (!perPageSelect.find(`option[value="${ledgerPerPage}"]`).length) {
+        ledgerPerPage = '25';
+    }
+    perPageSelect.val(ledgerPerPage);
+    perPageSelect.on('change', function() {
+        ledgerPerPage = this.value || '25';
+        localStorage.setItem('ledgerPerPage', ledgerPerPage);
+        setCurrentPage(1);
+        loadLedgerData();
+    });
     $('#from-date').val(firstDayOfYear);
     $('#to-date').val(today);
     $('#ledger-search').prop('disabled', true);
-
-    // تحميل البيانات
     loadLedgerData();
     loadAccountsSummary();
     loadReceivablesSummary();
-    
-    // معالج البحث
     $('#filter-form').on('submit', function(e) {
         e.preventDefault();
+        setCurrentPage(1);
         loadLedgerData();
         loadAccountsSummary();
         loadReceivablesSummary();
     });
-
     ledgerSearchInput.on('input', function() {
-        if (ledgerDataTable) {
-            ledgerDataTable.search(this.value).draw();
-        } else {
-            clearTimeout(ledgerSearchTimer);
-            ledgerSearchTimer = setTimeout(() => {
-                loadLedgerData();
-            }, 300);
-        }
+        clearTimeout(ledgerSearchTimer);
+        ledgerSearchTimer = setTimeout(() => {
+            setCurrentPage(1);
+            loadLedgerData();
+        }, 300);
     });
-
 });
 
-let ledgerDataTable = null;
+function setCurrentPage(page) {
+    const safePage = Math.max(1, parseInt(page, 10) || 1);
+    const url = new URL(window.location.href);
+    url.searchParams.set('page', safePage);
+    window.history.replaceState({}, '', url);
+}
+
+function getCurrentPage() {
+    const url = new URL(window.location.href);
+    const current = parseInt(url.searchParams.get('page') || '1', 10);
+    return current > 0 ? current : 1;
+}
 
 function loadLedgerData() {
     const formData = $('#filter-form').serialize();
@@ -1649,13 +1715,41 @@ function loadLedgerData() {
     const sort = urlParams.get('sort') || 'date';
     const order = urlParams.get('order') || 'asc';
     const page = urlParams.get('page') || '1';
-    const params = formData + (formData ? '&' : '') + `sort=${sort}&order=${order}&page=${page}`;
+    const searchValue = ($('#ledger-search').val() || '').trim();
+    const perPageParam = resolvePerPageParam();
+    const parts = [];
+    if (formData) {
+        parts.push(formData);
+    }
+    if (searchValue) {
+        parts.push(`q=${encodeURIComponent(searchValue)}`);
+    }
+    parts.push(`sort=${sort}`);
+    parts.push(`order=${order}`);
+    parts.push(`page=${page}`);
+    parts.push(`per_page=${perPageParam}`);
+    const params = parts.join('&');
 
     $.ajax({
         url: '{{ url_for("ledger.get_ledger_data") }}',
         method: 'GET',
         data: params,
         success: function(response) {
+            const requestedPage = parseInt(page, 10) || 1;
+            if (response.pagination) {
+                const totalPages = Math.max(1, response.pagination.pages || 1);
+                const totalEntries = response.pagination.total || 0;
+                if (totalEntries === 0 && requestedPage !== 1) {
+                    setCurrentPage(1);
+                    loadLedgerData();
+                    return;
+                }
+                if (totalEntries > 0 && requestedPage > totalPages) {
+                    setCurrentPage(totalPages);
+                    loadLedgerData();
+                    return;
+                }
+            }
             updateLedgerTable(response.data, response.totals);
             updateStatistics(response.statistics);
             if (response.pagination) {
@@ -1665,6 +1759,7 @@ function loadLedgerData() {
         },
         error: function(xhr, status, error) {
             showAlert('خطأ في تحميل البيانات', 'error');
+            $('#ledger-search').prop('disabled', false);
         }
     });
 }
@@ -1673,18 +1768,15 @@ function updateLedgerTable(data, totals) {
     const table = $('#ledger-table');
     const tbody = table.find('tbody');
     const searchInput = $('#ledger-search');
-    if (ledgerDataTable) {
-        ledgerDataTable.destroy();
-        ledgerDataTable = null;
-    } else if ($.fn && $.fn.DataTable && $.fn.DataTable.isDataTable('#ledger-table')) {
-        table.DataTable().destroy();
-    }
     tbody.empty();
     if (!data || data.length === 0) {
         if (searchInput.length) {
             searchInput.prop('disabled', false);
         }
         tbody.append('<tr><td colspan="9" class="text-center text-muted py-4"><i class="fas fa-info-circle"></i> لا توجد قيود محاسبية في الفترة المحددة</td></tr>');
+        $('.ledger-pagination-wrapper').addClass('d-none');
+        $('#ledger-pagination-summary').text('');
+        $('#ledger-pagination').empty();
         return;
     }
     if (searchInput.length) {
@@ -1741,7 +1833,56 @@ function updateLedgerTable(data, totals) {
         $('#total-credit').text(formatCurrency(totals.total_credit));
         $('#final-balance').text(formatCurrency(totals.final_balance));
     }
-    initLedgerDataTable();
+}
+
+function updatePagination(pagination) {
+    const wrapper = $('.ledger-pagination-wrapper');
+    const summary = $('#ledger-pagination-summary');
+    const container = $('#ledger-pagination');
+    container.empty();
+    if (!pagination || !pagination.total) {
+        summary.text('');
+        wrapper.addClass('d-none');
+        return;
+    }
+    const page = pagination.page || 1;
+    const perPage = pagination.per_page || resolvePerPageNumber(25);
+    const total = pagination.total || 0;
+    const pages = pagination.pages || 1;
+    const start = Math.min(total, (page - 1) * perPage + 1);
+    const end = Math.min(total, page * perPage);
+    summary.text(`عرض ${start} - ${end} من ${total} قيد`);
+    
+    if (pages <= 1) {
+        wrapper.removeClass('d-none');
+        return;
+    }
+    
+    const items = [];
+    const prevDisabled = page <= 1 ? ' disabled' : '';
+    items.push(`<li class="page-item${prevDisabled}"><a class="page-link" href="#" data-page="${page - 1}">السابق</a></li>`);
+    
+    const windowStart = Math.max(1, page - 2);
+    const windowEnd = Math.min(pages, page + 2);
+    for (let i = windowStart; i <= windowEnd; i += 1) {
+        const active = i === page ? ' active' : '';
+        items.push(`<li class="page-item${active}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`);
+    }
+    
+    const nextDisabled = page >= pages ? ' disabled' : '';
+    items.push(`<li class="page-item${nextDisabled}"><a class="page-link" href="#" data-page="${page + 1}">التالي</a></li>`);
+    
+    container.html(`<ul class="pagination pagination-sm mb-0">${items.join('')}</ul>`);
+    container.find('a.page-link').on('click', function(e) {
+        e.preventDefault();
+        const targetPage = parseInt($(this).data('page'), 10);
+        if (!targetPage || targetPage < 1 || targetPage > pages || $(this).closest('li').hasClass('disabled') || $(this).closest('li').hasClass('active')) {
+            return;
+        }
+        setCurrentPage(targetPage);
+        loadLedgerData();
+    });
+    wrapper.removeClass('d-none');
 }
 
 function buildLedgerActions(entry) {
@@ -1821,84 +1962,6 @@ async function deleteLedgerPayment(paymentId) {
         loadLedgerData();
     } catch (error) {
         showAlert('تعذر حذف الدفعة: ' + (error.message || error), 'error');
-    }
-}
-
-function initLedgerDataTable() {
-    const table = $('#ledger-table');
-    if (!table.length) {
-        return;
-    }
-    const activate = () => {
-        ledgerDataTable = table.DataTable({
-            language: {
-                url: '{{ url_for("static", filename="datatables/Arabic.json") }}'
-            },
-            pageLength: 25,
-            order: [[0, 'desc']],
-            dom: 'Brtip',
-            buttons: [
-                {
-                    extend: 'excel',
-                    text: '<i class="fas fa-file-excel"></i> Excel',
-                    className: 'btn btn-sm btn-success'
-                },
-                {
-                    extend: 'pdf',
-                    text: '<i class="fas fa-file-pdf"></i> PDF',
-                    className: 'btn btn-sm btn-danger'
-                },
-                {
-                    extend: 'print',
-                    text: '<i class="fas fa-print"></i> طباعة',
-                    className: 'btn btn-sm btn-info'
-                }
-            ],
-            searching: true,
-            paging: true,
-            info: true,
-            responsive: false,
-            scrollX: true,
-            scrollCollapse: false,
-            orderable: true,
-            columnDefs: [
-                { targets: [5, 6, 7], className: 'text-end', type: 'num' },
-                { targets: [0, 1, 2, 3, 8], className: 'text-center' },
-                { targets: [8], orderable: false },
-                { targets: [8], width: '120px' }
-            ],
-            footerCallback: function(row, data, start, end, display) {
-                const api = this.api();
-                let pageDebit = 0;
-                let pageCredit = 0;
-                api.column(5, { page: 'current' }).data().each(function(value) {
-                    const numValue = parseFloat(String(value).replace(/[^\d.-]/g, '')) || 0;
-                    pageDebit += numValue;
-                });
-                api.column(6, { page: 'current' }).data().each(function(value) {
-                    const numValue = parseFloat(String(value).replace(/[^\d.-]/g, '')) || 0;
-                    pageCredit += numValue;
-                });
-            }
-        });
-        const searchInput = $('#ledger-search');
-        const searchValue = searchInput.length ? searchInput.val() : '';
-        if (searchInput.length) {
-            searchInput.prop('disabled', false);
-            searchInput.off('input.ledger').on('input.ledger', function() {
-                if (ledgerDataTable) {
-                    ledgerDataTable.search(this.value).draw();
-                }
-            });
-            if (searchValue) {
-                ledgerDataTable.search(searchValue).draw();
-            }
-        }
-    };
-    if ($.fn && $.fn.DataTable) {
-        activate();
-    } else {
-        $(document).one('datatables:ready', activate);
     }
 }
 
@@ -2340,9 +2403,9 @@ function updateReceivablesDetailedSummary(data, totals) {
     }
     
     data.forEach(function(entity) {
+        const balance = parseFloat(entity.balance || 0);
         const debit = parseFloat(entity.debit || 0);
         const credit = parseFloat(entity.credit || 0);
-        const balance = debit - credit;
         const daysOverdue = entity.days_overdue || 0;
         
         const entityIcon = getEntityIcon(entity.type);
@@ -2350,7 +2413,7 @@ function updateReceivablesDetailedSummary(data, totals) {
         // تحديد حالة الدين
         let statusBadge = '';
         let statusClass = '';
-        if (balance > 0) {
+        if (balance < 0) {
             if (daysOverdue > 90) {
                 statusBadge = '<span class="badge badge-danger">متأخر جداً</span>';
                 statusClass = 'table-danger';
@@ -2362,7 +2425,7 @@ function updateReceivablesDetailedSummary(data, totals) {
             } else {
                 statusBadge = '<span class="badge badge-success">جيد</span>';
             }
-        } else if (balance < 0) {
+        } else if (balance > 0) {
             statusBadge = '<span class="badge badge-primary">دائن</span>';
         } else {
             statusBadge = '<span class="badge badge-secondary">متوازن</span>';
@@ -2524,13 +2587,14 @@ function resetFilters() {
     const firstDayOfYear = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
     $('#from-date').val(firstDayOfYear);
     $('#to-date').val(today);
+    setCurrentPage(1);
     loadLedgerData();
     loadAccountsSummary();
     loadReceivablesSummary();
 }
 
 // فلاتر سريعة
-function quickFilter(period) {
+function quickFilter(period, evt) {
     const today = new Date();
     let fromDate, toDate = today;
     
@@ -2560,10 +2624,13 @@ function quickFilter(period) {
     $('#to-date').val(toDate.toISOString().split('T')[0]);
     
     // تحديث الزر النشط
-    $('.btn-group button').removeClass('active');
-    $(event.target).closest('button').addClass('active');
+    $('.btn-group-lg .btn').removeClass('active');
+    if (evt && evt.currentTarget) {
+        $(evt.currentTarget).addClass('active');
+    }
     
     // تحميل البيانات
+    setCurrentPage(1);
     loadLedgerData();
     loadAccountsSummary();
     loadReceivablesSummary();

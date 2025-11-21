@@ -13,6 +13,14 @@
 {% endblock %}
 
 {% block content %}
+  {% set balance_view = balance_breakdown if balance_breakdown and balance_breakdown.success else None %}
+  {% if balance_rights_items is not defined %}
+    {% set balance_rights_items = [] %}
+  {% endif %}
+  {% if balance_obligations_items is not defined %}
+    {% set balance_obligations_items = [] %}
+  {% endif %}
+  {% set live_balance = balance_view.balance.amount if balance_view else customer.balance %}
   
   <div class="row g-3 mb-4">
     <div class="col-md-3">
@@ -20,7 +28,7 @@
         <div class="card-body d-flex justify-content-between align-items-center">
           <div>
             <h6 class="text-white-50 mb-1">الرصيد الحالي</h6>
-            <h3 class="mb-0 fw-bold">{{ customer.balance|format_currency }}</h3>
+            <h3 class="mb-0 fw-bold" data-balance-customer="{{ customer.id }}">{{ live_balance|format_currency }}</h3>
           </div>
           <i class="fas fa-wallet fa-2x opacity-50"></i>
         </div>
@@ -61,6 +69,120 @@
     </div>
   </div>
   
+  {% if balance_view %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="dashboard-stats-card h-100 text-white" style="background:linear-gradient(135deg,#0ba360,#3cba92)">
+        <div class="card-body text-center">
+          <h6 class="text-white-50 mb-1">🟢 الحقوق</h6>
+          <h3 class="mb-0 fw-bold">{{ balance_view.rights.total|format_currency }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="dashboard-stats-card h-100 text-white" style="background:linear-gradient(135deg,#f12711,#f5af19)">
+        <div class="card-body text-center">
+          <h6 class="text-white-50 mb-1">🔴 الالتزامات</h6>
+          <h3 class="mb-0 fw-bold">{{ balance_view.obligations.total|format_currency }}</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="dashboard-stats-card h-100 text-white" style="background:linear-gradient(135deg,#141e30,#243b55)">
+        <div class="card-body text-center">
+          <h6 class="text-white-50 mb-1">🎯 الوضع الحالي</h6>
+          <h3 class="mb-0 fw-bold {% if balance_view.balance.amount > 0 %}text-danger{% elif balance_view.balance.amount < 0 %}text-success{% endif %}">
+            {{ balance_view.balance.amount|format_currency }}
+          </h3>
+          <small class="text-white-50">{{ balance_view.balance.action }}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm rounded mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-scale-balanced ml-2"></i>تفاصيل الحقوق والالتزامات</h5>
+      <small class="text-muted">{{ balance_view.balance.formula }}</small>
+    </div>
+    <div class="card-body">
+      <div class="row gy-4">
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-success mb-0">🟢 الحقوق</h6>
+            <span class="badge bg-success text-white">{{ balance_view.rights.total|format_currency }}</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless align-middle mb-0">
+              <tbody>
+                {% if balance_rights_items %}
+                  {% for item in balance_rights_items %}
+                  {% if item.amount %}
+                  <tr>
+                    <td>{{ item.label }}</td>
+                    <td class="text-end text-success fw-semibold">{{ item.amount|format_currency }}</td>
+                  </tr>
+                  {% endif %}
+                {% endfor %}
+                {% else %}
+                  <tr><td class="text-muted" colspan="2">لا توجد بيانات</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="text-danger mb-0">🔴 الالتزامات</h6>
+            <span class="badge bg-danger text-white">{{ balance_view.obligations.total|format_currency }}</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless align-middle mb-0">
+              <tbody>
+                {% if balance_obligations_items %}
+                  {% for item in balance_obligations_items %}
+                  {% if item.amount %}
+                  <tr>
+                    <td>{{ item.label }}</td>
+                    <td class="text-end text-danger fw-semibold">{{ item.amount|format_currency }}</td>
+                  </tr>
+                  {% endif %}
+                {% endfor %}
+                {% else %}
+                  <tr><td class="text-muted" colspan="2">لا توجد بيانات</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="row mt-4 g-3">
+        <div class="col-md-4">
+          <div class="alert alert-secondary mb-0">
+            <div class="small text-muted">الرصيد الافتتاحي</div>
+            <div class="fw-bold">{{ balance_view.opening_balance.amount|format_currency }}</div>
+            <small class="text-muted">{{ balance_view.opening_balance.direction }}</small>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="alert alert-info mb-0">
+            <div class="small text-muted">شيكات قيد التحصيل</div>
+            <div class="fw-bold">{{ balance_view.checks.in_progress|format_currency }}</div>
+            <small class="text-muted">على العميل: {{ balance_view.checks.outstanding|format_currency }}</small>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="alert alert-light border mb-0">
+            <div class="small text-muted">ملخص الدفعات</div>
+            <div class="fw-bold text-info">قبضنا: {{ balance_view.payments.received|format_currency }}</div>
+            <div class="fw-bold text-warning">دفعنا: {{ balance_view.payments.paid|format_currency }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  
   <div class="card shadow-sm rounded">
     <div class="card-header bg-primary text-white">
       <h3 class="card-title"><i class="fas fa-user ml-2"></i> تفاصيل العميل: {{ customer.name }}</h3>
@@ -68,29 +190,78 @@
 
     <div class="card-body">
       <dl class="row mb-4">
-        {% for label, value, icon in [
-          ('اسم العميل', customer.name, 'fas fa-id-card'),
-          ('الجوال', customer.phone or '-', 'fas fa-phone'),
-          ('واتساب', customer.whatsapp and ('<a href="https://wa.me/'+customer.whatsapp.replace(" ","")+'" target="_blank" class="text-success"><i class="fab fa-whatsapp"></i> '+customer.whatsapp+'</a>') or '-', ''),
-          ('البريد الإلكتروني', customer.email or '-', 'fas fa-envelope'),
-          ('العنوان', customer.address or '-', 'fas fa-map-marker-alt'),
-          ('التصنيف', customer.category or '-', 'fas fa-tags'),
-          ('حد الائتمان', customer.credit_limit|format_currency, 'fas fa-credit-card'),
-          ('معدل الخصم', customer.discount_rate|format_percent, 'fas fa-percent'),
-          ('الرصيد الحالي', '<span class="fw-bold '+('text-danger' if customer.balance>0 else 'text-success' if customer.balance<0 else '')+'">'+(customer.balance|format_currency)+'</span>', 'fas fa-wallet'),
-          ('الحالة', ('<span class="badge bg-success">نشط</span>' if customer.is_active else '<span class="badge bg-secondary">غير نشط</span>'), 'fas fa-toggle-on'),
-          ('ملاحظات', customer.notes or '-', 'fas fa-sticky-note')
-        ] %}
-        <dt class="col-sm-4 text-end"><i class="{{ icon }} ml-1"></i> {{ label }}</dt>
-        <dd class="col-sm-8">{% autoescape false %}{{ value }}{% endautoescape %}</dd>
-        {% endfor %}
+        <dt class="col-sm-4 text-end"><i class="fas fa-id-card ml-1"></i> اسم العميل</dt>
+        <dd class="col-sm-8">{{ customer.name }}</dd>
+
+        <dt class="col-sm-4 text-end"><i class="fas fa-phone ml-1"></i> الجوال</dt>
+        <dd class="col-sm-8">{{ customer.phone or '-' }}</dd>
+
+        <dt class="col-sm-4 text-end"><i class="fab fa-whatsapp ml-1"></i> واتساب</dt>
+        <dd class="col-sm-8">
+          {% if customer.whatsapp %}
+            {% set whatsapp_clean = customer.whatsapp|replace(' ', '') %}
+            <a href="https://wa.me/{{ whatsapp_clean }}" target="_blank" class="text-success">
+              <i class="fab fa-whatsapp"></i> {{ customer.whatsapp }}
+            </a>
+          {% else %}
+            -
+          {% endif %}
+        </dd>
+
+        <dt class="col-sm-4 text-end"><i class="fas fa-envelope ml-1"></i> البريد الإلكتروني</dt>
+        <dd class="col-sm-8">{{ customer.email or '-' }}</dd>
+
+        <dt class="col-sm-4 text-end"><i class="fas fa-map-marker-alt ml-1"></i> العنوان</dt>
+        <dd class="col-sm-8">{{ customer.address or '-' }}</dd>
+
+        <dt class="col-sm-4 text-end"><i class="fas fa-tags ml-1"></i> التصنيف</dt>
+        <dd class="col-sm-8">{{ customer.category or '-' }}</dd>
+
+        <dt class="col-sm-4 text-end"><i class="fas fa-credit-card ml-1"></i> حد الائتمان</dt>
+        <dd class="col-sm-8">{{ customer.credit_limit|format_currency }}</dd>
+
+        <dt class="col-sm-4 text-end"><i class="fas fa-percent ml-1"></i> معدل الخصم</dt>
+        <dd class="col-sm-8">{{ customer.discount_rate|format_percent }}</dd>
+
+        <dt class="col-sm-4 text-end"><i class="fas fa-wallet ml-1"></i> الرصيد الحالي</dt>
+        <dd class="col-sm-8">
+          <span class="fw-bold {% if live_balance > 0 %}text-success{% elif live_balance < 0 %}text-danger{% else %}text-secondary{% endif %}" data-balance-customer="{{ customer.id }}">
+            {{ live_balance|format_currency }}
+          </span>
+        </dd>
+
+        <dt class="col-sm-4 text-end"><i class="fas fa-toggle-on ml-1"></i> الحالة</dt>
+        <dd class="col-sm-8">
+          {% if customer.is_active %}
+            <span class="badge bg-success">نشط</span>
+          {% else %}
+            <span class="badge bg-secondary">غير نشط</span>
+          {% endif %}
+        </dd>
+
+        <dt class="col-sm-4 text-end"><i class="fas fa-sticky-note ml-1"></i> ملاحظات</dt>
+        <dd class="col-sm-8">{{ customer.notes or '-' }}</dd>
       </dl>
 
       <hr>
       <h5 class="mb-3"><i class="fas fa-chart-pie ml-2"></i> نشاط العميل</h5>
       <ul class="list-group mb-4">
-        <li class="list-group-item"><b>آخر بيع:</b> {{ (customer.sales|default([], true))[-1].sale_date.strftime('%Y-%m-%d') if (customer.sales|default([], true)) else '—' }}</li>
-        <li class="list-group-item"><b>آخر دفعة:</b> {{ (customer.payments|default([], true))[-1].payment_date.strftime('%Y-%m-%d') if (customer.payments|default([], true)) else '—' }}</li>
+        <li class="list-group-item"><b>آخر بيع:</b> 
+          {% set last_sale = (customer.sales|default([], true))[-1] if (customer.sales|default([], true)) else None %}
+          {% if last_sale and last_sale.sale_date %}
+            {{ last_sale.sale_date|format_date }}
+          {% else %}
+            —
+          {% endif %}
+        </li>
+        <li class="list-group-item"><b>آخر دفعة:</b> 
+          {% set last_payment = (customer.payments|default([], true))[-1] if (customer.payments|default([], true)) else None %}
+          {% if last_payment and last_payment.payment_date %}
+            {{ last_payment.payment_date|format_date }}
+          {% else %}
+            —
+          {% endif %}
+        </li>
         <li class="list-group-item"><b>عدد الفواتير:</b> {{ (customer.invoices|default([], true))|length }}</li>
         <li class="list-group-item"><b>عدد الدفعات:</b> {{ (customer.payments|default([], true))|length }}</li>
       </ul>
@@ -101,7 +272,7 @@
         {% for log in logs %}
         <li class="list-group-item small">
           <b>{{ log.action|capitalize }}</b> بواسطة {{ log.user.username if log.user else 'system' }} —
-          <span title="{{ log.timestamp }}">{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</span>
+          <span title="{{ log.timestamp }}">{{ log.timestamp|format_datetime if log.timestamp else '—' }}</span>
         </li>
         {% endfor %}
       </ul>
@@ -115,15 +286,20 @@
           <i class="fas fa-edit ml-1"></i> تعديل
         </a>
         {% if customer.balance and customer.balance > 0 %}
+        {% set payment_reference = 'دفع من عميل: ' ~ customer.name %}
+        {% set payment_notes = 'دفعة من العميل: ' ~ customer.name %}
+        {% if customer.phone %}
+          {% set payment_notes = payment_notes ~ ' - هاتف: ' ~ customer.phone %}
+        {% endif %}
         <a href="{{ url_for('payments.create_payment', 
                            entity_type='CUSTOMER', 
                            entity_id=customer.id,
                            amount=customer.balance,
                            currency=customer.currency if customer.currency else 'ILS',
-                           reference='دفع من عميل: ' ~ customer.name,
-                           notes='دفعة من العميل: ' ~ customer.name ~ ((' - هاتف: ' ~ customer.phone) if customer.phone else ''),
+                           reference=payment_reference,
+                           notes=payment_notes,
                            customer_id=customer.id) }}" class="btn btn-outline-success">
-          <i class="fas fa-coins ml-1"></i> دفعة جديدة ({{ '%.2f'|format(customer.balance) }} ₪)
+          <i class="fas fa-coins ml-1"></i> دفعة جديدة ({{ customer.balance|number_format(2) }} ₪)
         </a>
         {% endif %}
         <button type="button" class="btn btn-warning delete-btn" 

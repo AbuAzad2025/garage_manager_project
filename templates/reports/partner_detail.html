@@ -127,7 +127,7 @@
                         </div>
                         <div class="col-6 col-md-4 mb-3">
                             <strong class="text-primary">🎯 الرصيد</strong><br>
-                            <span class="fs-4 fw-bold {{ balance_data.get('balance', {}).get('amount', 0) > 0 and 'text-success' or balance_data.get('balance', {}).get('amount', 0) < 0 and 'text-danger' or '' }}">
+                            <span class="fs-4 fw-bold {{ balance_data.get('balance', {}).get('amount', 0) > 0 and 'text-danger' or balance_data.get('balance', {}).get('amount', 0) < 0 and 'text-success' or '' }}">
                                 {{ "%.2f"|format((balance_data.get('balance', {}).get('amount', 0)|abs)) }} ₪
                             </span><br>
                             <small class="text-muted">{{ balance_data.get('balance', {}).get('action', '') }}</small>
@@ -188,6 +188,90 @@
             </form>
         </div>
     </div>
+
+    
+
+    {% if partner_breakdown and partner_breakdown.success %}
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-scale-balanced ml-2"></i>تفاصيل الحقوق والالتزامات</h5>
+            <small class="text-muted">{{ partner_breakdown.balance.formula }}</small>
+        </div>
+        <div class="card-body">
+            <div class="row gy-4">
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-success mb-0">🟢 الحقوق</h6>
+                        <span class="badge bg-success text-white">{{ partner_breakdown.rights.total|format_currency }}</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0">
+                            <tbody>
+                                {% for item in partner_breakdown.rights.items %}
+                                    {% if item.amount %}
+                                    <tr>
+                                        <td>{{ item.label }}</td>
+                                        <td class="text-end {{ item.amount >= 0 and 'text-success' or 'text-danger' }} fw-semibold">
+                                            {{ item.amount|format_currency }}
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="text-danger mb-0">🔴 الالتزامات</h6>
+                        <span class="badge bg-danger text-white">{{ partner_breakdown.obligations.total|format_currency }}</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0">
+                            <tbody>
+                                {% for item in partner_breakdown.obligations.items %}
+                                    {% if item.amount %}
+                                    <tr>
+                                        <td>{{ item.label }}</td>
+                                        <td class="text-end {{ item.amount >= 0 and 'text-danger' or 'text-success' }} fw-semibold">
+                                            {{ item.amount|format_currency }}
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="row mt-4 g-3">
+                <div class="col-md-4">
+                    <div class="alert alert-secondary mb-0">
+                        <div class="small text-muted">الرصيد الافتتاحي</div>
+                        <div class="fw-bold">{{ partner_breakdown.opening_balance.amount|format_currency }}</div>
+                        <small class="text-muted">{{ partner_breakdown.opening_balance.direction }}</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="alert alert-info mb-0">
+                        <div class="small text-muted">ملخص الدفعات</div>
+                        <div class="fw-bold text-info">دفعنا له: {{ partner_breakdown.payments.total_paid|format_currency }}</div>
+                        <div class="fw-bold text-warning">دفع لنا: {{ partner_breakdown.payments.total_received|format_currency }}</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="alert alert-light border mb-0">
+                        <div class="small text-muted">الوضع الحالي</div>
+                        <div class="fw-bold {% if partner_breakdown.balance.amount > 0 %}text-danger{% elif partner_breakdown.balance.amount < 0 %}text-success{% else %}text-secondary{% endif %}">
+                            {{ partner_breakdown.balance.amount|format_currency }}
+                        </div>
+                        <small class="text-muted">{{ partner_breakdown.balance.action }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     
 

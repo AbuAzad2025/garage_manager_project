@@ -101,8 +101,10 @@
         </td>
         <td>{{ customer.phone or '-' }}</td>
         <td class="hide-mobile">{{ customer.category or '-' }}</td>
-        <td class="fw-bold {% if customer.balance < 0 %}text-danger{% else %}text-success{% endif %}" data-sort-value="{{ customer.balance or 0 }}">
-          {{ customer.balance|format_currency }}
+        {% set display_balance = customer.calculated_balance if customer.calculated_balance is defined else customer.balance %}
+        {% set display_balance = display_balance if display_balance is not none else 0 %}
+        <td class="fw-bold {% if display_balance > 0 %}text-success{% elif display_balance < 0 %}text-danger{% else %}text-secondary{% endif %}" data-sort-value="{{ display_balance }}" data-balance-customer="{{ customer.id }}">
+          {{ display_balance|format_currency }}
         </td>
         {% if has_actions %}
         <td class="text-nowrap">

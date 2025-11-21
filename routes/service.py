@@ -70,6 +70,28 @@ def _log_service_stock_action(service, action: str, items: list[dict]) -> None:
         db.session.add(entry)
     except Exception: pass
 
+def _update_service_totals(service):
+    """تحديث parts_total, labor_total, و total_amount في ServiceRequest"""
+    try:
+        parts_total = Decimal('0.00')
+        for p in service.parts or []:
+            parts_total += Decimal(str(p.line_total or 0))
+        
+        labor_total = Decimal('0.00')
+        for t in service.tasks or []:
+            labor_total += Decimal(str(t.line_total or 0))
+        
+        service.parts_total = parts_total
+        service.labor_total = labor_total
+        
+        subtotal = parts_total + labor_total
+        discount = Decimal(str(service.discount_total or 0))
+        service.total_amount = subtotal - discount
+        if service.total_amount < 0:
+            service.total_amount = Decimal('0.00')
+    except Exception as e:
+        current_app.logger.warning(f"خطأ في تحديث totals للصيانة {service.id}: {e}")
+
 def _has_stock_action(service, action: str) -> bool:
     if not service or not getattr(service,"id",None): return False
     q = db.session.query(AuditLog.id).filter(AuditLog.model_name=="ServiceRequest", AuditLog.record_id==service.id, AuditLog.action==(action or "").strip().upper()).limit(1)
@@ -436,17 +458,23 @@ def create_request():
 def view_request(rid):
     service=_get_or_404(ServiceRequest, rid, options=[joinedload(ServiceRequest.customer), joinedload(ServiceRequest.parts).joinedload(ServicePart.part), joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse), joinedload(ServiceRequest.tasks)])
     warehouses=Warehouse.query.order_by(Warehouse.name.asc()).all()
+    
+    try:
+        _update_service_totals(service)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    
     try:
         due_amount = float(getattr(service, 'balance_due', 0) or 0)
+        if due_amount <= 0:
+            total_amt = float(getattr(service, 'total', 0) or 0)
+            total_paid = float(getattr(service, 'total_paid', 0) or 0)
+            due_amount = max(total_amt - total_paid, 0)
     except Exception:
-        total_amt = float(getattr(service, 'total_amount', 0) or 0)
-        total_paid = float(getattr(service, 'total_paid', 0) or 0)
-        due_amount = max(total_amt - total_paid, 0)
-    try:
-        total_paid_amount = float(getattr(service, 'total_paid', 0) or 0)
-    except Exception:
-        total_paid_amount = 0.0
-    return render_template('service/view.html', service=service, warehouses=warehouses, due_amount=due_amount, total_paid_amount=total_paid_amount)
+        due_amount = 0.0
+    
+    return render_template('service/view.html', service=service, warehouses=warehouses, due_amount=due_amount)
 
 @service_bp.route('/<int:rid>/receipt', methods=['GET'])
 @login_required
@@ -525,6 +553,8 @@ def update_discount_tax(rid):
         # تحديث القيم
         service.discount_total = discount_total
         service.tax_rate = tax_rate
+        
+        _update_service_totals(service)
         
         db.session.commit()
         
@@ -654,6 +684,7 @@ def add_part(rid):
             _log_service_stock_action(service,"STOCK_CONSUME_PART",[{"part_id":product_id,"warehouse_id":warehouse_id,"qty":-quantity,"stock_after":int(new_qty)}])
             current_app.logger.info("service.part_add",extra={"event":"service.part.add","service_id":service.id,"part_id":product_id,"warehouse_id":warehouse_id,"qty":-quantity})
         
+        _update_service_totals(service)
         db.session.commit()
         flash('✅ تمت إضافة القطعة بنجاح','success')
         
@@ -689,7 +720,11 @@ def delete_part(pid):
             new_qty=utils._apply_stock_delta(part.part_id, part.warehouse_id, +int(part.quantity or 0))
             _log_service_stock_action(service,"STOCK_RELEASE_PART",[{"part_id":part.part_id,"warehouse_id":part.warehouse_id,"qty":+int(part.quantity or 0),"stock_after":int(new_qty)}])
             current_app.logger.info("service.part_delete",extra={"event":"service.part.delete","service_id":service.id,"part_id":part.part_id,"warehouse_id":part.warehouse_id,"qty":+int(part.quantity or 0)})
-        db.session.delete(part); service.updated_at=datetime.utcnow(); db.session.commit(); flash('✅ تم حذف القطعة ومعالجة المخزون','success')
+        db.session.delete(part)
+        service.updated_at=datetime.utcnow()
+        _update_service_totals(service)
+        db.session.commit()
+        flash('✅ تم حذف القطعة ومعالجة المخزون','success')
     except SQLAlchemyError as e:
         db.session.rollback()
         _log_and_flash("service.delete_part", e, "تعذر حذف القطعة حالياً.")
@@ -756,6 +791,7 @@ def add_task(rid):
         db.session.add(task)
         db.session.flush()
         service.updated_at=datetime.utcnow()
+        _update_service_totals(service)
         db.session.commit()
         flash('✅ تمت إضافة المهمة بنجاح','success')
         
@@ -783,7 +819,10 @@ def delete_task(tid):
     
     db.session.delete(task)
     try:
-        service.updated_at=datetime.utcnow(); db.session.commit(); flash('✅ تم حذف المهمة','success')
+        service.updated_at=datetime.utcnow()
+        _update_service_totals(service)
+        db.session.commit()
+        flash('✅ تم حذف المهمة','success')
     except SQLAlchemyError as e:
         db.session.rollback()
         _log_and_flash("service.delete_task", e, "تعذر حذف المهمة حالياً.")
@@ -799,17 +838,21 @@ def add_payment(rid):
     # حساب المبلغ المتبقي فعلاً
     balance = None
     try:
-        balance = float(getattr(service, 'balance_due', None))
+        balance = float(getattr(service, 'balance_due', None) or 0)
     except Exception:
         balance = None
-    if balance is None:
+    if balance is None or balance < 0:
         try:
-            total_amt = float(getattr(service, 'total_amount', 0) or 0)
+            total_amt = float(getattr(service, 'total', 0) or 0)
             total_paid = float(getattr(service, 'total_paid', 0) or 0)
             balance = max(total_amt - total_paid, 0)
         except Exception:
-            balance = float(getattr(service, 'total_amount', 0) or 0)
-    if not balance or balance <= 0:
+            try:
+                total_amt = float(getattr(service, 'total', 0) or 0)
+                balance = total_amt
+            except Exception:
+                balance = 0
+    if balance <= 0:
         flash('🔔 هذا الطلب مسدد بالكامل، لا يمكن إضافة دفعة جديدة.', 'warning')
         return redirect(url_for('service.view_request', rid=rid))
     

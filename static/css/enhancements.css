@@ -157,11 +157,6 @@
 }
 
 /* ═══ 8. Enhanced Focus States ═══ */
-.form-control:focus,
-.form-select:focus {
-  border-color: #667eea !important;
-  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25) !important;
-}
 
 /* ═══ 9. Smooth Scrolling Enhancement ═══ */
 html {

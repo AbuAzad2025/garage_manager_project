@@ -100,12 +100,12 @@
               </div>
             </div>
             <div class="d-flex align-items-center gap-3">
-              <div class="{{ 'text-success' if summary.total_balance >= 0 else 'text-danger' }}">
+              <div class="{{ 'text-danger' if summary.total_balance > 0 else 'text-success' if summary.total_balance < 0 else 'text-secondary' }}">
                 <i class="fas fa-coins fa-2x"></i>
               </div>
               <div>
                 <div class="text-muted small">الرصيد الصافي</div>
-                <div id="partners-total-balance-wrapper" class="metric-value {{ 'text-success' if summary.total_balance > 0 else 'text-danger' if summary.total_balance < 0 else 'text-secondary' }}">
+                <div id="partners-total-balance-wrapper" class="metric-value {{ 'text-danger' if summary.total_balance > 0 else 'text-success' if summary.total_balance < 0 else 'text-secondary' }}">
                   <span id="partners-total-balance">{{ "%.2f"|format(summary.total_balance) }}</span> ₪
                 </div>
               </div>
@@ -244,12 +244,9 @@
             <td class="partner-name">{{ p.name }}</td>
             <td class="partner-phone">{{ p.phone_number or '—' }}</td>
             <td data-sort-value="{{ balance }}">
-              <span class="badge {% if balance < 0 %}bg-danger{% elif balance == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+              <span class="badge {% if balance > 0 %}bg-danger{% elif balance == 0 %}bg-secondary{% else %}bg-success{% endif %}">
                 {{ '%.2f'|format(balance) }} ₪
               </span>
-              {% if p.current_balance_source is defined and p.current_balance_source == 'smart' %}
-                <small class="text-muted d-block">ذكّي</small>
-              {% endif %}
             </td>
             <td>
               <div class="d-flex partner-actions">

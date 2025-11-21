@@ -134,7 +134,7 @@
       </div>
       <div class="col-md-3">
         <strong>🎯 الرصيد النهائي:</strong> 
-        <span class="fs-5 {{ balance_data.balance.amount > 0 and 'text-success' or balance_data.balance.amount < 0 and 'text-danger' or '' }}">
+        <span class="fs-5 {{ balance_data.balance.amount > 0 and 'text-danger' or balance_data.balance.amount < 0 and 'text-success' or '' }}">
           {{ "%.2f"|format(balance_data.balance.amount) }} ₪
         </span>
       </div>
@@ -142,12 +142,89 @@
     <small class="text-muted">⚠️ جميع المبالغ محولة إلى الشيكل (ILS)</small>
   </div>
   {% endif %}
+  {% if balance_breakdown and balance_breakdown.success %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-scale-balanced me-2"></i>تفاصيل الحقوق والالتزامات (مباشر)</h5>
+      <small class="text-muted">{{ balance_breakdown.balance.formula }}</small>
+    </div>
+    <div class="card-body">
+      <div class="row gy-4">
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-success fw-semibold">🟢 الحقوق</span>
+            <span class="badge bg-success text-white">{{ balance_breakdown.rights.total|format_currency }}</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless mb-0">
+              <tbody>
+                {% for item in balance_breakdown.rights.items %}
+                  {% if item.amount %}
+                  <tr>
+                    <td>{{ item.label }}</td>
+                    <td class="text-end {{ item.amount >= 0 and 'text-success' or 'text-danger' }} fw-semibold">{{ item.amount|format_currency }}</td>
+                  </tr>
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-danger fw-semibold">🔴 الالتزامات</span>
+            <span class="badge bg-danger text-white">{{ balance_breakdown.obligations.total|format_currency }}</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless mb-0">
+              <tbody>
+                {% for item in balance_breakdown.obligations.items %}
+                  {% if item.amount %}
+                  <tr>
+                    <td>{{ item.label }}</td>
+                    <td class="text-end {{ item.amount >= 0 and 'text-danger' or 'text-success' }} fw-semibold">{{ item.amount|format_currency }}</td>
+                  </tr>
+                  {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="row mt-4 g-3">
+        <div class="col-md-4">
+          <div class="alert alert-secondary mb-0">
+            <div class="small text-muted">الرصيد الافتتاحي</div>
+            <div class="fw-bold">{{ balance_breakdown.opening_balance.amount|format_currency }}</div>
+            <small class="text-muted">{{ balance_breakdown.opening_balance.direction }}</small>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="alert alert-info mb-0">
+            <div class="small text-muted">ملخص الدفعات</div>
+            <div class="fw-bold text-info">دفعنا له: {{ balance_breakdown.payments.total_paid|format_currency }}</div>
+            <div class="fw-bold text-warning">دفع لنا: {{ balance_breakdown.payments.total_received|format_currency }}</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+            <div class="alert alert-light border mb-0">
+                <div class="small text-muted">الوضع الحالي</div>
+                <div class="fw-bold {% if balance_breakdown.balance.amount > 0 %}text-danger{% elif balance_breakdown.balance.amount < 0 %}text-success{% else %}text-secondary{% endif %}">
+                  {{ balance_breakdown.balance.amount|format_currency }}
+                </div>
+                <small class="text-muted">{{ balance_breakdown.balance.action }}</small>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   
   <div class="row g-3 mb-4">
     {% set stats = [
       ('إجمالي مدين (مستحق للشريك)', total_debit, 'text-danger', 'fa-arrow-up'),
       ('إجمالي دائن (دفعات للشريك)', total_credit, 'text-success', 'fa-arrow-down'),
-      ('الرصيد', balance, balance > 0 and 'text-success' or balance < 0 and 'text-danger' or '', 'fa-balance-scale')
+      ('الرصيد', balance, balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '', 'fa-balance-scale')
     ] %}
     <div class="col-12 col-md-4">
       <div class="card shadow-sm h-100 border-success">
@@ -195,7 +272,7 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <div class="text-muted small">🎯 الرصيد النهائي</div>
-              <div class="fs-4 fw-bold {% if balance_data and balance_data.success %}{{ balance_data.balance.amount > 0 and 'text-success' or balance_data.balance.amount < 0 and 'text-danger' or 'text-secondary' }}{% else %}{{ balance > 0 and 'text-success' or balance < 0 and 'text-danger' or '' }}{% endif %}">
+              <div class="fs-4 fw-bold {% if balance_data and balance_data.success %}{{ balance_data.balance.amount > 0 and 'text-danger' or balance_data.balance.amount < 0 and 'text-success' or 'text-secondary' }}{% else %}{{ balance > 0 and 'text-danger' or balance < 0 and 'text-success' or '' }}{% endif %}">
                 {% if balance_data and balance_data.success %}
                   {{ "%.2f"|format(balance_data.balance.amount|abs) }} ₪
                 {% else %}
@@ -212,6 +289,8 @@
 
   {% set type_labels = {
     'EXPENSE': 'توريد خدمة',
+    'PARTNER_SALE_SHARE': 'نسبة ربح من مبيعات',
+    'PARTNER_INVENTORY_SHARE': 'نسبة في المخزون',
     'PAYMENT_OUT': 'سداد للشريك',
     'PAYMENT_IN': 'قبض من الشريك',
     'CHECK_PENDING': 'شيك معلق',
@@ -228,7 +307,9 @@
     'CHECK_BOUNCED': 'bg-danger',
     'SHARE': 'bg-primary',
     'SETTLEMENT': 'bg-info',
-    'OPENING_BALANCE': 'bg-purple text-white'
+    'OPENING_BALANCE': 'bg-purple text-white',
+    'PARTNER_SALE_SHARE': 'bg-success text-white',
+    'PARTNER_INVENTORY_SHARE': 'bg-warning text-dark'
   } %}
 
   <div class="card shadow-sm rounded">
@@ -343,7 +424,7 @@
               </td>
               <td class="text-end">{{ e.debit|format_currency }}</td>
               <td class="text-end">{{ e.credit|format_currency }}</td>
-              <td class="text-end fw-bold {% if e.balance > 0 %}text-success{% elif e.balance < 0 %}text-danger{% endif %}">
+              <td class="text-end fw-bold {% if e.balance > 0 %}text-danger{% elif e.balance < 0 %}text-success{% endif %}">
                 {{ e.balance|format_currency }}
               </td>
             </tr>
@@ -396,7 +477,7 @@
               <th colspan="4" class="text-end">الإجمالي</th>
               <th class="text-end">{{ total_debit|format_currency }}</th>
               <th class="text-end">{{ total_credit|format_currency }}</th>
-              <th class="text-end {% if balance > 0 %}text-success{% elif balance < 0 %}text-danger{% endif %}">
+              <th class="text-end {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">
                 {{ balance|format_currency }}
               </th>
             </tr>
@@ -461,7 +542,7 @@
             </tr>
             <tr class="table-active">
               <th>الرصيد الصافي:</th>
-              <td class="text-end fw-bold {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% endif %}">
+              <td class="text-end fw-bold {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% else %}text-secondary{% endif %}">
                 {{ balance|format_currency }}
               </td>
             </tr>
@@ -473,9 +554,9 @@
           <div class="alert {% if balance > 0 %}alert-danger{% elif balance < 0 %}alert-success{% else %}alert-info{% endif %} mt-3 mb-0">
             <i class="fas fa-info-circle ml-2"></i>
             {% if balance > 0 %}
-              <strong>مطلوب سداد {{ balance|format_currency }} للشريك</strong>
+              <strong>له علينا {{ balance|format_currency }} - مطلوب سداد للشريك</strong>
             {% elif balance < 0 %}
-              <strong>لك {{ (balance * -1)|format_currency }} عند الشريك</strong>
+              <strong>عليه لنا {{ (balance * -1)|format_currency }} - لك عند الشريك</strong>
             {% else %}
               <strong>الحساب متوازن</strong>
             {% endif %}
@@ -653,9 +734,9 @@
     {% endif %}
     printWindow.document.write('<div class="balance-box {% if balance < 0 %}negative{% endif %}"><strong>الرصيد الحالي:</strong> {{ balance|format_currency }}');
     {% if balance > 0 %}
-    printWindow.document.write(' <strong style="color: #dc3545;">(مطلوب سداد للشريك)</strong>');
+    printWindow.document.write(' <strong style="color: #dc3545;">(له علينا - مطلوب سداد للشريك)</strong>');
     {% elif balance < 0 %}
-    printWindow.document.write(' <strong style="color: #28a745;">(لك عند الشريك)</strong>');
+    printWindow.document.write(' <strong style="color: #28a745;">(عليه لنا - لك عند الشريك)</strong>');
     {% else %}
     printWindow.document.write(' (متوازن)');
     {% endif %}

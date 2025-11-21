@@ -4,7 +4,39 @@
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
 <style>
-/* تحسين تباين الألوان - للشاشة فقط */
+section.content {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+section.content .container-fluid {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+}
+
+.statement-content-wrapper {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 15px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+}
+
+@media (max-width: 992px) {
+    .statement-content-wrapper {
+        padding: 10px !important;
+    }
+}
+
+
 .statement-card {
     border-radius: 12px;
     box-shadow: 0 3px 10px rgba(0,0,0,0.1);
@@ -48,6 +80,7 @@
     color: #28a745 !important;
     font-weight: bold !important;
 }
+
 </style>
 {% endblock %}
 
@@ -95,7 +128,7 @@
   </div>
 </div>
 
-<div class="content-wrapper">
+<div class="statement-content-wrapper">
 
   <div class="d-flex flex-wrap gap-2 mb-3">
     <a class="btn btn-outline-secondary" href="{{ url_for('vendors_bp.suppliers_list') }}">
@@ -142,13 +175,107 @@
     <small class="text-muted">⚠️ جميع المبالغ محولة إلى الشيكل (ILS) - تشمل: القطع، المبيعات، الصيانات، الحجوزات، الدفعات، المرتجعات</small>
   </div>
   {% endif %}
+  {% if balance_breakdown and balance_breakdown.success %}
+  {% set rights_rows = rights_display_rows if rights_display_rows else balance_breakdown_rights %}
+  {% set obligations_rows = obligations_display_rows if obligations_display_rows else balance_breakdown_obligations %}
+  {% set rights_total_value = rights_display_total if rights_display_total is not none else (balance_breakdown.rights.total if balance_breakdown.rights else 0) %}
+  {% set obligations_total_value = obligations_display_total if obligations_display_total is not none else (balance_breakdown.obligations.total if balance_breakdown.obligations else 0) %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-scale-balanced me-2"></i>تفاصيل الحقوق والالتزامات (مباشر)</h5>
+      <small class="text-muted">{{ balance_breakdown.balance.formula }}</small>
+    </div>
+    <div class="card-body">
+      <div class="row gy-4">
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-success fw-semibold">🟢 الحقوق</span>
+            <div class="text-end">
+              <span class="badge bg-success text-white">{{ rights_total_value|default(0, true)|format_currency }}</span>
+              <div class="text-muted small"><span class="{{ rights_total_direction_class }}">{{ rights_total_direction_text }}</span></div>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless mb-0">
+              <tbody>
+                {% if rights_rows %}
+                {% for item in rights_rows %}
+                  {% if item.amount %}
+                  <tr>
+                    <td>{{ item.label }}</td>
+                    <td class="text-end {{ item.amount >= 0 and 'text-success' or 'text-danger' }} fw-semibold">{{ item.amount|format_currency }}</td>
+                  </tr>
+                  {% endif %}
+                {% endfor %}
+                {% else %}
+                <tr>
+                  <td colspan="2" class="text-muted">لا توجد بيانات</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-danger fw-semibold">🔴 الالتزامات</span>
+            <div class="text-end">
+              <span class="badge bg-danger text-white">{{ obligations_total_value|default(0, true)|format_currency }}</span>
+              <div class="text-muted small"><span class="{{ obligations_total_direction_class }}">{{ obligations_total_direction_text }}</span></div>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-borderless mb-0">
+              <tbody>
+                {% if obligations_rows %}
+                {% for item in obligations_rows %}
+                  {% if item.amount %}
+                  <tr>
+                    <td>{{ item.label }}</td>
+                    <td class="text-end {{ item.amount >= 0 and 'text-danger' or 'text-success' }} fw-semibold">{{ item.amount|format_currency }}</td>
+                  </tr>
+                  {% endif %}
+                {% endfor %}
+                {% else %}
+                <tr>
+                  <td colspan="2" class="text-muted">لا توجد بيانات</td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="row mt-4 g-3">
+        <div class="col-md-4">
+          <div class="alert alert-secondary mb-0">
+            <div class="small text-muted">الرصيد الافتتاحي</div>
+            <div class="fw-bold">{{ balance_breakdown.opening_balance.amount|format_currency }}</div>
+            <small class="text-muted">{{ balance_breakdown.opening_balance.direction }}</small>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="alert alert-info mb-0">
+            <div class="small text-muted">ملخص الدفعات</div>
+            <div class="fw-bold text-info">دفعنا له: {{ balance_breakdown.payments.total_paid|format_currency }}</div>
+            <div class="fw-bold text-warning">دفع لنا: {{ balance_breakdown.payments.total_received|format_currency }}</div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="alert alert-light border mb-0">
+            <div class="small text-muted">الوضع الحالي</div>
+            <div class="fw-bold {{ balance_display_direction_class }}">
+              {{ (balance_display_amount or 0)|format_currency }}
+            </div>
+            <small class="text-muted">{{ balance_display_action or balance_display_direction_text }}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   
   <div class="row g-3 mb-4">
-    {% set stats = [
-      ('إجمالي مدين (مطلوب للمورد)', total_debit, 'text-danger', 'fa-arrow-up'),
-      ('إجمالي دائن (دفعات/مرتجعات/تسويات)', total_credit, 'text-success', 'fa-arrow-down'),
-      ('الرصيد', balance, balance > 0 and 'text-success' or balance < 0 and 'text-danger' or '', 'fa-balance-scale')
-    ] %}
     <div class="col-12 col-md-3">
       <div class="card shadow-sm h-100 border-success">
         <div class="card-body">
@@ -156,11 +283,7 @@
             <div>
               <div class="text-muted small">🟢 حقوق المورد</div>
               <div class="fs-5 fw-bold text-success">
-                {% if balance_data and balance_data.success %}
-                  {{ "%.2f"|format(balance_data.rights.total) }} ₪
-                {% else %}
-                  {{ total_debit|format_currency }}
-                {% endif %}
+                {{ total_credit|format_currency }}
               </div>
             </div>
             <i class="fas fa-boxes fs-4 text-success"></i>
@@ -176,11 +299,7 @@
             <div>
               <div class="text-muted small">💰 الدفعات</div>
               <div class="fs-5 fw-bold text-warning">
-                {% if balance_data and balance_data.success %}
-                  {{ "%.2f"|format(balance_data.payments.total_settled) }} ₪
-                {% else %}
-                  {{ total_credit|format_currency }}
-                {% endif %}
+                {{ total_debit|format_currency }}
               </div>
             </div>
             <i class="fas fa-money-bill-wave fs-4 text-warning"></i>
@@ -194,14 +313,13 @@
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
-              <div class="text-muted small">🎯 الرصيد</div>
-              <div class="fs-4 fw-bold {% if balance_data and balance_data.success %}{{ balance_data.balance.amount > 0 and 'text-success' or balance_data.balance.amount < 0 and 'text-danger' or 'text-secondary' }}{% else %}{{ balance > 0 and 'text-success' or balance < 0 and 'text-danger' or '' }}{% endif %}">
-                {% if balance_data and balance_data.success %}
-                  {{ "%.2f"|format(balance_data.balance.amount|abs) }} ₪
-                {% else %}
-                  {{ balance|format_currency }}
-                {% endif %}
+              <div class="text-muted small">🎯 الرصيد الحالي</div>
+              <div class="fs-4 fw-bold {{ balance_ledger > 0 and 'text-success' or balance_ledger < 0 and 'text-danger' or 'text-secondary' }}">
+                {{ balance_ledger|format_currency }}
               </div>
+              {% if opening_balance_for_period is defined and opening_balance_for_period != 0 %}
+              <div class="text-muted small mt-2">📊 الرصيد الافتتاحي للفترة: {{ "%.2f"|format(opening_balance_for_period) }} ₪</div>
+              {% endif %}
             </div>
             <i class="fas fa-balance-scale fs-4 text-primary"></i>
           </div>
@@ -216,11 +334,7 @@
             <div>
               <div class="text-muted small">قيمة قطع لدى المخزن (غير مُسدَّدة)</div>
               <div class="fs-5 fw-bold text-info">
-                {% if balance_data and balance_data.success %}
-                  {{ "%.2f"|format(balance_data.rights.exchange_items.total_value_ils or 0) }} ₪
-                {% else %}
                   {{ (consignment_value or 0)|format_currency }}
-                {% endif %}
               </div>
             </div>
             <i class="fas fa-warehouse fs-4 text-info"></i>
@@ -236,6 +350,12 @@
     'PAYMENT': 'دفعة للمورد',
     'CHECK_PENDING': 'شيك معلق',
     'CHECK_BOUNCED': 'شيك مرتد',
+    'CHECK_RESUBMITTED': 'شيك معاد للبنك',
+    'CHECK_SETTLED': 'شيك مسوى',
+    'CHECK_LEGAL': 'شيك محول للدوائر القانونية',
+    'CHECK_ARCHIVED': 'شيك مؤرشف',
+    'CHECK_CASHED': 'شيك تم صرفه',
+    'CHECK_CANCELLED': 'شيك ملغي',
     'SETTLEMENT': 'تسوية',
     'OPENING_BALANCE': 'رصيد افتتاحي',
     'EXPENSE': 'توريد خدمة',
@@ -249,6 +369,12 @@
     'PAYMENT': 'bg-success',
     'CHECK_PENDING': 'bg-warning text-dark',
     'CHECK_BOUNCED': 'bg-danger',
+    'CHECK_RESUBMITTED': 'bg-info text-white',
+    'CHECK_SETTLED': 'bg-success',
+    'CHECK_LEGAL': 'bg-dark text-white',
+    'CHECK_ARCHIVED': 'bg-secondary',
+    'CHECK_CASHED': 'bg-success',
+    'CHECK_CANCELLED': 'bg-danger',
     'SETTLEMENT': 'bg-info',
     'OPENING_BALANCE': 'bg-purple text-white',
     'EXPENSE': 'bg-info text-white',
@@ -300,7 +426,7 @@
               </td>
               <td class="text-truncate" title="{{ e.ref }}">{{ e.ref }}</td>
               <td title="{{ e.statement }}">
-                {% if (e.type == 'PAYMENT' or e.type == 'CHECK_BOUNCED' or e.type == 'CHECK_PENDING') and e.get('payment_details') %}
+                {% if (e.type in ['PAYMENT','CHECK_BOUNCED','CHECK_PENDING','CHECK_RESUBMITTED','CHECK_SETTLED','CHECK_LEGAL','CHECK_ARCHIVED','CHECK_CASHED','CHECK_CANCELLED']) and e.get('payment_details') %}
                   {% set pd = e.payment_details %}
                   
                   {# Badge حالة الشيك #}
@@ -308,17 +434,55 @@
                     <span class="badge bg-danger"><i class="fas fa-ban"></i> شيك مرفوض</span>
                   {% elif e.type == 'CHECK_PENDING' %}
                     <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> شيك معلق</span>
+                  {% elif e.type == 'CHECK_RESUBMITTED' %}
+                    <span class="badge bg-info text-white"><i class="fas fa-redo"></i> شيك معاد للبنك</span>
+                  {% elif e.type == 'CHECK_SETTLED' %}
+                    <span class="badge bg-success"><i class="fas fa-check-circle"></i> شيك مسوى</span>
+                  {% elif e.type == 'CHECK_LEGAL' %}
+                    <span class="badge bg-dark text-white"><i class="fas fa-gavel"></i> محول للدوائر القانونية</span>
+                  {% elif e.type == 'CHECK_ARCHIVED' %}
+                    <span class="badge bg-secondary"><i class="fas fa-archive"></i> شيك مؤرشف</span>
+                  {% elif e.type == 'CHECK_CASHED' %}
+                    <span class="badge bg-success"><i class="fas fa-money-check"></i> شيك تم صرفه</span>
+                  {% elif e.type == 'CHECK_CANCELLED' %}
+                    <span class="badge bg-danger"><i class="fas fa-times-circle"></i> شيك ملغي</span>
                   {% endif %}
                   
                   {# البيان الأساسي #}
                   <div class="small">
                     {{ e.statement }}
                     
-                    {# تفاصيل الشيك #}
+                    {# تفاصيل الشيك الكاملة #}
                     {% if pd.method_raw == 'cheque' %}
-                      {% if pd.check_number %}<br>رقم: <strong>{{ pd.check_number }}</strong>{% endif %}
-                      {% if pd.check_bank %} - {{ pd.check_bank }}{% endif %}
-                      {% if pd.check_due_date %}<br>استحقاق: {{ pd.check_due_date|format_date }}{% endif %}
+                      <div class="mt-1 p-2 bg-light rounded border-start border-3 {% if e.type == 'CHECK_BOUNCED' %}border-danger{% elif e.type == 'CHECK_PENDING' %}border-warning{% elif e.type == 'CHECK_RESUBMITTED' %}border-info{% elif e.type == 'CHECK_SETTLED' %}border-success{% elif e.type == 'CHECK_LEGAL' %}border-dark{% elif e.type == 'CHECK_ARCHIVED' %}border-secondary{% else %}border-primary{% endif %}">
+                        {% if pd.check_number %}
+                          <div><i class="fas fa-hashtag"></i> <strong>رقم الشيك:</strong> {{ pd.check_number }}</div>
+                        {% endif %}
+                        {% if pd.check_bank %}
+                          <div><i class="fas fa-university"></i> <strong>البنك:</strong> {{ pd.check_bank }}</div>
+                        {% endif %}
+                        {% if pd.check_due_date %}
+                          <div><i class="fas fa-calendar-alt"></i> <strong>تاريخ الاستحقاق:</strong> {{ pd.check_due_date|format_date }}</div>
+                        {% endif %}
+                        {% if pd.check_status %}
+                          <div><i class="fas fa-info-circle"></i> <strong>حالة الشيك:</strong> {{ pd.check_status }}</div>
+                        {% endif %}
+                        {% if pd.is_check_settled %}
+                          <div class="text-success"><i class="fas fa-check-double"></i> <strong>تم التسوية</strong></div>
+                        {% endif %}
+                        {% if pd.is_check_legal %}
+                          <div class="text-dark"><i class="fas fa-gavel"></i> <strong>محول للدوائر القانونية</strong></div>
+                        {% endif %}
+                        {% if pd.is_check_resubmitted %}
+                          <div class="text-info"><i class="fas fa-redo"></i> <strong>معاد للبنك</strong></div>
+                        {% endif %}
+                        {% if pd.is_check_archived %}
+                          <div class="text-secondary"><i class="fas fa-archive"></i> <strong>مؤرشف</strong></div>
+                        {% endif %}
+                        {% if pd.check_notes %}
+                          <div class="text-muted mt-1"><i class="fas fa-sticky-note"></i> <small>{{ pd.check_notes[:100] }}{% if pd.check_notes|length > 100 %}...{% endif %}</small></div>
+                        {% endif %}
+                      </div>
                     {% endif %}
                   </div>
                 {% else %}
@@ -331,7 +495,7 @@
                 {{ e.balance|format_currency }}
               </td>
             </tr>
-            {% if (e.type in ['PAYMENT','CHECK_BOUNCED','CHECK_PENDING']) and e.get('payment_details') and e.payment_details.get('splits') %}
+            {% if (e.type in ['PAYMENT','CHECK_BOUNCED','CHECK_PENDING','CHECK_RESUBMITTED','CHECK_SETTLED','CHECK_LEGAL','CHECK_ARCHIVED','CHECK_CASHED','CHECK_CANCELLED']) and e.get('payment_details') and e.payment_details.get('splits') %}
             <tr class="table-light">
               <td colspan="7" class="p-0">
                 <div class="payment-split-details" style="background-color:#f9fbff; padding:10px; margin:5px;">
@@ -380,8 +544,8 @@
               <th colspan="4" class="text-end">الإجمالي</th>
               <th class="text-end">{{ total_debit|format_currency }}</th>
               <th class="text-end">{{ total_credit|format_currency }}</th>
-              <th class="text-end {% if balance > 0 %}text-success{% elif balance < 0 %}text-danger{% endif %}">
-                {{ balance|format_currency }}
+              <th class="text-end {% if balance_ledger > 0 %}text-success{% elif balance_ledger < 0 %}text-danger{% endif %}">
+                {{ balance_ledger|format_currency }}
               </th>
             </tr>
           </tfoot>
@@ -559,10 +723,10 @@
     {% if date_from and date_to %}
     printWindow.document.write('<div><strong>الفترة:</strong> من {{ date_from.strftime("%Y-%m-%d") }} إلى {{ date_to.strftime("%Y-%m-%d") }}</div>');
     {% endif %}
-    printWindow.document.write('<div class="balance-box {% if balance < 0 %}negative{% endif %}"><strong>الرصيد الحالي:</strong> {{ balance|format_currency }}');
-    {% if balance > 0 %}
+    printWindow.document.write('<div class="balance-box {% if balance_ledger < 0 %}negative{% endif %}"><strong>الرصيد الحالي:</strong> {{ balance_ledger|format_currency }}');
+    {% if balance_ledger > 0 %}
     printWindow.document.write(' <strong style="color: #dc3545;">(له علينا - مطلوب دفع)</strong>');
-    {% elif balance < 0 %}
+    {% elif balance_ledger < 0 %}
     printWindow.document.write(' <strong style="color: #28a745;">(لنا عليه)</strong>');
     {% else %}
     printWindow.document.write(' (متوازن)');

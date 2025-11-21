@@ -66,6 +66,14 @@ class RequestIdFilter(logging.Filter):
         return True
 
 
+class GLibWarningFilter(logging.Filter):
+    def filter(self, record):
+        msg = str(record.getMessage())
+        if any(keyword in msg for keyword in ["GLib-GIO", "Clipchamp", "UWP app", "GIO-WARNING"]):
+            return False
+        return True
+
+
 class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         base = {
@@ -121,11 +129,13 @@ def setup_logging(app):
     out_handler = logging.StreamHandler(sys.stdout)
     out_handler.setLevel(level)
     out_handler.addFilter(RequestIdFilter())
+    out_handler.addFilter(GLibWarningFilter())
     out_handler.setFormatter(JSONFormatter() if app.config.get("JSON_LOGS") else ColorFormatter())
 
     err_handler = logging.StreamHandler(sys.stderr)
     err_handler.setLevel(logging.ERROR)
     err_handler.addFilter(RequestIdFilter())
+    err_handler.addFilter(GLibWarningFilter())
     err_handler.setFormatter(JSONFormatter() if app.config.get("JSON_LOGS") else ColorFormatter())
 
     for lg in (app.logger, logging.getLogger(), logging.getLogger("sqlalchemy.engine")):
@@ -158,6 +168,39 @@ def setup_sentry(app):
 
 
 db = SQLAlchemy(session_options={"expire_on_commit": False})
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 🔄 Checkpoint تلقائي لـ WAL بعد كل commit
+# ═══════════════════════════════════════════════════════════════════════
+
+_checkpoint_counter = 0
+_CHECKPOINT_INTERVAL = 5
+
+
+@event.listens_for(db.session.__class__, "after_commit")
+def _auto_checkpoint_after_commit(session):
+    """تنفيذ checkpoint تلقائي بعد commit لدمج WAL في الملف الرئيسي"""
+    global _checkpoint_counter
+    try:
+        from flask import current_app
+        from sqlalchemy import text
+        uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if not uri.startswith("sqlite:///"):
+            return
+        
+        _checkpoint_counter += 1
+        if _checkpoint_counter >= _CHECKPOINT_INTERVAL:
+            _checkpoint_counter = 0
+            try:
+                session.execute(text("PRAGMA wal_checkpoint(PASSIVE)"))
+            except Exception:
+                try:
+                    session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+                except Exception:
+                    pass
+    except Exception:
+        pass
 migrate = Migrate()
 login_manager = LoginManager()
 mail = Mail()
@@ -255,19 +298,66 @@ def _sqlite_pragmas_on_connect(dbapi_connection, connection_record):
             cur = dbapi_connection.cursor()
             cur.execute("PRAGMA busy_timeout=30000")
             cur.execute("PRAGMA journal_mode=WAL")
-            cur.execute("PRAGMA synchronous=NORMAL")
+            cur.execute("PRAGMA synchronous=FULL")
             cur.execute("PRAGMA foreign_keys=ON")
             cur.execute("PRAGMA cache_size=-128000")
             cur.execute("PRAGMA temp_store=MEMORY")
-            cur.execute("PRAGMA mmap_size=536870912")
+            cur.execute("PRAGMA mmap_size=268435456")
             cur.execute("PRAGMA page_size=4096")
             cur.execute("PRAGMA auto_vacuum=INCREMENTAL")
             cur.execute("PRAGMA threads=4")
+            cur.execute("PRAGMA wal_autocheckpoint=500")
             cur.execute("PRAGMA optimize")
             cur.execute("PRAGMA query_only=0")
             cur.close()
     except Exception:
         pass
+
+
+def perform_wal_checkpoint(app):
+    """تنفيذ Checkpoint دوري لدمج WAL وتقليل حجمه"""
+    try:
+        uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if not uri.startswith("sqlite:///"):
+            return
+        
+        with app.app_context():
+            try:
+                from sqlalchemy import text
+                result = db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)")).fetchone()
+                if result and len(result) >= 3:
+                    busy, log, checkpointed = result[0], result[1], result[2]
+                    if busy == 0 and log == 0:
+                        app.logger.debug(f"✅ WAL Checkpoint completed: {checkpointed} pages checkpointed")
+                    else:
+                        app.logger.debug(f"⚠️ WAL Checkpoint: busy={busy}, log={log}, checkpointed={checkpointed}")
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                app.logger.warning(f"⚠️ WAL Checkpoint failed: {e}")
+    except Exception as e:
+        app.logger.warning(f"⚠️ WAL Checkpoint error: {e}")
+
+
+def perform_vacuum_optimize(app):
+    """تنفيذ VACUUM دوري لتنظيف وتحسين قاعدة البيانات"""
+    try:
+        uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if not uri.startswith("sqlite:///"):
+            return
+        
+        with app.app_context():
+            try:
+                from sqlalchemy import text
+                db.session.execute(text("PRAGMA optimize"))
+                db.session.execute(text("PRAGMA incremental_vacuum"))
+                db.session.commit()
+                app.logger.debug("✅ Database optimization completed")
+            except Exception as e:
+                db.session.rollback()
+                app.logger.warning(f"⚠️ Database optimization failed: {e}")
+    except Exception as e:
+        app.logger.warning(f"⚠️ Database optimization error: {e}")
 
 
 def perform_backup_db(app):
@@ -874,6 +964,22 @@ def init_extensions(app):
             hour=7,
             minute=30,
             id="check_reminders",
+            replace_existing=True,
+        )
+        
+        scheduler.add_job(
+            lambda: perform_wal_checkpoint(app),
+            "interval",
+            minutes=3,
+            id="wal_checkpoint",
+            replace_existing=True,
+        )
+        
+        scheduler.add_job(
+            lambda: perform_vacuum_optimize(app),
+            "interval",
+            hours=1,
+            id="db_vacuum",
             replace_existing=True,
         )
         

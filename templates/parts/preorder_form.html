@@ -346,7 +346,12 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js"></script>
 <script>
 (function () {
-  function initSelect2($el) {
+  function initPreorderSelect2($el) {
+    if (!$el.length || !$.fn.select2) return;
+    if ($el.data('select2') || $el.data('s2-initialized') || $el.data('preorder-s2-init')) return;
+    $el.data('preorder-s2-init', true);
+    $el.data('s2-initialized', true);
+    
     var ep = $el.data('endpoint');
     var epByWh = $el.data('endpoint_by_warehouse');
     var opts = {
@@ -357,7 +362,6 @@
       dropdownParent: $('#preorderForm')
     };
     if (epByWh) {
-      // Dynamic per-request URL bound to current warehouse selection
       opts.ajax = {
         url: function(){
           var wid = $('#warehouseSelect').val() || '';
@@ -387,8 +391,14 @@
         dataType: 'json',
         delay: 200,
         headers: { 'Accept': 'application/json' },
-        data: function (params) { return { q: params.term || '', limit: 50 }; },
+        data: function (params) { 
+          return { 
+            q: (params && params.term) ? params.term : '', 
+            limit: 50 
+          }; 
+        },
         processResults: function (data) {
+          if (!data) return { results: [] };
           var arr = Array.isArray(data) ? data : (data.results || data.data || []);
           return { results: (arr || []).map(function (r) {
             if (r.text) return r;
@@ -398,20 +408,67 @@
             if (r.barcode) t += ' • Barcode: ' + r.barcode;
             return { id: r.id, text: t };
           })};
+        },
+        transport: function(params, success, failure) {
+          var $request = $.ajax(params);
+          $request.then(success).fail(failure);
+          return $request;
+        },
+        error: function(xhr, status, error) {
+          if (status !== 'abort' && status !== 'timeout') {
+            console.error('Error loading data:', error, status);
+          }
         }
       };
       opts.minimumInputLength = 0;
     }
+    
+    try {
+      if ($el.data('select2')) {
+        try {
+          $el.select2('destroy');
+        } catch(e) {
+          console.warn('Error destroying Select2:', e);
+        }
+    }
     $el.select2(opts);
-    // اجلب نتائج فور فتح القائمة حتى لو term فارغ
-    $el.on('select2:open', function(){
+      $el.data('s2-initialized', true);
+      $el.on('select2:open.preorder', function(){
       var $search = $('.select2-container--open .select2-search__field');
-      if ($search.length && !$search.val()) { $search.trigger('input'); }
-    });
+        if ($search.length && !$search.val()) { 
+          setTimeout(function() { 
+            try {
+              $search.trigger('input'); 
+            } catch(e) {
+              console.warn('Error triggering input:', e);
+            }
+          }, 100);
+        }
+      });
+    } catch (e) {
+      console.error('Error initializing Select2:', e);
+      $el.data('preorder-s2-init', false);
+      $el.data('s2-initialized', false);
+    }
   }
 
   $(function () {
-    $('.select2').each(function(){ initSelect2($(this)); });
+    if (window.preorderFormInitialized) return;
+    window.preorderFormInitialized = true;
+    
+    $('#preorderForm .select2').each(function(){ 
+      var $el = $(this);
+      if ($el.attr('id') === 'productSelect') {
+        var wid = $('#warehouseSelect').val();
+        if (wid) {
+          reinitProductsForWarehouse(wid);
+        } else {
+          $el.prop('disabled', true);
+        }
+      } else {
+        initPreorderSelect2($el);
+      }
+    });
 
     function buildByWarehouseUrl(tpl, wid) {
       if (!tpl) return '';
@@ -423,44 +480,145 @@
     function reinitProductsForWarehouse(wid) {
       var $prod = $('#productSelect');
       if (!$prod.length) return;
-      try { if ($prod.data('select2')) { $prod.select2('destroy'); } } catch(e) {}
+      
+      var currentVal = $prod.val();
+      
+      try { 
+        if ($prod.data('select2')) { 
+          $prod.off('select2:open.preorder');
+          $prod.off('select2:select');
+          $prod.select2('destroy'); 
+        } 
+      } catch(e) {
+        console.warn('Error destroying Select2:', e);
+      }
+      
       $prod.val(null).trigger('change');
-      // تهيئة ثابتة تربط مباشرة على راوت المستودع الحالي
-      $prod.select2({
+      $prod.data('preorder-s2-init', false);
+      $prod.data('select2', null);
+      $prod.data('s2-initialized', false);
+      
+      if (!wid) {
+        $prod.prop('disabled', true);
+        return;
+      }
+      
+      $prod.prop('disabled', false);
+      
+      setTimeout(function() {
+        try {
+          var epByWh = $prod.data('endpoint_by_warehouse');
+          if (!epByWh) {
+            epByWh = '/api/warehouses/0/products';
+          }
+          
+          var opts = {
+            width: '100%',
+            theme: 'bootstrap4',
+            placeholder: $prod.data('placeholder') || 'اختر القطعة...',
+            allowClear: true,
         dropdownParent: $('#preorderForm'),
-        theme: 'bootstrap4',
-        width: '100%',
         minimumInputLength: 0,
         ajax: {
-          url: function(){
-            var w = wid || $('#warehouseSelect').val() || '0';
-            return '/api/warehouses/' + String(w) + '/products';
-          },
-          dataType: 'json', delay: 200,
-          data: function(p){ return { q: (p && p.term) || '', limit: 50 }; },
-          processResults: function(d){
-            var arr = Array.isArray(d) ? d : (d.results || d.data || []);
-            return { results: (arr||[]).map(function(r){
+              url: '/api/warehouses/' + String(wid) + '/products',
+              dataType: 'json',
+              delay: 200,
+              headers: { 'Accept': 'application/json' },
+              data: function (params) { 
+                return { 
+                  q: (params && params.term) ? params.term : '', 
+                  limit: 50 
+                }; 
+              },
+              processResults: function (data) {
+                if (!data) return { results: [] };
+                var arr = Array.isArray(data) ? data : (data.results || data.data || []);
+                return { results: (arr || []).map(function (r) {
               if (r.text) return r;
               var t = r.name || r.text || '';
-              if (r.sku) t += ' • SKU: ' + r.sku;
-              if (r.part_number) t += ' • Part: ' + r.part_number;
-              if (r.barcode) t += ' • Barcode: ' + r.barcode;
+                  if (r.sku) t += ' • SKU: ' + (r.sku || '');
+                  if (r.part_number) t += ' • Part: ' + (r.part_number || '');
+                  if (r.barcode) t += ' • Barcode: ' + (r.barcode || '');
+                  if (r.total_quantity !== undefined) {
+                    t += ' (متاح: ' + r.total_quantity + ')';
+                  }
               return { id: r.id, text: t };
-            }) };
+                })};
+              },
+              transport: function(params, success, failure) {
+                var $request = $.ajax(params);
+                $request.then(success).fail(failure);
+                return $request;
+              },
+              error: function(xhr, status, error) {
+                if (status !== 'abort' && status !== 'timeout') {
+                  console.error('Error loading products:', error, status);
+                }
+              }
+            }
+          };
+          
+          $prod.select2(opts);
+          $prod.data('preorder-s2-init', true);
+          $prod.data('s2-initialized', true);
+          
+          if (currentVal) {
+            $prod.val(currentVal).trigger('change');
           }
+          
+          $prod.on('select2:select', async function(){
+            var pid = $(this).val();
+            var wid2 = $('#warehouseSelect').val();
+            var currency = $('select[name="currency"]').val() || 'ILS';
+            var info = await fetchProductInfo(pid, wid2, currency);
+            var avail = (typeof info.available !== 'undefined') ? info.available : null;
+            var price = (typeof info.price !== 'undefined') ? info.price : null;
+            var originalCurr = info.original_currency || 'ILS';
+            var targetCurr = info.target_currency || currency;
+            var parts = [];
+            if (avail !== null) parts.push('متاح: ' + avail);
+            if (price !== null) {
+              parts.push('سعر: ' + Number(price).toFixed(2) + ' ' + targetCurr);
+              if (originalCurr !== targetCurr) {
+                parts.push('(أصلي: ' + Number(info.original_price).toFixed(2) + ' ' + originalCurr + ')');
+              }
+            }
+            $('#prodAvail').text(parts.join(' | '));
+          });
+          
+        } catch(e) {
+          console.error('Error initializing Select2 for products:', e);
         }
-      });
-      try { setTimeout(function(){ $prod.select2('open'); }, 80); } catch(e) {}
+      }, 150);
     }
 
-    $('#warehouseSelect').on('change', function(){
+    $('#warehouseSelect').on('change.preorder', function(){
       var wid = $(this).val();
-      reinitProductsForWarehouse(wid);
+      if (wid) {
+        reinitProductsForWarehouse(wid);
+      } else {
+        var $prod = $('#productSelect');
+        $prod.prop('disabled', true);
+        $prod.val(null).trigger('change');
+        try {
+          if ($prod.data('select2')) {
+            $prod.select2('destroy');
+          }
+        } catch(e) {}
+        $prod.data('preorder-s2-init', false);
+        $prod.data('s2-initialized', false);
+        $('#prodAvail').text('');
+      }
     });
 
     var initialWid = $('#warehouseSelect').val();
-    if (initialWid) { reinitProductsForWarehouse(initialWid); }
+    if (initialWid) { 
+      setTimeout(function() {
+        reinitProductsForWarehouse(initialWid);
+      }, 200);
+    } else {
+      $('#productSelect').prop('disabled', true);
+    }
 
     // ✅ تفاصيل طريقة الدفع
     const paymentMethod = $('#payment_method');
@@ -506,25 +664,6 @@
       }catch(_){ return {}; }
     }
 
-    $('#productSelect').on('select2:select', async function(){
-      var pid = $(this).val();
-      var wid = $('#warehouseSelect').val();
-      var currency = $('select[name="currency"]').val() || 'ILS';
-      var info = await fetchProductInfo(pid, wid, currency);
-      var avail = (typeof info.available !== 'undefined') ? info.available : null;
-      var price = (typeof info.price !== 'undefined') ? info.price : null;
-      var originalCurr = info.original_currency || 'ILS';
-      var targetCurr = info.target_currency || currency;
-      var parts = [];
-      if (avail !== null) parts.push('متاح: ' + avail);
-      if (price !== null) {
-        parts.push('سعر: ' + Number(price).toFixed(2) + ' ' + targetCurr);
-        if (originalCurr !== targetCurr) {
-          parts.push('(أصلي: ' + Number(info.original_price).toFixed(2) + ' ' + originalCurr + ')');
-        }
-      }
-      $('#prodAvail').text(parts.join(' | '));
-    });
     
     // مستمع لتغيير العملة - إعادة تحويل السعر
     $('select[name="currency"]').on('change', async function(){

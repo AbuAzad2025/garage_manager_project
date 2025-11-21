@@ -5,7 +5,7 @@
   <title>{% block title %}{{ system_settings.system_name or 'شركة ازاد' }} - {{ system_settings.company_name or 'شركة ازاد' }}{% endblock %}</title>
   
   <!-- Mobile Optimization Meta Tags -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -622,24 +622,41 @@ function applySidebarPosition(position) {
   // تحديث data attribute على body
   body.setAttribute('data-sidebar-position', position);
   
-  // عرض الـ sidebar حسب حجم الشاشة
+  function getBreakpoint() {
+    if (window.matchMedia('(max-width: 575.98px)').matches) return 'mobile';
+    if (window.matchMedia('(min-width: 576px) and (max-width: 991.98px)').matches) return 'tablet';
+    if (window.matchMedia('(min-width: 992px) and (max-width: 1399.98px)').matches) return 'desktop';
+    if (window.matchMedia('(min-width: 1400px) and (max-width: 1919.98px)').matches) return 'large';
+    if (window.matchMedia('(min-width: 1920px)').matches) return 'xlarge';
+    return 'desktop';
+  }
+  
+  const breakpoint = getBreakpoint();
   const screenWidth = window.innerWidth;
   let sidebarWidth = '280px';
   
-  if (screenWidth < 576) {
-    sidebarWidth = '0px'; // على الموبايل لا نحتاج margin
-  } else if (screenWidth < 992) {
-    sidebarWidth = '250px';
-  } else if (screenWidth < 1400) {
-    sidebarWidth = '280px';
-  } else if (screenWidth < 1920) {
-    sidebarWidth = '300px';
-  } else {
-    sidebarWidth = '320px';
+  switch (breakpoint) {
+    case 'mobile':
+      sidebarWidth = '0px';
+      break;
+    case 'tablet':
+      sidebarWidth = '250px';
+      break;
+    case 'desktop':
+      sidebarWidth = '280px';
+      break;
+    case 'large':
+      sidebarWidth = '300px';
+      break;
+    case 'xlarge':
+      sidebarWidth = '320px';
+      break;
   }
   
+  console.log('📐 Breakpoint:', breakpoint, '- Screen Width:', screenWidth, '- Sidebar Width:', sidebarWidth);
+  
   // تطبيق التغييرات فوراً على العناصر
-  if (screenWidth < 576) {
+  if (breakpoint === 'mobile') {
     // على الموبايل: إزالة كل الـ margins
     if (contentWrapper) {
       contentWrapper.style.setProperty('margin-left', '0', 'important');
@@ -718,11 +735,35 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// إعادة الحساب عند تغيير حجم الشاشة
+// إعادة الحساب عند تغيير حجم الشاشة مع debounce للأداء
+let resizeTimeout;
 window.addEventListener('resize', function() {
-  const savedPosition = localStorage.getItem('sidebarPosition') || 'left';
-  applySidebarPosition(savedPosition);
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(function() {
+    const savedPosition = localStorage.getItem('sidebarPosition') || 'left';
+    console.log('🔄 Resize detected, recalculating sidebar...');
+    applySidebarPosition(savedPosition);
+  }, 150);
 });
+
+// استخدام matchMedia listeners للدقة أكثر
+const mobileQuery = window.matchMedia('(max-width: 575.98px)');
+const tabletQuery = window.matchMedia('(min-width: 576px) and (max-width: 991.98px)');
+const desktopQuery = window.matchMedia('(min-width: 992px)');
+
+function handleBreakpointChange(query, name) {
+  query.addEventListener('change', function(e) {
+    if (e.matches) {
+      console.log('📐 Breakpoint changed to:', name);
+      const savedPosition = localStorage.getItem('sidebarPosition') || 'left';
+      applySidebarPosition(savedPosition);
+    }
+  });
+}
+
+handleBreakpointChange(mobileQuery, 'mobile');
+handleBreakpointChange(tabletQuery, 'tablet');
+handleBreakpointChange(desktopQuery, 'desktop');
 
 // ═══════════════════════════════════════════════════════════════════
 // 📱 Mobile Enhancements - تحسينات الموبايل
@@ -731,9 +772,40 @@ window.addEventListener('resize', function() {
 (function() {
   'use strict';
   
-  // التحقق من الموبايل
+  // التحقق من الموبايل باستخدام matchMedia للدقة
   function isMobile() {
-    return window.innerWidth <= 768;
+    return window.matchMedia('(max-width: 768px)').matches;
+  }
+  
+  // وظيفة للحصول على حجم الشاشة الحالي
+  function getScreenSize() {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    return {
+      width: width,
+      height: height,
+      isMobile: window.matchMedia('(max-width: 768px)').matches,
+      isTablet: window.matchMedia('(min-width: 769px) and (max-width: 991px)').matches,
+      isDesktop: window.matchMedia('(min-width: 992px)').matches,
+      orientation: width > height ? 'landscape' : 'portrait',
+      breakpoint: (() => {
+        if (width < 576) return 'xs';
+        if (width < 768) return 'sm';
+        if (width < 992) return 'md';
+        if (width < 1200) return 'lg';
+        if (width < 1400) return 'xl';
+        return 'xxl';
+      })()
+    };
+  }
+  
+  // طباعة معلومات الشاشة في Console للمطورين
+  if (window.location.search.includes('debug=screen')) {
+    console.log('📱 Screen Info:', getScreenSize());
+    window.addEventListener('resize', () => {
+      console.log('📱 Screen Info (after resize):', getScreenSize());
+    });
   }
   
   // تهيئة للموبايل
