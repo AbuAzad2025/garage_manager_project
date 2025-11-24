@@ -703,7 +703,10 @@ function toggleSidebarPosition() {
   applySidebarPosition(newPosition);
   
   // تحديث النص في الزر
-  document.getElementById('sidebar-position-badge').textContent = newPosition === 'left' ? 'يسار' : 'يمين';
+  const badge = document.getElementById('sidebar-position-badge');
+  if (badge) {
+    badge.textContent = newPosition === 'left' ? 'يسار' : 'يمين';
+  }
 }
 
 function applySidebarPosition(position) {

@@ -60,7 +60,7 @@ class AITrainingEngine:
             'completed_at': None,
             'error': None
         }
-        self.total_steps = 8
+        self.total_steps = 9
         self.knowledge = {}
         self.load_status()
     
@@ -209,8 +209,16 @@ class AITrainingEngine:
                 'enums_count': len(enums)
             })
             
-            # الخطوة 8: حفظ المعرفة
-            self._update_progress(8, 'Saving knowledge base...')
+            # الخطوة 8: تدريب الوحدات الخاصة (Checks, Vendors, Partners, Products, Owner)
+            self._update_progress(8, 'Training specialized modules...')
+            specialized_modules = self._train_specialized_modules()
+            self.knowledge['specialized_modules'] = specialized_modules
+            self.log_step('specialized_modules', {
+                'modules_trained': len(specialized_modules)
+            })
+            
+            # الخطوة 9: حفظ المعرفة
+            self._update_progress(9, 'Saving knowledge base...')
             self._save_knowledge_base()
             self.log_step('knowledge_saved', {
                 'file': KNOWLEDGE_BASE_FILE
@@ -289,6 +297,13 @@ class AITrainingEngine:
             }
         """
         try:
+            from flask import has_app_context
+            if not has_app_context():
+                return {'error': 'No application context'}
+                
+            from extensions import db
+            from sqlalchemy import inspect
+            
             inspector = inspect(db.engine)
             tables_info = {}
             
@@ -564,6 +579,13 @@ class AITrainingEngine:
         relationships = []
         
         try:
+            from flask import has_app_context
+            if not has_app_context():
+                return []
+                
+            from extensions import db
+            from sqlalchemy import inspect
+            
             inspector = inspect(db.engine)
             
             for table_name in inspector.get_table_names():
@@ -618,6 +640,124 @@ class AITrainingEngine:
                 print(f"[ERROR] Error scanning enums: {e}")
         
         return enums
+    
+    # ═══════════════════════════════════════════════════════════════════════
+    # 🎯 SPECIALIZED MODULES TRAINING - تدريب الوحدات الخاصة
+    # ═══════════════════════════════════════════════════════════════════════
+    
+    def _train_specialized_modules(self) -> Dict[str, Any]:
+        """تدريب شامل للوحدات الخاصة: Checks, Vendors, Partners, Products, Owner"""
+        modules_data = {}
+        
+        try:
+            from flask import has_app_context
+            if not has_app_context():
+                return {'error': 'No application context'}
+                
+            from extensions import db
+            from sqlalchemy import inspect
+            from models import Check, Supplier, Partner, Product, SystemSettings
+            
+            inspector = inspect(db.engine)
+            
+            # 1. Checks System
+            try:
+                check_columns = [col.name for col in Check.__table__.columns]
+                check_statuses = ['PENDING', 'CASHED', 'RETURNED', 'BOUNCED', 'RESUBMITTED', 'CANCELLED', 'ARCHIVED', 'OVERDUE']
+                modules_data['checks'] = {
+                    'model': 'Check',
+                    'columns': check_columns,
+                    'statuses': check_statuses,
+                    'routes_file': 'routes/checks.py',
+                    'description': 'نظام إدارة الشيكات الكامل مع دورة حياة الشيك'
+                }
+            except Exception as e:
+                modules_data['checks'] = {'error': str(e)}
+            
+            # 2. Vendors & Suppliers
+            try:
+                supplier_columns = [col.name for col in Supplier.__table__.columns]
+                supplier_tables = [t for t in inspector.get_table_names() if 'supplier' in t.lower()]
+                modules_data['vendors_suppliers'] = {
+                    'model': 'Supplier',
+                    'columns': supplier_columns,
+                    'related_tables': supplier_tables,
+                    'routes_file': 'routes/vendors.py',
+                    'settlements_file': 'routes/supplier_settlements.py',
+                    'description': 'نظام إدارة الموردين والتسويات'
+                }
+            except Exception as e:
+                modules_data['vendors_suppliers'] = {'error': str(e)}
+            
+            # 3. Partners
+            try:
+                partner_columns = [col.name for col in Partner.__table__.columns]
+                partner_tables = [t for t in inspector.get_table_names() if 'partner' in t.lower()]
+                modules_data['partners'] = {
+                    'model': 'Partner',
+                    'columns': partner_columns,
+                    'related_tables': partner_tables,
+                    'routes_file': 'routes/partner_settlements.py',
+                    'description': 'نظام إدارة الشركاء والحصص والتسويات'
+                }
+            except Exception as e:
+                modules_data['partners'] = {'error': str(e)}
+            
+            # 4. Products
+            try:
+                product_columns = [col.name for col in Product.__table__.columns]
+                product_tables = [t for t in inspector.get_table_names() if 'product' in t.lower()]
+                modules_data['products'] = {
+                    'model': 'Product',
+                    'columns': product_columns,
+                    'related_tables': product_tables,
+                    'routes_file': 'routes/parts.py',
+                    'description': 'نظام إدارة المنتجات الكامل مع الفئات والتقييمات'
+                }
+            except Exception as e:
+                modules_data['products'] = {'error': str(e)}
+            
+            # 5. Owner Module
+            try:
+                owner_routes = []
+                from app import app
+                for rule in app.url_map.iter_rules():
+                    if 'owner' in rule.endpoint.lower() or 'advanced' in rule.endpoint.lower():
+                        owner_routes.append({
+                            'path': rule.rule,
+                            'endpoint': rule.endpoint
+                        })
+                
+                owner_files = ['routes/advanced_control.py', 'routes/security_control.py', 'routes/security.py']
+                modules_data['owner'] = {
+                    'routes': owner_routes,
+                    'files': owner_files,
+                    'description': 'وحدة المالك - جميع الصلاحيات والتحكم المتقدم'
+                }
+            except Exception as e:
+                modules_data['owner'] = {'error': str(e)}
+            
+            # 6. All Remaining Modules
+            try:
+                remaining_modules = [
+                    'warehouses', 'branches', 'expenses', 'shipments', 'ledger',
+                    'financial_reports', 'accounting_docs', 'accounting_validation',
+                    'currencies', 'bank', 'notes', 'workflows', 'projects',
+                    'assets', 'budgets', 'cost_centers', 'recurring_invoices',
+                    'pricing', 'engineering', 'barcode', 'archive'
+                ]
+                
+                modules_data['remaining_modules'] = {
+                    'modules': remaining_modules,
+                    'description': 'جميع الوحدات المتبقية في النظام'
+                }
+            except Exception as e:
+                modules_data['remaining_modules'] = {'error': str(e)}
+        
+        except Exception as e:
+            print(f"[ERROR] Error training specialized modules: {e}")
+        
+        return modules_data
     
     # ═══════════════════════════════════════════════════════════════════════
     # 💾 SAVE KNOWLEDGE - حفظ المعرفة

@@ -123,6 +123,15 @@ def gather_system_context():
             cache.set(cache_key, count, timeout=cache_ttl)
             return count
         
+        # حساب القيم أولاً
+        total_users = get_cached_count(User, 'total_users')
+        active_users = get_cached_count(User, 'active_users', lambda: User.query.filter_by(is_active=True).count())
+        total_services = get_cached_count(ServiceRequest, 'total_services')
+        total_customers = get_cached_count(Customer, 'total_customers')
+        total_vendors = get_cached_count(Supplier, 'total_vendors')
+        total_products = get_cached_count(Product, 'total_products')
+        total_warehouses = get_cached_count(Warehouse, 'total_warehouses')
+        
         context = {
             'system_name': 'نظام أزاد لإدارة الكراج - Garage Manager Pro',
             'version': 'v5.0.0',
@@ -142,24 +151,24 @@ def gather_system_context():
             'roles_count': get_cached_count(Role, 'roles_count'),
             'roles': [r.name for r in Role.query.limit(10).all()],
             
-            'total_users': get_cached_count(User, 'total_users'),
-            'active_users': get_cached_count(User, 'active_users', lambda: User.query.filter_by(is_active=True).count()),
-            'total_services': get_cached_count(ServiceRequest, 'total_services'),
+            'total_users': total_users,
+            'active_users': active_users,
+            'total_services': total_services,
             'pending_services': get_cached_count(ServiceRequest, 'pending_services', lambda: ServiceRequest.query.filter_by(status='pending').count()),
             'completed_services': get_cached_count(ServiceRequest, 'completed_services', lambda: ServiceRequest.query.filter_by(status='completed').count()),
             'total_sales': 0,
             'sales_today': 0,
-            'total_products': get_cached_count(Product, 'total_products'),
+            'total_products': total_products,
             'products_in_stock': get_cached_count(Product, 'products_in_stock', lambda: Product.query.filter(Product.id.in_(
                 db.session.query(func.distinct(db.Column('product_id'))).select_from(db.Table('stock_levels'))
             )).count() if Product.query.count() > 0 else 0),
-            'total_customers': get_cached_count(Customer, 'total_customers'),
+            'total_customers': total_customers,
             'active_customers': get_cached_count(Customer, 'active_customers', lambda: Customer.query.filter_by(is_active=True).count()),
-            'total_vendors': get_cached_count(Supplier, 'total_vendors'),
+            'total_vendors': total_vendors,
             'total_payments': get_cached_count(Payment, 'total_payments'),
             'payments_today': Payment.query.filter(func.date(Payment.payment_date) == today).count(),
             'total_expenses': get_cached_count(Expense, 'total_expenses'),
-            'total_warehouses': get_cached_count(Warehouse, 'total_warehouses'),
+            'total_warehouses': total_warehouses,
             'total_notes': get_cached_count(Note, 'total_notes'),
             'total_shipments': get_cached_count(Shipment, 'total_shipments'),
             
@@ -184,10 +193,10 @@ def gather_system_context():
             'db_health': db_health,
             
             'current_stats': f"""
-المستخدمين: {context['total_users']} | النشطين: {context['active_users']}
-الصيانة: {context['total_services']} طلب
-العملاء: {context['total_customers']} | الموردين: {context['total_vendors']}
-المنتجات: {context['total_products']} | المخازن: {context['total_warehouses']}
+المستخدمين: {total_users} | النشطين: {active_users}
+الصيانة: {total_services} طلب
+العملاء: {total_customers} | الموردين: {total_vendors}
+المنتجات: {total_products} | المخازن: {total_warehouses}
 CPU: {cpu_usage}% | RAM: {memory.percent}%
 """
         }

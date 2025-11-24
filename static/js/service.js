@@ -252,7 +252,7 @@
   }
 
   function bootSelect2Auto() {
-    $('.select2').not('.ajax-select').each(function () {
+    $('.select2').not('.ajax-select').not('.vehicle-type-select').each(function () {
       var $el = $(this);
       if ($el.data('bound')) return;
       var ep = $el.attr('data-endpoint');

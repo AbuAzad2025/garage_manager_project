@@ -9,7 +9,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:25.477947",
+    "created_at": "2025-11-24T12:52:11.171022",
     "mastery_level": 0
   },
   "d264487da456b90043305f28e37e25fe": {
@@ -27,13 +27,14 @@
       "budgets",
       "assets",
       "bank_accounts",
-      "projects"
+      "projects",
+      "engineering_teams"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:25.548482",
+    "created_at": "2025-11-24T12:52:34.402161",
     "mastery_level": 0
   },
   "3d775f9556a44eab87c527d06ea37fee": {
@@ -47,7 +48,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:26.026381",
+    "created_at": "2025-11-24T12:52:35.631467",
     "mastery_level": 0
   },
   "6e8cb3ed2527eb7ab8d9a398d520df0a": {
@@ -60,7 +61,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:26.126545",
+    "created_at": "2025-11-24T12:52:35.873628",
     "mastery_level": 0
   },
   "4c61e84bd4813b55fd68b4edce65a0ee": {
@@ -74,6 +75,7 @@
       "service_requests",
       "online_carts",
       "online_preorders",
+      "expenses",
       "archived_by_user",
       "notifications",
       "tax_entries",
@@ -84,13 +86,15 @@
       "loyalty_points",
       "independent_checks",
       "saas_subscriptions",
-      "projects"
+      "recurring_templates",
+      "projects",
+      "engineering_tasks"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:26.185886",
+    "created_at": "2025-11-24T12:52:30.235527",
     "mastery_level": 0
   },
   "706a1af68c8e556696a8b95277fa4470": {
@@ -101,13 +105,14 @@
       "customer",
       "cart",
       "items",
-      "payments"
+      "payments",
+      "gl_batches"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:26.663128",
+    "created_at": "2025-11-24T12:52:37.096387",
     "mastery_level": 0
   },
   "bfc3db744e4c13077edd54747f9e532e": {
@@ -121,7 +126,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.861665",
+    "created_at": "2025-11-24T12:52:12.710013",
     "mastery_level": 0
   },
   "e52504f7286eac7d033330e3d9f139b5": {
@@ -129,13 +134,16 @@
     "definition": "نموذج بيانات في النظام",
     "examples": [
       "partner",
-      "lines"
+      "lines",
+      "previous_settlement",
+      "approved_by_user",
+      "next_settlements"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:26.799242",
+    "created_at": "2025-11-24T12:52:21.531148",
     "mastery_level": 0
   },
   "e150215ad4fb9a58d6c7ee33f64934d2": {
@@ -143,7 +151,9 @@
     "definition": "نموذج بيانات في النظام",
     "examples": [
       "customer",
+      "cost_center",
       "seller",
+      "seller_employee",
       "cancelled_by_user",
       "archived_by_user",
       "preorder",
@@ -158,7 +168,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:24.024493",
+    "created_at": "2025-11-24T12:52:37.723784",
     "mastery_level": 0
   },
   "2ce678f54c81b3c762fc64075b847f55": {
@@ -171,7 +181,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.519200",
+    "created_at": "2025-11-24T12:52:39.110066",
     "mastery_level": 0
   },
   "f072241c6bb1ed1c6193990951b208b9": {
@@ -180,15 +190,29 @@
     "examples": [
       "parent",
       "manager",
+      "creator",
+      "updater",
+      "sales",
+      "service_requests",
+      "expenses",
       "children",
       "allocations",
-      "projects"
+      "projects",
+      "alerts",
+      "alert_logs",
+      "allocation_rules_source",
+      "allocation_lines_target",
+      "allocation_exec_lines_source",
+      "allocation_exec_lines_target",
+      "engineering_teams",
+      "engineering_tasks",
+      "engineering_timesheets"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:25.267859",
+    "created_at": "2025-11-24T12:51:39.669711",
     "mastery_level": 0
   },
   "1e588205e7dbb732a53b8d00d2c1c49a": {
@@ -202,7 +226,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:26.846081",
+    "created_at": "2025-11-24T12:52:40.506827",
     "mastery_level": 0
   },
   "f29520d87d0859092cc7584b52c59d62": {
@@ -219,7 +243,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:19.686594",
+    "created_at": "2025-11-24T12:52:41.242707",
     "mastery_level": 0
   },
   "6bb42302949a3a43bfbb76c955a03844": {
@@ -233,7 +257,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:19.760977",
+    "created_at": "2025-11-24T12:51:50.058300",
     "mastery_level": 0
   },
   "6afa5d33c0f82bb57fb2853d4ec61efb": {
@@ -248,7 +272,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:19.794354",
+    "created_at": "2025-11-24T12:52:43.181370",
     "mastery_level": 0
   },
   "81bde86b0df09656c83ab5f9997bad65": {
@@ -262,7 +286,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:19.836243",
+    "created_at": "2025-11-24T12:52:50.209850",
     "mastery_level": 0
   },
   "9f2bcc1d6a68c5243a305c8b430a0322": {
@@ -276,7 +300,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:25.071326",
+    "created_at": "2025-11-24T12:52:07.619529",
     "mastery_level": 0
   },
   "85c186195636d77a9ad9a37f9bc3e7f8": {
@@ -301,17 +325,42 @@
       "payments_created",
       "notes",
       "checks_created",
+      "created_bank_accounts",
+      "updated_bank_accounts",
       "imported_statements",
+      "created_statements",
+      "updated_statements",
       "reconciliations_done",
       "reconciliations_approved",
       "managed_cost_centers",
-      "managed_projects"
+      "created_cost_centers",
+      "updated_cost_centers",
+      "managed_projects",
+      "created_projects",
+      "updated_projects",
+      "assigned_tasks",
+      "approved_milestones",
+      "owned_risks",
+      "change_requests",
+      "approved_changes",
+      "reported_issues",
+      "assigned_issues",
+      "approved_time_logs",
+      "verified_skills",
+      "approved_timesheets",
+      "created_workflows",
+      "updated_workflows",
+      "started_workflow_instances",
+      "completed_workflow_instances",
+      "cancelled_workflow_instances",
+      "workflow_actions",
+      "delegated_workflow_actions"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:19.867347",
+    "created_at": "2025-11-24T12:52:22.475910",
     "mastery_level": 0
   },
   "c6443039134cef4621dd0ca563b707d8": {
@@ -331,7 +380,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.134152",
+    "created_at": "2025-11-24T12:52:43.507203",
     "mastery_level": 0
   },
   "3892952941d4a053254599f7ac9b3971": {
@@ -339,6 +388,7 @@
     "definition": "نموذج بيانات في النظام",
     "examples": [
       "customer",
+      "cost_center",
       "mechanic",
       "cancelled_by_user",
       "archived_by_user",
@@ -348,13 +398,14 @@
       "parts",
       "tasks",
       "gl_batches",
-      "refund_of"
+      "refund_of",
+      "engineering_tasks"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.235878",
+    "created_at": "2025-11-24T12:52:44.390894",
     "mastery_level": 0
   },
   "eb67d8b604021a45c1a5acfda9e9fdc2": {
@@ -370,7 +421,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.379072",
+    "created_at": "2025-11-24T12:52:45.932412",
     "mastery_level": 0
   },
   "02d6f98c7441a43cef7eb8c1d0dff2f1": {
@@ -381,6 +432,7 @@
       "payments",
       "invoices",
       "preorders",
+      "expenses",
       "warehouses",
       "loan_settlements",
       "archived_by_user",
@@ -393,7 +445,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.430469",
+    "created_at": "2025-11-24T12:51:44.279656",
     "mastery_level": 0
   },
   "3d91e9ca0879faf3cd7e16ff0fc9f0e5": {
@@ -407,7 +459,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.562856",
+    "created_at": "2025-11-24T12:52:47.105075",
     "mastery_level": 0
   },
   "7b2c74f367722d03077cb16eb9057960": {
@@ -422,7 +474,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.595115",
+    "created_at": "2025-11-24T12:52:47.376668",
     "mastery_level": 0
   },
   "cab2d7356d5186aefbe15352dc7eb517": {
@@ -430,11 +482,14 @@
     "definition": "نموذج بيانات في النظام",
     "examples": [
       "employee",
+      "customer",
+      "cost_center",
       "branch",
       "site",
       "type",
       "warehouse",
       "partner",
+      "supplier",
       "shipment",
       "utility_account",
       "stock_adjustment",
@@ -447,7 +502,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.636315",
+    "created_at": "2025-11-24T12:52:47.734495",
     "mastery_level": 0
   },
   "c41d489cd398bdf18e8f31e7177cadf2": {
@@ -460,7 +515,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.800800",
+    "created_at": "2025-11-24T12:51:51.965722",
     "mastery_level": 0
   },
   "fff6a11038f6c6e8f52c865571b625d6": {
@@ -475,7 +530,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.819267",
+    "created_at": "2025-11-24T12:52:49.847943",
     "mastery_level": 0
   },
   "88438e8576325aaef65b75874de7e33b": {
@@ -490,7 +545,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.892429",
+    "created_at": "2025-11-24T12:52:51.258996",
     "mastery_level": 0
   },
   "48e7f3a3046d366ef81b32546827de20": {
@@ -504,7 +559,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.933513",
+    "created_at": "2025-11-24T12:51:59.475382",
     "mastery_level": 0
   },
   "36a139a667a73499718cf957cfa5447c": {
@@ -519,7 +574,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:20.965380",
+    "created_at": "2025-11-24T12:52:36.466324",
     "mastery_level": 0
   },
   "84418d09e47004a1f771278dd32ce40b": {
@@ -548,7 +603,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.007904",
+    "created_at": "2025-11-24T12:51:42.663001",
     "mastery_level": 0
   },
   "57a04f537e7d3600f114923178f03684": {
@@ -562,7 +617,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.210099",
+    "created_at": "2025-11-24T12:51:46.974768",
     "mastery_level": 0
   },
   "19dcd21fc77927b3ea2fd6c1e98e53dd": {
@@ -576,7 +631,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.243469",
+    "created_at": "2025-11-24T12:52:40.244706",
     "mastery_level": 0
   },
   "3cba11c32fbc3ce7bb2fecb640c1fd89": {
@@ -590,7 +645,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.274209",
+    "created_at": "2025-11-24T12:51:45.448156",
     "mastery_level": 0
   },
   "dc64f05be807bee8ea7adcca9aecc34c": {
@@ -603,7 +658,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.310732",
+    "created_at": "2025-11-24T12:51:45.666036",
     "mastery_level": 0
   },
   "4d03d2d264c0546a26a1fa956d5945de": {
@@ -618,7 +673,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.337417",
+    "created_at": "2025-11-24T12:51:46.041368",
     "mastery_level": 0
   },
   "383dc6cf13fe7489984c3a9567fdb5ae": {
@@ -629,7 +684,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.383793",
+    "created_at": "2025-11-24T12:51:46.388977",
     "mastery_level": 0
   },
   "f92231a14b4094817e5e79a16e735038": {
@@ -640,15 +695,25 @@
       "cost_center",
       "manager",
       "branch",
+      "creator",
+      "updater",
       "phases",
       "costs",
-      "revenues"
+      "revenues",
+      "tasks",
+      "resources",
+      "milestones",
+      "risks",
+      "change_orders",
+      "issues",
+      "time_logs",
+      "engineering_tasks"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.391931",
+    "created_at": "2025-11-24T12:52:00.319301",
     "mastery_level": 0
   },
   "720d623ec3deab3d165316d041b5b497": {
@@ -664,7 +729,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.477065",
+    "created_at": "2025-11-24T12:51:47.800387",
     "mastery_level": 0
   },
   "eb96d7c1bd6fe446e624887e84a937b5": {
@@ -672,13 +737,16 @@
     "definition": "نموذج بيانات في النظام",
     "examples": [
       "supplier",
-      "lines"
+      "lines",
+      "previous_settlement",
+      "approved_by_user",
+      "next_settlements"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.529901",
+    "created_at": "2025-11-24T12:52:12.933330",
     "mastery_level": 0
   },
   "828e042fc85d99e61aaf056d22b06baf": {
@@ -693,7 +761,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.560277",
+    "created_at": "2025-11-24T12:51:49.441626",
     "mastery_level": 0
   },
   "bae4060f09792b4f1e770ae0a2ee1f6d": {
@@ -706,7 +774,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.602895",
+    "created_at": "2025-11-24T12:51:49.863470",
     "mastery_level": 0
   },
   "e730226896a773402f581ffe4c79c95c": {
@@ -715,6 +783,8 @@
     "examples": [
       "branch",
       "gl_account",
+      "creator",
+      "updater",
       "statements",
       "transactions",
       "reconciliations"
@@ -723,7 +793,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.622551",
+    "created_at": "2025-11-24T12:52:09.334541",
     "mastery_level": 0
   },
   "baaea7f0ac2d929dae9a0efc80aa1368": {
@@ -735,13 +805,20 @@
       "site",
       "deductions",
       "advances",
-      "advance_installments"
+      "advance_installments",
+      "project_allocations",
+      "time_logs",
+      "led_teams",
+      "team_memberships",
+      "skills",
+      "assigned_tasks",
+      "timesheets"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.690776",
+    "created_at": "2025-11-24T12:51:50.536571",
     "mastery_level": 0
   },
   "23477c231fc639e47793daad297c1f2e": {
@@ -752,7 +829,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.771811",
+    "created_at": "2025-11-24T12:52:47.353899",
     "mastery_level": 0
   },
   "9c0a0bc369b7ec91fb10fda72f829b0d": {
@@ -765,7 +842,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.780702",
+    "created_at": "2025-11-24T12:51:52.081803",
     "mastery_level": 0
   },
   "dc4af4e3eeaa3bff461f7fe26244599a": {
@@ -778,7 +855,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.801506",
+    "created_at": "2025-11-24T12:51:56.521705",
     "mastery_level": 0
   },
   "d87a73a851cf6a1dc5931dacae2d404b": {
@@ -792,7 +869,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.875197",
+    "created_at": "2025-11-24T12:52:49.579454",
     "mastery_level": 0
   },
   "bcc689bebbcd3749c4834dd85c2382be": {
@@ -822,7 +899,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.906097",
+    "created_at": "2025-11-24T12:51:52.226604",
     "mastery_level": 0
   },
   "1260fdeb1e60d42baf98fb52629a5a93": {
@@ -838,7 +915,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:21.821744",
+    "created_at": "2025-11-24T12:52:13.683820",
     "mastery_level": 0
   },
   "4e0337cb00b4f4662bc5b978a58397f1": {
@@ -855,7 +932,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.116713",
+    "created_at": "2025-11-24T12:51:54.997768",
     "mastery_level": 0
   },
   "26512b2857587f995519dbfa13e10eb6": {
@@ -868,7 +945,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.181416",
+    "created_at": "2025-11-24T12:52:00.194143",
     "mastery_level": 0
   },
   "f2fc2de5db0e2b8885d5644a202b53df": {
@@ -877,13 +954,15 @@
     "examples": [
       "project",
       "costs",
-      "revenues"
+      "revenues",
+      "tasks",
+      "milestones"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.201326",
+    "created_at": "2025-11-24T12:52:11.298926",
     "mastery_level": 0
   },
   "a00be3240d954fcf6c45f73ff89d3361": {
@@ -897,7 +976,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.249979",
+    "created_at": "2025-11-24T12:51:57.139280",
     "mastery_level": 0
   },
   "a47bb6a5434f124c3fdd0c7b0cd3f0e9": {
@@ -911,7 +990,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.284447",
+    "created_at": "2025-11-24T12:52:36.837061",
     "mastery_level": 0
   },
   "3400b137ff1518b0f145faefd1074f77": {
@@ -925,7 +1004,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.314191",
+    "created_at": "2025-11-24T12:51:59.095907",
     "mastery_level": 0
   },
   "fa1e199df4d63f7a387aa0d625b3e69e": {
@@ -938,7 +1017,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.344717",
+    "created_at": "2025-11-24T12:51:59.338196",
     "mastery_level": 0
   },
   "faa413fef46ce37847771111738cf98b": {
@@ -947,13 +1026,15 @@
     "examples": [
       "bank_account",
       "importer",
+      "creator",
+      "updater",
       "transactions"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.369032",
+    "created_at": "2025-11-24T12:51:55.554444",
     "mastery_level": 0
   },
   "114c295da0b8987ecb33c34b6e4a7e92": {
@@ -964,7 +1045,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.418889",
+    "created_at": "2025-11-24T12:51:46.016494",
     "mastery_level": 0
   },
   "ff1c113fe0e297ae56fcb05fcc0a6f30": {
@@ -978,7 +1059,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.427121",
+    "created_at": "2025-11-24T12:51:59.953866",
     "mastery_level": 0
   },
   "32d6b31bba60e55ecb274414d38c0f41": {
@@ -993,7 +1074,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.458598",
+    "created_at": "2025-11-24T12:52:02.761842",
     "mastery_level": 0
   },
   "6f365ae68b7d84a5aa11f6b57ec1cb6d": {
@@ -1006,7 +1087,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.500822",
+    "created_at": "2025-11-24T12:52:07.030555",
     "mastery_level": 0
   },
   "fe3f33f65d58319fd923113548fb45b2": {
@@ -1020,7 +1101,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.538827",
+    "created_at": "2025-11-24T12:52:03.407224",
     "mastery_level": 0
   },
   "badcd87bc691c1806afece68ac2d1786": {
@@ -1033,7 +1114,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.569861",
+    "created_at": "2025-11-24T12:52:33.117510",
     "mastery_level": 0
   },
   "5c943c7ccf33024de6792369fc2c6864": {
@@ -1048,7 +1129,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.589762",
+    "created_at": "2025-11-24T12:52:04.655121",
     "mastery_level": 0
   },
   "24bab2a51d0ea5b6a3932d265504f90b": {
@@ -1064,7 +1145,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.631349",
+    "created_at": "2025-11-24T12:52:10.650769",
     "mastery_level": 0
   },
   "7798a9f5029832c231c447a9f5a4332f": {
@@ -1079,7 +1160,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.688223",
+    "created_at": "2025-11-24T12:52:29.827665",
     "mastery_level": 0
   },
   "8a3cf1aa216a293adc9f69ccf5c94b20": {
@@ -1093,7 +1174,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.734373",
+    "created_at": "2025-11-24T12:52:07.389348",
     "mastery_level": 0
   },
   "e5f79da2562c58db2f6e159e11d8d4e7": {
@@ -1104,7 +1185,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.775390",
+    "created_at": "2025-11-24T12:51:52.203770",
     "mastery_level": 0
   },
   "543be6c1afd4b534cdbdfb31932dbd5c": {
@@ -1119,7 +1200,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.784118",
+    "created_at": "2025-11-24T12:51:48.584222",
     "mastery_level": 0
   },
   "6d8f0fe0639b71eb37437d42c3dba10d": {
@@ -1141,7 +1222,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.826894",
+    "created_at": "2025-11-24T12:52:07.866116",
     "mastery_level": 0
   },
   "fdc230fe84ff4f573d00ba674087740e": {
@@ -1156,7 +1237,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.950648",
+    "created_at": "2025-11-24T12:52:09.030667",
     "mastery_level": 0
   },
   "10d51aab2a09a39c6fb76faf36b2b7b0": {
@@ -1170,7 +1251,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:22.991434",
+    "created_at": "2025-11-24T12:52:10.404398",
     "mastery_level": 0
   },
   "be2e6614e3a49d4b4fafe7f5bf3f2a6a": {
@@ -1186,7 +1267,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.022436",
+    "created_at": "2025-11-24T12:52:33.641586",
     "mastery_level": 0
   },
   "64a675b32757f654f507e389909397c5": {
@@ -1206,7 +1287,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.076148",
+    "created_at": "2025-11-24T12:52:11.884766",
     "mastery_level": 0
   },
   "05ec812ab8bf2775ac255dff923fb181": {
@@ -1224,7 +1305,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.174926",
+    "created_at": "2025-11-24T12:52:20.197022",
     "mastery_level": 0
   },
   "ca41a077b379951e0595b52ebac47f3e": {
@@ -1238,7 +1319,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:25.112981",
+    "created_at": "2025-11-24T12:52:34.170153",
     "mastery_level": 0
   },
   "d06f99c58b28d7b35bd40bb316d68b44": {
@@ -1252,7 +1333,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.252422",
+    "created_at": "2025-11-24T12:52:13.461416",
     "mastery_level": 0
   },
   "4cb9ed28bafe19a6635addc5c663ede5": {
@@ -1267,7 +1348,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.283354",
+    "created_at": "2025-11-24T12:52:41.853111",
     "mastery_level": 0
   },
   "55ac64cfed54d105ee8388c06c7710be": {
@@ -1281,7 +1362,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:25.023390",
+    "created_at": "2025-11-24T12:52:32.287420",
     "mastery_level": 0
   },
   "c9f99499ca0652dc2d8184719104b0d9": {
@@ -1301,13 +1382,14 @@
       "payments",
       "gl_batches",
       "refunds",
-      "credit_notes"
+      "credit_notes",
+      "milestone"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.326778",
+    "created_at": "2025-11-24T12:52:14.639518",
     "mastery_level": 0
   },
   "5068be8380dcf4179394677d8613e3b6": {
@@ -1318,13 +1400,17 @@
       "asset_depreciations",
       "bank_transactions",
       "project_costs",
-      "project_revenues"
+      "project_revenues",
+      "cost_allocation_executions",
+      "cost_allocation_execution_lines",
+      "engineering_tasks",
+      "engineering_timesheets"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.502609",
+    "created_at": "2025-11-24T12:52:28.854773",
     "mastery_level": 0
   },
   "0ffb620ed12e7fa17b7d0e47609b687a": {
@@ -1339,7 +1425,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.575357",
+    "created_at": "2025-11-24T12:52:40.864688",
     "mastery_level": 0
   },
   "e96ac5ad9fc75f8b812e0525b9f10fbf": {
@@ -1364,13 +1450,14 @@
       "online_preorder_items",
       "stock_levels",
       "stock_adjustment_items",
-      "ratings"
+      "ratings",
+      "project_usage"
     ],
     "related_concepts": [
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.629861",
+    "created_at": "2025-11-24T12:52:17.822312",
     "mastery_level": 0
   },
   "02fd0912467ba5c4192ed9ae98293096": {
@@ -1384,7 +1471,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:23.979509",
+    "created_at": "2025-11-24T12:52:21.271806",
     "mastery_level": 0
   },
   "1ca42297ea0319bcb45aad8d34588f96": {
@@ -1413,7 +1500,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:24.239484",
+    "created_at": "2025-11-24T12:51:57.379763",
     "mastery_level": 0
   },
   "0ab8d098d7597a0d925356c17acbeb3f": {
@@ -1428,7 +1515,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:24.589124",
+    "created_at": "2025-11-24T12:52:22.158533",
     "mastery_level": 0
   },
   "54461fc152fb1c814dc61e3ee1c003f8": {
@@ -1443,7 +1530,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:24.664635",
+    "created_at": "2025-11-24T12:52:42.832021",
     "mastery_level": 0
   },
   "62c76654166bcd5199e25e011b230536": {
@@ -1458,7 +1545,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:24.730898",
+    "created_at": "2025-11-24T12:52:28.537319",
     "mastery_level": 0
   },
   "2ec630a080c7b124c56efaeb73ce25c5": {
@@ -1474,7 +1561,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:24.801209",
+    "created_at": "2025-11-24T12:52:32.555610",
     "mastery_level": 0
   },
   "fdd598109d0ffece3e80c2b57088dbe9": {
@@ -1492,7 +1579,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:24.893134",
+    "created_at": "2025-11-24T12:52:05.929748",
     "mastery_level": 0
   },
   "2795dcbafd518795fb7d3ac5ded1d359": {
@@ -1505,7 +1592,7 @@
       "models",
       "database"
     ],
-    "created_at": "2025-11-02T04:17:25.189079",
+    "created_at": "2025-11-24T12:52:40.741318",
     "mastery_level": 0
   },
   "d8e1f0da77ba60877af482e6d57c8a9e": {
@@ -1576,7 +1663,7 @@
       "GL",
       "accounting"
     ],
-    "created_at": "2025-11-02T04:17:47.231646",
+    "created_at": "2025-11-24T12:53:05.790579",
     "mastery_level": 0
   },
   "5d459a95c6513df1aa4a239ef13ee58b": {
@@ -3046,7 +3133,7 @@
       "GL",
       "accounting"
     ],
-    "created_at": "2025-11-02T04:17:47.216698",
+    "created_at": "2025-11-24T12:53:05.766938",
     "mastery_level": 0
   },
   "59e937591861ff3d5662d4861be7b4ca": {
@@ -3077,7 +3164,7 @@
       "GL",
       "accounting"
     ],
-    "created_at": "2025-11-02T04:17:47.277997",
+    "created_at": "2025-11-24T12:53:05.878345",
     "mastery_level": 0
   },
   "b9f6009311c09bcb5ddc3f9e46ebedd3": {
@@ -4274,7 +4361,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.280418",
+    "created_at": "2025-11-24T12:53:04.373655",
     "mastery_level": 0
   },
   "b3bcaa0689233c0369993338f95b3d69": {
@@ -4291,7 +4378,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.292808",
+    "created_at": "2025-11-24T12:53:04.387858",
     "mastery_level": 0
   },
   "75bfaf8695144a77eeefe6c0a6f3d799": {
@@ -4308,7 +4395,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.304833",
+    "created_at": "2025-11-24T12:53:04.402261",
     "mastery_level": 0
   },
   "c9c70b0e2ede82b863979c85f72d1138": {
@@ -4325,7 +4412,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.346748",
+    "created_at": "2025-11-24T12:53:04.420509",
     "mastery_level": 0
   },
   "b17443e22d9499338b86d79fec37a7eb": {
@@ -4342,7 +4429,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.372993",
+    "created_at": "2025-11-24T12:53:04.437510",
     "mastery_level": 0
   },
   "6d214370e69c15c49857e9eba2e540a2": {
@@ -4359,7 +4446,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.417771",
+    "created_at": "2025-11-24T12:53:04.456180",
     "mastery_level": 0
   },
   "904a15a5501894078a59878ee90191e3": {
@@ -4376,7 +4463,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.442136",
+    "created_at": "2025-11-24T12:53:04.474444",
     "mastery_level": 0
   },
   "7e57ade0a5bbb8088fe05ead59001a2c": {
@@ -4393,12 +4480,12 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.478831",
+    "created_at": "2025-11-24T12:53:04.492438",
     "mastery_level": 0
   },
   "8aaaa3773944aa14c62da90e5b469d02": {
     "concept": "Module: reports_bp",
-    "definition": "وحدة في النظام تحتوي على 25 مسار",
+    "definition": "وحدة في النظام تحتوي على 33 مسار",
     "examples": [
       "/reports",
       "/reports/",
@@ -4410,7 +4497,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.522240",
+    "created_at": "2025-11-24T12:53:04.510318",
     "mastery_level": 0
   },
   "bda62506d6cea5775f7b99d5f683e4c3": {
@@ -4427,12 +4514,12 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.562262",
+    "created_at": "2025-11-24T12:53:04.534584",
     "mastery_level": 0
   },
   "daebea08933c3e32796db21372fb3f74": {
     "concept": "Module: expenses_bp",
-    "definition": "وحدة في النظام تحتوي على 22 مسار",
+    "definition": "وحدة في النظام تحتوي على 29 مسار",
     "examples": [
       "/expenses/employees",
       "/expenses/employees/add",
@@ -4444,7 +4531,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.590364",
+    "created_at": "2025-11-24T12:53:04.553005",
     "mastery_level": 0
   },
   "1dd0ddc92b873eb04668914179bf8835": {
@@ -4461,7 +4548,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.627670",
+    "created_at": "2025-11-24T12:53:04.569749",
     "mastery_level": 0
   },
   "a94b76f6344c4aad58dea83bb74f64bc": {
@@ -4478,7 +4565,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.648382",
+    "created_at": "2025-11-24T12:53:04.591732",
     "mastery_level": 0
   },
   "f98ed906fcec713e3407a7fcb706a806": {
@@ -4495,7 +4582,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.685812",
+    "created_at": "2025-11-24T12:53:04.611446",
     "mastery_level": 0
   },
   "445caa9f61feee26f700533802b1aba3": {
@@ -4512,12 +4599,12 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.719155",
+    "created_at": "2025-11-24T12:53:04.630101",
     "mastery_level": 0
   },
   "50aa09ee6128986f6d974743b557caf8": {
     "concept": "Module: payments",
-    "definition": "وحدة في النظام تحتوي على 21 مسار",
+    "definition": "وحدة في النظام تحتوي على 22 مسار",
     "examples": [
       "/payments/entity-search",
       "/payments/",
@@ -4529,7 +4616,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.741832",
+    "created_at": "2025-11-24T12:53:04.648096",
     "mastery_level": 0
   },
   "886b91752fe115fd6bd37581b0bd4404": {
@@ -4545,7 +4632,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.768025",
+    "created_at": "2025-11-24T12:53:04.663353",
     "mastery_level": 0
   },
   "7d025067a64642c42487b1a6d8dc2c23": {
@@ -4561,7 +4648,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.806013",
+    "created_at": "2025-11-24T12:53:04.677627",
     "mastery_level": 0
   },
   "263d95e1716fe6a2bc3d83c5899423a9": {
@@ -4578,23 +4665,24 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.834808",
+    "created_at": "2025-11-24T12:53:04.693464",
     "mastery_level": 0
   },
   "6382511af3e9e0515ead70962bae1453": {
     "concept": "Module: admin_reports",
-    "definition": "وحدة في النظام تحتوي على 4 مسار",
+    "definition": "وحدة في النظام تحتوي على 6 مسار",
     "examples": [
       "/admin/reports/",
       "/admin/reports/cards",
       "/admin/reports/cards/<int:pid>/reveal",
-      "/admin/reports/preorders"
+      "/admin/reports/preorders",
+      "/admin/reports/dashboard"
     ],
     "related_concepts": [
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.860285",
+    "created_at": "2025-11-24T12:53:04.708373",
     "mastery_level": 0
   },
   "96823bd88bd5deb92aca7325415b791a": {
@@ -4607,12 +4695,12 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.891534",
+    "created_at": "2025-11-24T12:53:04.723116",
     "mastery_level": 0
   },
   "89faf88ed86cf5dc8971d016fb426be3": {
     "concept": "Module: partner_settlements_bp",
-    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "definition": "وحدة في النظام تحتوي على 9 مسار",
     "examples": [
       "/partners/unpriced-items",
       "/partners/settlements",
@@ -4624,12 +4712,12 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.924113",
+    "created_at": "2025-11-24T12:53:04.738009",
     "mastery_level": 0
   },
   "2112a8f6095cc8320c92dce740de7a86": {
     "concept": "Module: supplier_settlements_bp",
-    "definition": "وحدة في النظام تحتوي على 9 مسار",
+    "definition": "وحدة في النظام تحتوي على 12 مسار",
     "examples": [
       "/suppliers/unpriced-items",
       "/suppliers/settlements",
@@ -4641,7 +4729,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.948441",
+    "created_at": "2025-11-24T12:53:04.753484",
     "mastery_level": 0
   },
   "10745afe127f7955e1a1530bb10aa27c": {
@@ -4658,41 +4746,41 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:45.970267",
+    "created_at": "2025-11-24T12:53:04.768282",
     "mastery_level": 0
   },
   "fb1d1d5cd2b8b073ee2e4a0ee6f4de9b": {
     "concept": "Module: ledger",
-    "definition": "وحدة في النظام تحتوي على 14 مسار",
+    "definition": "وحدة ledger - 12 route",
     "examples": [
-      "/ledger/",
-      "/ledger/chart-of-accounts",
-      "/ledger/accounts",
-      "/ledger/manual-entry",
-      "/ledger/data"
+      "extract_entity_from_batch",
+      "ledger_index",
+      "chart_of_accounts",
+      "get_accounts",
+      "create_manual_entry"
     ],
     "related_concepts": [
-      "routes",
+      "ledger",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.004381",
+    "created_at": "2025-11-24T12:54:20.485376",
     "mastery_level": 0
   },
   "393c2ecf0c9fd39e5a7f12591bc4bbfc": {
     "concept": "Module: currencies",
-    "definition": "وحدة في النظام تحتوي على 14 مسار",
+    "definition": "وحدة currencies - 14 route",
     "examples": [
-      "/currencies/",
-      "/currencies/new",
-      "/currencies/exchange-rates",
-      "/currencies/exchange-rates/new",
-      "/currencies/exchange-rates/<int:rate_id>/edit"
+      "list_currencies",
+      "new_currency",
+      "list_exchange_rates",
+      "get_currency_name",
+      "new_exchange_rate"
     ],
     "related_concepts": [
-      "routes",
+      "currencies",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.030260",
+    "created_at": "2025-11-24T12:54:24.821519",
     "mastery_level": 0
   },
   "ddda6068059a3cb5f4cbf2448e45bbca": {
@@ -4709,7 +4797,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.061284",
+    "created_at": "2025-11-24T12:53:04.812838",
     "mastery_level": 0
   },
   "c349182a4459fd4e8ec2ea14e932f42b": {
@@ -4726,29 +4814,29 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.097419",
+    "created_at": "2025-11-24T12:53:04.828065",
     "mastery_level": 0
   },
   "afe25081382bdd158c888d39443ae70b": {
     "concept": "Module: ledger_control",
-    "definition": "وحدة في النظام تحتوي على 33 مسار",
+    "definition": "وحدة ledger_control - 35 route",
     "examples": [
-      "/security/ledger-control/",
-      "/security/ledger-control/accounts",
-      "/security/ledger-control/accounts/create",
-      "/security/ledger-control/accounts/<int:account_id>/update",
-      "/security/ledger-control/accounts/<int:account_id>/delete"
+      "index",
+      "accounts_management",
+      "create_account",
+      "update_account",
+      "delete_account"
     ],
     "related_concepts": [
-      "routes",
+      "ledger_control",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.123150",
+    "created_at": "2025-11-24T12:54:22.279189",
     "mastery_level": 0
   },
   "940d1467ba6ecd04e6acb64e87bda844": {
     "concept": "Module: ai",
-    "definition": "وحدة في النظام تحتوي على 10 مسار",
+    "definition": "وحدة في النظام تحتوي على 11 مسار",
     "examples": [
       "/ai/hub",
       "/ai/assistant",
@@ -4760,7 +4848,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.154175",
+    "created_at": "2025-11-24T12:53:04.858315",
     "mastery_level": 0
   },
   "a3f3cc1cd0ea1d242cfaff8b2b3c9e7e": {
@@ -4782,7 +4870,7 @@
   },
   "417ae3df40ef1ed64644c98b5cba04d1": {
     "concept": "Module: ai_admin",
-    "definition": "وحدة في النظام تحتوي على 15 مسار",
+    "definition": "وحدة في النظام تحتوي على 18 مسار",
     "examples": [
       "/ai-admin/settings",
       "/ai-admin/toggle-visibility",
@@ -4794,7 +4882,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.198737",
+    "created_at": "2025-11-24T12:53:04.873237",
     "mastery_level": 0
   },
   "c78b0e11fa7a5f2f66525391576084fd": {
@@ -4807,7 +4895,7 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.228908",
+    "created_at": "2025-11-24T12:53:04.887823",
     "mastery_level": 0
   },
   "74187918860b3bf67e4fd47ec4eb17c1": {
@@ -4820,37 +4908,37 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.252673",
+    "created_at": "2025-11-24T12:53:04.903393",
     "mastery_level": 0
   },
   "cacc7099887bdb1e05aba823a7cadf19": {
     "concept": "Module: pricing",
-    "definition": "وحدة في النظام تحتوي على 1 مسار",
+    "definition": "وحدة pricing - 1 route",
     "examples": [
-      "/pricing/"
+      "pricing_index"
     ],
     "related_concepts": [
-      "routes",
+      "pricing",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.284136",
+    "created_at": "2025-11-24T12:54:30.114631",
     "mastery_level": 0
   },
   "03bd6433989c62386bb4bc58cd641049": {
     "concept": "Module: checks",
-    "definition": "وحدة في النظام تحتوي على 11 مسار",
+    "definition": "وحدة في النظام تحتوي على 16 مسار",
     "examples": [
       "/checks/",
       "/checks/api/checks",
       "/checks/api/statistics",
-      "/checks/api/check-lifecycle/<int:check_id>/<check_type>",
-      "/checks/api/update-status/<check_id>"
+      "/checks/api/first-incomplete",
+      "/checks/api/check-lifecycle/<int:check_id>/<check_type>"
     ],
     "related_concepts": [
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.303831",
+    "created_at": "2025-11-24T12:53:04.935816",
     "mastery_level": 0
   },
   "1ef14ab1a090b5f1c403cc7b32520a08": {
@@ -4867,12 +4955,12 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.327211",
+    "created_at": "2025-11-24T12:53:04.950544",
     "mastery_level": 0
   },
   "a3b869eabf3327cfa89b1f05a3e14d7d": {
     "concept": "Module: security",
-    "definition": "وحدة في النظام تحتوي على 97 مسار",
+    "definition": "وحدة في النظام تحتوي على 102 مسار",
     "examples": [
       "/security/saas-manager",
       "/security/api/saas/plans",
@@ -4884,24 +4972,24 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.356966",
+    "created_at": "2025-11-24T12:53:04.965250",
     "mastery_level": 0
   },
   "18e35a894aba4fa120d40338fab51154": {
     "concept": "Module: advanced",
-    "definition": "وحدة في النظام تحتوي على 21 مسار",
+    "definition": "وحدة في النظام تحتوي على 32 مسار",
     "examples": [
+      "/advanced/owner-hub",
+      "/advanced/owner-smoke-checklist",
       "/advanced/db-merger",
       "/advanced/multi-tenant",
-      "/advanced/dashboard-links",
-      "/advanced/version-control",
-      "/advanced/licensing"
+      "/advanced/dashboard-links"
     ],
     "related_concepts": [
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.379754",
+    "created_at": "2025-11-24T12:53:04.996487",
     "mastery_level": 0
   },
   "b2974f5c0d625b20f424fa82a0a8a484": {
@@ -4915,24 +5003,24 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.415690",
+    "created_at": "2025-11-24T12:53:05.011186",
     "mastery_level": 0
   },
   "3e6309319bd51cab274edac901facf97": {
     "concept": "Module: archive",
-    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "definition": "وحدة archive - 7 route",
     "examples": [
-      "/archive/",
-      "/archive/search",
-      "/archive/bulk-archive",
-      "/archive/view/<int:archive_id>",
-      "/archive/restore/<int:archive_id>"
+      "index",
+      "search",
+      "bulk_archive",
+      "view_archive",
+      "restore_archive"
     ],
     "related_concepts": [
-      "routes",
+      "archive",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.436823",
+    "created_at": "2025-11-24T12:54:31.204302",
     "mastery_level": 0
   },
   "cef1d3bcd834cd98f9b00fdce83fd504": {
@@ -4946,143 +5034,143 @@
       "routes",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.452773",
+    "created_at": "2025-11-24T12:53:05.040504",
     "mastery_level": 0
   },
   "1c7d1de53acca2a264869436e3053965": {
     "concept": "Module: financial_reports",
-    "definition": "وحدة في النظام تحتوي على 11 مسار",
+    "definition": "وحدة financial_reports - 12 route",
     "examples": [
-      "/reports/financial/",
-      "/reports/financial/income-statement",
-      "/reports/financial/balance-sheet",
-      "/reports/financial/cash-flow",
-      "/reports/financial/balances-summary"
+      "index",
+      "income_statement",
+      "balance_sheet",
+      "cash_flow",
+      "balances_summary"
     ],
     "related_concepts": [
-      "routes",
+      "financial_reports",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.464801",
+    "created_at": "2025-11-24T12:54:22.994508",
     "mastery_level": 0
   },
   "fc2f51b7a69b95e09ef4b1299793f1d9": {
     "concept": "Module: accounting_validation",
-    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "definition": "وحدة accounting_validation - 7 route",
     "examples": [
-      "/validation/accounting/",
-      "/validation/accounting/balance-check",
-      "/validation/accounting/account-consistency",
-      "/validation/accounting/entity-balance-verification",
-      "/validation/accounting/transaction-integrity"
+      "index",
+      "balance_check",
+      "account_consistency",
+      "entity_balance_verification",
+      "transaction_integrity"
     ],
     "related_concepts": [
-      "routes",
+      "accounting_validation",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.475886",
+    "created_at": "2025-11-24T12:54:23.934228",
     "mastery_level": 0
   },
   "65446a584cfcf73eef2a6b9748a0906e": {
     "concept": "Module: accounting_docs",
-    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "definition": "وحدة accounting_docs - 7 route",
     "examples": [
-      "/docs/accounting/",
-      "/docs/accounting/chart-of-accounts",
-      "/docs/accounting/accounting-standards",
-      "/docs/accounting/audit-policies",
-      "/docs/accounting/correction-procedures"
+      "index",
+      "chart_of_accounts",
+      "accounting_standards",
+      "audit_policies",
+      "correction_procedures"
     ],
     "related_concepts": [
-      "routes",
+      "accounting_docs",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.486964",
+    "created_at": "2025-11-24T12:54:23.483558",
     "mastery_level": 0
   },
   "27b44596a15ae6392795902f574d9fc8": {
     "concept": "Module: budgets",
-    "definition": "وحدة في النظام تحتوي على 6 مسار",
+    "definition": "وحدة budgets - 6 route",
     "examples": [
-      "/budgets/",
-      "/budgets/add",
-      "/budgets/edit/<int:id>",
-      "/budgets/report/vs-actual",
-      "/budgets/report/variance"
+      "check_budget_enabled",
+      "index",
+      "add",
+      "edit",
+      "budget_vs_actual"
     ],
     "related_concepts": [
-      "routes",
+      "budgets",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.497873",
+    "created_at": "2025-11-24T12:54:29.046340",
     "mastery_level": 0
   },
   "a273076b203f465028bdb9367f551b57": {
     "concept": "Module: assets",
-    "definition": "وحدة في النظام تحتوي على 6 مسار",
+    "definition": "وحدة assets - 6 route",
     "examples": [
-      "/assets/",
-      "/assets/add",
-      "/assets/view/<int:id>",
-      "/assets/categories",
-      "/assets/report/register"
+      "check_assets_enabled",
+      "index",
+      "add",
+      "view",
+      "categories"
     ],
     "related_concepts": [
-      "routes",
+      "assets",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.509466",
+    "created_at": "2025-11-24T12:54:28.620379",
     "mastery_level": 0
   },
   "ee0830596c91ef13118a60ba910e91b2": {
     "concept": "Module: bank",
-    "definition": "وحدة في النظام تحتوي على 9 مسار",
+    "definition": "وحدة bank - 15 route",
     "examples": [
-      "/bank/accounts",
-      "/bank/accounts/add",
-      "/bank/accounts/<int:id>",
-      "/bank/statements",
-      "/bank/statements/<int:id>"
+      "owner_only",
+      "decorated_function",
+      "accounts",
+      "add_account",
+      "edit_account"
     ],
     "related_concepts": [
-      "routes",
+      "bank",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.520819",
+    "created_at": "2025-11-24T12:54:25.843238",
     "mastery_level": 0
   },
   "a0c9e1a484ed26fe38c718acbf8a968b": {
     "concept": "Module: cost_centers",
-    "definition": "وحدة في النظام تحتوي على 5 مسار",
+    "definition": "وحدة cost_centers - 9 route",
     "examples": [
-      "/cost-centers/",
-      "/cost-centers/add",
-      "/cost-centers/<int:id>",
-      "/cost-centers/reports/summary",
-      "/cost-centers/reports/comparison"
+      "owner_only",
+      "decorated_function",
+      "index",
+      "add",
+      "edit"
     ],
     "related_concepts": [
-      "routes",
+      "cost_centers",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.548204",
+    "created_at": "2025-11-24T12:54:29.664293",
     "mastery_level": 0
   },
   "457c167d1a054ec9cc3f46ad299a6518": {
     "concept": "Module: projects",
-    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "definition": "وحدة projects - 12 route",
     "examples": [
-      "/projects/",
-      "/projects/add",
-      "/projects/<int:id>",
-      "/projects/<int:id>/pl",
-      "/projects/<int:id>/budget"
+      "owner_only",
+      "decorated_function",
+      "index",
+      "add_project",
+      "edit_project"
     ],
     "related_concepts": [
-      "routes",
+      "projects",
       "system_modules"
     ],
-    "created_at": "2025-11-02T04:17:46.574203",
+    "created_at": "2025-11-24T12:54:28.286037",
     "mastery_level": 0
   },
   "2344b62c41e4f6c6c1fcd7a56cc887d8": {
@@ -5093,7 +5181,7 @@
       "GL",
       "accounting"
     ],
-    "created_at": "2025-11-02T04:17:47.175699",
+    "created_at": "2025-11-24T12:53:05.720031",
     "mastery_level": 0
   },
   "b7a029836b42bd61809e47fca1798565": {
@@ -5104,7 +5192,7 @@
       "GL",
       "accounting"
     ],
-    "created_at": "2025-11-02T04:17:47.193793",
+    "created_at": "2025-11-24T12:53:05.744782",
     "mastery_level": 0
   },
   "1be8bacf4506c3c0ec2add93b90c3123": {
@@ -5115,7 +5203,7 @@
       "GL",
       "accounting"
     ],
-    "created_at": "2025-11-02T04:17:47.245584",
+    "created_at": "2025-11-24T12:53:05.824206",
     "mastery_level": 0
   },
   "8540e9461d0d0f38e4a412a8ae623ee7": {
@@ -5126,7 +5214,7 @@
       "GL",
       "accounting"
     ],
-    "created_at": "2025-11-02T04:17:47.262227",
+    "created_at": "2025-11-24T12:53:05.855767",
     "mastery_level": 0
   },
   "f4bc6b05f901cd245b9d750fe5d41658": {
@@ -5265,6 +5353,4896 @@
       "VAT"
     ],
     "created_at": "2025-11-02T10:52:28.214387",
+    "mastery_level": 0
+  },
+  "f813f83270bcc52dbd0c3f10b4fbece3": {
+    "concept": "Model: CostCenterAlert",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "cost_center",
+      "logs"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:45.791517",
+    "mastery_level": 0
+  },
+  "3e55e5b337e46892138f35ed01f60daf": {
+    "concept": "Model: EngineeringTimesheet",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "employee",
+      "task",
+      "approver",
+      "cost_center",
+      "gl_batch"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:46.420254",
+    "mastery_level": 0
+  },
+  "8601cece3dc24a63ddca7853e62f1bc0": {
+    "concept": "Model: ProjectResource",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "task",
+      "employee",
+      "product",
+      "time_logs"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:47.195569",
+    "mastery_level": 0
+  },
+  "d148d85251405aea5b7d3b52adf262a8": {
+    "concept": "Model: EngineeringTeamMember",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "team",
+      "employee"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:50.308785",
+    "mastery_level": 0
+  },
+  "e433a397755cd7978a46c051672d9a3a": {
+    "concept": "Model: RecurringInvoiceTemplate",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "customer",
+      "branch",
+      "site",
+      "schedules"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:54.344686",
+    "mastery_level": 0
+  },
+  "d023be618b68a4106a125814c978250c": {
+    "concept": "Model: CostCenterAlertLog",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "alert",
+      "cost_center"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:54.718576",
+    "mastery_level": 0
+  },
+  "503bd9c59747e5e04f9637c514a38c5a": {
+    "concept": "Model: WorkflowDefinition",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "creator",
+      "updater",
+      "instances"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:56.133773",
+    "mastery_level": 0
+  },
+  "b608791a9063653edd5ad05ae7388324": {
+    "concept": "Model: ProjectMilestone",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "phase",
+      "invoice",
+      "approver"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:56.652458",
+    "mastery_level": 0
+  },
+  "a5f2acc6d6764e9c49bc3a221520597e": {
+    "concept": "Model: EngineeringSkill",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "employee_skills"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:59.792261",
+    "mastery_level": 0
+  },
+  "677300e5e55f95f18bb0302b67d80b48": {
+    "concept": "Model: RecurringInvoiceSchedule",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "template",
+      "invoice"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:03.647368",
+    "mastery_level": 0
+  },
+  "526873829af0519039cde26b9a41ce19": {
+    "concept": "Model: CostAllocationRule",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "source_cost_center",
+      "lines",
+      "executions"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:03.929641",
+    "mastery_level": 0
+  },
+  "7d38518ad25315822064b4f9c1c8d304": {
+    "concept": "Model: WorkflowInstance",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "workflow_definition",
+      "starter",
+      "completer",
+      "canceller",
+      "actions"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:05.063525",
+    "mastery_level": 0
+  },
+  "53a2e7cd52e4912801b92f1d352fd5b1": {
+    "concept": "Model: ProjectRisk",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "owner"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:07.162374",
+    "mastery_level": 0
+  },
+  "17388526b7e423ceaa5a6e755a8fb4ea": {
+    "concept": "Model: EmployeeSkill",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "employee",
+      "skill",
+      "verifier"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:10.055912",
+    "mastery_level": 0
+  },
+  "5b05f19432f97a05affaf0b95013774f": {
+    "concept": "Model: CostAllocationLine",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "rule",
+      "target_cost_center"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:14.329503",
+    "mastery_level": 0
+  },
+  "fd0d1eb05098c2cea2f84181fb7e526e": {
+    "concept": "Model: EngineeringTeam",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "team_leader",
+      "cost_center",
+      "branch",
+      "members",
+      "tasks"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:51:42.222218",
+    "mastery_level": 0
+  },
+  "aa2fd537fa749523548e5b25e03ec11e": {
+    "concept": "Model: WorkflowAction",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "workflow_instance",
+      "actor",
+      "delegate"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:17.214983",
+    "mastery_level": 0
+  },
+  "8c5b7ff3b867523f209cd6640d3ca43c": {
+    "concept": "Model: ProjectChangeOrder",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "requester",
+      "approver"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:20.895714",
+    "mastery_level": 0
+  },
+  "35d6a4abf01e2c65d3a054fda6c3323f": {
+    "concept": "Model: CostAllocationExecution",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "rule",
+      "gl_batch",
+      "lines"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:33.262379",
+    "mastery_level": 0
+  },
+  "7042d4f0d8d97f720011fb9d1785ae64": {
+    "concept": "Model: ProjectIssue",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "task",
+      "reporter",
+      "assignee"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:36.020870",
+    "mastery_level": 0
+  },
+  "b8cf1d371b03cbf85db6b84b5c3a3a8b": {
+    "concept": "Model: EngineeringTask",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "assigned_team",
+      "assigned_to",
+      "customer",
+      "cost_center",
+      "project",
+      "service_request",
+      "parent_task",
+      "gl_batch",
+      "subtasks",
+      "timesheets"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:39.221462",
+    "mastery_level": 0
+  },
+  "24b6f02137fef9afb0d8ad483937143f": {
+    "concept": "Model: CostAllocationExecutionLine",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "execution",
+      "source_cost_center",
+      "target_cost_center",
+      "gl_batch"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:42.322213",
+    "mastery_level": 0
+  },
+  "dfc54be94f103ef53071d5c803985a29": {
+    "concept": "Model: ResourceTimeLog",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "task",
+      "resource",
+      "employee",
+      "approver"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:46.466381",
+    "mastery_level": 0
+  },
+  "dcf7018e5286de560aa8b63e61528901": {
+    "concept": "Model: ProjectTask",
+    "definition": "نموذج بيانات في النظام",
+    "examples": [
+      "project",
+      "phase",
+      "assignee",
+      "resources",
+      "issues",
+      "time_logs"
+    ],
+    "related_concepts": [
+      "models",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:52:50.531856",
+    "mastery_level": 0
+  },
+  "0954f83a5af940d0f1e58631b8338d28": {
+    "concept": "Module: security_expenses",
+    "definition": "وحدة في النظام تحتوي على 9 مسار",
+    "examples": [
+      "/security/expenses-control/",
+      "/security/expenses-control/library",
+      "/security/expenses-control/library/custom",
+      "/security/expenses-control/types/<int:type_id>/fields",
+      "/security/expenses-control/types/<int:type_id>/bulk"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:53:04.981838",
+    "mastery_level": 0
+  },
+  "0a348f8a5cca5e8bd5918ad635da88d5": {
+    "concept": "Module: cost_centers_advanced",
+    "definition": "وحدة في النظام تحتوي على 8 مسار",
+    "examples": [
+      "/cost-centers/dashboard",
+      "/cost-centers/alerts",
+      "/cost-centers/alerts/add",
+      "/cost-centers/alerts/<int:alert_id>/toggle",
+      "/cost-centers/allocation-rules"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:53:05.185175",
+    "mastery_level": 0
+  },
+  "576f54cf1af3bcd9589b911a9965de63": {
+    "concept": "Module: engineering",
+    "definition": "وحدة engineering - 9 route",
+    "examples": [
+      "owner_only",
+      "decorated_function",
+      "dashboard",
+      "teams",
+      "add_team"
+    ],
+    "related_concepts": [
+      "engineering",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:54:30.713828",
+    "mastery_level": 0
+  },
+  "bd4d0f37a8e280ea3adcbe586fabba60": {
+    "concept": "Module: project_advanced",
+    "definition": "وحدة في النظام تحتوي على 14 مسار",
+    "examples": [
+      "/projects/<int:project_id>/tasks",
+      "/projects/<int:project_id>/tasks/add",
+      "/projects/<int:project_id>/resources",
+      "/projects/<int:project_id>/resources/add",
+      "/projects/<int:project_id>/milestones"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:53:05.249215",
+    "mastery_level": 0
+  },
+  "2cf8358a8a7774750e85ae62f8523ab9": {
+    "concept": "Module: recurring",
+    "definition": "وحدة في النظام تحتوي على 7 مسار",
+    "examples": [
+      "/recurring/",
+      "/recurring/add",
+      "/recurring/edit/<int:template_id>",
+      "/recurring/toggle/<int:template_id>",
+      "/recurring/delete/<int:template_id>"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:53:05.272893",
+    "mastery_level": 0
+  },
+  "37ed85cbdb1a6c9cd5265728bca17a59": {
+    "concept": "Module: workflows",
+    "definition": "وحدة workflows - 14 route",
+    "examples": [
+      "owner_only",
+      "decorated_function",
+      "index",
+      "definitions",
+      "add_definition"
+    ],
+    "related_concepts": [
+      "workflows",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:54:27.391169",
+    "mastery_level": 0
+  },
+  "5a9c5eec0fd4aa3b5d2936bc17554a88": {
+    "concept": "Module: balances_api",
+    "definition": "وحدة في النظام تحتوي على 6 مسار",
+    "examples": [
+      "/api/balances/dashboard",
+      "/api/balances/supplier/<int:supplier_id>",
+      "/api/balances/partner/<int:partner_id>",
+      "/api/balances/customer/<int:customer_id>",
+      "/api/balances/summary"
+    ],
+    "related_concepts": [
+      "routes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:53:05.311316",
+    "mastery_level": 0
+  },
+  "70132bff02fddd35c2dc4e3ec36976c9": {
+    "concept": "Sale Model",
+    "definition": "نموذج البيع",
+    "examples": [
+      "id",
+      "sale_number",
+      "sale_date",
+      "customer_id",
+      "seller_id",
+      "seller_employee_id",
+      "preorder_id",
+      "tax_rate",
+      "discount_total",
+      "notes"
+    ],
+    "related_concepts": [
+      "sales",
+      "invoice"
+    ],
+    "created_at": "2025-11-24T12:53:07.972083",
+    "mastery_level": 0
+  },
+  "7e18f4bc2b57c8fac2939460b6740554": {
+    "concept": "Payment Types",
+    "definition": "أنواع الدفعات",
+    "examples": [
+      "IN",
+      "OUT"
+    ],
+    "related_concepts": [
+      "payments",
+      "accounting"
+    ],
+    "created_at": "2025-11-24T12:53:13.572781",
+    "mastery_level": 0
+  },
+  "de5c3d029f0070be20a29bb932f834ae": {
+    "concept": "Customer Model",
+    "definition": "نموذج العميل",
+    "examples": [
+      "id",
+      "name",
+      "phone",
+      "whatsapp",
+      "email",
+      "address",
+      "password_hash",
+      "category",
+      "notes",
+      "is_active"
+    ],
+    "related_concepts": [
+      "customers",
+      "CRM"
+    ],
+    "created_at": "2025-11-24T12:53:14.535041",
+    "mastery_level": 0
+  },
+  "b550758aa144a7aa7a985e37f6f9d728": {
+    "concept": "User Model",
+    "definition": "نموذج المستخدم",
+    "examples": [
+      "username",
+      "email",
+      "role_id"
+    ],
+    "related_concepts": [
+      "users",
+      "auth"
+    ],
+    "created_at": "2025-11-24T12:53:34.482047",
+    "mastery_level": 0
+  },
+  "aa2fdad1907ce2bd52fc2c42db17fc0d": {
+    "concept": "Check Status: RESUBMITTED",
+    "definition": "حالة الشيك: RESUBMITTED",
+    "examples": [],
+    "related_concepts": [
+      "checks",
+      "status"
+    ],
+    "created_at": "2025-11-24T12:53:52.258788",
+    "mastery_level": 0
+  },
+  "d9a940283273a9160b6c24e35a35588a": {
+    "concept": "Check Status: OVERDUE",
+    "definition": "حالة الشيك: OVERDUE",
+    "examples": [],
+    "related_concepts": [
+      "checks",
+      "status"
+    ],
+    "created_at": "2025-11-24T12:53:52.193817",
+    "mastery_level": 0
+  },
+  "c3443abd67e316f5af9de17d65de77e1": {
+    "concept": "Check Status: RETURNED",
+    "definition": "حالة الشيك: RETURNED",
+    "examples": [],
+    "related_concepts": [
+      "checks",
+      "status"
+    ],
+    "created_at": "2025-11-24T12:53:52.302500",
+    "mastery_level": 0
+  },
+  "08c22bb46b71bd69d466bcde38f24258": {
+    "concept": "Check Status: CASHED",
+    "definition": "حالة الشيك: CASHED",
+    "examples": [],
+    "related_concepts": [
+      "checks",
+      "status"
+    ],
+    "created_at": "2025-11-24T12:53:52.172260",
+    "mastery_level": 0
+  },
+  "6bde01b2b53a2a6895977e1ef7ae05fc": {
+    "concept": "Check Status: PENDING",
+    "definition": "حالة الشيك: PENDING",
+    "examples": [],
+    "related_concepts": [
+      "checks",
+      "status"
+    ],
+    "created_at": "2025-11-24T12:53:52.237432",
+    "mastery_level": 0
+  },
+  "25cccc0635a428492a6c66587fc9d993": {
+    "concept": "Check Status: CANCELLED",
+    "definition": "حالة الشيك: CANCELLED",
+    "examples": [],
+    "related_concepts": [
+      "checks",
+      "status"
+    ],
+    "created_at": "2025-11-24T12:53:52.323569",
+    "mastery_level": 0
+  },
+  "816165fb5a9a4fbf0a7ac43264089460": {
+    "concept": "Check Status: ARCHIVED",
+    "definition": "حالة الشيك: ARCHIVED",
+    "examples": [],
+    "related_concepts": [
+      "checks",
+      "status"
+    ],
+    "created_at": "2025-11-24T12:53:52.216920",
+    "mastery_level": 0
+  },
+  "a1ba6f96a1bc3de881a863ca26aa3fa2": {
+    "concept": "Check Status: BOUNCED",
+    "definition": "حالة الشيك: BOUNCED",
+    "examples": [],
+    "related_concepts": [
+      "checks",
+      "status"
+    ],
+    "created_at": "2025-11-24T12:53:52.281800",
+    "mastery_level": 0
+  },
+  "e02d0cd59cc1cad2d2c928af6e5aff09": {
+    "concept": "Check Model",
+    "definition": "نموذج الشيك",
+    "examples": [
+      "id",
+      "check_number",
+      "check_bank",
+      "check_date",
+      "check_due_date",
+      "amount",
+      "currency",
+      "fx_rate_issue",
+      "fx_rate_issue_source",
+      "fx_rate_issue_timestamp",
+      "fx_rate_issue_base",
+      "fx_rate_issue_quote",
+      "fx_rate_cash",
+      "fx_rate_cash_source",
+      "fx_rate_cash_timestamp"
+    ],
+    "related_concepts": [
+      "checks",
+      "payments",
+      "financial"
+    ],
+    "created_at": "2025-11-24T12:53:52.343391",
+    "mastery_level": 0
+  },
+  "fbd15e1938a3eb6789fa95be75df39c9": {
+    "concept": "Supplier Model",
+    "definition": "نموذج المورد",
+    "examples": [
+      "id",
+      "name",
+      "is_local",
+      "identity_number",
+      "contact",
+      "phone",
+      "email",
+      "address",
+      "notes",
+      "payment_terms"
+    ],
+    "related_concepts": [
+      "suppliers",
+      "vendors",
+      "purchases"
+    ],
+    "created_at": "2025-11-24T12:53:53.365998",
+    "mastery_level": 0
+  },
+  "1c0583b18a53301829a749b709ba497b": {
+    "concept": "Supplier Settlement",
+    "definition": "تسوية المورد",
+    "examples": [
+      "id",
+      "code",
+      "supplier_id",
+      "from_date",
+      "to_date",
+      "currency",
+      "fx_rate_used",
+      "fx_rate_source"
+    ],
+    "related_concepts": [
+      "suppliers",
+      "accounting"
+    ],
+    "created_at": "2025-11-24T12:53:53.380197",
+    "mastery_level": 0
+  },
+  "fb311bb6c54f8ef08ddcd25520de26d7": {
+    "concept": "Partner Model",
+    "definition": "نموذج الشريك",
+    "examples": [
+      "id",
+      "name",
+      "contact_info",
+      "identity_number",
+      "phone_number",
+      "email",
+      "address",
+      "share_percentage",
+      "currency",
+      "opening_balance"
+    ],
+    "related_concepts": [
+      "partners",
+      "shares",
+      "settlements"
+    ],
+    "created_at": "2025-11-24T12:53:57.804529",
+    "mastery_level": 0
+  },
+  "32e6035d267773065ec8023a3d9d1b6a": {
+    "concept": "Partner Settlement",
+    "definition": "تسوية الشريك",
+    "examples": [
+      "id",
+      "code",
+      "partner_id",
+      "from_date",
+      "to_date",
+      "currency",
+      "fx_rate_used",
+      "fx_rate_source"
+    ],
+    "related_concepts": [
+      "partners",
+      "accounting"
+    ],
+    "created_at": "2025-11-24T12:53:57.835999",
+    "mastery_level": 0
+  },
+  "427e54b1a290217789f9ba651837ed3a": {
+    "concept": "Partner Share",
+    "definition": "حصة الشريك",
+    "examples": [
+      "id",
+      "partner_id",
+      "warehouse_id",
+      "product_id",
+      "share_percentage",
+      "share_amount",
+      "notes",
+      "created_at",
+      "updated_at"
+    ],
+    "related_concepts": [
+      "partners",
+      "warehouses",
+      "products"
+    ],
+    "created_at": "2025-11-24T12:53:57.875688",
+    "mastery_level": 0
+  },
+  "77834f07bd2212ea5c1677dfe65404ec": {
+    "concept": "Product Model",
+    "definition": "نموذج المنتج",
+    "examples": [
+      "id",
+      "sku",
+      "name",
+      "description",
+      "part_number",
+      "brand",
+      "commercial_name",
+      "chassis_number",
+      "serial_no",
+      "barcode",
+      "unit",
+      "category_name",
+      "purchase_price",
+      "selling_price",
+      "cost_before_shipping"
+    ],
+    "related_concepts": [
+      "products",
+      "inventory",
+      "sales"
+    ],
+    "created_at": "2025-11-24T12:54:00.075126",
+    "mastery_level": 0
+  },
+  "10991ea03e3591bebc4c0827fc369540": {
+    "concept": "Product Category",
+    "definition": "فئة المنتج",
+    "examples": [
+      "id",
+      "name",
+      "parent_id",
+      "description",
+      "image_url",
+      "created_at",
+      "updated_at"
+    ],
+    "related_concepts": [
+      "products",
+      "categories"
+    ],
+    "created_at": "2025-11-24T12:54:00.093953",
+    "mastery_level": 0
+  },
+  "80029858c158bd2bc12127c569a511bd": {
+    "concept": "Owner Only Decorator",
+    "definition": "ديكوراتور للمالك فقط",
+    "examples": [
+      "@owner_only"
+    ],
+    "related_concepts": [
+      "security",
+      "owner",
+      "permissions"
+    ],
+    "created_at": "2025-11-24T12:54:12.881136",
+    "mastery_level": 0
+  },
+  "6ef501479a4e74b276964ff309a03dfe": {
+    "concept": "Module: warehouses",
+    "definition": "وحدة warehouses - 49 route",
+    "examples": [],
+    "related_concepts": [
+      "warehouses",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:54:16.737582",
+    "mastery_level": 0
+  },
+  "8aa458eecefccec532294b8411c35a92": {
+    "concept": "Module: branches",
+    "definition": "وحدة branches - 14 route",
+    "examples": [
+      "owner_required",
+      "decorated",
+      "list_branches",
+      "create_branch",
+      "edit_branch"
+    ],
+    "related_concepts": [
+      "branches",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:54:17.573700",
+    "mastery_level": 0
+  },
+  "2887cd1e28202daf9fbc44039d7c69df": {
+    "concept": "Module: expenses",
+    "definition": "وحدة expenses - 29 route",
+    "examples": [],
+    "related_concepts": [
+      "expenses",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:54:19.136633",
+    "mastery_level": 0
+  },
+  "e31d43fd1172c53b071a7d3d2477529c": {
+    "concept": "Module: shipments",
+    "definition": "وحدة shipments - 13 route",
+    "examples": [],
+    "related_concepts": [
+      "shipments",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:54:19.747888",
+    "mastery_level": 0
+  },
+  "3699f8a63f6c461102d0ec63a5fe3a01": {
+    "concept": "Module: notes",
+    "definition": "وحدة notes - 7 route",
+    "examples": [
+      "list_notes",
+      "create_note",
+      "note_detail"
+    ],
+    "related_concepts": [
+      "notes",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:54:26.275709",
+    "mastery_level": 0
+  },
+  "53a255dba6acb89ac65d0e85caa1e5d6": {
+    "concept": "Module: recurring_invoices",
+    "definition": "وحدة recurring_invoices - 7 route",
+    "examples": [
+      "index",
+      "add_template",
+      "edit_template",
+      "toggle_template",
+      "delete_template"
+    ],
+    "related_concepts": [
+      "recurring_invoices",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:54:30.045064",
+    "mastery_level": 0
+  },
+  "f7d3ca6ba361af62fdd41fde2506d295": {
+    "concept": "Module: barcode",
+    "definition": "وحدة barcode - 0 route",
+    "examples": [
+      "barcode_validate"
+    ],
+    "related_concepts": [
+      "barcode",
+      "system_modules"
+    ],
+    "created_at": "2025-11-24T12:54:30.786033",
+    "mastery_level": 0
+  },
+  "fca82dc613753becc0f5ae7fe61070bf": {
+    "concept": "SaleReturn Model",
+    "definition": "نموذج مرتجع البيع",
+    "examples": [
+      "id",
+      "sale_id",
+      "customer_id",
+      "warehouse_id",
+      "reason",
+      "status",
+      "notes",
+      "total_amount",
+      "tax_rate",
+      "tax_amount"
+    ],
+    "related_concepts": [
+      "sales",
+      "returns",
+      "inventory"
+    ],
+    "created_at": "2025-11-24T12:54:33.529392",
+    "mastery_level": 0
+  },
+  "b9131939dec8adce982fcce75b8d9785": {
+    "concept": "Hard Delete Service: HardDeleteService",
+    "definition": "خدمة الحذف الدائم",
+    "examples": [],
+    "related_concepts": [
+      "hard_delete",
+      "security"
+    ],
+    "created_at": "2025-11-24T12:54:35.187855",
+    "mastery_level": 0
+  },
+  "6b215b8b5d7d79cc9418a2508c7296b4": {
+    "concept": "Hard Delete Service: DeletionConfirmationService",
+    "definition": "خدمة الحذف الدائم",
+    "examples": [],
+    "related_concepts": [
+      "hard_delete",
+      "security"
+    ],
+    "created_at": "2025-11-24T12:54:35.205896",
+    "mastery_level": 0
+  },
+  "cf819c2c63c365247000c8f1d450e76e": {
+    "concept": "AI Engine: ai_accounting_auditor",
+    "definition": "محرك AI في ai_accounting_auditor.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:40.865960",
+    "mastery_level": 0
+  },
+  "305130c052ef669774f78ad6a292a976": {
+    "concept": "AI Engine: ai_accounting_professional",
+    "definition": "محرك AI في ai_accounting_professional.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:40.883505",
+    "mastery_level": 0
+  },
+  "f12b52d0bb70ea201189c108b813ed32": {
+    "concept": "AI Engine: ai_action_executor",
+    "definition": "محرك AI في ai_action_executor.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:40.902591",
+    "mastery_level": 0
+  },
+  "d6e205e74e66bea652478a30b188b99b": {
+    "concept": "AI Engine: ai_advanced_intelligence",
+    "definition": "محرك AI في ai_advanced_intelligence.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:40.920688",
+    "mastery_level": 0
+  },
+  "87b1e2916f8f4056b4f22408dd287a58": {
+    "concept": "AI Engine: ai_auto_discovery",
+    "definition": "محرك AI في ai_auto_discovery.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:40.938631",
+    "mastery_level": 0
+  },
+  "26f21b53879cc85624a3858ddcfd4365": {
+    "concept": "AI Engine: ai_auto_learning",
+    "definition": "محرك AI في ai_auto_learning.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:40.957417",
+    "mastery_level": 0
+  },
+  "5e5a3d7664bd17f29531f3761cb667ca": {
+    "concept": "AI Engine: ai_auto_training",
+    "definition": "محرك AI في ai_auto_training.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:40.974506",
+    "mastery_level": 0
+  },
+  "1a84059d99d6e2f9d465c3a8fb511d52": {
+    "concept": "AI Engine: ai_book_reader",
+    "definition": "محرك AI في ai_book_reader.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:40.994187",
+    "mastery_level": 0
+  },
+  "621e259eb0db1ec18f9bd66697184a27": {
+    "concept": "AI Engine: ai_business_knowledge",
+    "definition": "محرك AI في ai_business_knowledge.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.011741",
+    "mastery_level": 0
+  },
+  "6f1a1a12ca19343fd062560db7376a78": {
+    "concept": "AI Engine: ai_code_quality_monitor",
+    "definition": "محرك AI في ai_code_quality_monitor.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.029574",
+    "mastery_level": 0
+  },
+  "80d500aa405d6ad2f8bc3654f40ca75c": {
+    "concept": "AI Engine: ai_comprehension_engine",
+    "definition": "محرك AI في ai_comprehension_engine.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.046853",
+    "mastery_level": 0
+  },
+  "37be6afd691cac475367f6f24bc207d1": {
+    "concept": "AI Engine: ai_continuous_learner",
+    "definition": "محرك AI في ai_continuous_learner.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.063599",
+    "mastery_level": 0
+  },
+  "14f02f2ebf278b46e8fa1acf81473192": {
+    "concept": "AI Engine: ai_conversation",
+    "definition": "محرك AI في ai_conversation.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.081412",
+    "mastery_level": 0
+  },
+  "aab335cc6270931f60d58aef6d2f12fd": {
+    "concept": "AI Engine: ai_database_expert",
+    "definition": "محرك AI في ai_database_expert.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.098329",
+    "mastery_level": 0
+  },
+  "1fb14db517785f6bf65e2519923e5fe5": {
+    "concept": "AI Engine: ai_database_search",
+    "definition": "محرك AI في ai_database_search.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.116231",
+    "mastery_level": 0
+  },
+  "ee4462f66c8da9d07b3fe80f9eb89e82": {
+    "concept": "AI Engine: ai_data_awareness",
+    "definition": "محرك AI في ai_data_awareness.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.135703",
+    "mastery_level": 0
+  },
+  "a05291c4430fe5cbb63044b112336512": {
+    "concept": "AI Engine: ai_deep_memory",
+    "definition": "محرك AI في ai_deep_memory.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.153598",
+    "mastery_level": 0
+  },
+  "81be031ee86129277b069db461a2e7a9": {
+    "concept": "AI Engine: ai_diagnostic_engine",
+    "definition": "محرك AI في ai_diagnostic_engine.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.174823",
+    "mastery_level": 0
+  },
+  "cb71b33dad61e09e160029e3ff7dc61f": {
+    "concept": "AI Engine: ai_ecu_knowledge",
+    "definition": "محرك AI في ai_ecu_knowledge.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.194099",
+    "mastery_level": 0
+  },
+  "ce7d2480ca93e07d46b41a74b78f4d14": {
+    "concept": "AI Engine: ai_event_listeners",
+    "definition": "محرك AI في ai_event_listeners.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.212059",
+    "mastery_level": 0
+  },
+  "adb50ffda9277618ec4aa81ac6de0a4a": {
+    "concept": "AI Engine: ai_gl_knowledge",
+    "definition": "محرك AI في ai_gl_knowledge.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.229697",
+    "mastery_level": 0
+  },
+  "6e9c60136eb6135f26b99a28317d7e17": {
+    "concept": "AI Engine: ai_heavy_equipment_expert",
+    "definition": "محرك AI في ai_heavy_equipment_expert.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.246712",
+    "mastery_level": 0
+  },
+  "a3b0b4edef9137b4426e9a6eb3aebec3": {
+    "concept": "AI Engine: ai_hybrid_engine",
+    "definition": "محرك AI في ai_hybrid_engine.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.263538",
+    "mastery_level": 0
+  },
+  "ee986c1adc36fcd11cf914cc762c635d": {
+    "concept": "AI Engine: ai_integrated_intelligence",
+    "definition": "محرك AI في ai_integrated_intelligence.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.280544",
+    "mastery_level": 0
+  },
+  "ca2451e8279802769c6a17944738ce0d": {
+    "concept": "AI Engine: ai_intelligence_engine",
+    "definition": "محرك AI في ai_intelligence_engine.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.298023",
+    "mastery_level": 0
+  },
+  "e5f2f9f34c39ae63148db6496bb43866": {
+    "concept": "AI Engine: ai_intensive_trainer",
+    "definition": "محرك AI في ai_intensive_trainer.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.315133",
+    "mastery_level": 0
+  },
+  "d77f41c1557d5ca679788686d082721a": {
+    "concept": "AI Engine: ai_knowledge",
+    "definition": "محرك AI في ai_knowledge.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.332909",
+    "mastery_level": 0
+  },
+  "21f61deb27345872779f72cbfd4cad11": {
+    "concept": "AI Engine: ai_knowledge_finance",
+    "definition": "محرك AI في ai_knowledge_finance.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.350033",
+    "mastery_level": 0
+  },
+  "5f8fd4aeb9428e79ba7c17d1b9bdc7c6": {
+    "concept": "AI Engine: ai_learning_system",
+    "definition": "محرك AI في ai_learning_system.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.367555",
+    "mastery_level": 0
+  },
+  "6241c51db5a92bd71c6f352805080230": {
+    "concept": "AI Engine: ai_management",
+    "definition": "محرك AI في ai_management.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.385701",
+    "mastery_level": 0
+  },
+  "1dc213257daee25f5332f8a50ef35eb1": {
+    "concept": "AI Engine: ai_marathon_trainer",
+    "definition": "محرك AI في ai_marathon_trainer.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.405791",
+    "mastery_level": 0
+  },
+  "c4dab77c6d7bd6fb0a1f1fc9f672cf71": {
+    "concept": "AI Engine: ai_master_controller",
+    "definition": "محرك AI في ai_master_controller.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.423159",
+    "mastery_level": 0
+  },
+  "92b1f55729ee10f45e8f664a437886f8": {
+    "concept": "AI Engine: ai_mechanical_knowledge",
+    "definition": "محرك AI في ai_mechanical_knowledge.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.441092",
+    "mastery_level": 0
+  },
+  "655a3ef7c33392c4d8f90af082660caa": {
+    "concept": "AI Engine: ai_nlp_engine",
+    "definition": "محرك AI في ai_nlp_engine.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.458192",
+    "mastery_level": 0
+  },
+  "6b5fefd21913c6dc915258bde96313ff": {
+    "concept": "AI Engine: ai_operations_knowledge",
+    "definition": "محرك AI في ai_operations_knowledge.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.475275",
+    "mastery_level": 0
+  },
+  "87c339779d0d6e09ef9cd35fd3225434": {
+    "concept": "AI Engine: ai_parts_database",
+    "definition": "محرك AI في ai_parts_database.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.492372",
+    "mastery_level": 0
+  },
+  "c645dcfad3f860be67e3aa76410f4f46": {
+    "concept": "AI Engine: ai_performance_tracker",
+    "definition": "محرك AI في ai_performance_tracker.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.509719",
+    "mastery_level": 0
+  },
+  "38831b94942693b5e6f182e60a31ebde": {
+    "concept": "AI Engine: ai_permissions",
+    "definition": "محرك AI في ai_permissions.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.527450",
+    "mastery_level": 0
+  },
+  "a3812f5318b9d7e39e3330b506ec36e3": {
+    "concept": "AI Engine: ai_predictive_analytics",
+    "definition": "محرك AI في ai_predictive_analytics.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.544902",
+    "mastery_level": 0
+  },
+  "9ca892e4b2fadc233ad17d2ae5ab8d82": {
+    "concept": "AI Engine: ai_python_expert",
+    "definition": "محرك AI في ai_python_expert.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.563204",
+    "mastery_level": 0
+  },
+  "0323e6efadf6bfed4c653d225e51b900": {
+    "concept": "AI Engine: ai_reasoning_engine",
+    "definition": "محرك AI في ai_reasoning_engine.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.580185",
+    "mastery_level": 0
+  },
+  "d0b47b8e2a963f208b4e5c0d79889211": {
+    "concept": "AI Engine: ai_security",
+    "definition": "محرك AI في ai_security.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.598803",
+    "mastery_level": 0
+  },
+  "b13f3bbc00bcd79053056fff203baa34": {
+    "concept": "AI Engine: ai_self_evolution",
+    "definition": "محرك AI في ai_self_evolution.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.616720",
+    "mastery_level": 0
+  },
+  "2a061f851cc5b9ff2af57ca99816f12f": {
+    "concept": "AI Engine: ai_self_review",
+    "definition": "محرك AI في ai_self_review.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.634241",
+    "mastery_level": 0
+  },
+  "e4bd7e8882bd191050f711b85bc5b522": {
+    "concept": "AI Engine: ai_service",
+    "definition": "محرك AI في ai_service.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.651484",
+    "mastery_level": 0
+  },
+  "32c9624c9fa4122c6e2472fa05dac724": {
+    "concept": "AI Engine: ai_specialized_training",
+    "definition": "محرك AI في ai_specialized_training.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.668822",
+    "mastery_level": 0
+  },
+  "6fcc86166d0b04a3a8aad390b190f776": {
+    "concept": "AI Engine: ai_system_deep_trainer",
+    "definition": "محرك AI في ai_system_deep_trainer.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.688543",
+    "mastery_level": 0
+  },
+  "5ba3ad067bf36918f0900a6f2cdc83a4": {
+    "concept": "AI Engine: ai_training_engine",
+    "definition": "محرك AI في ai_training_engine.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.705708",
+    "mastery_level": 0
+  },
+  "af1b7e7ac97a0c6b6708baf4a6bafbbd": {
+    "concept": "AI Engine: ai_unified_mind",
+    "definition": "محرك AI في ai_unified_mind.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.722925",
+    "mastery_level": 0
+  },
+  "3209ba9161324af81340613f24803089": {
+    "concept": "AI Engine: ai_user_guide_knowledge",
+    "definition": "محرك AI في ai_user_guide_knowledge.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.739863",
+    "mastery_level": 0
+  },
+  "f1579e39cac72a811fee4e9d83f927a2": {
+    "concept": "AI Engine: ai_user_guide_master",
+    "definition": "محرك AI في ai_user_guide_master.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.757035",
+    "mastery_level": 0
+  },
+  "24db4218ae0eb012987b5d7b486af757": {
+    "concept": "AI Engine: ai_web_expert",
+    "definition": "محرك AI في ai_web_expert.py",
+    "examples": [],
+    "related_concepts": [
+      "ai",
+      "engine"
+    ],
+    "created_at": "2025-11-24T12:54:41.774839",
+    "mastery_level": 0
+  },
+  "4a10bd6edeec65cb65916298676b0074": {
+    "concept": "جدول: _alembic_tmp_bank_reconciliations",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "bank_account_id",
+      "reconciliation_number",
+      "period_start",
+      "period_end"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:26.423673",
+    "mastery_level": 0
+  },
+  "87a6c70dd2c412900d80ef02b38a57e2": {
+    "concept": "جدول: accounts",
+    "definition": "جدول في قاعدة البيانات يحتوي على 7 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "type",
+      "is_active"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:26.486952",
+    "mastery_level": 0
+  },
+  "f3260989477d41ed3b1aee8d6c312ced": {
+    "concept": "جدول: alembic_version",
+    "definition": "جدول في قاعدة البيانات يحتوي على 1 عمود",
+    "examples": [
+      "version_num"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:26.545954",
+    "mastery_level": 0
+  },
+  "4a3ceb50b22ecd787cbdb71de6158c29": {
+    "concept": "جدول: archives",
+    "definition": "جدول في قاعدة البيانات يحتوي على 10 عمود",
+    "examples": [
+      "id",
+      "record_type",
+      "record_id",
+      "table_name",
+      "archived_data"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:26.573347",
+    "mastery_level": 0
+  },
+  "406db6630d249994c991f4189088417a": {
+    "concept": "جدول: asset_depreciations",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "asset_id",
+      "fiscal_year",
+      "fiscal_month",
+      "depreciation_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:26.625381",
+    "mastery_level": 0
+  },
+  "fb1106a021cc1d9c3867b90e75b9fe5f": {
+    "concept": "جدول: asset_maintenance",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "asset_id",
+      "maintenance_date",
+      "maintenance_type",
+      "cost"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:26.696499",
+    "mastery_level": 0
+  },
+  "29629ded03262e3beb3b61781c79f532": {
+    "concept": "جدول: audit_logs",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "model_name",
+      "record_id",
+      "customer_id",
+      "user_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:26.772492",
+    "mastery_level": 0
+  },
+  "2a49048176844a36ff915437a2191ff0": {
+    "concept": "جدول: auth_audit",
+    "definition": "جدول في قاعدة البيانات يحتوي على 9 عمود",
+    "examples": [
+      "id",
+      "user_id",
+      "event",
+      "success",
+      "ip"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:26.850568",
+    "mastery_level": 0
+  },
+  "414bea0c58e2ad05849ab6751aa1ce50": {
+    "concept": "جدول: bank_accounts",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "bank_name",
+      "account_number"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:26.920933",
+    "mastery_level": 0
+  },
+  "6147ad9c54bb8a4b527e5067e4aab653": {
+    "concept": "جدول: bank_reconciliations",
+    "definition": "جدول في قاعدة البيانات يحتوي على 21 عمود",
+    "examples": [
+      "id",
+      "bank_account_id",
+      "reconciliation_number",
+      "period_start",
+      "period_end"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:27.074910",
+    "mastery_level": 0
+  },
+  "d6332e5bd86b2dd4e13a9da6b1207afa": {
+    "concept": "جدول: bank_statements",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "bank_account_id",
+      "statement_number",
+      "statement_date",
+      "period_start"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:27.266482",
+    "mastery_level": 0
+  },
+  "120780afdd0959a843d1b4fea4c013a4": {
+    "concept": "جدول: bank_transactions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "bank_account_id",
+      "statement_id",
+      "transaction_date",
+      "value_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:27.457125",
+    "mastery_level": 0
+  },
+  "bbebc22401593f367942862147beae53": {
+    "concept": "جدول: branches",
+    "definition": "جدول في قاعدة البيانات يحتوي على 22 عمود",
+    "examples": [
+      "id",
+      "name",
+      "code",
+      "is_active",
+      "address"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:27.721855",
+    "mastery_level": 0
+  },
+  "183564b3a2e6110474f695e93bf2d4be": {
+    "concept": "جدول: budget_commitments",
+    "definition": "جدول في قاعدة البيانات يحتوي على 10 عمود",
+    "examples": [
+      "id",
+      "budget_id",
+      "source_type",
+      "source_id",
+      "committed_amount"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:27.955291",
+    "mastery_level": 0
+  },
+  "141b8e161171a8cbaa18421534f7fbe7": {
+    "concept": "جدول: budgets",
+    "definition": "جدول في قاعدة البيانات يحتوي على 10 عمود",
+    "examples": [
+      "id",
+      "fiscal_year",
+      "account_code",
+      "branch_id",
+      "site_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:28.084983",
+    "mastery_level": 0
+  },
+  "00d72f287cac7a5f519114d4f6e55ad1": {
+    "concept": "جدول: checks",
+    "definition": "جدول في قاعدة البيانات يحتوي على 43 عمود",
+    "examples": [
+      "id",
+      "check_number",
+      "check_bank",
+      "check_date",
+      "check_due_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:28.301988",
+    "mastery_level": 0
+  },
+  "b157e5aa5650663d1a66e7f7d7b388b7": {
+    "concept": "جدول: cost_allocation_execution_lines",
+    "definition": "جدول في قاعدة البيانات يحتوي على 7 عمود",
+    "examples": [
+      "id",
+      "execution_id",
+      "source_cost_center_id",
+      "target_cost_center_id",
+      "amount"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:28.905421",
+    "mastery_level": 0
+  },
+  "ed36b598aba04e7261cd3a226d62a64d": {
+    "concept": "جدول: cost_allocation_executions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 9 عمود",
+    "examples": [
+      "id",
+      "rule_id",
+      "execution_date",
+      "total_amount",
+      "status"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:29.056616",
+    "mastery_level": 0
+  },
+  "fd058a4fe622aa0eb2306aadb00d271d": {
+    "concept": "جدول: cost_allocation_lines",
+    "definition": "جدول في قاعدة البيانات يحتوي على 8 عمود",
+    "examples": [
+      "id",
+      "rule_id",
+      "target_cost_center_id",
+      "percentage",
+      "fixed_amount"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:29.207293",
+    "mastery_level": 0
+  },
+  "12c1c3325b4bfd2b6c1434953d0feebf": {
+    "concept": "جدول: cost_allocation_rules",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "description",
+      "source_cost_center_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:29.351321",
+    "mastery_level": 0
+  },
+  "ef51e8d0ba36476cf6eb199fbb9a872a": {
+    "concept": "جدول: cost_center_alert_logs",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "alert_id",
+      "cost_center_id",
+      "triggered_at",
+      "trigger_value"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:29.617074",
+    "mastery_level": 0
+  },
+  "e501f3411c83f4fd9dfd75ce492a8b84": {
+    "concept": "جدول: cost_center_alerts",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "cost_center_id",
+      "alert_type",
+      "threshold_type",
+      "threshold_value"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:29.853938",
+    "mastery_level": 0
+  },
+  "a4519b98eeda2541c2565e40d2b01fcf": {
+    "concept": "جدول: cost_center_allocations",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "cost_center_id",
+      "source_type",
+      "source_id",
+      "amount"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:30.145265",
+    "mastery_level": 0
+  },
+  "33fad68e22def52121ce9e51526b5fbd": {
+    "concept": "جدول: cost_centers",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "parent_id",
+      "description"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:30.396767",
+    "mastery_level": 0
+  },
+  "178ff43e79878f24be4adadf4664509d": {
+    "concept": "جدول: currencies",
+    "definition": "جدول في قاعدة البيانات يحتوي على 5 عمود",
+    "examples": [
+      "code",
+      "name",
+      "symbol",
+      "decimals",
+      "is_active"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:30.670728",
+    "mastery_level": 0
+  },
+  "34aa9013148122142bb2e889d71110e4": {
+    "concept": "جدول: customer_loyalty",
+    "definition": "جدول في قاعدة البيانات يحتوي على 10 عمود",
+    "examples": [
+      "id",
+      "customer_id",
+      "total_points",
+      "available_points",
+      "used_points"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:30.775131",
+    "mastery_level": 0
+  },
+  "7c55fdfa63769470049b0970f7e888fc": {
+    "concept": "جدول: customer_loyalty_points",
+    "definition": "جدول في قاعدة البيانات يحتوي على 10 عمود",
+    "examples": [
+      "id",
+      "customer_id",
+      "points",
+      "reason",
+      "type"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:30.973846",
+    "mastery_level": 0
+  },
+  "de94891da5912b1905dd17e54fb47650": {
+    "concept": "جدول: customers",
+    "definition": "جدول في قاعدة البيانات يحتوي على 36 عمود",
+    "examples": [
+      "id",
+      "name",
+      "phone",
+      "whatsapp",
+      "email"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:31.187498",
+    "mastery_level": 0
+  },
+  "5e11d20829fcef46c67f0e58633688d2": {
+    "concept": "جدول: deletion_logs",
+    "definition": "جدول في قاعدة البيانات يحتوي على 18 عمود",
+    "examples": [
+      "id",
+      "deletion_type",
+      "entity_id",
+      "entity_name",
+      "status"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:31.845842",
+    "mastery_level": 0
+  },
+  "2c31091dd57d4740603bf21f99c4bc3c": {
+    "concept": "جدول: employee_advance_installments",
+    "definition": "جدول في قاعدة البيانات يحتوي على 13 عمود",
+    "examples": [
+      "id",
+      "employee_id",
+      "advance_expense_id",
+      "installment_number",
+      "total_installments"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:32.213086",
+    "mastery_level": 0
+  },
+  "fdd368cb787034dc83845f408895a448": {
+    "concept": "جدول: employee_advances",
+    "definition": "جدول في قاعدة البيانات يحتوي على 13 عمود",
+    "examples": [
+      "id",
+      "employee_id",
+      "amount",
+      "currency",
+      "advance_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:32.548256",
+    "mastery_level": 0
+  },
+  "61fd77d90aac0207d86c83f48be82aee": {
+    "concept": "جدول: employee_deductions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "employee_id",
+      "deduction_type",
+      "amount",
+      "currency"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:32.865233",
+    "mastery_level": 0
+  },
+  "01fc5161a309c50171ae9555da849b3b": {
+    "concept": "جدول: employee_skills",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "employee_id",
+      "skill_id",
+      "proficiency_level",
+      "years_experience"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:33.192905",
+    "mastery_level": 0
+  },
+  "d950a2780e14e075a02c90e6f1ec2c24": {
+    "concept": "جدول: employees",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "name",
+      "position",
+      "phone",
+      "email"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:33.693022",
+    "mastery_level": 0
+  },
+  "ccdc1d5aa3f542603e0fcdf917b6c398": {
+    "concept": "جدول: engineering_job_documents",
+    "definition": "جدول في قاعدة البيانات يحتوي على 10 عمود",
+    "examples": [
+      "id",
+      "job_id",
+      "task_id",
+      "document_type",
+      "title"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:34.127006",
+    "mastery_level": 0
+  },
+  "638bb86fe749bcbc4bcc86b0a5e7e39e": {
+    "concept": "جدول: engineering_job_logbook",
+    "definition": "جدول في قاعدة البيانات يحتوي على 13 عمود",
+    "examples": [
+      "id",
+      "job_id",
+      "task_id",
+      "shift_id",
+      "entry_time"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:34.432113",
+    "mastery_level": 0
+  },
+  "a22e86e9fe485c6071b4ff791bd2f5dc": {
+    "concept": "جدول: engineering_job_shift_participants",
+    "definition": "جدول في قاعدة البيانات يحتوي على 5 عمود",
+    "examples": [
+      "id",
+      "shift_id",
+      "employee_id",
+      "role",
+      "hours_worked"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:34.807349",
+    "mastery_level": 0
+  },
+  "be88017c79d20218359bfb5b6b3fcd40": {
+    "concept": "جدول: engineering_job_shifts",
+    "definition": "جدول في قاعدة البيانات يحتوي على 6 عمود",
+    "examples": [
+      "id",
+      "job_id",
+      "shift_date",
+      "shift_number",
+      "team_lead_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:34.987986",
+    "mastery_level": 0
+  },
+  "d72d48090a7fde02aac66675ffdf7a0c": {
+    "concept": "جدول: engineering_job_tasks",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "job_id",
+      "task_number",
+      "title",
+      "description"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:35.204560",
+    "mastery_level": 0
+  },
+  "b7a00454519a9ca62603bec2d6b2a253": {
+    "concept": "جدول: engineering_jobs",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "job_number",
+      "title",
+      "description",
+      "status"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:35.880674",
+    "mastery_level": 0
+  },
+  "5e86cb71bddb02ee8cc4dd3fe70cab41": {
+    "concept": "جدول: engineering_skills",
+    "definition": "جدول في قاعدة البيانات يحتوي على 11 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "name_ar",
+      "category"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:36.501183",
+    "mastery_level": 0
+  },
+  "f0b4f03c8530734ed51b7b34a500f7bb": {
+    "concept": "جدول: engineering_tasks",
+    "definition": "جدول في قاعدة البيانات يحتوي على 38 عمود",
+    "examples": [
+      "id",
+      "task_number",
+      "title",
+      "description",
+      "task_type"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:36.778829",
+    "mastery_level": 0
+  },
+  "e2ad7decd66564ab2bf7707b978fa6ca": {
+    "concept": "جدول: engineering_team_members",
+    "definition": "جدول في قاعدة البيانات يحتوي على 10 عمود",
+    "examples": [
+      "id",
+      "team_id",
+      "employee_id",
+      "role",
+      "join_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:38.196304",
+    "mastery_level": 0
+  },
+  "b3cc884618b9b2c0e78e7a793e63717f": {
+    "concept": "جدول: engineering_teams",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "team_leader_id",
+      "specialty"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:38.583055",
+    "mastery_level": 0
+  },
+  "5e17d2541843fc849fd78dbf5a857bc2": {
+    "concept": "جدول: engineering_timesheets",
+    "definition": "جدول في قاعدة البيانات يحتوي على 26 عمود",
+    "examples": [
+      "id",
+      "employee_id",
+      "task_id",
+      "work_date",
+      "start_time"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:39.163926",
+    "mastery_level": 0
+  },
+  "24b073268de8d9d44fdf76cff9fffa0e": {
+    "concept": "جدول: equipment_types",
+    "definition": "جدول في قاعدة البيانات يحتوي على 8 عمود",
+    "examples": [
+      "id",
+      "name",
+      "model_number",
+      "chassis_number",
+      "notes"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:40.137532",
+    "mastery_level": 0
+  },
+  "18b691ff32e836d948c552facc6a4e26": {
+    "concept": "جدول: exchange_rates",
+    "definition": "جدول في قاعدة البيانات يحتوي على 7 عمود",
+    "examples": [
+      "id",
+      "base_code",
+      "quote_code",
+      "rate",
+      "valid_from"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:40.415124",
+    "mastery_level": 0
+  },
+  "f6e361ad0132929eb93a855a6575ea5d": {
+    "concept": "جدول: exchange_transactions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "product_id",
+      "warehouse_id",
+      "supplier_id",
+      "partner_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:40.704098",
+    "mastery_level": 0
+  },
+  "b5ca430b263104204062d1fa718823d3": {
+    "concept": "جدول: expense_types",
+    "definition": "جدول في قاعدة البيانات يحتوي على 8 عمود",
+    "examples": [
+      "id",
+      "name",
+      "description",
+      "is_active",
+      "created_at"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:41.210382",
+    "mastery_level": 0
+  },
+  "d5a409c5c1bac4c18d97a5542fe52064": {
+    "concept": "جدول: expenses",
+    "definition": "جدول في قاعدة البيانات يحتوي على 169 عمود",
+    "examples": [
+      "id",
+      "date",
+      "amount",
+      "currency",
+      "fx_rate_used"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:41.486690",
+    "mastery_level": 0
+  },
+  "ee25e8bc1b0e04c44561c842ebb0b3fa": {
+    "concept": "جدول: fixed_asset_categories",
+    "definition": "جدول في قاعدة البيانات يحتوي على 11 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "account_code",
+      "depreciation_account_code"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:47.319339",
+    "mastery_level": 0
+  },
+  "0114087b8d3d8b60fda2b023f2b26600": {
+    "concept": "جدول: fixed_assets",
+    "definition": "جدول في قاعدة البيانات يحتوي على 20 عمود",
+    "examples": [
+      "id",
+      "asset_number",
+      "name",
+      "category_id",
+      "branch_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:47.685597",
+    "mastery_level": 0
+  },
+  "e5c47924255f15c678799df3ade30330": {
+    "concept": "جدول: gl_batches",
+    "definition": "جدول في قاعدة البيانات يحتوي على 13 عمود",
+    "examples": [
+      "id",
+      "code",
+      "source_type",
+      "source_id",
+      "purpose"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:48.255087",
+    "mastery_level": 0
+  },
+  "7890e088254fe4a8d2d24e39742f6645": {
+    "concept": "جدول: gl_entries",
+    "definition": "جدول في قاعدة البيانات يحتوي على 9 عمود",
+    "examples": [
+      "id",
+      "batch_id",
+      "account",
+      "debit",
+      "credit"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:48.570934",
+    "mastery_level": 0
+  },
+  "03ff6c1c983041d6c6eedec08d935b2b": {
+    "concept": "جدول: import_runs",
+    "definition": "جدول في قاعدة البيانات يحتوي على 16 عمود",
+    "examples": [
+      "id",
+      "warehouse_id",
+      "user_id",
+      "filename",
+      "file_sha256"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:48.912040",
+    "mastery_level": 0
+  },
+  "0aeb77dc55dde9b5ce88da0b7d398804": {
+    "concept": "جدول: invoice_lines",
+    "definition": "جدول في قاعدة البيانات يحتوي على 8 عمود",
+    "examples": [
+      "id",
+      "invoice_id",
+      "description",
+      "quantity",
+      "unit_price"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:49.592085",
+    "mastery_level": 0
+  },
+  "e63863a1653669926728a8784e0acd76": {
+    "concept": "جدول: invoices",
+    "definition": "جدول في قاعدة البيانات يحتوي على 33 عمود",
+    "examples": [
+      "id",
+      "invoice_number",
+      "invoice_date",
+      "due_date",
+      "customer_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:49.966742",
+    "mastery_level": 0
+  },
+  "c932a8c89c7b41a6fe0ddb2063750696": {
+    "concept": "جدول: notes",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "content",
+      "author_id",
+      "entity_type",
+      "entity_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:51.459576",
+    "mastery_level": 0
+  },
+  "cb8219f3a16781c9e8965e115dc78a66": {
+    "concept": "جدول: notification_logs",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "type",
+      "recipient",
+      "subject",
+      "content"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:51.966168",
+    "mastery_level": 0
+  },
+  "45685e60bdc9c0025e607c13d21adf81": {
+    "concept": "جدول: online_cart_items",
+    "definition": "جدول في قاعدة البيانات يحتوي على 6 عمود",
+    "examples": [
+      "id",
+      "cart_id",
+      "product_id",
+      "quantity",
+      "price"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:52.406752",
+    "mastery_level": 0
+  },
+  "e00e087a6a009ca17d7cae866c1ac534": {
+    "concept": "جدول: online_carts",
+    "definition": "جدول في قاعدة البيانات يحتوي على 8 عمود",
+    "examples": [
+      "id",
+      "cart_id",
+      "customer_id",
+      "session_id",
+      "status"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:52.659005",
+    "mastery_level": 0
+  },
+  "230a11ae1986b99efd8072789da9fbc8": {
+    "concept": "جدول: online_payments",
+    "definition": "جدول في قاعدة البيانات يحتوي على 25 عمود",
+    "examples": [
+      "id",
+      "payment_ref",
+      "order_id",
+      "amount",
+      "currency"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:52.998391",
+    "mastery_level": 0
+  },
+  "0ec85aab4a2925880a16b7a0fe379485": {
+    "concept": "جدول: online_preorder_items",
+    "definition": "جدول في قاعدة البيانات يحتوي على 5 عمود",
+    "examples": [
+      "id",
+      "order_id",
+      "product_id",
+      "quantity",
+      "price"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:54.041825",
+    "mastery_level": 0
+  },
+  "279bc8945695db4ba75b76eded496e83": {
+    "concept": "جدول: online_preorders",
+    "definition": "جدول في قاعدة البيانات يحتوي على 26 عمود",
+    "examples": [
+      "id",
+      "order_number",
+      "customer_id",
+      "cart_id",
+      "warehouse_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:54.381094",
+    "mastery_level": 0
+  },
+  "49cdfee00726b87a59da7d261956d8f1": {
+    "concept": "جدول: partner_settlement_lines",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "settlement_id",
+      "source_type",
+      "source_id",
+      "description"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:56.386704",
+    "mastery_level": 0
+  },
+  "06b27759489b1098b784499632928d7d": {
+    "concept": "جدول: partner_settlements",
+    "definition": "جدول في قاعدة البيانات يحتوي على 38 عمود",
+    "examples": [
+      "id",
+      "code",
+      "partner_id",
+      "from_date",
+      "to_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:57.573694",
+    "mastery_level": 0
+  },
+  "8512f1e4ce646721b1a4c73ad9a5306c": {
+    "concept": "جدول: partners",
+    "definition": "جدول في قاعدة البيانات يحتوي على 32 عمود",
+    "examples": [
+      "id",
+      "name",
+      "contact_info",
+      "identity_number",
+      "phone_number"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:49:59.244508",
+    "mastery_level": 0
+  },
+  "68c15c3991e46f7db4b399ba3c308c39": {
+    "concept": "جدول: payment_splits",
+    "definition": "جدول في قاعدة البيانات يحتوي على 13 عمود",
+    "examples": [
+      "id",
+      "payment_id",
+      "method",
+      "amount",
+      "details"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:00.513875",
+    "mastery_level": 0
+  },
+  "aa54f30c89476a528393d2da6f79176a": {
+    "concept": "جدول: payments",
+    "definition": "جدول في قاعدة البيانات يحتوي على 48 عمود",
+    "examples": [
+      "id",
+      "payment_number",
+      "payment_date",
+      "subtotal",
+      "tax_rate"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:01.045273",
+    "mastery_level": 0
+  },
+  "b89b914d0af443e46de7098697b16c34": {
+    "concept": "جدول: permissions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 8 عمود",
+    "examples": [
+      "id",
+      "name",
+      "code",
+      "description",
+      "name_ar"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:04.138908",
+    "mastery_level": 0
+  },
+  "65cecb226c13d64c0b8214f056b675b9": {
+    "concept": "جدول: preorders",
+    "definition": "جدول في قاعدة البيانات يحتوي على 29 عمود",
+    "examples": [
+      "id",
+      "reference",
+      "preorder_date",
+      "expected_date",
+      "customer_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:04.472973",
+    "mastery_level": 0
+  },
+  "63cca3424133148a81756c4d2a28d478": {
+    "concept": "جدول: product_categories",
+    "definition": "جدول في قاعدة البيانات يحتوي على 7 عمود",
+    "examples": [
+      "id",
+      "name",
+      "parent_id",
+      "description",
+      "image_url"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:06.738876",
+    "mastery_level": 0
+  },
+  "dbb1e5231b7d3037730553ec548c5476": {
+    "concept": "جدول: product_partners",
+    "definition": "جدول في قاعدة البيانات يحتوي على 6 عمود",
+    "examples": [
+      "id",
+      "product_id",
+      "partner_id",
+      "share_percent",
+      "share_amount"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:07.470792",
+    "mastery_level": 0
+  },
+  "81c3b8eac919df7ae7aaf4b7ad1f7426": {
+    "concept": "جدول: product_rating_helpful",
+    "definition": "جدول في قاعدة البيانات يحتوي على 7 عمود",
+    "examples": [
+      "id",
+      "rating_id",
+      "customer_id",
+      "ip_address",
+      "is_helpful"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:08.198443",
+    "mastery_level": 0
+  },
+  "1917620b4833a71ae2990fce7036f2d3": {
+    "concept": "جدول: product_ratings",
+    "definition": "جدول في قاعدة البيانات يحتوي على 11 عمود",
+    "examples": [
+      "id",
+      "product_id",
+      "customer_id",
+      "rating",
+      "title"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:09.425944",
+    "mastery_level": 0
+  },
+  "264a49ae621fb8f602c2ff864b595abd": {
+    "concept": "جدول: product_supplier_loans",
+    "definition": "جدول في قاعدة البيانات يحتوي على 11 عمود",
+    "examples": [
+      "id",
+      "product_id",
+      "supplier_id",
+      "loan_value",
+      "deferred_price"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:10.385107",
+    "mastery_level": 0
+  },
+  "7e0149006e8dd3ca09b5c2a8c2365172": {
+    "concept": "جدول: products",
+    "definition": "جدول في قاعدة البيانات يحتوي على 50 عمود",
+    "examples": [
+      "id",
+      "sku",
+      "name",
+      "description",
+      "part_number"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:11.412191",
+    "mastery_level": 0
+  },
+  "20d0f0f65862a8ce327409216229c613": {
+    "concept": "جدول: project_change_orders",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "change_number",
+      "title",
+      "description"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:16.059841",
+    "mastery_level": 0
+  },
+  "fe88f11160133b1645c9c2d009c82d6d": {
+    "concept": "جدول: project_costs",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "phase_id",
+      "cost_type",
+      "source_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:17.667951",
+    "mastery_level": 0
+  },
+  "6879e68b4eddb068c6f28822b08cad2e": {
+    "concept": "جدول: project_issues",
+    "definition": "جدول في قاعدة البيانات يحتوي على 21 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "task_id",
+      "issue_number",
+      "title"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:18.855492",
+    "mastery_level": 0
+  },
+  "4b77aa8f5b2e81e2fd31cb96600c0f14": {
+    "concept": "جدول: project_milestones",
+    "definition": "جدول في قاعدة البيانات يحتوي على 23 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "phase_id",
+      "milestone_number",
+      "name"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:20.509859",
+    "mastery_level": 0
+  },
+  "a0f1baa7daf9005543b634ef2a3445ac": {
+    "concept": "جدول: project_phases",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "name",
+      "order",
+      "start_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:21.983493",
+    "mastery_level": 0
+  },
+  "26510463c56d5eb075541178eafc8e90": {
+    "concept": "جدول: project_resources",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "task_id",
+      "resource_type",
+      "employee_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:22.730805",
+    "mastery_level": 0
+  },
+  "6eef2ec104faf250923d4082d5982fff": {
+    "concept": "جدول: project_revenues",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "phase_id",
+      "revenue_type",
+      "source_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:23.677752",
+    "mastery_level": 0
+  },
+  "b39a9c206cccf424ffbdb5a0fc3aae9c": {
+    "concept": "جدول: project_risks",
+    "definition": "جدول في قاعدة البيانات يحتوي على 20 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "risk_number",
+      "title",
+      "description"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:24.733878",
+    "mastery_level": 0
+  },
+  "f697c9acafbc09d8e2a64eea830b63c9": {
+    "concept": "جدول: project_tasks",
+    "definition": "جدول في قاعدة البيانات يحتوي على 20 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "phase_id",
+      "task_number",
+      "name"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:26.971473",
+    "mastery_level": 0
+  },
+  "c823e49f3ddad90370613b2513134c62": {
+    "concept": "جدول: projects",
+    "definition": "جدول في قاعدة البيانات يحتوي على 24 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "client_id",
+      "start_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:28.736888",
+    "mastery_level": 0
+  },
+  "2a169f90b911f6ab5f69f10e87bdf693": {
+    "concept": "جدول: recurring_invoice_schedules",
+    "definition": "جدول في قاعدة البيانات يحتوي على 9 عمود",
+    "examples": [
+      "id",
+      "template_id",
+      "invoice_id",
+      "scheduled_date",
+      "generated_at"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:30.694423",
+    "mastery_level": 0
+  },
+  "e5e94f94f01f040cc2fc492f3ba601b6": {
+    "concept": "جدول: recurring_invoice_templates",
+    "definition": "جدول في قاعدة البيانات يحتوي على 16 عمود",
+    "examples": [
+      "id",
+      "template_name",
+      "customer_id",
+      "description",
+      "amount"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:31.523262",
+    "mastery_level": 0
+  },
+  "aa3b03827cef2cc2df4f257ac465d562": {
+    "concept": "جدول: resource_time_logs",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "task_id",
+      "resource_id",
+      "employee_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:33.008812",
+    "mastery_level": 0
+  },
+  "fdb9d03675d586bc56cb5a1a1e09b498": {
+    "concept": "جدول: role_permissions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 2 عمود",
+    "examples": [
+      "role_id",
+      "permission_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:34.480050",
+    "mastery_level": 0
+  },
+  "724ac8752f24d3ae19dcd84ab4e53ffe": {
+    "concept": "جدول: roles",
+    "definition": "جدول في قاعدة البيانات يحتوي على 4 عمود",
+    "examples": [
+      "id",
+      "name",
+      "description",
+      "is_default"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:34.793755",
+    "mastery_level": 0
+  },
+  "b7451c4e0fdb6cc4e028a028b2ec3ce9": {
+    "concept": "جدول: saas_invoices",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "invoice_number",
+      "subscription_id",
+      "amount",
+      "currency"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:35.119733",
+    "mastery_level": 0
+  },
+  "cc855f2e225f10d171041433d6e0c6fe": {
+    "concept": "جدول: saas_plans",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "name",
+      "description",
+      "price_monthly",
+      "price_yearly"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:36.083249",
+    "mastery_level": 0
+  },
+  "3e4ab631ee51472ad12d97705dba5626": {
+    "concept": "جدول: saas_subscriptions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 13 عمود",
+    "examples": [
+      "id",
+      "customer_id",
+      "plan_id",
+      "status",
+      "start_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:37.112246",
+    "mastery_level": 0
+  },
+  "5ed8a96e0a8f209c25de854ddb415f9b": {
+    "concept": "جدول: sale_lines",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "sale_id",
+      "product_id",
+      "warehouse_id",
+      "quantity"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:38.382653",
+    "mastery_level": 0
+  },
+  "0e791ef0a90288daf6a78d494c7771a1": {
+    "concept": "جدول: sale_return_lines",
+    "definition": "جدول في قاعدة البيانات يحتوي على 9 عمود",
+    "examples": [
+      "id",
+      "sale_return_id",
+      "product_id",
+      "warehouse_id",
+      "quantity"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:39.503574",
+    "mastery_level": 0
+  },
+  "6b8c7c9e79fcb5f386c0dbb60677bd83": {
+    "concept": "جدول: sale_returns",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "sale_id",
+      "customer_id",
+      "warehouse_id",
+      "reason"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:40.360152",
+    "mastery_level": 0
+  },
+  "206883989a76aea458390b093c691939": {
+    "concept": "جدول: sales",
+    "definition": "جدول في قاعدة البيانات يحتوي على 38 عمود",
+    "examples": [
+      "id",
+      "sale_number",
+      "sale_date",
+      "customer_id",
+      "seller_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:42.057551",
+    "mastery_level": 0
+  },
+  "92b3cd4e7c5fdbd41695269396786cf6": {
+    "concept": "جدول: service_parts",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "service_id",
+      "part_id",
+      "warehouse_id",
+      "quantity"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:45.421343",
+    "mastery_level": 0
+  },
+  "096d92d9deb653521241188d2d35e6b3": {
+    "concept": "جدول: service_requests",
+    "definition": "جدول في قاعدة البيانات يحتوي على 52 عمود",
+    "examples": [
+      "id",
+      "service_number",
+      "customer_id",
+      "mechanic_id",
+      "vehicle_type_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:46.799533",
+    "mastery_level": 0
+  },
+  "35e3edead5fa0c233a65e60d19b380f2": {
+    "concept": "جدول: service_tasks",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "service_id",
+      "partner_id",
+      "share_percentage",
+      "description"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:50.809305",
+    "mastery_level": 0
+  },
+  "38807b8f39785e27f216b4d1ae984fdb": {
+    "concept": "جدول: shipment_items",
+    "definition": "جدول في قاعدة البيانات يحتوي على 10 عمود",
+    "examples": [
+      "id",
+      "shipment_id",
+      "product_id",
+      "warehouse_id",
+      "quantity"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:51.586280",
+    "mastery_level": 0
+  },
+  "82bd68b6ecfd7b121e0df6ad704ba142": {
+    "concept": "جدول: shipment_partners",
+    "definition": "جدول في قاعدة البيانات يحتوي على 13 عمود",
+    "examples": [
+      "id",
+      "shipment_id",
+      "partner_id",
+      "identity_number",
+      "phone_number"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:52.295773",
+    "mastery_level": 0
+  },
+  "cc62f694d38990a628dae77c52fca10e": {
+    "concept": "جدول: shipments",
+    "definition": "جدول في قاعدة البيانات يحتوي على 45 عمود",
+    "examples": [
+      "id",
+      "number",
+      "shipment_number",
+      "date",
+      "shipment_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:53.221800",
+    "mastery_level": 0
+  },
+  "05c9d00c1805993a8ba678127b913536": {
+    "concept": "جدول: sites",
+    "definition": "جدول في قاعدة البيانات يحتوي على 18 عمود",
+    "examples": [
+      "id",
+      "branch_id",
+      "name",
+      "code",
+      "is_active"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:50:58.374686",
+    "mastery_level": 0
+  },
+  "99a7d6daf4b011e3e9298243a45ca69f": {
+    "concept": "جدول: stock_adjustment_items",
+    "definition": "جدول في قاعدة البيانات يحتوي على 7 عمود",
+    "examples": [
+      "id",
+      "adjustment_id",
+      "product_id",
+      "warehouse_id",
+      "quantity"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:00.399237",
+    "mastery_level": 0
+  },
+  "9de03b85edd89aa352cb7717f9813d1d": {
+    "concept": "جدول: stock_adjustments",
+    "definition": "جدول في قاعدة البيانات يحتوي على 8 عمود",
+    "examples": [
+      "id",
+      "date",
+      "warehouse_id",
+      "reason",
+      "notes"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:01.306832",
+    "mastery_level": 0
+  },
+  "8df8cc3b9577f7d62c84ed1aaaba9b2b": {
+    "concept": "جدول: stock_levels",
+    "definition": "جدول في قاعدة البيانات يحتوي على 9 عمود",
+    "examples": [
+      "id",
+      "product_id",
+      "warehouse_id",
+      "quantity",
+      "reserved_quantity"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:02.080440",
+    "mastery_level": 0
+  },
+  "3e8c3dad5fa82d7c9ac7afaddac4881e": {
+    "concept": "جدول: supplier_loan_settlements",
+    "definition": "جدول في قاعدة البيانات يحتوي على 8 عمود",
+    "examples": [
+      "id",
+      "loan_id",
+      "supplier_id",
+      "settled_price",
+      "settlement_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:03.048073",
+    "mastery_level": 0
+  },
+  "7a71e7c774eb310963366cfe029ac21f": {
+    "concept": "جدول: supplier_settlement_lines",
+    "definition": "جدول في قاعدة البيانات يحتوي على 13 عمود",
+    "examples": [
+      "id",
+      "settlement_id",
+      "source_type",
+      "source_id",
+      "description"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:04.018474",
+    "mastery_level": 0
+  },
+  "b24b86db224d61cfc401cf0c570069e6": {
+    "concept": "جدول: supplier_settlements",
+    "definition": "جدول في قاعدة البيانات يحتوي على 36 عمود",
+    "examples": [
+      "id",
+      "code",
+      "supplier_id",
+      "from_date",
+      "to_date"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:05.403072",
+    "mastery_level": 0
+  },
+  "6ba8e4acb0c964f8e0975f6375433ac8": {
+    "concept": "جدول: suppliers",
+    "definition": "جدول في قاعدة البيانات يحتوي على 33 عمود",
+    "examples": [
+      "id",
+      "name",
+      "is_local",
+      "identity_number",
+      "contact"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:08.750164",
+    "mastery_level": 0
+  },
+  "da1e71cf7f078cb382283a702d6e83ed": {
+    "concept": "جدول: system_settings",
+    "definition": "جدول في قاعدة البيانات يحتوي على 8 عمود",
+    "examples": [
+      "id",
+      "key",
+      "value",
+      "description",
+      "data_type"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:11.959779",
+    "mastery_level": 0
+  },
+  "687ce575ff06ec53c36b60c80d245384": {
+    "concept": "جدول: tax_entries",
+    "definition": "جدول في قاعدة البيانات يحتوي على 24 عمود",
+    "examples": [
+      "id",
+      "entry_type",
+      "transaction_type",
+      "transaction_id",
+      "transaction_reference"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:12.696725",
+    "mastery_level": 0
+  },
+  "972754acf249c8a9be4726a86cbc74b4": {
+    "concept": "جدول: transfers",
+    "definition": "جدول في قاعدة البيانات يحتوي على 12 عمود",
+    "examples": [
+      "id",
+      "reference",
+      "product_id",
+      "source_id",
+      "destination_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:16.826597",
+    "mastery_level": 0
+  },
+  "18bfd4e2605aba483f81100607b6d843": {
+    "concept": "جدول: user_branches",
+    "definition": "جدول في قاعدة البيانات يحتوي على 7 عمود",
+    "examples": [
+      "id",
+      "user_id",
+      "branch_id",
+      "is_primary",
+      "can_manage"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:19.035001",
+    "mastery_level": 0
+  },
+  "d4955fe5c68d5203a41a2cf8ef508fd5": {
+    "concept": "جدول: user_permissions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 2 عمود",
+    "examples": [
+      "user_id",
+      "permission_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:19.737386",
+    "mastery_level": 0
+  },
+  "d7b4213f56ba2a47dcca80047075fab2": {
+    "concept": "جدول: users",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "username",
+      "email",
+      "password_hash",
+      "role_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:20.133122",
+    "mastery_level": 0
+  },
+  "6662d62859883d224bebc36e49d6a4a8": {
+    "concept": "جدول: utility_accounts",
+    "definition": "جدول في قاعدة البيانات يحتوي على 9 عمود",
+    "examples": [
+      "id",
+      "utility_type",
+      "provider",
+      "account_no",
+      "meter_no"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:21.504083",
+    "mastery_level": 0
+  },
+  "0c73100d9aee34430b258fe244cbefc8": {
+    "concept": "جدول: warehouse_partner_shares",
+    "definition": "جدول في قاعدة البيانات يحتوي على 9 عمود",
+    "examples": [
+      "id",
+      "partner_id",
+      "warehouse_id",
+      "product_id",
+      "share_percentage"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:22.357735",
+    "mastery_level": 0
+  },
+  "03cd44475d27f7c2b02fbb3144817fd0": {
+    "concept": "جدول: warehouses",
+    "definition": "جدول في قاعدة البيانات يحتوي على 17 عمود",
+    "examples": [
+      "id",
+      "name",
+      "warehouse_type",
+      "location",
+      "is_active"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:23.512781",
+    "mastery_level": 0
+  },
+  "21f7a292c4a9d55519200c6f212c5225": {
+    "concept": "جدول: workflow_actions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "workflow_instance_id",
+      "step_number",
+      "step_name",
+      "action_type"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:25.459434",
+    "mastery_level": 0
+  },
+  "6c3961494df02e4e927011010007f47c": {
+    "concept": "جدول: workflow_definitions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 18 عمود",
+    "examples": [
+      "id",
+      "workflow_code",
+      "workflow_name",
+      "workflow_name_ar",
+      "description"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:27.991299",
+    "mastery_level": 0
+  },
+  "45ccc496f6c8b96231a7614934c76e42": {
+    "concept": "جدول: workflow_instances",
+    "definition": "جدول في قاعدة البيانات يحتوي على 19 عمود",
+    "examples": [
+      "id",
+      "workflow_definition_id",
+      "instance_code",
+      "entity_type",
+      "entity_id"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:29.856427",
+    "mastery_level": 0
+  },
+  "950cc7fa16b997bef88811361ba21095": {
+    "concept": "جدول: workflow_notifications",
+    "definition": "جدول في قاعدة البيانات يحتوي على 14 عمود",
+    "examples": [
+      "id",
+      "workflow_id",
+      "step_id",
+      "notification_type",
+      "recipients"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:32.598620",
+    "mastery_level": 0
+  },
+  "b5bf652e45df3a05ce00ff77d4719355": {
+    "concept": "جدول: workflow_step_instances",
+    "definition": "جدول في قاعدة البيانات يحتوي على 15 عمود",
+    "examples": [
+      "id",
+      "instance_id",
+      "step_id",
+      "status",
+      "assignees"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:34.595266",
+    "mastery_level": 0
+  },
+  "e15ebd2df207cc46137531fda2dc67fb": {
+    "concept": "جدول: workflow_steps",
+    "definition": "جدول في قاعدة البيانات يحتوي على 18 عمود",
+    "examples": [
+      "id",
+      "workflow_id",
+      "step_code",
+      "step_name",
+      "step_name_ar"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:36.442041",
+    "mastery_level": 0
+  },
+  "4f9a910a83f2d12b12a8c02784b66ab4": {
+    "concept": "جدول: workflow_transitions",
+    "definition": "جدول في قاعدة البيانات يحتوي على 11 عمود",
+    "examples": [
+      "id",
+      "workflow_id",
+      "from_step_id",
+      "to_step_id",
+      "trigger"
+    ],
+    "related_concepts": [
+      "database",
+      "garage_system"
+    ],
+    "created_at": "2025-11-24T12:51:38.234789",
+    "mastery_level": 0
+  },
+  "7812c051638375ed178b5bcf17c4d046": {
+    "concept": "Vehicle Table: online_cart_items",
+    "definition": "جدول المركبات - 6 عمود",
+    "examples": [
+      "id",
+      "cart_id",
+      "product_id",
+      "quantity",
+      "price"
+    ],
+    "related_concepts": [
+      "vehicles",
+      "service"
+    ],
+    "created_at": "2025-11-24T12:53:14.559117",
+    "mastery_level": 0
+  },
+  "e1abc31ba4b3c310fe36eda89f72d28b": {
+    "concept": "Vehicle Table: online_carts",
+    "definition": "جدول المركبات - 8 عمود",
+    "examples": [
+      "id",
+      "cart_id",
+      "customer_id",
+      "session_id",
+      "status"
+    ],
+    "related_concepts": [
+      "vehicles",
+      "service"
+    ],
+    "created_at": "2025-11-24T12:53:14.585494",
+    "mastery_level": 0
+  },
+  "81f1d7a39a3107cccda8b4790c270baf": {
+    "concept": "Service Table: service_parts",
+    "definition": "جدول الخدمات",
+    "examples": [],
+    "related_concepts": [
+      "service",
+      "maintenance"
+    ],
+    "created_at": "2025-11-24T12:53:19.359927",
+    "mastery_level": 0
+  },
+  "9ccbf14c3a716702893048cde0dc6e01": {
+    "concept": "Service Table: service_requests",
+    "definition": "جدول الخدمات",
+    "examples": [],
+    "related_concepts": [
+      "service",
+      "maintenance"
+    ],
+    "created_at": "2025-11-24T12:53:19.373212",
+    "mastery_level": 0
+  },
+  "adfdf74e6ceb697d7e5fd8c413a7c564": {
+    "concept": "Service Table: service_tasks",
+    "definition": "جدول الخدمات",
+    "examples": [],
+    "related_concepts": [
+      "service",
+      "maintenance"
+    ],
+    "created_at": "2025-11-24T12:53:19.385689",
+    "mastery_level": 0
+  },
+  "3ecfd8674dc6b7aad17e2c3f2bb6df30": {
+    "concept": "Product Table: product_categories",
+    "definition": "جدول المنتجات - 7 عمود",
+    "examples": [
+      "id",
+      "name",
+      "parent_id",
+      "description",
+      "image_url"
+    ],
+    "related_concepts": [
+      "products"
+    ],
+    "created_at": "2025-11-24T12:54:00.121846",
+    "mastery_level": 0
+  },
+  "e2a19babeaebecf585d4121d48f7634c": {
+    "concept": "Product Table: product_partners",
+    "definition": "جدول المنتجات - 6 عمود",
+    "examples": [
+      "id",
+      "product_id",
+      "partner_id",
+      "share_percent",
+      "share_amount"
+    ],
+    "related_concepts": [
+      "products"
+    ],
+    "created_at": "2025-11-24T12:54:00.136015",
+    "mastery_level": 0
+  },
+  "0d2a39ce820963cdbd9af8412c30cb33": {
+    "concept": "Product Table: product_rating_helpful",
+    "definition": "جدول المنتجات - 7 عمود",
+    "examples": [
+      "id",
+      "rating_id",
+      "customer_id",
+      "ip_address",
+      "is_helpful"
+    ],
+    "related_concepts": [
+      "products"
+    ],
+    "created_at": "2025-11-24T12:54:00.150009",
+    "mastery_level": 0
+  },
+  "574d5c08da75389947ff76575fb171f2": {
+    "concept": "Product Table: product_ratings",
+    "definition": "جدول المنتجات - 11 عمود",
+    "examples": [
+      "id",
+      "product_id",
+      "customer_id",
+      "rating",
+      "title"
+    ],
+    "related_concepts": [
+      "products"
+    ],
+    "created_at": "2025-11-24T12:54:00.163385",
+    "mastery_level": 0
+  },
+  "97fa7ebf2a0ed99b013a52fb33d78b16": {
+    "concept": "Product Table: product_supplier_loans",
+    "definition": "جدول المنتجات - 11 عمود",
+    "examples": [
+      "id",
+      "product_id",
+      "supplier_id",
+      "loan_value",
+      "deferred_price"
+    ],
+    "related_concepts": [
+      "products"
+    ],
+    "created_at": "2025-11-24T12:54:00.177216",
+    "mastery_level": 0
+  },
+  "9da8b457801a77bb414b64b3204113e3": {
+    "concept": "Product Table: products",
+    "definition": "جدول المنتجات - 50 عمود",
+    "examples": [
+      "id",
+      "sku",
+      "name",
+      "description",
+      "part_number"
+    ],
+    "related_concepts": [
+      "products"
+    ],
+    "created_at": "2025-11-24T12:54:00.193773",
+    "mastery_level": 0
+  },
+  "8894c5bf39daa9ce7e9752190486d842": {
+    "concept": "Table: warehouse_partner_shares",
+    "definition": "جدول warehouse_partner_shares - 9 عمود",
+    "examples": [
+      "id",
+      "partner_id",
+      "warehouse_id",
+      "product_id",
+      "share_percentage"
+    ],
+    "related_concepts": [
+      "warehouses",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.222050",
+    "mastery_level": 0
+  },
+  "6b42e033c19fcf312ef7ebf8d8c078dd": {
+    "concept": "Table: warehouses",
+    "definition": "جدول warehouses - 17 عمود",
+    "examples": [
+      "id",
+      "name",
+      "warehouse_type",
+      "location",
+      "is_active"
+    ],
+    "related_concepts": [
+      "warehouses",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.238665",
+    "mastery_level": 0
+  },
+  "1a89ae5fdb0c7bef86ece67f9cdd0d55": {
+    "concept": "Table: branches",
+    "definition": "جدول branches - 22 عمود",
+    "examples": [
+      "id",
+      "name",
+      "code",
+      "is_active",
+      "address"
+    ],
+    "related_concepts": [
+      "branches",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.256565",
+    "mastery_level": 0
+  },
+  "0849b51f3b19b6ef11069c176681017a": {
+    "concept": "Table: user_branches",
+    "definition": "جدول user_branches - 7 عمود",
+    "examples": [
+      "id",
+      "user_id",
+      "branch_id",
+      "is_primary",
+      "can_manage"
+    ],
+    "related_concepts": [
+      "branches",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.274322",
+    "mastery_level": 0
+  },
+  "5564b7b8d991013943830c2bad5cdb8e": {
+    "concept": "Table: expense_types",
+    "definition": "جدول expense_types - 8 عمود",
+    "examples": [
+      "id",
+      "name",
+      "description",
+      "is_active",
+      "created_at"
+    ],
+    "related_concepts": [
+      "expenses",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.292325",
+    "mastery_level": 0
+  },
+  "26c64dc2f19221f2d621f4293886c110": {
+    "concept": "Table: expenses",
+    "definition": "جدول expenses - 169 عمود",
+    "examples": [
+      "id",
+      "date",
+      "amount",
+      "currency",
+      "fx_rate_used"
+    ],
+    "related_concepts": [
+      "expenses",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.309345",
+    "mastery_level": 0
+  },
+  "de1fd9a1f19105cdabce87bb27f4ced0": {
+    "concept": "Table: shipment_items",
+    "definition": "جدول shipment_items - 10 عمود",
+    "examples": [
+      "id",
+      "shipment_id",
+      "product_id",
+      "warehouse_id",
+      "quantity"
+    ],
+    "related_concepts": [
+      "shipments",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.326130",
+    "mastery_level": 0
+  },
+  "a97c9010cdd9ccd45cb6156907ec022b": {
+    "concept": "Table: shipment_partners",
+    "definition": "جدول shipment_partners - 13 عمود",
+    "examples": [
+      "id",
+      "shipment_id",
+      "partner_id",
+      "identity_number",
+      "phone_number"
+    ],
+    "related_concepts": [
+      "shipments",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.342188",
+    "mastery_level": 0
+  },
+  "6b517f030489cdc14e8ed93e7ad03d28": {
+    "concept": "Table: shipments",
+    "definition": "جدول shipments - 45 عمود",
+    "examples": [
+      "id",
+      "number",
+      "shipment_number",
+      "date",
+      "shipment_date"
+    ],
+    "related_concepts": [
+      "shipments",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.359245",
+    "mastery_level": 0
+  },
+  "988c1b18ff15610c8f24064c3613f74c": {
+    "concept": "Table: currencies",
+    "definition": "جدول currencies - 5 عمود",
+    "examples": [
+      "code",
+      "name",
+      "symbol",
+      "decimals",
+      "is_active"
+    ],
+    "related_concepts": [
+      "currencies",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.376265",
+    "mastery_level": 0
+  },
+  "150cfa74be87ef0cfee82cca87f86c62": {
+    "concept": "Table: _alembic_tmp_bank_reconciliations",
+    "definition": "جدول _alembic_tmp_bank_reconciliations - 19 عمود",
+    "examples": [
+      "id",
+      "bank_account_id",
+      "reconciliation_number",
+      "period_start",
+      "period_end"
+    ],
+    "related_concepts": [
+      "bank",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.393501",
+    "mastery_level": 0
+  },
+  "d118509cd0db638ac8252d6bc9dbd99e": {
+    "concept": "Table: bank_accounts",
+    "definition": "جدول bank_accounts - 19 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "bank_name",
+      "account_number"
+    ],
+    "related_concepts": [
+      "bank",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.412497",
+    "mastery_level": 0
+  },
+  "038894a40a230c599ec5d4e98841bb8e": {
+    "concept": "Table: bank_reconciliations",
+    "definition": "جدول bank_reconciliations - 21 عمود",
+    "examples": [
+      "id",
+      "bank_account_id",
+      "reconciliation_number",
+      "period_start",
+      "period_end"
+    ],
+    "related_concepts": [
+      "bank",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.428439",
+    "mastery_level": 0
+  },
+  "0de80fc74f3287e1ebc779b9b5bd4266": {
+    "concept": "Table: bank_statements",
+    "definition": "جدول bank_statements - 19 عمود",
+    "examples": [
+      "id",
+      "bank_account_id",
+      "statement_number",
+      "statement_date",
+      "period_start"
+    ],
+    "related_concepts": [
+      "bank",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.447389",
+    "mastery_level": 0
+  },
+  "c32edd442293c7d5310a77bad1115d28": {
+    "concept": "Table: bank_transactions",
+    "definition": "جدول bank_transactions - 19 عمود",
+    "examples": [
+      "id",
+      "bank_account_id",
+      "statement_id",
+      "transaction_date",
+      "value_date"
+    ],
+    "related_concepts": [
+      "bank",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.464905",
+    "mastery_level": 0
+  },
+  "23ff712a643a69e72f9162c8dfa57be5": {
+    "concept": "Table: notes",
+    "definition": "جدول notes - 14 عمود",
+    "examples": [
+      "id",
+      "content",
+      "author_id",
+      "entity_type",
+      "entity_id"
+    ],
+    "related_concepts": [
+      "notes",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.481623",
+    "mastery_level": 0
+  },
+  "ae5236865114668a38bf9cf3cd6caee7": {
+    "concept": "Table: workflow_actions",
+    "definition": "جدول workflow_actions - 15 عمود",
+    "examples": [
+      "id",
+      "workflow_instance_id",
+      "step_number",
+      "step_name",
+      "action_type"
+    ],
+    "related_concepts": [
+      "workflows",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.498592",
+    "mastery_level": 0
+  },
+  "c3ce57cbcbffba51f52095f4f8f638f9": {
+    "concept": "Table: workflow_definitions",
+    "definition": "جدول workflow_definitions - 18 عمود",
+    "examples": [
+      "id",
+      "workflow_code",
+      "workflow_name",
+      "workflow_name_ar",
+      "description"
+    ],
+    "related_concepts": [
+      "workflows",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.516154",
+    "mastery_level": 0
+  },
+  "86dab78e00ac14e2bfe8a54743369fe6": {
+    "concept": "Table: workflow_instances",
+    "definition": "جدول workflow_instances - 19 عمود",
+    "examples": [
+      "id",
+      "workflow_definition_id",
+      "instance_code",
+      "entity_type",
+      "entity_id"
+    ],
+    "related_concepts": [
+      "workflows",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.536394",
+    "mastery_level": 0
+  },
+  "057690bf60e3ddcc02e449cdb53659dd": {
+    "concept": "Table: workflow_notifications",
+    "definition": "جدول workflow_notifications - 14 عمود",
+    "examples": [
+      "id",
+      "workflow_id",
+      "step_id",
+      "notification_type",
+      "recipients"
+    ],
+    "related_concepts": [
+      "workflows",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.554472",
+    "mastery_level": 0
+  },
+  "a5e14317f40cdcedb304cd22dd25b7b1": {
+    "concept": "Table: workflow_step_instances",
+    "definition": "جدول workflow_step_instances - 15 عمود",
+    "examples": [
+      "id",
+      "instance_id",
+      "step_id",
+      "status",
+      "assignees"
+    ],
+    "related_concepts": [
+      "workflows",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.574989",
+    "mastery_level": 0
+  },
+  "8f1b08c5c6890e555531485974bc7ef2": {
+    "concept": "Table: workflow_steps",
+    "definition": "جدول workflow_steps - 18 عمود",
+    "examples": [
+      "id",
+      "workflow_id",
+      "step_code",
+      "step_name",
+      "step_name_ar"
+    ],
+    "related_concepts": [
+      "workflows",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.594127",
+    "mastery_level": 0
+  },
+  "86879df4d619e01d8b4dcabee2c2ccc2": {
+    "concept": "Table: workflow_transitions",
+    "definition": "جدول workflow_transitions - 11 عمود",
+    "examples": [
+      "id",
+      "workflow_id",
+      "from_step_id",
+      "to_step_id",
+      "trigger"
+    ],
+    "related_concepts": [
+      "workflows",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.611923",
+    "mastery_level": 0
+  },
+  "f825b98758f7580fd175b17329ad1477": {
+    "concept": "Table: project_change_orders",
+    "definition": "جدول project_change_orders - 19 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "change_number",
+      "title",
+      "description"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.628610",
+    "mastery_level": 0
+  },
+  "1f3e24d6162f10cadc0c9859c81a62f8": {
+    "concept": "Table: project_costs",
+    "definition": "جدول project_costs - 14 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "phase_id",
+      "cost_type",
+      "source_id"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.647917",
+    "mastery_level": 0
+  },
+  "35be040d49c32ac63e096e647f2c0b07": {
+    "concept": "Table: project_issues",
+    "definition": "جدول project_issues - 21 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "task_id",
+      "issue_number",
+      "title"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.665048",
+    "mastery_level": 0
+  },
+  "611ad879e918ffad96e4577f5ef921e8": {
+    "concept": "Table: project_milestones",
+    "definition": "جدول project_milestones - 23 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "phase_id",
+      "milestone_number",
+      "name"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.684560",
+    "mastery_level": 0
+  },
+  "cbb4aef931397eb68c22762f2a89ea27": {
+    "concept": "Table: project_phases",
+    "definition": "جدول project_phases - 15 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "name",
+      "order",
+      "start_date"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.701634",
+    "mastery_level": 0
+  },
+  "cf521389dc80c4a5203ba64f5b3f27c7": {
+    "concept": "Table: project_resources",
+    "definition": "جدول project_resources - 19 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "task_id",
+      "resource_type",
+      "employee_id"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.719908",
+    "mastery_level": 0
+  },
+  "73aca065a7e460f9c426eea98e4e8adf": {
+    "concept": "Table: project_revenues",
+    "definition": "جدول project_revenues - 14 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "phase_id",
+      "revenue_type",
+      "source_id"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.737966",
+    "mastery_level": 0
+  },
+  "414996e9d925e5a193e27eaff64be626": {
+    "concept": "Table: project_risks",
+    "definition": "جدول project_risks - 20 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "risk_number",
+      "title",
+      "description"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.757508",
+    "mastery_level": 0
+  },
+  "4277f61e29773273a233f5d0b8eb3a76": {
+    "concept": "Table: project_tasks",
+    "definition": "جدول project_tasks - 20 عمود",
+    "examples": [
+      "id",
+      "project_id",
+      "phase_id",
+      "task_number",
+      "name"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.777118",
+    "mastery_level": 0
+  },
+  "16ec54757b4ae0719c2c98bee24fc937": {
+    "concept": "Table: projects",
+    "definition": "جدول projects - 24 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "client_id",
+      "start_date"
+    ],
+    "related_concepts": [
+      "projects",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.794826",
+    "mastery_level": 0
+  },
+  "dc4c7cbf2106d2cb93182b4b3accdb36": {
+    "concept": "Table: asset_depreciations",
+    "definition": "جدول asset_depreciations - 12 عمود",
+    "examples": [
+      "id",
+      "asset_id",
+      "fiscal_year",
+      "fiscal_month",
+      "depreciation_date"
+    ],
+    "related_concepts": [
+      "assets",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.811720",
+    "mastery_level": 0
+  },
+  "df5f649b86e0b39efb6cb7e78b547138": {
+    "concept": "Table: asset_maintenance",
+    "definition": "جدول asset_maintenance - 12 عمود",
+    "examples": [
+      "id",
+      "asset_id",
+      "maintenance_date",
+      "maintenance_type",
+      "cost"
+    ],
+    "related_concepts": [
+      "assets",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.825530",
+    "mastery_level": 0
+  },
+  "8c422a885eda6e355a617b62cf58129b": {
+    "concept": "Table: fixed_asset_categories",
+    "definition": "جدول fixed_asset_categories - 11 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "account_code",
+      "depreciation_account_code"
+    ],
+    "related_concepts": [
+      "assets",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.839989",
+    "mastery_level": 0
+  },
+  "bc4a645641614b34481c8f03499688f0": {
+    "concept": "Table: fixed_assets",
+    "definition": "جدول fixed_assets - 20 عمود",
+    "examples": [
+      "id",
+      "asset_number",
+      "name",
+      "category_id",
+      "branch_id"
+    ],
+    "related_concepts": [
+      "assets",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.854514",
+    "mastery_level": 0
+  },
+  "9bfe650b6f99e49f1470e82c36769a5d": {
+    "concept": "Table: budget_commitments",
+    "definition": "جدول budget_commitments - 10 عمود",
+    "examples": [
+      "id",
+      "budget_id",
+      "source_type",
+      "source_id",
+      "committed_amount"
+    ],
+    "related_concepts": [
+      "budgets",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.868911",
+    "mastery_level": 0
+  },
+  "6472c11edfbe1fee8a7a8e11862bbe62": {
+    "concept": "Table: budgets",
+    "definition": "جدول budgets - 10 عمود",
+    "examples": [
+      "id",
+      "fiscal_year",
+      "account_code",
+      "branch_id",
+      "site_id"
+    ],
+    "related_concepts": [
+      "budgets",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.883345",
+    "mastery_level": 0
+  },
+  "df9ad77a373dfbc8ad0db4129095008d": {
+    "concept": "Table: cost_center_alert_logs",
+    "definition": "جدول cost_center_alert_logs - 12 عمود",
+    "examples": [
+      "id",
+      "alert_id",
+      "cost_center_id",
+      "triggered_at",
+      "trigger_value"
+    ],
+    "related_concepts": [
+      "cost_centers",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.897831",
+    "mastery_level": 0
+  },
+  "7fe333cc58c5a25f922dfed0367962e3": {
+    "concept": "Table: cost_center_alerts",
+    "definition": "جدول cost_center_alerts - 15 عمود",
+    "examples": [
+      "id",
+      "cost_center_id",
+      "alert_type",
+      "threshold_type",
+      "threshold_value"
+    ],
+    "related_concepts": [
+      "cost_centers",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.912132",
+    "mastery_level": 0
+  },
+  "43c893cac2bc313056f4cd16299283da": {
+    "concept": "Table: cost_center_allocations",
+    "definition": "جدول cost_center_allocations - 12 عمود",
+    "examples": [
+      "id",
+      "cost_center_id",
+      "source_type",
+      "source_id",
+      "amount"
+    ],
+    "related_concepts": [
+      "cost_centers",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.926174",
+    "mastery_level": 0
+  },
+  "74fb51b384b22a4f00d6222100284c44": {
+    "concept": "Table: cost_centers",
+    "definition": "جدول cost_centers - 14 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "parent_id",
+      "description"
+    ],
+    "related_concepts": [
+      "cost_centers",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.941128",
+    "mastery_level": 0
+  },
+  "238c8535d5bc772be107b152e71b9866": {
+    "concept": "Table: recurring_invoice_schedules",
+    "definition": "جدول recurring_invoice_schedules - 9 عمود",
+    "examples": [
+      "id",
+      "template_id",
+      "invoice_id",
+      "scheduled_date",
+      "generated_at"
+    ],
+    "related_concepts": [
+      "recurring_invoices",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.956116",
+    "mastery_level": 0
+  },
+  "fb28c40a8a9634bcdd7423bb6e14be4d": {
+    "concept": "Table: recurring_invoice_templates",
+    "definition": "جدول recurring_invoice_templates - 16 عمود",
+    "examples": [
+      "id",
+      "template_name",
+      "customer_id",
+      "description",
+      "amount"
+    ],
+    "related_concepts": [
+      "recurring_invoices",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.970967",
+    "mastery_level": 0
+  },
+  "64e97d8c8ebf447445ec34f06b26afa8": {
+    "concept": "Table: engineering_job_documents",
+    "definition": "جدول engineering_job_documents - 10 عمود",
+    "examples": [
+      "id",
+      "job_id",
+      "task_id",
+      "document_type",
+      "title"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:31.986349",
+    "mastery_level": 0
+  },
+  "60ae5e81308267e5d18fe10bb974f3c2": {
+    "concept": "Table: engineering_job_logbook",
+    "definition": "جدول engineering_job_logbook - 13 عمود",
+    "examples": [
+      "id",
+      "job_id",
+      "task_id",
+      "shift_id",
+      "entry_time"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.001541",
+    "mastery_level": 0
+  },
+  "b478776b680791637141448178a5b090": {
+    "concept": "Table: engineering_job_shift_participants",
+    "definition": "جدول engineering_job_shift_participants - 5 عمود",
+    "examples": [
+      "id",
+      "shift_id",
+      "employee_id",
+      "role",
+      "hours_worked"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.016578",
+    "mastery_level": 0
+  },
+  "ae4c0f5831503025a77a40d5c4805284": {
+    "concept": "Table: engineering_job_shifts",
+    "definition": "جدول engineering_job_shifts - 6 عمود",
+    "examples": [
+      "id",
+      "job_id",
+      "shift_date",
+      "shift_number",
+      "team_lead_id"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.031834",
+    "mastery_level": 0
+  },
+  "ee607421afc2aa26b861e433791c3e07": {
+    "concept": "Table: engineering_job_tasks",
+    "definition": "جدول engineering_job_tasks - 19 عمود",
+    "examples": [
+      "id",
+      "job_id",
+      "task_number",
+      "title",
+      "description"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.047987",
+    "mastery_level": 0
+  },
+  "90ed3a14c8a40f0f16eb684ed2fabba6": {
+    "concept": "Table: engineering_jobs",
+    "definition": "جدول engineering_jobs - 19 عمود",
+    "examples": [
+      "id",
+      "job_number",
+      "title",
+      "description",
+      "status"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.063429",
+    "mastery_level": 0
+  },
+  "eac9ad6eb1c334e1ba231c0344835346": {
+    "concept": "Table: engineering_skills",
+    "definition": "جدول engineering_skills - 11 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "name_ar",
+      "category"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.078346",
+    "mastery_level": 0
+  },
+  "ee1a8f5a957cf705d84cd261171e6519": {
+    "concept": "Table: engineering_tasks",
+    "definition": "جدول engineering_tasks - 38 عمود",
+    "examples": [
+      "id",
+      "task_number",
+      "title",
+      "description",
+      "task_type"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.094570",
+    "mastery_level": 0
+  },
+  "86bfe254df77fd4b90360060c7df3d06": {
+    "concept": "Table: engineering_team_members",
+    "definition": "جدول engineering_team_members - 10 عمود",
+    "examples": [
+      "id",
+      "team_id",
+      "employee_id",
+      "role",
+      "join_date"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.110004",
+    "mastery_level": 0
+  },
+  "d46169be29405692f5c6c90d19cc4355": {
+    "concept": "Table: engineering_teams",
+    "definition": "جدول engineering_teams - 15 عمود",
+    "examples": [
+      "id",
+      "code",
+      "name",
+      "team_leader_id",
+      "specialty"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.127116",
+    "mastery_level": 0
+  },
+  "728968e3c6c24e56b041e3c1eb25e60c": {
+    "concept": "Table: engineering_timesheets",
+    "definition": "جدول engineering_timesheets - 26 عمود",
+    "examples": [
+      "id",
+      "employee_id",
+      "task_id",
+      "work_date",
+      "start_time"
+    ],
+    "related_concepts": [
+      "engineering",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.143989",
+    "mastery_level": 0
+  },
+  "751b8ddacd2312e7145a61c904b84ded": {
+    "concept": "Table: archives",
+    "definition": "جدول archives - 10 عمود",
+    "examples": [
+      "id",
+      "record_type",
+      "record_id",
+      "table_name",
+      "archived_data"
+    ],
+    "related_concepts": [
+      "archive",
+      "database"
+    ],
+    "created_at": "2025-11-24T12:54:32.159471",
+    "mastery_level": 0
+  },
+  "34e82054ec82317d506522f029b976fb": {
+    "concept": "Archive Table: archives",
+    "definition": "جدول الأرشيف",
+    "examples": [],
+    "related_concepts": [
+      "archive",
+      "data_management"
+    ],
+    "created_at": "2025-11-24T12:54:43.461719",
     "mastery_level": 0
   }
 }

@@ -97,5 +97,557 @@
     "started_at": "2025-11-01T23:46:29.233698+00:00",
     "estimated_completion": null,
     "error": null
+  },
+  {
+    "job_id": "train_1763976173.517242",
+    "model_name": "نموذج إدارة المخزون",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "running",
+    "progress": 0,
+    "started_at": "2025-11-24T09:22:53.517270+00:00",
+    "estimated_completion": null,
+    "error": null
+  },
+  {
+    "job_id": "train_1763978550.189569",
+    "model_name": "نموذج التنبؤ بالمبيعات",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "failed",
+    "progress": 5,
+    "started_at": "2025-11-24T10:02:30.189585+00:00",
+    "estimated_completion": null,
+    "error": "'AITrainingEngine' object has no attribute 'run_training'",
+    "completed_at": "2025-11-24T10:02:30.277565+00:00"
+  },
+  {
+    "job_id": "train_1763978567.550176",
+    "model_name": "نموذج إدارة المخزون",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "failed",
+    "progress": 5,
+    "started_at": "2025-11-24T10:02:47.550192+00:00",
+    "estimated_completion": null,
+    "error": "'AITrainingEngine' object has no attribute 'run_training'",
+    "completed_at": "2025-11-24T10:02:47.553654+00:00"
+  },
+  {
+    "job_id": "train_1763978571.311251",
+    "model_name": "نموذج تحليل العملاء",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "failed",
+    "progress": 5,
+    "started_at": "2025-11-24T10:02:51.311272+00:00",
+    "estimated_completion": null,
+    "error": "'AITrainingEngine' object has no attribute 'run_training'",
+    "completed_at": "2025-11-24T10:02:51.315523+00:00"
+  },
+  {
+    "job_id": "train_1763979226.097101",
+    "model_name": "نموذج تحليل العملاء",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "failed",
+    "progress": 40,
+    "started_at": "2025-11-24T10:13:46.097115+00:00",
+    "estimated_completion": null,
+    "error": "'AITrainingEngine' object has no attribute 'run_training'",
+    "current_step": "معالجة البيانات...",
+    "completed_at": "2025-11-24T10:13:46.115678+00:00"
+  },
+  {
+    "job_id": "train_1763979279.907919",
+    "model_name": "نموذج شامل",
+    "training_type": "deep",
+    "data_range": "all",
+    "status": "running",
+    "progress": 15,
+    "started_at": "2025-11-24T10:14:39.907952+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "تحليل قاعدة البيانات..."
+  },
+  {
+    "job_id": "train_1763979364.166798",
+    "model_name": "نموذج شامل",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:16:04.166839+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:16:04.878525+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:16:04.213300",
+        "completed_at": "2025-11-24T12:16:04.872249",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 0,
+        "models": 116,
+        "routes": 748,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 0,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763979384.843975",
+    "model_name": "نموذج شامل",
+    "training_type": "deep",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:16:24.843991+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:17:59.219922+00:00",
+    "result": {
+      "deep_training": {
+        "success": true,
+        "items_learned": 3921,
+        "modules": 36
+      },
+      "detailed_training": {
+        "success": true,
+        "message": "Training completed successfully",
+        "status": {
+          "running": false,
+          "progress": 100.0,
+          "current_step": "Completed",
+          "started_at": "2025-11-24T12:17:58.702911",
+          "completed_at": "2025-11-24T12:17:59.214900",
+          "error": null
+        },
+        "knowledge_summary": {
+          "tables": 0,
+          "models": 116,
+          "routes": 748,
+          "forms": 97,
+          "templates": 356,
+          "relationships": 0,
+          "enums": 25
+        }
+      }
+    }
+  },
+  {
+    "job_id": "train_1763979548.585489",
+    "model_name": "نموذج شامل",
+    "training_type": "custom",
+    "data_range": "all",
+    "status": "running",
+    "progress": 15,
+    "started_at": "2025-11-24T10:19:08.585509+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "تحليل قاعدة البيانات..."
+  },
+  {
+    "job_id": "train_1763979973.775024",
+    "model_name": "نموذج التنبؤ بالمبيعات",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:26:13.775037+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:26:17.434504+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:26:16.073947",
+        "completed_at": "2025-11-24T12:26:17.431547",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 748,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763979983.841508",
+    "model_name": "نموذج إدارة المخزون",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:26:23.841524+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:26:25.836056+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:26:24.805015",
+        "completed_at": "2025-11-24T12:26:25.833492",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 748,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763979991.237565",
+    "model_name": "نموذج تحليل العملاء",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:26:31.237579+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:26:33.240208+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:26:32.215008",
+        "completed_at": "2025-11-24T12:26:33.237039",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 748,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763980082.206886",
+    "model_name": "نموذج شامل",
+    "training_type": "deep",
+    "data_range": "all",
+    "status": "running",
+    "progress": 15,
+    "started_at": "2025-11-24T10:28:02.206907+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "تحليل قاعدة البيانات..."
+  },
+  {
+    "job_id": "train_1763980508.899884",
+    "model_name": "نموذج تحليل العملاء",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:35:08.899907+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:35:12.316274+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:35:11.057034",
+        "completed_at": "2025-11-24T12:35:12.312039",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 748,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763980521.167827",
+    "model_name": "نموذج إدارة المخزون",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:35:21.167848+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:35:23.293939+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:35:22.196965",
+        "completed_at": "2025-11-24T12:35:23.289937",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 748,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763980529.575047",
+    "model_name": "نموذج التنبؤ بالمبيعات",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:35:29.575061+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:35:32.047332+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:35:30.739779",
+        "completed_at": "2025-11-24T12:35:32.042303",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 748,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763981331.598816",
+    "model_name": "نموذج تحليل العملاء",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:48:51.598831+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:48:55.144639+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:48:53.924047",
+        "completed_at": "2025-11-24T12:48:55.141286",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 749,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763981342.494364",
+    "model_name": "نموذج إدارة المخزون",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:49:02.494392+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:49:04.771383+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:49:03.490437",
+        "completed_at": "2025-11-24T12:49:04.767301",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 749,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763981352.741727",
+    "model_name": "نموذج التنبؤ بالمبيعات",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:49:12.741738+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:49:15.681396+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:49:13.769611",
+        "completed_at": "2025-11-24T12:49:15.676002",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 749,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
+  },
+  {
+    "job_id": "train_1763981365.122277",
+    "model_name": "نموذج شامل",
+    "training_type": "deep",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:49:25.122296+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:54:44.271994+00:00",
+    "result": {
+      "deep_training": {
+        "success": true,
+        "items_learned": 6659,
+        "modules": 36
+      },
+      "detailed_training": {
+        "success": true,
+        "message": "Training completed successfully",
+        "status": {
+          "running": false,
+          "progress": 100.0,
+          "current_step": "Completed",
+          "started_at": "2025-11-24T12:54:43.484713",
+          "completed_at": "2025-11-24T12:54:44.268968",
+          "error": null
+        },
+        "knowledge_summary": {
+          "tables": 129,
+          "models": 116,
+          "routes": 749,
+          "forms": 97,
+          "templates": 356,
+          "relationships": 350,
+          "enums": 25
+        }
+      }
+    }
+  },
+  {
+    "job_id": "train_1763981753.323543",
+    "model_name": "نموذج شامل",
+    "training_type": "quick",
+    "data_range": "all",
+    "status": "completed",
+    "progress": 100,
+    "started_at": "2025-11-24T10:55:53.323558+00:00",
+    "estimated_completion": null,
+    "error": null,
+    "current_step": "اكتمل التدريب بنجاح!",
+    "completed_at": "2025-11-24T10:55:55.568281+00:00",
+    "result": {
+      "success": true,
+      "message": "Training completed successfully",
+      "status": {
+        "running": false,
+        "progress": 100.0,
+        "current_step": "Completed",
+        "started_at": "2025-11-24T12:55:54.437252",
+        "completed_at": "2025-11-24T12:55:55.561644",
+        "error": null
+      },
+      "knowledge_summary": {
+        "tables": 129,
+        "models": 116,
+        "routes": 749,
+        "forms": 97,
+        "templates": 356,
+        "relationships": 350,
+        "enums": 25
+      }
+    }
   }
 ]

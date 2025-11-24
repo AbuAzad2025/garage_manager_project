@@ -30,28 +30,36 @@
       <ul class="nav nav-tabs nav-fill" id="dbTabs" role="tablist">
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'browse' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='browse') }}"
+             data-tab="browse"
+             href="#browse"
+             role="tab"
              title="تصفح جميع الجداول والبيانات">
             تصفح
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'edit' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='edit') }}"
+             data-tab="edit"
+             href="#edit"
+             role="tab"
              title="تحرير البيانات مباشرة">
             تحرير
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'schema' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='schema') }}"
+             data-tab="schema"
+             href="#schema"
+             role="tab"
              title="عرض هيكل قاعدة البيانات والعلاقات">
             هيكل
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'indexes' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='indexes') }}"
+             data-tab="indexes"
+             href="#indexes"
+             role="tab"
              title="إدارة الفهارس لتسريع الأداء">
             فهارس
             {% if indexes_stats and indexes_stats.total_indexes %}
@@ -61,49 +69,63 @@
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='logs') }}"
+             data-tab="logs"
+             href="#logs"
+             role="tab"
              title="عرض سجلات النظام والأخطاء">
             سجلات
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'sql' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='sql') }}"
+             data-tab="sql"
+             href="#sql"
+             role="tab"
              title="محرر SQL احترافي مع Autocomplete">
             SQL
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'python' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='python') }}"
+             data-tab="python"
+             href="#python"
+             role="tab"
              title="تنفيذ أكواد Python مباشرة">
             Python
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'maintenance' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='maintenance') }}"
+             data-tab="maintenance"
+             href="#maintenance"
+             role="tab"
              title="صيانة وتحسين قاعدة البيانات">
             صيانة
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'restore' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='restore') }}"
+             data-tab="restore"
+             href="#restore"
+             role="tab"
              title="استعادة النسخ الاحتياطية">
             استعادة
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'tools' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='tools') }}"
+             data-tab="tools"
+             href="#tools"
+             role="tab"
              title="أدوات إضافية متقدمة">
             أدوات
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'archive' %}active{% endif %}" 
-             href="{{ url_for('security.database_manager', tab='archive') }}"
+             data-tab="archive"
+             href="#archive"
+             role="tab"
              title="الجداول المؤرشفة المحذوفة">
             أرشيفات
           </a>
@@ -230,44 +252,43 @@
                   <thead class="table-dark">
                     <tr>
                       {% for col in columns %}
-                      <th>
-                        {{ col }}
-                        <div class="btn-group btn-group-sm float-end">
-                          <button class="btn btn-sm btn-warning" title="تعديل العمود">
-                            <i class="fas fa-edit"></i>
-                          </button>
-                          <button class="btn btn-sm btn-danger" title="حذف العمود" 
-                                  onclick="if(confirm('حذف العمود {{ col }}؟')) { 
-                                    const formData = new FormData();
-                                    formData.append('column', '{{ col }}');
-                                    formData.append('csrf_token', getCsrfToken());
-                                    fetch('/security/db-editor/delete-column/{{ selected_table }}', {
-                                      method: 'POST',
-                                      body: formData
-                                    }).then(() => location.reload());
-                                  }">
-                            <i class="fas fa-trash"></i>
-                          </button>
-                        </div>
-                      </th>
+                      <th>{{ col }}</th>
                       {% endfor %}
                       <th>إجراءات</th>
                     </tr>
                   </thead>
                   <tbody>
                     {% for row in data[:50] %}
-                    <tr>
+                    <tr data-row-index="{{ loop.index0 }}">
                       {% for col in columns %}
                       <td contenteditable="true" class="editable-cell" 
-                          data-row-id="{{ row.id }}" 
-                          data-column="{{ col }}">
+                          data-row-primary-key="{{ row.get(primary_key_column) or row.get('id') or row.get(columns[0]) or '' }}" 
+                          data-column="{{ col }}"
+                          data-table="{{ selected_table }}">
                         {{ row.get(col, '') }}
                       </td>
                       {% endfor %}
                       <td>
+                        <button class="btn btn-sm btn-success save-row-btn" 
+                                title="حفظ التعديلات"
+                                data-row-index="{{ loop.index0 }}"
+                                style="display: none;"
+                                onclick="saveRow(this)">
+                          <i class="fas fa-save"></i> حفظ
+                        </button>
+                        <button class="btn btn-sm btn-secondary cancel-row-btn" 
+                                title="إلغاء التعديلات"
+                                data-row-index="{{ loop.index0 }}"
+                                style="display: none;"
+                                onclick="cancelRowEdit(this)">
+                          <i class="fas fa-times"></i> إلغاء
+                        </button>
                         <button class="btn btn-sm btn-danger" title="حذف"
                                 onclick="if(confirm('حذف هذا السجل؟')) {
-                                  fetch('/security/db-editor/delete-row/{{ selected_table }}/{{ row.id }}', {
+                                  const row = this.closest('tr');
+                                  const firstCell = row.querySelector('.editable-cell');
+                                  const primaryKey = firstCell ? firstCell.dataset.rowPrimaryKey : '';
+                                  fetch('/security/db-editor/delete-row/{{ selected_table }}/' + encodeURIComponent(primaryKey), {
                                     method: 'POST',
                                     headers: {
                                       'Content-Type': 'application/x-www-form-urlencoded',
@@ -397,43 +418,129 @@
         <div class="tab-pane fade {% if active_tab == 'indexes' %}show active{% endif %}" 
              id="indexes" 
              role="tabpanel">
-        <div class="alert alert-info">
-          <i class="fas fa-bolt"></i> <strong>إدارة الفهارس:</strong> 
-          {{ indexes_stats.total_indexes }} فهرس على {{ indexes_stats.total_tables }} جدول
-        </div>
-        <div class="row">
-          {% for table in indexes_data %}
-          <div class="col-md-6 mb-3">
-            <div class="card">
-              <div class="card-header bg-light d-flex justify-content-between">
-                <strong><i class="fas fa-table"></i> {{ table.name }}</strong>
-                <span class="badge bg-primary">{{ table.indexes_count }} فهرس</span>
+        <div class="container-fluid p-4">
+          {% if indexes_stats %}
+          <div class="row mb-4">
+            <div class="col-md-3">
+              <div class="card border-primary">
+                <div class="card-body text-center">
+                  <i class="fas fa-key fa-2x text-primary mb-2"></i>
+                  <h4 class="mb-0">{{ indexes_stats.total_indexes }}</h4>
+                  <small class="text-muted">إجمالي الفهارس</small>
+                </div>
               </div>
-              <div class="card-body">
-                {% if table.indexes %}
-                <ul class="list-group list-group-flush">
-                  {% for idx in table.indexes %}
-                  <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span>
-                      <i class="fas fa-key"></i> {{ idx.name }}
-                      <small class="text-muted">({{ idx.columns|join(', ') }})</small>
-                    </span>
-                    <div>
-                      {% if idx.unique %}<span class="badge bg-success ml-1">UNIQUE</span>{% endif %}
-                      <button class="btn btn-sm btn-outline-primary" onclick="analyzeIndex('{{ idx.name }}')">
-                        <i class="fas fa-chart-line"></i> تحليل
-                      </button>
-                    </div>
-                  </li>
-                  {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted">لا توجد فهارس</p>
-                {% endif %}
+            </div>
+            <div class="col-md-3">
+              <div class="card border-success">
+                <div class="card-body text-center">
+                  <i class="fas fa-table fa-2x text-success mb-2"></i>
+                  <h4 class="mb-0">{{ indexes_stats.total_tables }}</h4>
+                  <small class="text-muted">عدد الجداول</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-info">
+                <div class="card-body text-center">
+                  <i class="fas fa-columns fa-2x text-info mb-2"></i>
+                  <h4 class="mb-0">{{ indexes_stats.total_columns }}</h4>
+                  <small class="text-muted">إجمالي الأعمدة</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="card border-warning">
+                <div class="card-body text-center">
+                  <i class="fas fa-exclamation-triangle fa-2x text-warning mb-2"></i>
+                  <h4 class="mb-0">{{ indexes_stats.tables_without_indexes }}</h4>
+                  <small class="text-muted">جداول بدون فهارس</small>
+                </div>
               </div>
             </div>
           </div>
-          {% endfor %}
+          {% endif %}
+          
+          {% if indexes_data and indexes_data|length > 0 %}
+          <div class="row">
+            {% for table in indexes_data %}
+            <div class="col-md-6 mb-3">
+              <div class="card shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                  <strong><i class="fas fa-table text-primary"></i> {{ table.name }}</strong>
+                  <div>
+                    <span class="badge bg-primary me-1">{{ table.indexes_count }} فهرس</span>
+                    <span class="badge bg-info">{{ table.columns_count }} عمود</span>
+                    {% if table.fk_count > 0 %}
+                    <span class="badge bg-success">{{ table.fk_count }} علاقة</span>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="card-body">
+                  {% if table.indexes and table.indexes|length > 0 %}
+                  <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>اسم الفهرس</th>
+                          <th>الأعمدة</th>
+                          <th>النوع</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for idx in table.indexes %}
+                        <tr>
+                          <td>
+                            {% if idx.name == 'PRIMARY KEY' %}
+                            <i class="fas fa-key text-danger"></i> <strong class="text-danger">{{ idx.name }}</strong>
+                            {% else %}
+                            <i class="fas fa-key text-warning"></i> <strong>{{ idx.name }}</strong>
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if idx.columns %}
+                            {% for col in idx.columns %}
+                            <code class="me-1">{{ col }}</code>
+                            {% if not loop.last %},{% endif %}
+                            {% endfor %}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                          </td>
+                          <td>
+                            {% if idx.unique %}
+                            <span class="badge bg-success">UNIQUE</span>
+                            {% else %}
+                            <span class="badge bg-secondary">INDEX</span>
+                            {% endif %}
+                            {% if idx.name == 'PRIMARY KEY' %}
+                            <span class="badge bg-danger ms-1">PK</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                  {% else %}
+                  <div class="alert alert-warning mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> لا توجد فهارس على هذا الجدول
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% elif indexes_data|length == 0 %}
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> <strong>تحميل البيانات...</strong>
+            <p class="mb-0 mt-2">جاري تحميل معلومات الفهارس من قاعدة البيانات. إذا استمرت المشكلة، جرب تحديث الصفحة.</p>
+          </div>
+          {% else %}
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> لا توجد جداول في قاعدة البيانات لعرض فهارسها
+          </div>
+          {% endif %}
         </div>
         </div>
         
@@ -441,93 +548,145 @@
         <div class="tab-pane fade {% if active_tab == 'logs' %}show active{% endif %}" 
              id="logs" 
              role="tabpanel">
-        
-        <!-- Logs Filters -->
-        <div data-logs-filters></div>
-        <div data-logs-actions class="mb-3"></div>
-        
-        <ul class="nav nav-pills mb-3">
-          <li class="nav-item">
-            <a class="nav-link {% if log_type == 'audit' %}active{% endif %}" 
-               href="{{ url_for('security.database_manager', tab='logs', log_type='audit') }}">
-              <i class="fas fa-clipboard-check"></i> تدقيق
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if log_type == 'system' %}active{% endif %}" 
-               href="{{ url_for('security.database_manager', tab='logs', log_type='system') }}">
-              <i class="fas fa-server"></i> نظام
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if log_type == 'errors' %}active{% endif %}" 
-               href="{{ url_for('security.database_manager', tab='logs', log_type='errors') }}">
-              <i class="fas fa-exclamation-triangle"></i> أخطاء
-            </a>
-          </li>
-        </ul>
-        
-        {% if log_type == 'audit' %}
-        <div class="table-responsive">
-          <table class="table table-striped table-hover">
-            <thead class="table-dark">
-              <tr>
-                <th>المستخدم</th>
-                <th>الإجراء</th>
-                <th>التفاصيل</th>
-                <th>التاريخ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for log in audit_logs %}
-              <tr>
-                <td>{{ log.user.username if log.user else 'N/A' }}</td>
-                <td>{{ log.action }}</td>
-                <td><small>{{ log.details or '-' }}</small></td>
-                <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% elif log_type == 'system' %}
-        <div class="card">
-          <div class="card-body">
-            <pre style="max-height: 600px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 5px;">{{ system_logs or 'لا توجد سجلات' }}</pre>
-          </div>
-        </div>
-        {% elif log_type == 'errors' %}
-        <div class="row">
-          <div class="col-md-3">
-            <div class="card text-white bg-danger">
-              <div class="card-body">
-                <h5>{{ error_logs|length }}</h5>
-                <small>أخطاء محفوظة</small>
+        <div class="container-fluid p-4">
+          <ul class="nav nav-pills mb-4" role="tablist">
+            <li class="nav-item">
+              <a class="nav-link log-type-tab {% if log_type == 'audit' or not log_type %}active{% endif %}" 
+                 data-log-type="audit"
+                 href="#log-audit"
+                 role="tab">
+                <i class="fas fa-clipboard-check"></i> تدقيق
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link log-type-tab {% if log_type == 'system' %}active{% endif %}" 
+                 data-log-type="system"
+                 href="#log-system"
+                 role="tab">
+                <i class="fas fa-server"></i> نظام
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link log-type-tab {% if log_type == 'errors' %}active{% endif %}" 
+                 data-log-type="errors"
+                 href="#log-errors"
+                 role="tab">
+                <i class="fas fa-exclamation-triangle"></i> أخطاء
+              </a>
+            </li>
+          </ul>
+          
+          <div class="log-content">
+            <div class="log-pane fade {% if log_type == 'audit' or not log_type %}show active{% endif %}" id="log-audit">
+              {% if audit_logs and audit_logs|length > 0 %}
+              <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>المستخدم</th>
+                      <th>الإجراء</th>
+                      <th>التفاصيل</th>
+                      <th>IP</th>
+                      <th>التاريخ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for log in audit_logs %}
+                    <tr>
+                      <td>
+                        {% if log.user %}
+                        <i class="fas fa-user"></i> {{ log.user.username }}
+                        {% else %}
+                        <span class="text-muted">N/A</span>
+                        {% endif %}
+                      </td>
+                      <td><span class="badge bg-info">{{ log.action or '-' }}</span></td>
+                      <td><small>{{ log.details or log.note or '-' }}</small></td>
+                      <td><code>{{ log.ip_address or '-' }}</code></td>
+                      <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
               </div>
+              {% else %}
+              <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> لا توجد سجلات تدقيق
+              </div>
+              {% endif %}
+            </div>
+            
+            <div class="log-pane fade {% if log_type == 'system' %}show active{% endif %}" id="log-system">
+              <div class="card">
+                <div class="card-header bg-dark text-white">
+                  <i class="fas fa-server"></i> سجلات النظام
+                </div>
+                <div class="card-body p-0">
+                  <pre style="max-height: 600px; overflow-y: auto; background: #1e1e1e; color: #d4d4d4; padding: 15px; margin: 0; font-family: 'Courier New', monospace; font-size: 12px;">{{ system_logs or 'لا توجد سجلات نظام' }}</pre>
+                </div>
+              </div>
+            </div>
+            
+            <div class="log-pane fade {% if log_type == 'errors' %}show active{% endif %}" id="log-errors">
+              {% if error_logs and error_logs|length > 0 %}
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <div class="card text-white bg-danger">
+                    <div class="card-body text-center">
+                      <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                      <h3>{{ error_logs|length }}</h3>
+                      <small>إجمالي الأخطاء</small>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="card text-white bg-warning">
+                    <div class="card-body text-center">
+                      <i class="fas fa-clock fa-2x mb-2"></i>
+                      <h3>{{ (error_logs|selectattr('created_at')|list|length) }}</h3>
+                      <small>أخطاء موثقة</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                  <thead class="table-dark">
+                    <tr>
+                      <th>المستخدم</th>
+                      <th>الإجراء</th>
+                      <th>التفاصيل</th>
+                      <th>IP</th>
+                      <th>التاريخ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for log in error_logs %}
+                    <tr class="table-danger">
+                      <td>
+                        {% if log.user %}
+                        <i class="fas fa-user"></i> {{ log.user.username }}
+                        {% else %}
+                        <span class="text-muted">N/A</span>
+                        {% endif %}
+                      </td>
+                      <td><span class="badge bg-danger">{{ log.action or '-' }}</span></td>
+                      <td><small>{{ log.details or log.note or '-' }}</small></td>
+                      <td><code>{{ log.ip_address or '-' }}</code></td>
+                      <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+              <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i> لا توجد أخطاء مسجلة
+              </div>
+              {% endif %}
             </div>
           </div>
         </div>
-        <div class="table-responsive mt-3">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th>الإجراء</th>
-                <th>التفاصيل</th>
-                <th>التاريخ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for log in error_logs %}
-              <tr>
-                <td>{{ log.action }}</td>
-                <td>{{ log.details or '-' }}</td>
-                <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% endif %}
         </div>
         
         <!-- تبويب 6: SQL Console -->
@@ -927,66 +1086,204 @@ function getCsrfToken() {
 
 // تفعيل التبويب من URL
 document.addEventListener('DOMContentLoaded', function() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const tab = urlParams.get('tab');
-  if (tab) {
-    const tabButton = document.getElementById(tab + '-tab');
-    if (tabButton) {
-      $(tabButton).tab('show');
-    }
+  function switchTab(tabName) {
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.classList.remove('active');
+      if (link.dataset.tab === tabName) {
+        link.classList.add('active');
+      }
+    });
+    
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+      pane.classList.remove('show', 'active');
+      if (pane.id === tabName) {
+        pane.classList.add('show', 'active');
+      }
+    });
   }
   
-  // حفظ التعديلات عند تغيير الخلايا
+  const urlParams = new URLSearchParams(window.location.search);
+  let tab = urlParams.get('tab');
+  if (!tab) {
+    tab = 'browse';
+  }
+  switchTab(tab);
+  
+  document.querySelectorAll('a[data-tab]').forEach(link => {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      const targetTab = this.dataset.tab;
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.set('tab', targetTab);
+      if (targetTab === 'logs') {
+        newUrl.searchParams.delete('log_type');
+      }
+      window.location.href = newUrl.toString();
+    });
+  });
+  
+  const rowChanges = new Map();
+  
   document.querySelectorAll('.editable-cell').forEach(cell => {
     const originalValue = cell.textContent.trim();
     cell.dataset.originalValue = originalValue;
     
+    cell.addEventListener('input', function() {
+      const row = this.closest('tr');
+      const rowIndex = row.dataset.rowIndex;
+      const saveBtn = row.querySelector('.save-row-btn');
+      const cancelBtn = row.querySelector('.cancel-row-btn');
+      
+      if (saveBtn) saveBtn.style.display = 'inline-block';
+      if (cancelBtn) cancelBtn.style.display = 'inline-block';
+      
+      this.style.backgroundColor = '#fff3cd';
+    });
+    
     cell.addEventListener('blur', function() {
-      const rowId = this.dataset.rowId;
-      const column = this.dataset.column;
+      const row = this.closest('tr');
+      const rowIndex = row.dataset.rowIndex;
       const newValue = this.textContent.trim();
       
-      if (newValue === this.dataset.originalValue) {
-        return;
+      if (newValue !== this.dataset.originalValue) {
+        if (!rowChanges.has(rowIndex)) {
+          rowChanges.set(rowIndex, {});
+        }
+        rowChanges.get(rowIndex)[this.dataset.column] = {
+          oldValue: this.dataset.originalValue,
+          newValue: newValue,
+          cell: this
+        };
+      } else {
+        if (rowChanges.has(rowIndex)) {
+          delete rowChanges.get(rowIndex)[this.dataset.column];
+          if (Object.keys(rowChanges.get(rowIndex)).length === 0) {
+            rowChanges.delete(rowIndex);
+            const saveBtn = row.querySelector('.save-row-btn');
+            const cancelBtn = row.querySelector('.cancel-row-btn');
+            if (saveBtn) saveBtn.style.display = 'none';
+            if (cancelBtn) cancelBtn.style.display = 'none';
+          }
+        }
       }
-      
-      // حفظ التعديل
-      fetch('/security/db-editor/update-cell/{{ selected_table }}', {
+    });
+  });
+  
+  window.saveRow = function(btn) {
+    const row = btn.closest('tr');
+    const rowIndex = row.dataset.rowIndex;
+    const firstCell = row.querySelector('.editable-cell');
+    const rowPrimaryKey = firstCell.dataset.rowPrimaryKey;
+    const table = firstCell.dataset.table;
+    
+    if (!rowChanges.has(rowIndex) || Object.keys(rowChanges.get(rowIndex)).length === 0) {
+      alert('لا توجد تعديلات للحفظ');
+      return;
+    }
+    
+    const changes = rowChanges.get(rowIndex);
+    let allSaved = true;
+    let savedCount = 0;
+    const totalChanges = Object.keys(changes).length;
+    
+    Object.entries(changes).forEach(([column, change]) => {
+      fetch('/security/db-editor/update-cell/' + table, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRFToken': getCsrfToken()
         },
         body: JSON.stringify({
-          row_id: rowId,
+          row_id: rowPrimaryKey,
           column: column,
-          value: newValue
+          value: change.newValue
         })
       }).then(response => response.json()).then(data => {
+        savedCount++;
         if (data.success) {
-          this.style.backgroundColor = '#d4edda';
-          this.dataset.originalValue = newValue;
+          change.cell.dataset.originalValue = change.newValue;
+          change.cell.style.backgroundColor = '#d4edda';
           setTimeout(() => {
-            this.style.backgroundColor = '';
-          }, 1000);
+            change.cell.style.backgroundColor = '';
+          }, 2000);
         } else {
-          this.style.backgroundColor = '#f8d7da';
-          alert('فشل الحفظ: ' + (data.error || 'خطأ غير معروف'));
-          this.textContent = this.dataset.originalValue;
-          setTimeout(() => {
-            this.style.backgroundColor = '';
-          }, 1000);
+          allSaved = false;
+          change.cell.style.backgroundColor = '#f8d7da';
+        }
+        
+        if (savedCount === totalChanges) {
+          if (allSaved) {
+            rowChanges.delete(rowIndex);
+            btn.style.display = 'none';
+            row.querySelector('.cancel-row-btn').style.display = 'none';
+            alert('تم حفظ جميع التعديلات بنجاح');
+          } else {
+            alert('حدث خطأ في حفظ بعض التعديلات');
+          }
         }
       }).catch(err => {
-        this.style.backgroundColor = '#f8d7da';
+        allSaved = false;
+        savedCount++;
         alert('خطأ: ' + err.message);
-        this.textContent = this.dataset.originalValue;
-        setTimeout(() => {
-          this.style.backgroundColor = '';
-        }, 1000);
+        if (savedCount === totalChanges) {
+          rowChanges.delete(rowIndex);
+          btn.style.display = 'none';
+          row.querySelector('.cancel-row-btn').style.display = 'none';
+        }
       });
     });
+  };
+  
+  window.cancelRowEdit = function(btn) {
+    const row = btn.closest('tr');
+    const rowIndex = row.dataset.rowIndex;
+    
+    if (rowChanges.has(rowIndex)) {
+      const changes = rowChanges.get(rowIndex);
+      Object.values(changes).forEach(change => {
+        change.cell.textContent = change.oldValue;
+        change.cell.style.backgroundColor = '';
+      });
+      rowChanges.delete(rowIndex);
+    }
+    
+    btn.style.display = 'none';
+    row.querySelector('.save-row-btn').style.display = 'none';
+  };
+  
+  document.querySelectorAll('.log-type-tab').forEach(tab => {
+    tab.addEventListener('click', function(e) {
+      e.preventDefault();
+      const logType = this.dataset.logType;
+      
+      document.querySelectorAll('.log-type-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.log-pane').forEach(p => {
+        p.classList.remove('show', 'active');
+      });
+      
+      this.classList.add('active');
+      const targetPane = document.getElementById('log-' + logType);
+      if (targetPane) {
+        targetPane.classList.add('show', 'active');
+      }
+      
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.set('tab', 'logs');
+      newUrl.searchParams.set('log_type', logType);
+      window.history.pushState({}, '', newUrl);
+    });
   });
+  
+  const logContentStyle = document.createElement('style');
+  logContentStyle.textContent = `
+    .log-pane {
+      display: none;
+    }
+    .log-pane.show {
+      display: block;
+    }
+  `;
+  document.head.appendChild(logContentStyle);
 });
 
 function executeVacuum() {

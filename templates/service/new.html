@@ -78,7 +78,15 @@
           <div class="col-md-3 mb-3">
             {{ form.vehicle_type_id.label(class="form-label fw-bold", for=form.vehicle_type_id.id) }}
             <div class="input-group">
-              {{ form.vehicle_type_id(class="custom-select select2", id=form.vehicle_type_id.id, data_endpoint=url_for('api.search_equipment_types'), data_placeholder="اختر نوعًا أو أضف جديدًا") }}
+              <select id="{{ form.vehicle_type_id.id }}" 
+                      name="{{ form.vehicle_type_id.name }}" 
+                      class="form-control select2 vehicle-type-ajax-select"
+                      data-endpoint="{{ url_for('api.search_equipment_types') }}"
+                      data-placeholder="اختر نوعًا أو أضف جديدًا">
+                {% if form.vehicle_type_id.data %}
+                  <option value="{{ form.vehicle_type_id.data }}" selected></option>
+                {% endif %}
+              </select>
               <button type="button" class="btn btn-outline-primary" id="addTypeBtn" title="إضافة نوع">
                 <i class="fa fa-plus"></i>
               </button>
@@ -246,25 +254,102 @@
   <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}"></script>
   <script src="{{ url_for('static', filename='js/service.js') }}"></script>
   <script>
-    $(function () {
-      // تهيئة Select2 للعناصر خارج الـ modal فقط
-      $('.select2').not('#equipmentTypeModal .select2').each(function(){
-        const ep = $(this).data('endpoint');
-        if (ep) {
-          $(this).select2({
-            width: '100%',
-            theme: 'bootstrap4',
-            ajax: {
-              url: ep, dataType: 'json', delay: 250,
-              data: params => ({ q: params.term || '', limit: 20 }),
-              processResults: data => ({ results: Array.isArray(data) ? data : (data.results || []) })
-            },
-            placeholder: $(this).data('placeholder') || 'اختر...'
-          });
-        } else {
-          $(this).select2({ width: '100%', theme: 'bootstrap4', placeholder: 'اختر...' });
+    (function() {
+      function initVehicleTypeSelect2() {
+        var $vehicleType = $('#{{ form.vehicle_type_id.id }}');
+        if (!$vehicleType.length || typeof $.fn.select2 === 'undefined') {
+          console.error('Vehicle type select or Select2 not found');
+          return;
         }
-      });
+        
+        var endpoint = $vehicleType.attr('data-endpoint') || $vehicleType.data('endpoint');
+        if (!endpoint) {
+          console.error('No endpoint found for vehicle type');
+          return;
+        }
+        
+        if ($vehicleType.data('select2')) {
+          $vehicleType.select2('destroy');
+        }
+        
+        $vehicleType.select2({
+          theme: 'bootstrap4',
+          width: '100%',
+          dir: 'rtl',
+          language: {
+            inputTooShort: function() { return 'اكتب للبحث...'; },
+            searching: function() { return 'جارٍ البحث...'; },
+            noResults: function() { return 'لا توجد نتائج'; },
+            loadingMore: function() { return 'جاري التحميل...'; }
+          },
+          allowClear: true,
+          minimumInputLength: 0,
+          placeholder: $vehicleType.attr('data-placeholder') || $vehicleType.data('placeholder') || 'اختر نوعًا...',
+          ajax: {
+            url: endpoint,
+            type: 'GET',
+            dataType: 'json',
+            delay: 200,
+            cache: false,
+            data: function(params) {
+              console.log('Sending AJAX request with term:', params.term || '(empty)');
+              return { q: params.term || '', limit: 50 };
+            },
+            processResults: function(data, params) {
+              console.log('AJAX response:', data);
+              if (!data) {
+                return { results: [] };
+              }
+              var results = data.results || [];
+              console.log('Processing', results.length, 'results');
+              return {
+                results: $.map(results, function(item) {
+                  return {
+                    id: item.id,
+                    text: item.text || item.name || String(item.id)
+                  };
+                })
+              };
+            },
+            error: function(xhr, status, error) {
+              console.error('AJAX error:', status, error);
+              console.error('Status:', xhr.status);
+              console.error('Response:', xhr.responseText);
+            }
+          }
+        });
+        
+        $vehicleType.on('select2:open', function() {
+          console.log('Select2 opened - triggering load');
+          var select2Instance = $vehicleType.data('select2');
+          if (select2Instance) {
+            setTimeout(function() {
+              var $search = select2Instance.$dropdown.find('.select2-search__field');
+              if ($search.length) {
+                $search.focus();
+                if (!$search.val()) {
+                  $search.val(' ').trigger('input').val('');
+                }
+              }
+            }, 100);
+          }
+        });
+        
+        $vehicleType.data('s2-initialized', true);
+        console.log('Select2 initialized for vehicle type');
+      }
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          setTimeout(initVehicleTypeSelect2, 300);
+        });
+      } else {
+        setTimeout(initVehicleTypeSelect2, 300);
+      }
+    })();
+  </script>
+  <script>
+    $(function () {
 
       $('#addTypeBtn').on('click', function(e) {
         e.preventDefault();

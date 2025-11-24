@@ -176,7 +176,12 @@ def list_customers():
     sort = request.args.get("sort", "balance")
     order = request.args.get("order", "asc")
     
-    if sort == "name":
+    if sort == "balance":
+        if order == "asc":
+            q = q.order_by(Customer.current_balance.asc().nullslast())
+        else:
+            q = q.order_by(Customer.current_balance.desc().nullslast())
+    elif sort == "name":
         if order == "asc":
             q = q.order_by(Customer.name.asc())
         else:
@@ -197,7 +202,7 @@ def list_customers():
         else:
             q = q.order_by(Customer.category.desc().nullslast())
     else:
-        q = q.order_by(Customer.name.asc())
+        q = q.order_by(Customer.current_balance.asc().nullslast())
 
     if print_scope not in {"all", "range", "page"}: 
         print_scope = "page" if print_mode else "all"
@@ -207,59 +212,29 @@ def list_customers():
             return float(customer_obj.current_balance)
         return float(getattr(customer_obj, "balance", 0) or 0)
 
-    if sort == "balance":
-        if order == "asc":
-            q = q.order_by(Customer.current_balance.asc().nullslast())
+    total_filtered = q.count()
+    
+    if print_mode:
+        if print_scope == "all":
+            customers_list = q.limit(10000).all()
+            pagination = None
+        elif print_scope == "range":
+            start_index = max(1, range_start or 1)
+            end_index = range_end or total_filtered or start_index
+            if end_index < start_index:
+                end_index = start_index
+            limit_count = end_index - start_index + 1
+            customers_list = q.offset(start_index - 1).limit(limit_count).all()
+            pagination = None
         else:
-            q = q.order_by(Customer.current_balance.desc().nullslast())
-        
-        total_filtered = q.count()
-        
-        if print_mode:
-            if print_scope == "all":
-                customers_list = q.limit(10000).all()
-                pagination = None
-            elif print_scope == "range":
-                start_index = max(1, range_start or 1)
-                end_index = range_end or total_filtered or start_index
-                if end_index < start_index:
-                    end_index = start_index
-                limit_count = end_index - start_index + 1
-                customers_list = q.offset(start_index - 1).limit(limit_count).all()
-                pagination = None
-            else:
-                page_number = max(1, target_page or page or 1)
-                start_idx = (page_number - 1) * per_page
-                customers_list = q.offset(start_idx).limit(per_page).all()
-                pagination = None
-        else:
-            pag = q.paginate(page=page, per_page=per_page, error_out=False)
-            customers_list = list(pag.items)
-            pagination = pag
+            page_number = max(1, target_page or page or 1)
+            start_idx = (page_number - 1) * per_page
+            customers_list = q.offset(start_idx).limit(per_page).all()
+            pagination = None
     else:
-        total_filtered = q.count()
-        
-        if print_mode:
-            if print_scope == "all":
-                customers_list = q.limit(10000).all()
-                pagination = None
-            elif print_scope == "range":
-                start_index = max(1, range_start or 1)
-                end_index = range_end or total_filtered or start_index
-                if end_index < start_index:
-                    end_index = start_index
-                limit_count = end_index - start_index + 1
-                customers_list = q.offset(start_index - 1).limit(limit_count).all()
-                pagination = None
-            else:
-                page_number = max(1, target_page or page or 1)
-                start_idx = (page_number - 1) * per_page
-                customers_list = q.offset(start_idx).limit(per_page).all()
-                pagination = None
-        else:
-            pag = q.paginate(page=page, per_page=per_page, error_out=False)
-            customers_list = list(pag.items)
-            pagination = pag
+        pag = q.paginate(page=page, per_page=per_page, error_out=False)
+        customers_list = list(pag.items)
+        pagination = pag
 
     mismatches = []
     for customer in customers_list:

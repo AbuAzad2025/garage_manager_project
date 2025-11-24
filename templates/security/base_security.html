@@ -280,7 +280,7 @@ document.body.dataset.tourName = '{% block tour_name %}dashboard{% endblock %}';
   <a href="{{ url_for('security.blocked_ips') }}" class="security-menu-item {% if 'blocked_ips' in request.endpoint %}active{% endif %}">
     <i class="fas fa-ban"></i>
     <span>IPs محظورة</span>
-    <span class="menu-badge bg-danger">{{ blocked_ips_count|default(0) }}</span>
+    <span class="menu-badge bg-danger">{{ stats.blocked_ips|default(0) if stats else 0 }}</span>
   </a>
   <a href="{{ url_for('security.blocked_countries') }}" class="security-menu-item {% if 'blocked_countries' in request.endpoint %}active{% endif %}">
     <i class="fas fa-globe"></i>

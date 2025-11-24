@@ -1044,36 +1044,95 @@ def database_manager():
     error_stats = {}
     decrypt_result = None
     all_users = []
+    primary_key_column = 'id'
     
     # === 1) Browse & Edit & Schema ===
     if tab in ['browse', 'edit', 'schema'] and selected_table:
         data, columns = _browse_table(selected_table, limit=1000 if tab == 'edit' else 100)
         table_info = _get_table_info(selected_table)
+        
+        for col_info in table_info:
+            if col_info.get('pk', 0) == 1:
+                primary_key_column = col_info.get('name', 'id')
+                break
+        if not primary_key_column or primary_key_column == 'id':
+            primary_key_column = columns[0] if columns else 'id'
     
     # === 2) Indexes ===
     if tab == 'indexes':
-        from sqlalchemy import inspect
-        inspector = inspect(db.engine)
-        for table in sorted(tables):
-            cols = inspector.get_columns(table)
-            idxs = inspector.get_indexes(table)
-            fks = inspector.get_foreign_keys(table)
-            indexes_data.append({
-                'name': table,
-                'columns_count': len(cols),
-                'indexes_count': len(idxs),
-                'fk_count': len(fks),
-                'columns': [{'name': c['name'], 'type': str(c['type'])} for c in cols],
-                'indexes': [{'name': idx['name'], 'columns': idx['column_names'], 'unique': idx['unique']} for idx in idxs],
-                'foreign_keys': [{'columns': fk['constrained_columns'], 'ref_table': fk['referred_table']} for fk in fks]
-            })
-        indexes_stats = {
-            'total_tables': len(tables),
-            'total_indexes': sum([t['indexes_count'] for t in indexes_data]),
-            'total_columns': sum([t['columns_count'] for t in indexes_data]),
-            'tables_without_indexes': len([t for t in indexes_data if t['indexes_count'] == 0]),
-            'avg_indexes_per_table': round(sum([t['indexes_count'] for t in indexes_data]) / len(tables), 2) if tables else 0
-        }
+        try:
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            indexes_data = []
+            for table in sorted(tables):
+                try:
+                    cols = inspector.get_columns(table)
+                    idxs = inspector.get_indexes(table)
+                    fks = inspector.get_foreign_keys(table)
+                    
+                    processed_indexes = []
+                    for idx in idxs:
+                        column_names = idx.get('column_names', [])
+                        if not column_names:
+                            continue
+                        processed_indexes.append({
+                            'name': idx.get('name', 'unknown'),
+                            'columns': column_names if isinstance(column_names, list) else [column_names],
+                            'unique': bool(idx.get('unique', False))
+                        })
+                    
+                    pk_constraint = inspector.get_pk_constraint(table)
+                    if pk_constraint and pk_constraint.get('constrained_columns'):
+                        pk_columns = pk_constraint['constrained_columns']
+                        pk_index_name = f"pk_{table}"
+                        if not any(idx['name'] == pk_index_name for idx in processed_indexes):
+                            processed_indexes.insert(0, {
+                                'name': 'PRIMARY KEY',
+                                'columns': pk_columns if isinstance(pk_columns, list) else [pk_columns],
+                                'unique': True
+                            })
+                    
+                    indexes_data.append({
+                        'name': table,
+                        'columns_count': len(cols),
+                        'indexes_count': len(processed_indexes),
+                        'fk_count': len(fks),
+                        'columns': [{'name': c['name'], 'type': str(c['type'])} for c in cols],
+                        'indexes': processed_indexes,
+                        'foreign_keys': [{'columns': fk.get('constrained_columns', []), 'ref_table': fk.get('referred_table', '')} for fk in fks]
+                    })
+                except Exception as e:
+                    current_app.logger.error(f"Error processing table {table} for indexes: {e}")
+                    indexes_data.append({
+                        'name': table,
+                        'columns_count': 0,
+                        'indexes_count': 0,
+                        'fk_count': 0,
+                        'columns': [],
+                        'indexes': [],
+                        'foreign_keys': []
+                    })
+            
+            total_indexes = sum([t['indexes_count'] for t in indexes_data]) if indexes_data else 0
+            total_columns = sum([t['columns_count'] for t in indexes_data]) if indexes_data else 0
+            
+            indexes_stats = {
+                'total_tables': len(tables),
+                'total_indexes': total_indexes,
+                'total_columns': total_columns,
+                'tables_without_indexes': len([t for t in indexes_data if t['indexes_count'] == 0]) if indexes_data else len(tables),
+                'avg_indexes_per_table': round(total_indexes / len(tables), 2) if tables else 0
+            }
+        except Exception as e:
+            current_app.logger.error(f"Error loading indexes: {e}")
+            indexes_data = []
+            indexes_stats = {
+                'total_tables': len(tables),
+                'total_indexes': 0,
+                'total_columns': 0,
+                'tables_without_indexes': len(tables),
+                'avg_indexes_per_table': 0
+            }
     
     # === 3) Logs ===
     if tab == 'logs':
@@ -1182,9 +1241,16 @@ def database_manager():
                           data=data,
                           columns=columns,
                           table_info=table_info,
+                          primary_key_column=primary_key_column,
                           # Indexes
-                          indexes_data=indexes_data,
-                          indexes_stats=indexes_stats,
+                          indexes_data=indexes_data if indexes_data else [],
+                          indexes_stats=indexes_stats if indexes_stats else {
+                              'total_tables': len(tables),
+                              'total_indexes': 0,
+                              'total_columns': 0,
+                              'tables_without_indexes': len(tables),
+                              'avg_indexes_per_table': 0
+                          },
                           # Logs
                           audit_logs=audit_logs,
                           system_logs=system_logs,
@@ -2346,6 +2412,13 @@ def get_cached_security_stats():
         'total_apis': total_apis,
         'total_indexes': total_indexes,
         'total_relations': total_relations
+    }
+
+
+@security_bp.app_context_processor
+def inject_security_stats():
+    return {
+        'stats': get_cached_security_stats()
     }
 
 

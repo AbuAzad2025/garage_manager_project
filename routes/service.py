@@ -18,7 +18,8 @@ from extensions import db, cache
 from models import (
     ServiceRequest, ServicePart, ServiceTask, Customer, Product,
     Warehouse, AuditLog, User, EquipmentType, StockLevel, Partner,
-    Permission, Role, ServiceStatus, _service_consumes_stock, ServicePriority
+    Permission, Role, ServiceStatus, _service_consumes_stock, ServicePriority,
+    Payment, PaymentStatus, PaymentDirection, PaymentEntityType
 )
 from forms import (
     ServiceRequestForm, CustomerForm, ServiceTaskForm,
@@ -292,13 +293,14 @@ def list_requests():
     
     # Pagination
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    per_page = min(per_page, 100)  # حد أقصى
+    per_page = request.args.get('per_page', 15, type=int)
+    per_page = min(per_page, 100)
     
     # بناء الاستعلام مع joinedload محسّن - فلترة السجلات غير المؤرشفة
     query = ServiceRequest.query.filter(ServiceRequest.is_archived == False).options(
         joinedload(ServiceRequest.customer),
-        joinedload(ServiceRequest.mechanic)
+        joinedload(ServiceRequest.mechanic),
+        joinedload(ServiceRequest.vehicle_type)
     )
     
     # تطبيق الفلاتر
@@ -339,10 +341,30 @@ def list_requests():
             query = query.filter(col >= start_month)
     
     # الترتيب
-    sort_by = request.args.get('sort', 'request_date')
+    sort_by = request.args.get('sort', 'balance_due')
     sort_order = request.args.get('order', 'desc')
-    field = _col(sort_by)
-    query = query.order_by(field.asc() if sort_order == 'asc' else field.desc())
+    
+    if sort_by == 'balance_due':
+        from sqlalchemy import select
+        total_paid_subq = (
+            select(func.coalesce(func.sum(Payment.total_amount), 0))
+            .where(
+                (Payment.service_id == ServiceRequest.id)
+                & (Payment.entity_type == PaymentEntityType.SERVICE.value)
+                & (Payment.status == PaymentStatus.COMPLETED.value)
+                & (Payment.direction == PaymentDirection.IN.value)
+            )
+            .correlate(ServiceRequest)
+            .scalar_subquery()
+        )
+        balance_due_expr = func.coalesce(ServiceRequest.total_amount, 0) - func.coalesce(total_paid_subq, 0)
+        if sort_order == 'asc':
+            query = query.order_by(balance_due_expr.asc().nullslast())
+        else:
+            query = query.order_by(balance_due_expr.desc().nullslast())
+    else:
+        field = _col(sort_by)
+        query = query.order_by(field.asc() if sort_order == 'asc' else field.desc())
     
     # Pagination
     per_page = min(max(1, per_page), 500)

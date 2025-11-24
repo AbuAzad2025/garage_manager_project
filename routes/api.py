@@ -2989,21 +2989,30 @@ def delete_exchange_transaction(id: int):
 @login_required
 @limiter.limit("60/minute")
 def search_equipment_types():
-    allowed = utils.is_super() or utils.is_admin() or _user_has_any("manage_inventory", "view_inventory", "manage_service", "view_service")
-    if not allowed:
-        abort(403)
-    q = (request.args.get("q") or "").strip()
-    query = EquipmentType.query
-    if q:
-        query = query.filter(
-            or_(
-                EquipmentType.name.ilike(f"%{q}%"),
-                EquipmentType.category.ilike(f"%{q}%"),
-                EquipmentType.model.ilike(f"%{q}%")
+    try:
+        allowed = utils.is_super() or utils.is_admin() or _user_has_any("manage_inventory", "view_inventory", "manage_service", "view_service")
+        if not allowed:
+            return jsonify({"results": [], "error": "Access denied"}), 403
+        
+        q = (request.args.get("q") or "").strip()
+        query = EquipmentType.query
+        
+        if q:
+            query = query.filter(
+                or_(
+                    EquipmentType.name.ilike(f"%{q}%"),
+                    func.coalesce(EquipmentType.category, "").ilike(f"%{q}%"),
+                    func.coalesce(EquipmentType.model_number, "").ilike(f"%{q}%")
+                )
             )
-        )
-    results = [{"id": et.id, "text": et.name} for et in query.order_by(EquipmentType.name).limit(20).all()]
-    return jsonify({"results": results})
+        
+        equipment_types = query.order_by(EquipmentType.name).limit(50).all()
+        results = [{"id": et.id, "text": et.name or f"نوع #{et.id}"} for et in equipment_types]
+        
+        return jsonify({"results": results})
+    except Exception as e:
+        current_app.logger.error("search_equipment_types error: %s", str(e))
+        return jsonify({"results": [], "error": str(e)}), 500
 
 @bp.post("/equipment-types/create")
 @login_required

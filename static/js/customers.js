@@ -39,6 +39,7 @@
 
   let customersSearchTimer = null;
   let customersRequestId = 0;
+  let customersRequestController = null;
 
   qsa('input[name="phone"]').forEach((phone, i) => {
     const whatsapps = qsa('input[name="whatsapp"]');
@@ -62,8 +63,6 @@
     });
   };
 
-  const resetBtn = qs("#reset-adv-filter");
-  if (resetBtn) resetBtn.addEventListener("click", () => { window.location.href = window.location.pathname; });
 
   const exportResultsBtn = qs("#export-results");
   if (exportResultsBtn) exportResultsBtn.addEventListener("click", () => {
@@ -243,25 +242,39 @@
   const customersSearchSummary = qs("#customers-search-summary");
 
   const fetchCustomers = (targetUrl) => {
-    if (!customersTableWrapper) return;
+    if (!customersTableWrapper) return Promise.resolve();
+    
+    if (customersRequestController) {
+      customersRequestController.abort();
+    }
+    
     const urlObj = new URL(targetUrl, window.location.origin);
     urlObj.searchParams.set("ajax", "1");
     const requestId = ++customersRequestId;
     const previousMarkup = customersTableWrapper.innerHTML;
     const tbody = customersTableWrapper.querySelector("tbody");
+    
     if (tbody && typeof window.setLoading === "function") {
       window.setLoading(tbody, true);
     }
+    
+    const controller = new AbortController();
+    customersRequestController = controller;
+    
     return fetch(urlObj.toString(), {
+      signal: controller.signal,
       headers: {
         "X-Requested-With": "XMLHttpRequest",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "Cache-Control": "no-cache"
       }
     }).then(res => {
-      if (!res.ok) throw res;
+      if (!res.ok) throw new Error("Network response was not ok");
       return res.json();
     }).then(data => {
-      if (requestId !== customersRequestId) return;
+      if (requestId !== customersRequestId || controller.signal.aborted) return;
+      if (customersRequestController !== controller) return;
+      
       if (customersTableWrapper && typeof data.table_html === "string") {
         customersTableWrapper.innerHTML = data.table_html;
       }
@@ -276,12 +289,17 @@
       const qstr = urlObj.searchParams.toString();
       const nextUrl = qstr ? `${urlObj.pathname}?${qstr}` : urlObj.pathname;
       window.history.replaceState({}, "", nextUrl);
-    }).catch(() => {
-      if (requestId !== customersRequestId) return;
+      customersRequestController = null;
+    }).catch(err => {
+      if (err.name === "AbortError") return;
+      if (requestId !== customersRequestId || controller.signal.aborted) return;
+      if (customersRequestController !== controller) return;
+      
       if (customersTableWrapper) {
         customersTableWrapper.innerHTML = previousMarkup;
         initCustomerTable();
       }
+      customersRequestController = null;
       showToast("تعذر تحديث القائمة", "danger");
     });
   };
@@ -310,7 +328,13 @@
     };
     customersSearchInput.addEventListener("input", () => {
       clearTimeout(customersSearchTimer);
-      customersSearchTimer = setTimeout(triggerSearch, 350);
+      customersSearchTimer = setTimeout(triggerSearch, 200);
+    });
+    customersSearchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        clearTimeout(customersSearchTimer);
+        triggerSearch();
+      }
     });
   }
 
