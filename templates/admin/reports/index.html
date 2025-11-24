@@ -99,6 +99,28 @@
                                 </div>
                             </div>
                             
+                            <!-- لوحة التحكم -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="card border-0 shadow-lg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                                        <div class="card-body text-white">
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <div>
+                                                    <h4 class="mb-1"><i class="fas fa-tachometer-alt"></i> لوحة تحكم المالك</h4>
+                                                    <p class="mb-0 opacity-75">إحصائيات حية ومعلومات شاملة عن النظام</p>
+                                                </div>
+                                                <i class="fas fa-tachometer-alt fa-3x opacity-25"></i>
+                                            </div>
+                                            <div class="d-grid">
+                                                <a href="{{ url_for('admin_reports.dashboard') }}" class="btn btn-light btn-lg fw-bold">
+                                                    <i class="fas fa-chart-line"></i> عرض لوحة التحكم
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <!-- روابط سريعة للتقارير الأخرى -->
                             <div class="row mt-4">
                                 <div class="col-12">
@@ -137,6 +159,79 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            {% if stats %}
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-gradient-info text-white">
+                                            <h5 class="mb-0"><i class="fas fa-chart-pie"></i> إحصائيات سريعة</h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row text-center">
+                                                <div class="col-md-3">
+                                                    <div class="info-box">
+                                                        <span class="info-box-icon bg-info"><i class="fas fa-credit-card"></i></span>
+                                                        <div class="info-box-content">
+                                                            <span class="info-box-text">إجمالي المدفوعات</span>
+                                                            <span class="info-box-number">{{ stats.total_payments }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="info-box">
+                                                        <span class="info-box-icon bg-success"><i class="fas fa-check-circle"></i></span>
+                                                        <div class="info-box-content">
+                                                            <span class="info-box-text">مدفوعات ناجحة</span>
+                                                            <span class="info-box-number">{{ stats.successful_payments }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="info-box">
+                                                        <span class="info-box-icon bg-warning"><i class="fas fa-clipboard-list"></i></span>
+                                                        <div class="info-box-content">
+                                                            <span class="info-box-text">إجمالي الطلبات</span>
+                                                            <span class="info-box-number">{{ stats.total_preorders }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="info-box">
+                                                        <span class="info-box-icon bg-danger"><i class="fas fa-clock"></i></span>
+                                                        <div class="info-box-content">
+                                                            <span class="info-box-text">طلبات معلقة</span>
+                                                            <span class="info-box-number">{{ stats.pending_preorders }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <hr>
+                                            <div class="row text-center">
+                                                <div class="col-md-6">
+                                                    <div class="info-box">
+                                                        <span class="info-box-icon bg-primary"><i class="fas fa-calendar-day"></i></span>
+                                                        <div class="info-box-content">
+                                                            <span class="info-box-text">مدفوعات اليوم</span>
+                                                            <span class="info-box-number">{{ stats.today_payments }}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="info-box">
+                                                        <span class="info-box-icon bg-success"><i class="fas fa-shekel-sign"></i></span>
+                                                        <div class="info-box-content">
+                                                            <span class="info-box-text">إيرادات اليوم</span>
+                                                            <span class="info-box-number">{{ "{:,.0f}".format(stats.today_revenue) }} ₪</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

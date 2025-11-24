@@ -1,9 +1,9 @@
 
 from flask import Blueprint, render_template, render_template_string, request, redirect, url_for, flash, jsonify, current_app, send_file, session, Response
 from flask_login import login_required, current_user
-from sqlalchemy import text, func, inspect
+from sqlalchemy import text, func, inspect, or_
 from datetime import datetime, timedelta, timezone, date
-from extensions import db
+from extensions import db, cache
 from backup_automation import AutomatedBackupManager
 from models import User, SystemSettings
 import utils
@@ -41,6 +41,8 @@ OWNER_SECTIONS = [
     OwnerSectionMeta('module_manager', 'Module Manager', 'advanced.module_manager', 'puzzle-piece', 90, 'governance'),
     OwnerSectionMeta('feature_flags', 'Feature Flags', 'advanced.feature_flags', 'flag', 100, 'governance'),
     OwnerSectionMeta('system_health', 'System Health', 'advanced.system_health', 'heartbeat', 110, 'assurance'),
+    OwnerSectionMeta('performance_profiler', 'Performance Profiler', 'advanced.performance_profiler', 'tachometer-alt', 115, 'assurance'),
+    OwnerSectionMeta('database_optimizer', 'Database Optimizer', 'advanced.database_optimizer', 'database', 116, 'assurance'),
     OwnerSectionMeta('financial_control', 'Financial Control', 'advanced.financial_control', 'chart-line', 120, 'finance'),
     OwnerSectionMeta('accounting_control', 'Accounting Control', 'advanced.accounting_control', 'calculator', 130, 'finance'),
     OwnerSectionMeta('api_generator', 'API Generator', 'advanced.api_generator', 'code', 140, 'development'),
@@ -154,46 +156,93 @@ def owner_only(f):
 @advanced_bp.route('/owner-hub')
 @owner_only
 def owner_hub():
-    tenant_list = _get_all_tenants()
-    tenant_stats = {
-        'total': len(tenant_list),
-        'active': sum(1 for t in tenant_list if t['active']),
-        'inactive': sum(1 for t in tenant_list if not t['active']),
-    }
-    backup_snapshot = _get_latest_backup_snapshot()
-    auto_backup_enabled = SystemSettings.get_setting('auto_backup_enabled', False)
-    auto_backup_schedule = SystemSettings.get_setting('auto_backup_schedule', '{}')
-    schedule_info = {}
-    if isinstance(auto_backup_schedule, str) and auto_backup_schedule:
-        try:
-            schedule_info = json.loads(auto_backup_schedule)
-        except Exception:
-            schedule_info = {}
-    health_checks, overall_health = _collect_system_health_checks()
-    SystemSettings.set_setting('system_health_last_run',
-                               {'checks': health_checks, 'score': overall_health, 'time': datetime.utcnow().isoformat()},
-                               data_type='json')
-    security_snapshot = _get_security_snapshot()
-    security_summary = _summarize_security_snapshot(security_snapshot)
-    license_info = _get_license_status()
-    license_alert = None
-    if license_info and license_info.get('status') in ('warning', 'expired'):
-        license_alert = license_info
-    last_denied_access = SystemSettings.get_setting('security_last_denied', None)
-    backup_summary = _summarize_backup_snapshot(backup_snapshot, auto_backup_enabled)
-    owner_alerts = _collect_owner_alerts(
-        backup_summary=backup_summary,
-        tenant_stats=tenant_stats,
-        security_snapshot=security_snapshot,
-        overall_health=overall_health,
-        auto_backup_enabled=auto_backup_enabled,
-        license_info=license_info,
-    )
-    db_stats = {
-        'size': _get_db_size(),
-        'records': _count_all_records(),
-        'tenants': tenant_stats['total'],
-    }
+    cache_key = "owner_hub_data"
+    cached_data = cache.get(cache_key)
+    
+    if cached_data is None:
+        tenant_list = _get_all_tenants()
+        tenant_stats = {
+            'total': len(tenant_list),
+            'active': sum(1 for t in tenant_list if t['active']),
+            'inactive': sum(1 for t in tenant_list if not t['active']),
+        }
+        backup_snapshot = _get_latest_backup_snapshot()
+        auto_backup_enabled = SystemSettings.get_setting('auto_backup_enabled', False)
+        auto_backup_schedule = SystemSettings.get_setting('auto_backup_schedule', '{}')
+        schedule_info = {}
+        if isinstance(auto_backup_schedule, str) and auto_backup_schedule:
+            try:
+                schedule_info = json.loads(auto_backup_schedule)
+            except Exception:
+                schedule_info = {}
+        
+        health_cache_key = "system_health_checks"
+        health_cached = cache.get(health_cache_key)
+        if health_cached is None:
+            health_checks, overall_health = _collect_system_health_checks()
+            cache.set(health_cache_key, (health_checks, overall_health), timeout=600)
+        else:
+            health_checks, overall_health = health_cached
+        
+        SystemSettings.set_setting('system_health_last_run',
+                                   {'checks': health_checks, 'score': overall_health, 'time': datetime.utcnow().isoformat()},
+                                   data_type='json')
+        security_snapshot = _get_security_snapshot()
+        security_summary = _summarize_security_snapshot(security_snapshot)
+        license_info = _get_license_status()
+        license_alert = None
+        if license_info and license_info.get('status') in ('warning', 'expired'):
+            license_alert = license_info
+        last_denied_access = SystemSettings.get_setting('security_last_denied', None)
+        backup_summary = _summarize_backup_snapshot(backup_snapshot, auto_backup_enabled)
+        owner_alerts = _collect_owner_alerts(
+            backup_summary=backup_summary,
+            tenant_stats=tenant_stats,
+            security_snapshot=security_snapshot,
+            overall_health=overall_health,
+            auto_backup_enabled=auto_backup_enabled,
+            license_info=license_info,
+        )
+        db_stats = {
+            'size': _get_db_size(),
+            'records': _count_all_records(),
+            'tenants': tenant_stats['total'],
+        }
+        
+        cached_data = {
+            'tenant_list': tenant_list,
+            'tenant_stats': tenant_stats,
+            'backup_snapshot': backup_snapshot,
+            'auto_backup_enabled': auto_backup_enabled,
+            'schedule_info': schedule_info,
+            'health_checks': health_checks,
+            'overall_health': overall_health,
+            'security_snapshot': security_snapshot,
+            'security_summary': security_summary,
+            'license_info': license_info,
+            'license_alert': license_alert,
+            'last_denied_access': last_denied_access,
+            'backup_summary': backup_summary,
+            'owner_alerts': owner_alerts,
+            'db_stats': db_stats,
+        }
+        cache.set(cache_key, cached_data, timeout=300)
+    else:
+        tenant_list = cached_data['tenant_list']
+        tenant_stats = cached_data['tenant_stats']
+        backup_snapshot = cached_data['backup_snapshot']
+        auto_backup_enabled = cached_data['auto_backup_enabled']
+        schedule_info = cached_data['schedule_info']
+        health_checks = cached_data['health_checks']
+        overall_health = cached_data['overall_health']
+        security_snapshot = cached_data['security_snapshot']
+        security_summary = cached_data['security_summary']
+        license_info = cached_data['license_info']
+        license_alert = cached_data['license_alert']
+        last_denied_access = cached_data['last_denied_access']
+        backup_summary = cached_data['backup_summary']
+        owner_alerts = cached_data['owner_alerts']
+        db_stats = cached_data['db_stats']
     quick_links = [
         {
             'label': 'إدارة النسخ',
@@ -1109,13 +1158,25 @@ def _get_db_size():
 
 
 def _count_all_records():
-    """عدد جميع السجلات"""
+    """عدد جميع السجلات - محسّن مع cache"""
+    cache_key = "total_records_count"
+    cached_count = cache.get(cache_key)
+    if cached_count is not None:
+        return cached_count
+    
     try:
         total = 0
         inspector = inspect(db.engine)
-        for table in inspector.get_table_names():
-            count = db.session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
-            total += count
+        tables = [t for t in inspector.get_table_names() 
+                 if not t.startswith('sqlite_') and not t.startswith('_alembic')]
+        
+        for table in tables:
+            try:
+                count = db.session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
+                total += count or 0
+            except Exception:
+                continue
+        cache.set(cache_key, total, timeout=3600)
         return total
     except Exception:
         return 0
@@ -3239,40 +3300,61 @@ def _convert_database(target_db, connection_string):
 
 
 def _get_all_tenants():
-    """جلب جميع Tenants مع تفاصيلهم"""
-    tenants = SystemSettings.query.filter(
+    """جلب جميع Tenants مع تفاصيلهم - محسّن مع cache و batch loading"""
+    cache_key = "all_tenants_list"
+    cached_list = cache.get(cache_key)
+    if cached_list is not None:
+        return cached_list
+    
+    tenant_db_settings = SystemSettings.query.filter(
         SystemSettings.key.like('tenant_%_db')
     ).all()
     
+    if not tenant_db_settings:
+        return []
+    
+    tenant_names = [t.key.replace('tenant_', '').replace('_db', '') for t in tenant_db_settings]
+    
+    all_settings = SystemSettings.query.filter(
+        or_(
+            *[SystemSettings.key.like(f'tenant_{name}_%') for name in tenant_names]
+        )
+    ).all()
+    
+    settings_dict = {}
+    for setting in all_settings:
+        for name in tenant_names:
+            if setting.key.startswith(f'tenant_{name}_'):
+                if name not in settings_dict:
+                    settings_dict[name] = {}
+                key_suffix = setting.key.replace(f'tenant_{name}_', '')
+                settings_dict[name][key_suffix] = setting.value
+                break
+    
     tenant_list = []
-    for t in tenants:
+    for t in tenant_db_settings:
         name = t.key.replace('tenant_', '').replace('_db', '')
-        
-        active_setting = SystemSettings.query.filter_by(key=f'tenant_{name}_active').first()
-        domain_setting = SystemSettings.query.filter_by(key=f'tenant_{name}_domain').first()
-        logo_setting = SystemSettings.query.filter_by(key=f'tenant_{name}_logo').first()
-        max_users_setting = SystemSettings.query.filter_by(key=f'tenant_{name}_max_users').first()
-        modules_setting = SystemSettings.query.filter_by(key=f'tenant_{name}_modules').first()
-        created_setting = SystemSettings.query.filter_by(key=f'tenant_{name}_created_at').first()
+        tenant_settings = settings_dict.get(name, {})
         
         modules = []
-        if modules_setting and modules_setting.value:
+        if tenant_settings.get('modules'):
             try:
-                modules = json.loads(modules_setting.value)
+                modules = json.loads(tenant_settings['modules'])
             except Exception:
                 modules = []
         
         tenant_list.append({
             'name': name,
             'db': t.value,
-            'active': active_setting.value == 'True' if active_setting else False,
-            'domain': domain_setting.value if domain_setting else '',
-            'logo': logo_setting.value if logo_setting else '',
-            'max_users': max_users_setting.value if max_users_setting else '10',
+            'active': tenant_settings.get('active', 'False') == 'True',
+            'domain': tenant_settings.get('domain', ''),
+            'logo': tenant_settings.get('logo', ''),
+            'max_users': tenant_settings.get('max_users', '10'),
             'modules': modules,
-            'created_at': created_setting.value if created_setting else ''
+            'created_at': tenant_settings.get('created_at', '')
         })
     
+    cache.set(cache_key, tenant_list, timeout=300)
     return tenant_list
 
 
@@ -3688,4 +3770,184 @@ def accounting_control_report_pdf():
         headers={"Content-Disposition": f"inline; filename={filename}"}
     )
 
+
+@advanced_bp.route('/performance-profiler', methods=['GET'])
+@owner_only
+def performance_profiler():
+    """Performance Profiler - تحليل أداء النظام"""
+    from sqlalchemy import text
+    import time
+    
+    cache_key = "performance_profiler_data"
+    cached_data = cache.get(cache_key)
+    
+    if cached_data is None:
+        profiler_data = {
+            'database': {},
+            'queries': [],
+            'cache_stats': {},
+            'system': {}
+        }
+        
+        try:
+            start = time.time()
+            db.session.execute(text("SELECT 1"))
+            profiler_data['database']['connection_time'] = round((time.time() - start) * 1000, 2)
+            
+            start = time.time()
+            db.session.execute(text("SELECT COUNT(*) FROM users"))
+            profiler_data['database']['simple_query_time'] = round((time.time() - start) * 1000, 2)
+            
+            inspector = inspect(db.engine)
+            tables = [t for t in inspector.get_table_names() 
+                     if not t.startswith('sqlite_') and not t.startswith('_alembic')]
+            profiler_data['database']['table_count'] = len(tables)
+            
+            slow_queries = []
+            for table in tables[:10]:
+                try:
+                    start = time.time()
+                    db.session.execute(text(f"SELECT COUNT(*) FROM {table}"))
+                    elapsed = (time.time() - start) * 1000
+                    if elapsed > 100:
+                        slow_queries.append({
+                            'table': table,
+                            'time_ms': round(elapsed, 2),
+                            'query': f"SELECT COUNT(*) FROM {table}"
+                        })
+                except Exception:
+                    continue
+            
+            profiler_data['queries'] = sorted(slow_queries, key=lambda x: x['time_ms'], reverse=True)[:10]
+            
+            try:
+                import psutil
+                process = psutil.Process()
+                profiler_data['system'] = {
+                    'memory_mb': round(process.memory_info().rss / (1024 * 1024), 2),
+                    'cpu_percent': process.cpu_percent(interval=0.1),
+                    'threads': process.num_threads()
+                }
+            except Exception:
+                profiler_data['system'] = {'error': 'psutil not available'}
+            
+            cache.set(cache_key, profiler_data, timeout=300)
+        except Exception as e:
+            profiler_data['error'] = str(e)
+    else:
+        profiler_data = cached_data
+    
+    return render_template('advanced/performance_profiler.html', profiler_data=profiler_data)
+
+
+@advanced_bp.route('/database-optimizer', methods=['GET', 'POST'])
+@owner_only
+def database_optimizer():
+    """Database Optimizer - تحسين قاعدة البيانات"""
+    from sqlalchemy import text
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'optimize':
+            try:
+                db.session.execute(text("PRAGMA optimize"))
+                db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+                db.session.execute(text("VACUUM"))
+                db.session.commit()
+                flash('✅ تم تحسين قاعدة البيانات بنجاح', 'success')
+                cache.delete("performance_profiler_data")
+                cache.delete("total_records_count")
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ خطأ: {str(e)}', 'danger')
+            return redirect(url_for('advanced.database_optimizer'))
+        
+        elif action == 'analyze':
+            try:
+                db.session.execute(text("ANALYZE"))
+                db.session.commit()
+                flash('✅ تم تحليل قاعدة البيانات', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ خطأ: {str(e)}', 'danger')
+            return redirect(url_for('advanced.database_optimizer'))
+        
+        elif action == 'reindex':
+            try:
+                inspector = inspect(db.engine)
+                tables = [t for t in inspector.get_table_names() 
+                         if not t.startswith('sqlite_') and not t.startswith('_alembic')]
+                
+                reindexed = []
+                for table in tables:
+                    try:
+                        db.session.execute(text(f"REINDEX {table}"))
+                        reindexed.append(table)
+                    except Exception:
+                        continue
+                
+                db.session.commit()
+                flash(f'✅ تم إعادة فهرسة {len(reindexed)} جدول', 'success')
+            except Exception as e:
+                db.session.rollback()
+                flash(f'❌ خطأ: {str(e)}', 'danger')
+            return redirect(url_for('advanced.database_optimizer'))
+    
+    try:
+        db_path = os.path.join(current_app.root_path, 'instance', 'app.db')
+        db_size = os.path.getsize(db_path) / (1024 * 1024)
+        
+        inspector = inspect(db.engine)
+        tables = [t for t in inspector.get_table_names() 
+                 if not t.startswith('sqlite_') and not t.startswith('_alembic')]
+        
+        index_count = 0
+        for table in tables:
+            try:
+                indexes = inspector.get_indexes(table)
+                index_count += len(indexes)
+            except Exception:
+                continue
+        
+        stats = {
+            'db_size_mb': round(db_size, 2),
+            'table_count': len(tables),
+            'index_count': index_count,
+            'db_path': db_path
+        }
+    except Exception as e:
+        stats = {'error': str(e)}
+    
+    return render_template('advanced/database_optimizer.html', stats=stats)
+
+
+@advanced_bp.route('/api/performance/stats', methods=['GET'])
+@owner_only
+def api_performance_stats():
+    """API للحصول على إحصائيات الأداء"""
+    from sqlalchemy import text
+    import time
+    
+    try:
+        start = time.time()
+        db.session.execute(text("SELECT 1"))
+        query_time = (time.time() - start) * 1000
+        
+        db_path = os.path.join(current_app.root_path, 'instance', 'app.db')
+        db_size = os.path.getsize(db_path) / (1024 * 1024)
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'query_time_ms': round(query_time, 2),
+                'db_size_mb': round(db_size, 2),
+                'timestamp': datetime.utcnow().isoformat()
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
