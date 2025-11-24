@@ -143,11 +143,6 @@
   .small-box {
     min-height: 120px !important;
   }
-  
-  .container-fluid {
-    max-width: 1600px !important;
-    margin: 0 auto !important;
-  }
 }
 
 /* ═══ Landscape Mobile ═══ */
