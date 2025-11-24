@@ -22,13 +22,53 @@
   transform: translateX(100%);
 }
 
+.content-wrapper {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  transition: margin-right 0.3s ease;
+  padding: 0 !important;
+}
+
 .security-content {
   margin-right: 280px;
   transition: margin-right 0.3s ease;
+  padding: 0;
+  min-height: calc(100vh - 60px);
+  width: calc(100% - 280px);
 }
 
 .security-content.expanded {
   margin-right: 0;
+  width: 100%;
+}
+
+body[data-sidebar-position="right"] .content-wrapper {
+  margin-left: 0 !important;
+  margin-right: 280px !important;
+  transition: margin-right 0.3s ease;
+  padding: 0 !important;
+}
+
+body[data-sidebar-position="right"] .content-wrapper.expanded {
+  margin-right: 0 !important;
+}
+
+body[data-sidebar-position="left"] .content-wrapper {
+  margin-left: 280px !important;
+  margin-right: 0 !important;
+  transition: margin-left 0.3s ease;
+  padding: 0 !important;
+}
+
+body[data-sidebar-position="left"] .content-wrapper.expanded {
+  margin-left: 0 !important;
+}
+
+.security-content .container-fluid {
+  padding: 20px;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .security-sidebar-header {
@@ -117,7 +157,19 @@
   }
   
   .security-content {
-    margin-right: 0;
+    margin-right: 0 !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  
+  .content-wrapper {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .security-content .container-fluid {
+    padding: 15px;
   }
 }
 
@@ -385,6 +437,11 @@ document.body.dataset.tourName = '{% block tour_name %}dashboard{% endblock %}';
     sidebar.classList.toggle('collapsed');
     content.classList.toggle('expanded');
     
+    const contentWrapper = document.querySelector('.content-wrapper');
+    if (contentWrapper) {
+      contentWrapper.classList.toggle('expanded');
+    }
+    
     const icon = this.querySelector('i');
     icon.classList.toggle('fa-bars');
     icon.classList.toggle('fa-times');
@@ -396,12 +453,20 @@ document.body.dataset.tourName = '{% block tour_name %}dashboard{% endblock %}';
   if (isCollapsed) {
     sidebar.classList.add('collapsed');
     content.classList.add('expanded');
+    const contentWrapper = document.querySelector('.content-wrapper');
+    if (contentWrapper) {
+      contentWrapper.classList.add('expanded');
+    }
     toggle.querySelector('i').classList.replace('fa-bars', 'fa-times');
   }
   
   if (window.innerWidth < 992) {
     sidebar.classList.add('collapsed');
     content.classList.add('expanded');
+    const contentWrapper = document.querySelector('.content-wrapper');
+    if (contentWrapper) {
+      contentWrapper.classList.add('expanded');
+    }
   }
   
   console.log('✅ Security Navigation Ready');

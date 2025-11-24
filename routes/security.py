@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from sqlalchemy import text, func
+from sqlalchemy import text, func, and_
 from sqlalchemy.exc import SAWarning
 from datetime import datetime, timedelta, timezone
 from extensions import db, cache
@@ -3255,40 +3255,104 @@ def user_control():
     
     from decimal import Decimal
     from models import convert_amount
+    from sqlalchemy.orm import selectinload
+    
+    user_ids = [u.id for u in users]
+    
+    if user_ids:
+        sales_counts = db.session.query(
+            Sale.seller_id,
+            func.count(Sale.id).label('count'),
+            func.sum(Sale.total_amount).label('total')
+        ).filter(
+            Sale.seller_id.in_(user_ids),
+            Sale.status == 'CONFIRMED'
+        ).group_by(Sale.seller_id).all()
+        
+        sales_dict = {uid: {'count': 0, 'total': Decimal('0.00')} for uid in user_ids}
+        for seller_id, count, total in sales_counts:
+            sales_dict[seller_id] = {'count': count, 'total': Decimal(str(total or 0))}
+        
+        all_user_sales = db.session.query(Sale).filter(
+            Sale.seller_id.in_(user_ids),
+            Sale.status == 'CONFIRMED'
+        ).all()
+        
+        for sale in all_user_sales:
+            amt = Decimal(str(sale.total_amount or 0))
+            if sale.currency != "ILS":
+                try:
+                    amt = convert_amount(amt, sale.currency, "ILS", sale.sale_date)
+                except Exception:
+                    amt = Decimal('0.00')
+            sales_dict[sale.seller_id]['total'] += amt
+        
+        services_counts = db.session.query(
+            ServiceRequest.mechanic_id,
+            func.count(ServiceRequest.id).label('count')
+        ).filter(
+            ServiceRequest.mechanic_id.in_(user_ids)
+        ).group_by(ServiceRequest.mechanic_id).all()
+        
+        services_dict = {uid: 0 for uid in user_ids}
+        for mechanic_id, count in services_counts:
+            services_dict[mechanic_id] = count
+        
+        payments_counts = db.session.query(
+            Payment.created_by,
+            func.count(Payment.id).label('count')
+        ).filter(
+            Payment.created_by.in_(user_ids)
+        ).group_by(Payment.created_by).all()
+        
+        payments_dict = {uid: 0 for uid in user_ids}
+        for created_by, count in payments_counts:
+            payments_dict[created_by] = count
+        
+        from sqlalchemy import distinct
+        
+        last_audits_subq = db.session.query(
+            AuditLog.user_id,
+            func.max(AuditLog.created_at).label('max_created_at')
+        ).filter(
+            AuditLog.user_id.in_(user_ids)
+        ).group_by(AuditLog.user_id).subquery()
+        
+        last_audits = db.session.query(
+            AuditLog.user_id,
+            AuditLog.action,
+            AuditLog.created_at
+        ).join(
+            last_audits_subq,
+            and_(
+                AuditLog.user_id == last_audits_subq.c.user_id,
+                AuditLog.created_at == last_audits_subq.c.max_created_at
+            )
+        ).all()
+        
+        audits_dict = {uid: None for uid in user_ids}
+        for user_id, action, created_at in last_audits:
+            audits_dict[user_id] = {'action': action, 'created_at': created_at}
+    else:
+        sales_dict = {}
+        services_dict = {}
+        payments_dict = {}
+        audits_dict = {}
+    
+    threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
     
     for user in users:
-        user.sales_count = Sale.query.filter_by(seller_id=user.id).count()
-        user_sales = db.session.query(Sale).filter(Sale.seller_id == user.id).all()
-        user_sales_total = Decimal('0.00')
-        for s in user_sales:
-            amt = Decimal(str(s.total_amount or 0))
-            if s.currency == "ILS":
-                user_sales_total += amt
-            else:
-                try:
-                    user_sales_total += convert_amount(amt, s.currency, "ILS", s.sale_date)
-                except Exception:
-                    pass
-        user.sales_total = float(user_sales_total)
+        user_data = sales_dict.get(user.id, {'count': 0, 'total': Decimal('0.00')})
+        user.sales_count = user_data['count']
+        user.sales_total = float(user_data['total'])
+        user.services_count = services_dict.get(user.id, 0)
+        user.payments_count = payments_dict.get(user.id, 0)
         
-        # عدد طلبات الصيانة
-        user.services_count = ServiceRequest.query.filter_by(mechanic_id=user.id).count()
+        audit = audits_dict.get(user.id)
+        user.last_activity_desc = audit['action'] if audit else 'لا يوجد'
+        user.last_activity_time = audit['created_at'] if audit else None
         
-        # عدد المدفوعات
-        user.payments_count = Payment.query.filter_by(created_by=user.id).count()
-        
-        # آخر نشاط
-        last_audit = AuditLog.query.filter_by(user_id=user.id).order_by(
-            AuditLog.created_at.desc()
-        ).first()
-        user.last_activity_desc = last_audit.action if last_audit else 'لا يوجد'
-        user.last_activity_time = last_audit.created_at if last_audit else None
-        
-        # حالة الاتصال
         if user.last_seen:
-            from datetime import datetime, timedelta, timezone
-            threshold = datetime.now(timezone.utc) - timedelta(minutes=15)
-            # التعامل مع naive/aware datetime
             last_seen = user.last_seen
             if last_seen.tzinfo is None:
                 last_seen = last_seen.replace(tzinfo=timezone.utc)
@@ -7133,5 +7197,126 @@ def audit_log_detail(log_id):
 
 
 # ==================== وحدة التكامل مع الأجهزة والأنظمة ====================
+
+
+@security_bp.route('/security-audit-report', methods=['GET'])
+@owner_only
+def security_audit_report():
+    """Security Audit Report شامل - تقرير أمني شامل"""
+    from datetime import datetime, timedelta, timezone
+    from models import AuthAudit, AuthEvent
+    
+    cache_key = "security_audit_report"
+    cached_report = cache.get(cache_key)
+    
+    if cached_report is None:
+        try:
+            now = datetime.now(timezone.utc)
+            last_24h = now - timedelta(hours=24)
+            last_7d = now - timedelta(days=7)
+            last_30d = now - timedelta(days=30)
+            
+            failed_logins_24h = AuthAudit.query.filter(
+                AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
+                AuthAudit.created_at >= last_24h
+            ).count()
+            
+            failed_logins_7d = AuthAudit.query.filter(
+                AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
+                AuthAudit.created_at >= last_7d
+            ).count()
+            
+            successful_logins_24h = AuthAudit.query.filter(
+                AuthAudit.event == AuthEvent.LOGIN_SUCCESS.value,
+                AuthAudit.created_at >= last_24h
+            ).count()
+            
+            security_actions = AuditLog.query.filter(
+                AuditLog.action.like('security.%'),
+                AuditLog.created_at >= last_30d
+            ).count()
+            
+            blocked_ips_count = 0
+            try:
+                from models import BlockedIP
+                blocked_ips_count = BlockedIP.query.count()
+            except Exception:
+                pass
+            
+            suspicious_activities = AuditLog.query.filter(
+                AuditLog.action.in_(['security.blocked_ip', 'security.failed_login', 'security.unauthorized_access']),
+                AuditLog.created_at >= last_7d
+            ).count()
+            
+            top_failed_ips = db.session.query(
+                AuthAudit.ip_address,
+                func.count(AuthAudit.id).label('count')
+            ).filter(
+                AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
+                AuthAudit.created_at >= last_7d
+            ).group_by(AuthAudit.ip_address).order_by(func.count(AuthAudit.id).desc()).limit(10).all()
+            
+            report = {
+                'summary': {
+                    'failed_logins_24h': failed_logins_24h,
+                    'failed_logins_7d': failed_logins_7d,
+                    'successful_logins_24h': successful_logins_24h,
+                    'security_actions_30d': security_actions,
+                    'blocked_ips': blocked_ips_count,
+                    'suspicious_activities_7d': suspicious_activities
+                },
+                'top_failed_ips': [{'ip': ip, 'count': count} for ip, count in top_failed_ips],
+                'generated_at': now.isoformat()
+            }
+            
+            cache.set(cache_key, report, timeout=600)
+        except Exception as e:
+            current_app.logger.error(f"Error generating security audit report: {e}")
+            report = {
+                'summary': {},
+                'top_failed_ips': [],
+                'error': str(e),
+                'generated_at': datetime.now(timezone.utc).isoformat()
+            }
+    else:
+        report = cached_report
+    
+    return render_template('security/security_audit_report.html', report=report)
+
+
+@security_bp.route('/api/security-audit/stats', methods=['GET'])
+@owner_only
+def api_security_audit_stats():
+    """API للحصول على إحصائيات الأمان"""
+    from datetime import datetime, timedelta, timezone
+    from models import AuthAudit, AuthEvent
+    
+    try:
+        now = datetime.now(timezone.utc)
+        last_24h = now - timedelta(hours=24)
+        
+        failed_logins = AuthAudit.query.filter(
+            AuthAudit.event == AuthEvent.LOGIN_FAIL.value,
+            AuthAudit.created_at >= last_24h
+        ).count()
+        
+        successful_logins = AuthAudit.query.filter(
+            AuthAudit.event == AuthEvent.LOGIN_SUCCESS.value,
+            AuthAudit.created_at >= last_24h
+        ).count()
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'failed_logins_24h': failed_logins,
+                'successful_logins_24h': successful_logins,
+                'timestamp': now.isoformat()
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 

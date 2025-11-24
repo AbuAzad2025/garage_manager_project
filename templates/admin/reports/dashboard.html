@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+
+{% block title %}لوحة تحكم المالك{% endblock %}
+
+{% block content %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-tachometer-alt"></i> لوحة تحكم المالك</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin_reports.index') }}">التقارير الإدارية</a></li>
+                    <li class="breadcrumb-item active">لوحة التحكم</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3 id="today-sales">{{ "{:,.0f}".format(stats.today_sales) }} ₪</h3>
+                        <p>مبيعات اليوم</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </div>
+                    <a href="{{ url_for('sales_bp.list_sales') }}" class="small-box-footer">
+                        المزيد <i class="fas fa-arrow-circle-left"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3 id="week-sales">{{ "{:,.0f}".format(stats.week_sales) }} ₪</h3>
+                        <p>مبيعات الأسبوع</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <a href="{{ url_for('reports_bp.sales') }}" class="small-box-footer">
+                        المزيد <i class="fas fa-arrow-circle-left"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-warning">
+                    <div class="inner">
+                        <h3 id="month-sales">{{ "{:,.0f}".format(stats.month_sales) }} ₪</h3>
+                        <p>مبيعات الشهر</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <a href="{{ url_for('reports_bp.sales') }}" class="small-box-footer">
+                        المزيد <i class="fas fa-arrow-circle-left"></i>
+                    </a>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger">
+                    <div class="inner">
+                        <h3 id="today-net">{{ "{:,.0f}".format(stats.today_net) }} ₪</h3>
+                        <p>صافي اليوم</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <a href="{{ url_for('payments.index') }}" class="small-box-footer">
+                        المزيد <i class="fas fa-arrow-circle-left"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header border-transparent">
+                        <h3 class="card-title"><i class="fas fa-money-bill-wave"></i> المدفوعات اليوم</h3>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table m-0">
+                                <thead>
+                                    <tr>
+                                        <th>الوارد</th>
+                                        <th>الصادر</th>
+                                        <th>الصافي</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="badge badge-success" id="payments-in">{{ "{:,.0f}".format(stats.today_payments_in) }} ₪</span></td>
+                                        <td><span class="badge badge-danger" id="payments-out">{{ "{:,.0f}".format(stats.today_payments_out) }} ₪</span></td>
+                                        <td><span class="badge badge-info" id="payments-net">{{ "{:,.0f}".format(stats.today_net) }} ₪</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header border-transparent">
+                        <h3 class="card-title"><i class="fas fa-info-circle"></i> إحصائيات سريعة</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="description-block border-right">
+                                    <span class="description-percentage text-warning"><i class="fas fa-cog"></i></span>
+                                    <h5 class="description-header" id="pending-services">{{ stats.pending_services }}</h5>
+                                    <span class="description-text">خدمات معلقة</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="description-block">
+                                    <span class="description-percentage text-danger"><i class="fas fa-exclamation-triangle"></i></span>
+                                    <h5 class="description-header" id="low-stock">{{ stats.low_stock_count }}</h5>
+                                    <span class="description-text">منتجات منخفضة</span>
+                                </div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="description-block border-right">
+                                    <span class="description-percentage text-success"><i class="fas fa-users"></i></span>
+                                    <h5 class="description-header">{{ stats.total_customers }}</h5>
+                                    <span class="description-text">إجمالي العملاء</span>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="description-block">
+                                    <span class="description-percentage text-info"><i class="fas fa-box"></i></span>
+                                    <h5 class="description-header">{{ stats.total_products }}</h5>
+                                    <span class="description-text">إجمالي المنتجات</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-credit-card"></i> آخر المدفوعات الإلكترونية</h3>
+                    </div>
+                    <div class="card-body table-responsive p-0">
+                        <table class="table table-hover text-nowrap">
+                            <thead>
+                                <tr>
+                                    <th>رقم المرجع</th>
+                                    <th>العميل</th>
+                                    <th>المبلغ</th>
+                                    <th>الحالة</th>
+                                    <th>التاريخ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in stats.recent_online_payments %}
+                                <tr>
+                                    <td>{{ payment.payment_ref }}</td>
+                                    <td>{{ payment.order.customer.name if payment.order and payment.order.customer else 'غير معروف' }}</td>
+                                    <td>{{ "{:,.2f}".format(payment.amount or 0) }} {{ payment.currency }}</td>
+                                    <td>
+                                        {% if payment.status == 'SUCCESS' %}
+                                            <span class="badge badge-success">نجح</span>
+                                        {% elif payment.status == 'PENDING' %}
+                                            <span class="badge badge-warning">قيد الانتظار</span>
+                                        {% elif payment.status == 'FAILED' %}
+                                            <span class="badge badge-danger">فشل</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">{{ payment.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ payment.created_at.strftime('%Y-%m-%d %H:%M') if payment.created_at else '-' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center">لا توجد مدفوعات حديثة</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+function updateStats() {
+    fetch('{{ url_for("admin_reports.api_stats") }}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('pending-services').textContent = data.stats.pending_services;
+            }
+        })
+        .catch(error => console.error('Error updating stats:', error));
+}
+
+setInterval(updateStats, 30000);
+</script>
+{% endblock %}
+
+
+
