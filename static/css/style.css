@@ -1447,6 +1447,33 @@ body.sidebar-collapse .main-header {
   color: var(--content-text);
   padding-bottom: 1rem;
   transition: background-color 0.3s ease, margin-left 0.3s ease, margin-right 0.3s ease;
+  overflow-x: visible !important;
+}
+
+.content-wrapper .content {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: visible !important;
+}
+
+.content-wrapper .container-fluid {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 5px !important;
+  padding-right: 5px !important;
+}
+
+@media (min-width: 992px) {
+  .content-wrapper .container-fluid {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+}
+
+.content-wrapper .table-responsive {
+  overflow-x: auto !important;
+  overflow-y: visible !important;
+  width: 100% !important;
 }
 
 .navbar-info-center {

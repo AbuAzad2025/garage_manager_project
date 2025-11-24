@@ -54,29 +54,29 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='adminlte/plugins/select2/css/select2.min.css') }}">
   
   <!-- Custom CSS -->
-  <link rel="preload" href="{{ url_for('static', filename='css/style.css') }}" as="style">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="preload" href="{{ static_url('css/style.css') }}" as="style">
+  <link rel="stylesheet" href="{{ static_url('css/style.css') }}">
   
   <!-- Mobile Optimizations CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+  <link rel="stylesheet" href="{{ static_url('css/mobile.css') }}">
   
   <!-- Numbers Fix CSS - Force English Numbers -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/numbers-fix.css') }}">
+  <link rel="stylesheet" href="{{ static_url('css/numbers-fix.css') }}">
   
   <!-- Safe Enhancements CSS -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/enhancements.css') }}">
+  <link rel="stylesheet" href="{{ static_url('css/enhancements.css') }}">
   
   <!-- Print Styles - A4 Professional Format -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+  <link rel="stylesheet" href="{{ static_url('css/print.css') }}" media="print">
   
   <!-- Performance & Event Utilities (loaded early for all pages) -->
-  <script src="{{ url_for('static', filename='js/csrf-utils.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/event-utils.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/balance-loading.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/balance-realtime.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/common-utils.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/performance-utils.js') }}" defer></script>
-  <script src="{{ url_for('static', filename='js/safe-enhancements.js') }}" defer></script>
+  <script src="{{ static_url('js/csrf-utils.js') }}"></script>
+  <script src="{{ static_url('js/event-utils.js') }}" defer></script>
+  <script src="{{ static_url('js/balance-loading.js') }}" defer></script>
+  <script src="{{ static_url('js/balance-realtime.js') }}" defer></script>
+  <script src="{{ static_url('js/common-utils.js') }}" defer></script>
+  <script src="{{ static_url('js/performance-utils.js') }}" defer></script>
+  <script src="{{ static_url('js/safe-enhancements.js') }}" defer></script>
   
   <!-- Dynamic System Colors from Security Settings -->
   {% if system_settings.primary_color %}
@@ -123,6 +123,39 @@
   
   <!-- Enhanced Styles -->
   <style>
+    /* ضمان عدم اختفاء المحتوى */
+    .content-wrapper,
+    .content-wrapper .content,
+    .content-wrapper .container-fluid {
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow-x: visible !important;
+    }
+    
+    .content-wrapper .container-fluid {
+      padding-left: 5px !important;
+      padding-right: 5px !important;
+    }
+    
+    @media (min-width: 992px) {
+      .content-wrapper .container-fluid {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+      }
+    }
+    
+    .content-wrapper .table-responsive {
+      overflow-x: auto !important;
+      overflow-y: visible !important;
+      width: 100% !important;
+    }
+    
+    .content-wrapper .card,
+    .content-wrapper .row,
+    .content-wrapper .col {
+      max-width: 100% !important;
+    }
+    
     /* FIX: Dropdown فوق Sidebar */
     .dropdown-menu,
     .navbar .dropdown-menu,
@@ -140,18 +173,27 @@
       width: 280px !important;
     }
     
-    .content-wrapper,
+    .content-wrapper {
+      margin-left: 280px !important;
+      margin-right: 0 !important;
+      width: calc(100% - 280px) !important;
+      max-width: calc(100% - 280px) !important;
+      transition: margin-left 0.3s ease, margin-right 0.3s ease, width 0.3s ease;
+    }
+    
     .main-footer {
       margin-left: 280px !important;
       margin-right: 0 !important;
-      transition: margin-left 0.3s ease, margin-right 0.3s ease;
+      width: calc(100% - 280px) !important;
+      transition: margin-left 0.3s ease, margin-right 0.3s ease, width 0.3s ease;
     }
     
     .main-header.navbar {
       z-index: 1030 !important;
       margin-left: 280px !important;
       margin-right: 0 !important;
-      transition: margin-left 0.3s ease, margin-right 0.3s ease;
+      width: calc(100% - 280px) !important;
+      transition: margin-left 0.3s ease, margin-right 0.3s ease, width 0.3s ease;
     }
     
     /* Sidebar على اليسار (افتراضي) */
@@ -160,11 +202,18 @@
       left: 0 !important;
     }
     
-    body[data-sidebar-position="left"] .content-wrapper,
+    body[data-sidebar-position="left"] .content-wrapper {
+      margin-right: 0 !important;
+      margin-left: 280px !important;
+      width: calc(100% - 280px) !important;
+      max-width: calc(100% - 280px) !important;
+    }
+    
     body[data-sidebar-position="left"] .main-footer,
     body[data-sidebar-position="left"] .main-header.navbar {
       margin-right: 0 !important;
       margin-left: 280px !important;
+      width: calc(100% - 280px) !important;
     }
     
     /* Sidebar على اليمين */
@@ -173,11 +222,18 @@
       right: 0 !important;
     }
     
-    body[data-sidebar-position="right"] .content-wrapper,
+    body[data-sidebar-position="right"] .content-wrapper {
+      margin-left: 0 !important;
+      margin-right: 280px !important;
+      width: calc(100% - 280px) !important;
+      max-width: calc(100% - 280px) !important;
+    }
+    
     body[data-sidebar-position="right"] .main-footer,
     body[data-sidebar-position="right"] .main-header.navbar {
       margin-left: 0 !important;
       margin-right: 280px !important;
+      width: calc(100% - 280px) !important;
     }
     
     /* إصلاح Sidebar في RTL */
@@ -209,6 +265,8 @@
       .main-header.navbar {
         margin-left: 0 !important;
         margin-right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
       }
       
       /* إخفاء بعض العناصر على الموبايل */
@@ -228,16 +286,28 @@
         width: 250px !important;
       }
       
-      body[data-sidebar-position="left"] .content-wrapper,
+      body[data-sidebar-position="left"] .content-wrapper {
+        margin-left: 250px !important;
+        width: calc(100% - 250px) !important;
+        max-width: calc(100% - 250px) !important;
+      }
+      
       body[data-sidebar-position="left"] .main-footer,
       body[data-sidebar-position="left"] .main-header.navbar {
         margin-left: 250px !important;
+        width: calc(100% - 250px) !important;
       }
       
-      body[data-sidebar-position="right"] .content-wrapper,
+      body[data-sidebar-position="right"] .content-wrapper {
+        margin-right: 250px !important;
+        width: calc(100% - 250px) !important;
+        max-width: calc(100% - 250px) !important;
+      }
+      
       body[data-sidebar-position="right"] .main-footer,
       body[data-sidebar-position="right"] .main-header.navbar {
         margin-right: 250px !important;
+        width: calc(100% - 250px) !important;
       }
       
     }
@@ -248,16 +318,28 @@
         width: 280px !important;
       }
       
-      body[data-sidebar-position="left"] .content-wrapper,
+      body[data-sidebar-position="left"] .content-wrapper {
+        margin-left: 280px !important;
+        width: calc(100% - 280px) !important;
+        max-width: calc(100% - 280px) !important;
+      }
+      
       body[data-sidebar-position="left"] .main-footer,
       body[data-sidebar-position="left"] .main-header.navbar {
         margin-left: 280px !important;
+        width: calc(100% - 280px) !important;
       }
       
-      body[data-sidebar-position="right"] .content-wrapper,
+      body[data-sidebar-position="right"] .content-wrapper {
+        margin-right: 280px !important;
+        width: calc(100% - 280px) !important;
+        max-width: calc(100% - 280px) !important;
+      }
+      
       body[data-sidebar-position="right"] .main-footer,
       body[data-sidebar-position="right"] .main-header.navbar {
         margin-right: 280px !important;
+        width: calc(100% - 280px) !important;
       }
       
     }
@@ -268,16 +350,28 @@
         width: 300px !important;
       }
       
-      body[data-sidebar-position="left"] .content-wrapper,
+      body[data-sidebar-position="left"] .content-wrapper {
+        margin-left: 300px !important;
+        width: calc(100% - 300px) !important;
+        max-width: calc(100% - 300px) !important;
+      }
+      
       body[data-sidebar-position="left"] .main-footer,
       body[data-sidebar-position="left"] .main-header.navbar {
         margin-left: 300px !important;
+        width: calc(100% - 300px) !important;
       }
       
-      body[data-sidebar-position="right"] .content-wrapper,
+      body[data-sidebar-position="right"] .content-wrapper {
+        margin-right: 300px !important;
+        width: calc(100% - 300px) !important;
+        max-width: calc(100% - 300px) !important;
+      }
+      
       body[data-sidebar-position="right"] .main-footer,
       body[data-sidebar-position="right"] .main-header.navbar {
         margin-right: 300px !important;
+        width: calc(100% - 300px) !important;
       }
       
     }
@@ -288,23 +382,28 @@
         width: 320px !important;
       }
       
-      body[data-sidebar-position="left"] .content-wrapper,
+      body[data-sidebar-position="left"] .content-wrapper {
+        margin-left: 320px !important;
+        width: calc(100% - 320px) !important;
+        max-width: calc(100% - 320px) !important;
+      }
+      
       body[data-sidebar-position="left"] .main-footer,
       body[data-sidebar-position="left"] .main-header.navbar {
         margin-left: 320px !important;
+        width: calc(100% - 320px) !important;
       }
       
-      body[data-sidebar-position="right"] .content-wrapper,
+      body[data-sidebar-position="right"] .content-wrapper {
+        margin-right: 320px !important;
+        width: calc(100% - 320px) !important;
+        max-width: calc(100% - 320px) !important;
+      }
+      
       body[data-sidebar-position="right"] .main-footer,
       body[data-sidebar-position="right"] .main-header.navbar {
         margin-right: 320px !important;
-      }
-      
-      
-      .content-wrapper {
-        max-width: 1800px;
-        margin-left: auto;
-        margin-right: auto;
+        width: calc(100% - 320px) !important;
       }
     }
     
@@ -671,32 +770,40 @@ function applySidebarPosition(position) {
       footer.style.setProperty('margin-right', '0', 'important');
     }
   } else {
-    // على الشاشات الكبيرة: تطبيق الموقع
+    const calcWidth = `calc(100% - ${sidebarWidth})`;
     if (position === 'left') {
       if (contentWrapper) {
         contentWrapper.style.setProperty('margin-left', sidebarWidth, 'important');
         contentWrapper.style.setProperty('margin-right', '0', 'important');
+        contentWrapper.style.setProperty('width', calcWidth, 'important');
+        contentWrapper.style.setProperty('max-width', calcWidth, 'important');
       }
       if (navbar) {
         navbar.style.setProperty('margin-left', sidebarWidth, 'important');
         navbar.style.setProperty('margin-right', '0', 'important');
+        navbar.style.setProperty('width', calcWidth, 'important');
       }
       if (footer) {
         footer.style.setProperty('margin-left', sidebarWidth, 'important');
         footer.style.setProperty('margin-right', '0', 'important');
+        footer.style.setProperty('width', calcWidth, 'important');
       }
     } else {
       if (contentWrapper) {
         contentWrapper.style.setProperty('margin-right', sidebarWidth, 'important');
         contentWrapper.style.setProperty('margin-left', '0', 'important');
+        contentWrapper.style.setProperty('width', calcWidth, 'important');
+        contentWrapper.style.setProperty('max-width', calcWidth, 'important');
       }
       if (navbar) {
         navbar.style.setProperty('margin-right', sidebarWidth, 'important');
         navbar.style.setProperty('margin-left', '0', 'important');
+        navbar.style.setProperty('width', calcWidth, 'important');
       }
       if (footer) {
         footer.style.setProperty('margin-right', sidebarWidth, 'important');
         footer.style.setProperty('margin-left', '0', 'important');
+        footer.style.setProperty('width', calcWidth, 'important');
       }
     }
   }

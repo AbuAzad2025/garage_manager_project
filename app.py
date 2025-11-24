@@ -338,9 +338,21 @@ def create_app(config_object=Config) -> Flask:
                 seen.add(msg)
         return uniq
 
+    @app.template_filter('static_version')
+    def static_version_filter(filename):
+        import time
+        version = app.config.get('STATIC_VERSION', int(time.time() / 3600))
+        if '?' in filename:
+            return f"{filename}&v={version}"
+        return f"{filename}?v={version}"
+    
+    def static_url(filename):
+        url = url_for('static', filename=filename)
+        return static_version_filter(url)
+    
     @app.context_processor
     def inject_common():
-        return {"current_app": current_app, "get_unique_flashes": get_unique_flashes}
+        return {"current_app": current_app, "get_unique_flashes": get_unique_flashes, "static_url": static_url}
 
     @app.context_processor
     def inject_permissions():
@@ -1065,56 +1077,43 @@ if __name__ == '__main__':
     with app.app_context():
         bootstrap_database()
     
-    # 🤖 تفعيل AI Systems
-    try:
-        # 1. Auto-Learning Scheduler
-        from AI.scheduler import start_scheduler, stop_scheduler
-        start_scheduler()
-        print("[OK] AI Auto-Learning Scheduler started")
-        
-        # 2. Real-time Monitor Event Listeners
-        from AI.engine.ai_event_listeners import register_ai_listeners
-        register_ai_listeners(app)
-        print("[OK] AI Real-time Monitor activated")
-        
-        def cleanup_on_exit():
-            try:
-                stop_scheduler()
-            except Exception:
-                pass
-            try:
-                from extensions import socketio, scheduler
-                if socketio.server:
-                    socketio.stop()
-                if scheduler.running:
-                    scheduler.shutdown(wait=False)
-            except Exception:
-                pass
-        
-        atexit.register(cleanup_on_exit)
-        
-        def signal_handler(signum, frame):
-            try:
-                stop_scheduler()
-            except Exception:
-                pass
-            try:
-                from extensions import socketio, scheduler
-                if socketio.server:
-                    socketio.stop()
-                if scheduler.running:
-                    scheduler.shutdown(wait=False)
-            except Exception:
-                pass
-            exit(0)
-        
-        if hasattr(signal, 'SIGINT'):
-            signal.signal(signal.SIGINT, signal_handler)
-        if hasattr(signal, 'SIGTERM'):
-            signal.signal(signal.SIGTERM, signal_handler)
-        
-    except Exception as e:
-        print(f"[WARN] AI Systems not started: {e}")
+    def cleanup_on_exit():
+        try:
+            from AI.scheduler import stop_scheduler
+            stop_scheduler()
+        except Exception:
+            pass
+        try:
+            from extensions import socketio, scheduler
+            if socketio.server:
+                socketio.stop()
+            if scheduler.running:
+                scheduler.shutdown(wait=False)
+        except Exception:
+            pass
+    
+    atexit.register(cleanup_on_exit)
+    
+    def signal_handler(signum, frame):
+        try:
+            from AI.scheduler import stop_scheduler
+            stop_scheduler()
+        except Exception:
+            pass
+        try:
+            from extensions import socketio, scheduler
+            if socketio.server:
+                socketio.stop()
+            if scheduler.running:
+                scheduler.shutdown(wait=False)
+        except Exception:
+            pass
+        exit(0)
+    
+    if hasattr(signal, 'SIGINT'):
+        signal.signal(signal.SIGINT, signal_handler)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, signal_handler)
     
     try:
         app.run(debug=True, host='0.0.0.0', port=5000)
