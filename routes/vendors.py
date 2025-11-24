@@ -8,7 +8,7 @@ from flask_wtf.csrf import generate_csrf
 from sqlalchemy import func, or_, and_
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.orm import joinedload
-from extensions import db
+from extensions import db, quick_wal_checkpoint
 from forms import PartnerForm, SupplierForm, CURRENCY_CHOICES
 import utils
 from utils import D, q2, archive_record, restore_record
@@ -29,6 +29,7 @@ from models import (
     Expense,
     Sale,
     SaleLine,
+    SaleStatus,
     ServicePart,
     ServiceRequest,
     ServiceStatus,
@@ -73,6 +74,7 @@ def suppliers_list():
     total_credit = 0.0
     suppliers_with_debt = 0
     suppliers_with_credit = 0
+    mismatches = []
     
     for supplier in suppliers:
         balance = float(supplier.current_balance or 0)
@@ -84,6 +86,41 @@ def suppliers_list():
         elif balance < 0:
             suppliers_with_credit += 1
             total_credit += abs(balance)
+        
+        try:
+            from utils.supplier_balance_updater import build_supplier_balance_view
+            breakdown = build_supplier_balance_view(supplier.id, db.session)
+            if breakdown.get('success'):
+                balance_info = breakdown.get('balance', {})
+                calculated_balance = balance_info.get('amount', balance)
+                stored_balance = balance_info.get('stored', balance)
+                if abs(calculated_balance - stored_balance) > 0.01:
+                    mismatches.append(supplier.id)
+        except Exception:
+            pass
+    
+    if mismatches:
+        try:
+            from utils.supplier_balance_updater import update_supplier_balance_components
+            from sqlalchemy.orm import sessionmaker
+            SessionFactory = sessionmaker(bind=db.engine)
+            session = SessionFactory()
+            try:
+                for supplier_id in mismatches[:10]:
+                    try:
+                        update_supplier_balance_components(supplier_id, session)
+                    except Exception:
+                        pass
+                session.commit()
+                for supplier in suppliers:
+                    if supplier.id in mismatches:
+                        db.session.refresh(supplier)
+            except Exception:
+                session.rollback()
+            finally:
+                session.close()
+        except Exception:
+            pass
     
     summary = {
         'total_suppliers': len(suppliers),
@@ -94,6 +131,8 @@ def suppliers_list():
         'suppliers_with_credit': suppliers_with_credit,
         'average_balance': total_balance / len(suppliers) if suppliers else 0
     }
+    
+    quick_wal_checkpoint()
 
     default_branch = (
         Branch.query.filter(Branch.is_active.is_(True))
@@ -128,7 +167,7 @@ def suppliers_list():
       <td class="supplier-name">{{ s.name }}</td>
       <td class="supplier-phone">{{ s.phone or '—' }}</td>
       <td data-sort-value="{{ s.current_balance or 0 }}">
-        <span class="badge {% if (s.current_balance or 0) > 0 %}bg-danger{% elif (s.current_balance or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+        <span class="badge {% if (s.current_balance or 0) > 0 %}bg-success{% elif (s.current_balance or 0) == 0 %}bg-secondary{% else %}bg-danger{% endif %}">
           {{ '%.2f'|format(s.current_balance or 0) }} ₪
         </span>
       </td>
@@ -202,8 +241,8 @@ def suppliers_list():
     {% if suppliers %}
     <tr class="table-info fw-bold">
       <td colspan="3" class="text-end">الإجمالي:</td>
-      <td class="{% if summary.total_balance > 0 %}text-danger{% elif summary.total_balance < 0 %}text-success{% else %}text-secondary{% endif %}">
-        <span class="badge {% if summary.total_balance > 0 %}bg-danger{% elif summary.total_balance < 0 %}bg-success{% else %}bg-secondary{% endif %} fs-6">
+      <td class="{% if summary.total_balance > 0 %}text-success{% elif summary.total_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+        <span class="badge {% if summary.total_balance > 0 %}bg-success{% elif summary.total_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
           {{ '%.2f'|format(summary.total_balance) }} ₪
         </span>
       </td>
@@ -317,6 +356,7 @@ def suppliers_delete(id):
         flash("تعذّر تنفيذ العملية. الرجاء المحاولة لاحقًا.", "danger")
     return redirect(url_for("vendors_bp.suppliers_list"))
 
+# ⚠️ قبل التعديل: اقرأ ACCOUNTING_RULES.md - قواعد المحاسبة الأساسية
 @vendors_bp.get("/suppliers/<int:supplier_id>/statement", endpoint="suppliers_statement")
 @login_required
 def suppliers_statement(supplier_id: int):
@@ -641,6 +681,104 @@ def suppliers_statement(supplier_id: int):
             })
             total_debit += amt
             preorders_data.append({"ref": ref, "date": d, "amount": amt, "items": items})
+        
+        prepaid_preorders = db.session.query(PreOrder).filter(
+            PreOrder.customer_id == supplier.customer_id,
+            PreOrder.prepaid_amount > 0,
+            PreOrder.status != 'FULFILLED',
+        )
+        if df:
+            prepaid_preorders = prepaid_preorders.filter(PreOrder.preorder_date >= df)
+        if dt:
+            prepaid_preorders = prepaid_preorders.filter(PreOrder.preorder_date < dt)
+        
+        for preorder in prepaid_preorders.all():
+            d = preorder.preorder_date
+            prepaid_amt = q2(preorder.prepaid_amount or 0)
+            if preorder.currency and preorder.currency != "ILS" and prepaid_amt > 0:
+                try:
+                    from models import convert_amount
+                    convert_date = d if d else (df if df else supplier.created_at)
+                    prepaid_amt = convert_amount(prepaid_amt, preorder.currency, "ILS", convert_date)
+                except Exception as e:
+                    try:
+                        from flask import current_app
+                        current_app.logger.error(f"Error converting preorder prepaid #{preorder.id} amount: {e}")
+                    except Exception:
+                        pass
+            ref_prepaid = f"عربون حجز #{preorder.id}"
+            prod_name = preorder.product.name if preorder.product else "منتج"
+            
+            items_prepaid = [{
+                "product": prod_name,
+                "qty": preorder.quantity,
+                "prepaid": float(prepaid_amt),
+                "total": float(prepaid_amt)
+            }]
+            
+            statement_prepaid = f"عربون حجز مسبق - {ref_prepaid}"
+            entries.append({
+                "date": d, 
+                "type": "PREPAID", 
+                "ref": ref_prepaid, 
+                "statement": statement_prepaid, 
+                "debit": Decimal("0.00"), 
+                "credit": prepaid_amt,
+                "details": items_prepaid,
+                "has_details": True
+            })
+            total_credit += prepaid_amt
+        
+        from models import SaleReturn, SaleReturnLine, SaleStatus
+        sale_returns_q = db.session.query(SaleReturn).filter(
+            SaleReturn.customer_id == supplier.customer_id,
+            SaleReturn.status == SaleStatus.CONFIRMED.value,
+        )
+        if df:
+            sale_returns_q = sale_returns_q.filter(SaleReturn.created_at >= df)
+        if dt:
+            sale_returns_q = sale_returns_q.filter(SaleReturn.created_at < dt)
+        
+        for sale_return in sale_returns_q.all():
+            d = sale_return.created_at
+            amt = q2(sale_return.total_amount or 0)
+            if sale_return.currency and sale_return.currency != "ILS" and amt > 0:
+                try:
+                    from models import convert_amount
+                    convert_date = d if d else (df if df else supplier.created_at)
+                    amt = convert_amount(amt, sale_return.currency, "ILS", convert_date)
+                except Exception as e:
+                    try:
+                        from flask import current_app
+                        current_app.logger.error(f"Error converting sale return #{sale_return.id} amount: {e}")
+                    except Exception:
+                        pass
+            
+            items_return = []
+            for return_line in (sale_return.lines or []):
+                prod_name = return_line.product.name if return_line.product else "منتج"
+                items_return.append({
+                    "product": prod_name,
+                    "qty": return_line.quantity,
+                    "price": float(return_line.unit_price or 0),
+                    "total": float(q2(return_line.quantity * return_line.unit_price)),
+                    "condition": return_line.condition
+                })
+            
+            ref_return = f"مرتجع #{sale_return.id}"
+            statement_return = f"مرتجع مبيعات للمورد - {ref_return}"
+            entries.append({
+                "date": d, 
+                "type": "SALE_RETURN", 
+                "ref": ref_return, 
+                "statement": statement_return, 
+                "debit": Decimal("0.00"), 
+                "credit": amt,
+                "details": items_return,
+                "has_details": len(items_return) > 0,
+                "notes": sale_return.reason or sale_return.notes or ''
+            })
+            total_credit += amt
 
     from models import Check, CheckStatus
     pay_q = (
@@ -675,9 +813,63 @@ def suppliers_statement(supplier_id: int):
         expense_pay_q = expense_pay_q.filter(Payment.payment_date < dt)
     expense_payments = expense_pay_q.all()
     
+    customer_payments = []
+    if supplier.customer_id:
+        from models import Customer
+        customer_pay_q = (
+            db.session.query(Payment)
+            .options(joinedload(Payment.related_check), joinedload(Payment.splits))
+            .filter(
+                Payment.customer_id == supplier.customer_id,
+                Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value, PaymentStatus.CANCELLED.value]),
+            )
+        )
+        if df:
+            customer_pay_q = customer_pay_q.filter(Payment.payment_date >= df)
+        if dt:
+            customer_pay_q = customer_pay_q.filter(Payment.payment_date < dt)
+        customer_payments = customer_pay_q.all()
+        
+        expense_ids_with_customer = [e.id for e in Expense.query.filter(Expense.customer_id == supplier.customer_id).all()]
+        if expense_ids_with_customer:
+            customer_expense_pay_q = (
+                db.session.query(Payment)
+                .options(joinedload(Payment.related_check), joinedload(Payment.splits))
+                .filter(
+                    Payment.expense_id.isnot(None),
+                    Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value, PaymentStatus.CANCELLED.value]),
+                    or_(
+                        Payment.customer_id == supplier.customer_id,
+                        Payment.expense_id.in_(expense_ids_with_customer)
+                    )
+                )
+            )
+            if df:
+                customer_expense_pay_q = customer_expense_pay_q.filter(Payment.payment_date >= df)
+            if dt:
+                customer_expense_pay_q = customer_expense_pay_q.filter(Payment.payment_date < dt)
+            customer_expense_payments = customer_expense_pay_q.all()
+            customer_payments.extend(customer_expense_payments)
+        else:
+            customer_expense_pay_q = (
+                db.session.query(Payment)
+                .options(joinedload(Payment.related_check), joinedload(Payment.splits))
+                .filter(
+                    Payment.expense_id.isnot(None),
+                    Payment.customer_id == supplier.customer_id,
+                    Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value, PaymentStatus.CANCELLED.value]),
+                )
+            )
+            if df:
+                customer_expense_pay_q = customer_expense_pay_q.filter(Payment.payment_date >= df)
+            if dt:
+                customer_expense_pay_q = customer_expense_pay_q.filter(Payment.payment_date < dt)
+            customer_expense_payments = customer_expense_pay_q.all()
+            customer_payments.extend(customer_expense_payments)
+    
     payment_ids = set()
     all_payments = []
-    for p in direct_payments + expense_payments:
+    for p in direct_payments + expense_payments + customer_payments:
         if p.id not in payment_ids:
             payment_ids.add(p.id)
             all_payments.append(p)
@@ -985,18 +1177,9 @@ def suppliers_statement(supplier_id: int):
                 if notes:
                     split_statement += f" - {notes[:30]}"
                 
-                # حساب debit/credit للـ split
                 split_is_in = not is_out
-                if split_has_returned:
-                    # للشيك المرتد، نعكس القيد
-                    # إذا كان is_in (قبضنا من المورد) وكان الشيك مرتد → نعكس credit → نضع debit
-                    # إذا كان is_out (دفعنا للمورد) وكان الشيك مرتد → نعكس debit → نضع credit
-                    split_debit = split_amount_ils if split_is_in else D(0)
-                    split_credit = split_amount_ils if is_out else D(0)
-                else:
-                    # للدفعة العادية
-                    split_debit = split_amount_ils if is_out else D(0)
-                    split_credit = split_amount_ils if split_is_in else D(0)
+                split_debit = split_amount_ils if is_out else D(0)
+                split_credit = split_amount_ils if split_is_in else D(0)
                 
                 # إنشاء payment_details للـ split
                 split_payment_details = {
@@ -1037,17 +1220,48 @@ def suppliers_statement(supplier_id: int):
                 
                 total_debit += split_debit
                 total_credit += split_credit
+                
+                if split_has_returned and split_check:
+                    returned_statement = f"إرجاع شيك"
+                    if split_check.check_number:
+                        returned_statement += f" #{split_check.check_number}"
+                    if split_check.check_bank:
+                        returned_statement += f" - {split_check.check_bank}"
+                    
+                    returned_check_amt = split_amount_ils
+                    
+                    if is_out:
+                        returned_debit = D(0)
+                        returned_credit = returned_check_amt
+                    else:
+                        returned_debit = returned_check_amt
+                        returned_credit = D(0)
+                    
+                    entries.append({
+                        "date": (split_check.check_date if split_check else None) or d,
+                        "type": "CHECK_RETURNED",
+                        "ref": f"SPLIT-RETURN-{split.id}-CHK-{getattr(split_check, 'id', 'NA')}",
+                        "statement": returned_statement,
+                        "debit": returned_debit,
+                        "credit": returned_credit,
+                        "payment_details": {
+                            'method': 'شيك',
+                            'method_raw': 'cheque',
+                            'check_number': split_check.check_number,
+                            'check_bank': split_check.check_bank,
+                            'check_due_date': split_check.check_due_date,
+                            'status': str(getattr(split_check, 'status', 'RETURNED')),
+                            'is_bounced': True,
+                            'is_returned': True,
+                        },
+                        "notes": notes,
+                    })
+                    
+                    total_debit += returned_debit
+                    total_credit += returned_credit
         else:
-            # ✅ الدفعة بدون splits - نعرضها كالمعتاد
-            if is_bounced:
-                # شيك مرتجع: عكس الإشارة
-                debit_val = amt if is_out else Decimal("0.00")
-                credit_val = Decimal("0.00") if is_out else amt
-            else:
-                # دفعنا له (OUT) = مدين (debit) لأن الرصيد يصبح أقل سالبية
-                # قبضنا منه (IN) = دائن (credit) لأن الرصيد يصبح أكثر سالبية
-                debit_val = amt if is_out else Decimal("0.00")
-                credit_val = Decimal("0.00") if is_out else amt
+            debit_val = amt if is_out else Decimal("0.00")
+            credit_val = Decimal("0.00") if is_out else amt
             
             entries.append({
                 "date": d,
@@ -1062,6 +1276,57 @@ def suppliers_statement(supplier_id: int):
             
             total_debit += debit_val
             total_credit += credit_val
+            
+            if is_bounced:
+                returned_checks = Check.query.filter(
+                    Check.payment_id == pmt.id,
+                    Check.status.in_(['RETURNED', 'BOUNCED'])
+                ).all()
+                
+                for check in returned_checks:
+                    check_amt = D(check.amount or 0)
+                    if check.currency and check.currency != "ILS":
+                        try:
+                            from models import convert_amount
+                            check_amt = convert_amount(check_amt, check.currency, "ILS", check.check_date or d)
+                        except:
+                            pass
+                    
+                    returned_statement = f"إرجاع شيك"
+                    if check.check_number:
+                        returned_statement += f" #{check.check_number}"
+                    if check.check_bank:
+                        returned_statement += f" - {check.check_bank}"
+                    
+                    if is_out:
+                        returned_debit = D(0)
+                        returned_credit = check_amt
+                    else:
+                        returned_debit = check_amt
+                        returned_credit = D(0)
+                    
+                    entries.append({
+                        "date": check.check_date or d,
+                        "type": "CHECK_RETURNED",
+                        "ref": f"CHK-{check.id}",
+                        "statement": returned_statement,
+                        "debit": returned_debit,
+                        "credit": returned_credit,
+                        "payment_details": {
+                            'method': 'شيك',
+                            'method_raw': 'cheque',
+                            'check_number': check.check_number,
+                            'check_bank': check.check_bank,
+                            'check_due_date': check.check_due_date,
+                            'status': str(getattr(check, 'status', 'RETURNED')),
+                            'is_bounced': True,
+                            'is_returned': True,
+                        },
+                        "notes": check.notes or notes or '',
+                    })
+                    
+                    total_debit += returned_debit
+                    total_credit += returned_credit
 
     stl_q = (
         db.session.query(SupplierLoanSettlement)
@@ -1172,6 +1437,107 @@ def suppliers_statement(supplier_id: int):
             })
             total_debit += amt
 
+    manual_checks = db.session.query(Check).filter(
+        Check.payment_id.is_(None),
+        Check.supplier_id == supplier.id,
+        ~Check.status.in_([CheckStatus.CANCELLED.value, CheckStatus.ARCHIVED.value])
+    )
+    if df:
+        manual_checks = manual_checks.filter(Check.check_date >= df)
+    if dt:
+        manual_checks = manual_checks.filter(Check.check_date < dt)
+    
+    for check in manual_checks.all():
+        d = check.check_date
+        amt = q2(check.amount or 0)
+        if check.currency and check.currency != "ILS" and amt > 0:
+            try:
+                from models import convert_amount
+                convert_date = d if d else (df if df else supplier.created_at)
+                amt = convert_amount(amt, check.currency, "ILS", convert_date)
+            except Exception as e:
+                try:
+                    from flask import current_app
+                    current_app.logger.error(f"Error converting check #{check.id} amount: {e}")
+                except Exception:
+                    pass
+        
+        direction_value = check.direction.value if hasattr(check.direction, 'value') else str(check.direction)
+        is_out = direction_value == 'OUT'
+        check_status = check.status.value if hasattr(check.status, 'value') else str(check.status)
+        
+        ref = f"شيك #{check.check_number}"
+        check_bank = check.check_bank or ''
+        check_due_date = check.check_due_date.strftime('%Y-%m-%d') if check.check_due_date else ''
+        
+        if check_status == CheckStatus.RETURNED.value or check_status == CheckStatus.BOUNCED.value:
+            if is_out:
+                statement = f"↩️ شيك مرتجع - {check_bank} - {ref}"
+                entry_type = "CHECK_BOUNCED"
+            else:
+                statement = f"↩️ شيك مرتجع - {check_bank} - {ref}"
+                entry_type = "CHECK_BOUNCED"
+        elif check_status == CheckStatus.PENDING.value:
+            statement = f"⏳ شيك معلق - {check_bank} - {ref}"
+            entry_type = "CHECK_PENDING"
+        elif check_status == CheckStatus.CASHED.value:
+            if is_out:
+                statement = f"✅ شيك تم صرفه - {check_bank} - {ref}"
+            else:
+                statement = f"✅ شيك تم صرفه - {check_bank} - {ref}"
+            entry_type = "CHECK_CASHED"
+        elif check_status == CheckStatus.RESUBMITTED.value:
+            statement = f"🔄 شيك معاد للبنك - {check_bank} - {ref}"
+            entry_type = "CHECK_RESUBMITTED"
+        elif check_status == CheckStatus.ARCHIVED.value:
+            statement = f"📦 شيك مؤرشف - {check_bank} - {ref}"
+            entry_type = "CHECK_ARCHIVED"
+        else:
+            if is_out:
+                statement = f"شيك صادر - {check_bank} - {ref}"
+            else:
+                statement = f"شيك وارد - {check_bank} - {ref}"
+            entry_type = "CHECK_PENDING" if check_status == CheckStatus.PENDING.value else "PAYMENT"
+        
+        payment_details = {
+            'method': 'شيك',
+            'method_raw': 'cheque',
+            'check_number': check.check_number,
+            'check_bank': check_bank,
+            'check_due_date': check_due_date,
+            'check_status': check_status,
+            'is_check_settled': False,
+            'is_check_legal': False,
+            'is_check_resubmitted': check_status == CheckStatus.RESUBMITTED.value,
+            'is_check_archived': check_status == CheckStatus.ARCHIVED.value,
+            'check_notes': check.notes or ''
+        }
+        
+        if is_out:
+            entries.append({
+                "date": d,
+                "type": entry_type,
+                "ref": ref,
+                "statement": statement,
+                "debit": amt,
+                "credit": Decimal("0.00"),
+                "payment_details": payment_details,
+                "notes": check.notes or ''
+            })
+            total_debit += amt
+        else:
+            entries.append({
+                "date": d,
+                "type": entry_type,
+                "ref": ref,
+                "statement": statement,
+                "debit": Decimal("0.00"),
+                "credit": amt,
+                "payment_details": payment_details,
+                "notes": check.notes or ''
+            })
+            total_credit += amt
+
     opening_balance = Decimal(getattr(supplier, 'opening_balance', 0) or 0)
     if opening_balance != 0 and supplier.currency and supplier.currency != "ILS":
         try:
@@ -1230,13 +1596,13 @@ def suppliers_statement(supplier_id: int):
             "type": "OPENING_BALANCE",
             "ref": "OB-SUP-000",
             "statement": "الرصيد الافتتاحي",
-            "debit": abs(balance_to_use) if balance_to_use > 0 else Decimal("0.00"),
-            "credit": abs(balance_to_use) if balance_to_use < 0 else Decimal("0.00"),
+            "debit": abs(balance_to_use) if balance_to_use < 0 else Decimal("0.00"),
+            "credit": abs(balance_to_use) if balance_to_use > 0 else Decimal("0.00"),
         }
         if balance_to_use > 0:
-            total_debit += abs(balance_to_use)
-        else:
             total_credit += abs(balance_to_use)
+        else:
+            total_debit += abs(balance_to_use)
 
     def _sort_key(e):
         entry_date = e.get("date")
@@ -1258,9 +1624,12 @@ def suppliers_statement(supplier_id: int):
             "CHECK_CASHED": 11,
             "CHECK_CANCELLED": 12,
             "SALE": 13,
-            "SERVICE": 14,
-            "PREORDER": 15,
-            "SETTLEMENT": 16,
+            "SALE_RETURN": 14,
+            "SERVICE": 15,
+            "PREORDER": 16,
+            "PREPAID": 17,
+            "EXPENSE": 18,
+            "SETTLEMENT": 19,
         }
         type_order = type_priority.get(entry_type, 99)
         ref = e.get("ref", "")
@@ -1271,15 +1640,18 @@ def suppliers_statement(supplier_id: int):
     if opening_entry:
         entries.insert(0, opening_entry)
 
-    balance = balance_to_use
+    balance = D(0)
     out = []
     for e in entries:
+        # الرصيد التراكمي = دائن - مدين (ما له - ما عليه)
+        # credit (دائن = ما له) يزيد الرصيد، debit (مدين = ما عليه) يقلل الرصيد
         d = q2(e.get("debit", 0))
         c = q2(e.get("credit", 0))
-        balance += d - c
+        balance = balance + c - d
         out.append({**e, "debit": d, "credit": c, "balance": balance})
     
     final_balance_from_ledger = balance
+    balance = total_credit - total_debit
 
     ex_ids = [
         wid
@@ -1322,6 +1694,31 @@ def suppliers_statement(supplier_id: int):
     db.session.refresh(supplier)
     
     current_balance = float(supplier.current_balance or 0)
+    
+    if abs(float(final_balance_from_ledger - Decimal(str(current_balance)))) > 0.01:
+        from flask import current_app
+        current_app.logger.warning(
+            f"⚠️ عدم تطابق الرصيد في كشف حساب المورد {supplier_id}: "
+            f"current_balance={current_balance}, calculated_balance={float(final_balance_from_ledger)}, "
+            f"difference={abs(float(final_balance_from_ledger - Decimal(str(current_balance))))}"
+        )
+        try:
+            from utils.supplier_balance_updater import update_supplier_balance_components
+            from sqlalchemy.orm import sessionmaker
+            SessionFactory = sessionmaker(bind=db.engine)
+            session = SessionFactory()
+            try:
+                update_supplier_balance_components(supplier_id, session)
+                session.commit()
+                db.session.refresh(supplier)
+                current_balance = float(supplier.current_balance or 0)
+            except Exception as e:
+                session.rollback()
+                current_app.logger.warning(f"⚠️ تعذر إعادة احتساب رصيد المورد {supplier_id}: {e}")
+            finally:
+                session.close()
+        except Exception as e:
+            current_app.logger.warning(f"⚠️ تعذر إعادة احتساب رصيد المورد {supplier_id}: {e}")
     
     from routes.supplier_settlements import _calculate_smart_supplier_balance
     balance_data = _calculate_smart_supplier_balance(
@@ -1430,13 +1827,70 @@ def suppliers_statement(supplier_id: int):
         "text-danger"
     )
     
+    supplier_items = []
+    if ex_ids:
+        items_query = (
+            db.session.query(
+                Product.id,
+                Product.name,
+                Product.sku,
+                func.coalesce(func.sum(StockLevel.quantity), 0).label("qty"),
+                func.coalesce(Product.purchase_price, Product.cost_price, 0.0).label("unit_cost"),
+                Product.currency,
+            )
+            .join(Product, Product.id == StockLevel.product_id)
+            .filter(StockLevel.warehouse_id.in_(ex_ids), StockLevel.quantity > 0)
+            .group_by(Product.id, Product.name, Product.sku, Product.purchase_price, Product.cost_price, Product.currency)
+            .order_by(Product.name.asc())
+        )
+        
+        sold_quantities = (
+            db.session.query(
+                SaleLine.product_id,
+                func.sum(SaleLine.quantity).label("sold_qty")
+            )
+            .join(Sale, SaleLine.sale_id == Sale.id)
+            .filter(
+                Sale.status == 'CONFIRMED',
+                SaleLine.warehouse_id.in_(ex_ids)
+            )
+            .group_by(SaleLine.product_id)
+        ).subquery()
+        
+        items_with_sold = (
+            items_query
+            .outerjoin(sold_quantities, Product.id == sold_quantities.c.product_id)
+            .add_columns(func.coalesce(sold_quantities.c.sold_qty, 0).label("sold_qty"))
+        ).all()
+        
+        for item in items_with_sold:
+            pid, name, sku, qty, unit_cost, currency, sold_qty = item
+            qty_i = int(qty or 0)
+            sold_qty_i = int(sold_qty or 0)
+            unit_cost_d = q2(unit_cost)
+            value = unit_cost_d * q2(qty_i)
+            
+            supplier_items.append({
+                "product_id": pid,
+                "name": name,
+                "sku": sku or "",
+                "quantity": qty_i,
+                "sold_quantity": sold_qty_i,
+                "available_quantity": qty_i - sold_qty_i,
+                "unit_cost": float(unit_cost_d),
+                "total_value": float(value),
+                "currency": currency or "ILS",
+                "is_sold": sold_qty_i > 0,
+                "is_available": (qty_i - sold_qty_i) > 0
+            })
+    
     return render_template(
         "vendors/suppliers/statement.html",
         supplier=supplier,
         ledger_entries=out,
         total_debit=total_debit,
         total_credit=total_credit,
-        balance=current_balance,
+        balance=float(balance),
         balance_ledger=float(final_balance_from_ledger),
         balance_unified=balance_unified,
         balance_data=balance_data,
@@ -1459,6 +1913,7 @@ def suppliers_statement(supplier_id: int):
         per_product=per_product,
         date_from=df if df else None,
         date_to=(dt - timedelta(days=1)) if dt else None,
+        supplier_items=supplier_items,
         opening_balance_for_period=float(opening_balance_for_period),
     )
 
@@ -1473,7 +1928,6 @@ def partners_list():
         q = q.filter(or_(Partner.name.ilike(term), Partner.phone_number.ilike(term), Partner.identity_number.ilike(term)))
     partners = q.order_by(Partner.name).limit(10000).all()
     
-    # الاعتماد على current_balance الذي يتم تحديثه تلقائياً عبر event listeners
     for partner in partners:
         db.session.refresh(partner)
     
@@ -1482,6 +1936,7 @@ def partners_list():
     total_credit = 0.0
     partners_with_debt = 0
     partners_with_credit = 0
+    mismatches = []
     
     for partner in partners:
         balance = float(partner.current_balance or 0)
@@ -1494,6 +1949,33 @@ def partners_list():
         elif balance < 0:
             partners_with_credit += 1
             total_credit += abs(balance)
+        
+        try:
+            from utils.partner_balance_updater import build_partner_balance_view
+            breakdown = build_partner_balance_view(partner.id, db.session)
+            if breakdown.get('success'):
+                balance_info = breakdown.get('balance', {})
+                calculated_balance = balance_info.get('amount', balance)
+                stored_balance = balance_info.get('stored', balance)
+                if abs(calculated_balance - stored_balance) > 0.01:
+                    mismatches.append(partner.id)
+        except Exception:
+            pass
+    
+    if mismatches:
+        try:
+            from models import update_partner_balance
+            for partner_id in mismatches[:10]:
+                try:
+                    update_partner_balance(partner_id)
+                except Exception:
+                    pass
+            db.session.commit()
+            for partner in partners:
+                if partner.id in mismatches:
+                    db.session.refresh(partner)
+        except Exception:
+            db.session.rollback()
     
     default_branch = (
         Branch.query.filter(Branch.is_active.is_(True))
@@ -1516,6 +1998,8 @@ def partners_list():
         'partners_with_credit': partners_with_credit,
         'average_balance': total_balance / len(partners) if partners else 0,
     }
+    
+    quick_wal_checkpoint()
     
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("ajax") == "1"
     if is_ajax:
@@ -1632,6 +2116,7 @@ def partners_list():
         partner_quick_service=partner_quick_service,
     )
 
+# ⚠️ قبل التعديل: اقرأ ACCOUNTING_RULES.md - قواعد المحاسبة الأساسية
 @vendors_bp.get("/partners/<int:partner_id>/statement", endpoint="partners_statement")
 @login_required
 def partners_statement(partner_id: int):
@@ -1708,6 +2193,59 @@ def partners_statement(partner_id: int):
                 total_credit += total_partner_share_decimal
     
     if partner.customer_id:
+        from models import SaleReturn, SaleReturnLine, Sale, _find_partner_share_percentage
+        from routes.partner_settlements import _get_partner_sales_returns
+        
+        returns_data = _get_partner_sales_returns(
+            partner.id,
+            df if df else datetime(2024, 1, 1),
+            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+        )
+        
+        if returns_data and isinstance(returns_data, dict) and returns_data.get("items"):
+            for return_item in returns_data.get("items", []):
+                return_date_str = return_item.get("date", "")
+                try:
+                    if return_date_str:
+                        return_date = datetime.strptime(return_date_str, "%Y-%m-%d")
+                    else:
+                        continue
+                except Exception:
+                    continue
+                
+                if df and return_date < df:
+                    continue
+                if dt and return_date >= dt:
+                    continue
+                
+                return_amount = Decimal(str(return_item.get("partner_return_share_ils", 0) or 0))
+                if return_amount > 0:
+                    ref_return = f"مرتجع #{return_item.get('reference_number', '')}"
+                    statement_return = f"خصم مرتجع مبيعات - {return_item.get('product_name', 'منتج')}"
+                    
+                    items_return = [{
+                        "type": "مرتجع",
+                        "name": return_item.get('product_name', 'منتج'),
+                        "qty": return_item.get('quantity', 0),
+                        "price": return_item.get('unit_price', 0),
+                        "total": return_item.get('return_amount', 0),
+                        "share_pct": return_item.get('share_percentage', 0),
+                        "share_amount": return_item.get('partner_return_share', 0)
+                    }]
+                    
+                    entries.append({
+                        "date": return_date,
+                        "type": "PARTNER_SALE_RETURN",
+                        "ref": ref_return,
+                        "statement": statement_return,
+                        "debit": return_amount,  # ✓ خصم من نصيب المبيعات
+                        "credit": Decimal("0.00"),
+                        "details": items_return,
+                        "has_details": len(items_return) > 0
+                    })
+                    total_debit += return_amount
+    
+    if partner.customer_id:
         from models import ServiceRequest, _find_partner_share_percentage
         service_q = (
             db.session.query(ServiceRequest)
@@ -1724,7 +2262,22 @@ def partners_statement(partner_id: int):
         
         for service in service_q.all():
             d = service.received_at
-            amt = q2(service.total_amount or 0)
+            # استخدام total (hybrid property) الذي يحتوي على الضريبة بدلاً من total_amount
+            service_total = getattr(service, 'total', None)
+            if service_total is None:
+                # إذا لم يكن total موجوداً، نحسبه يدوياً مع الضريبة
+                parts_total = q2(service.parts_total or 0)
+                labor_total = q2(service.labor_total or 0)
+                discount_total = q2(service.discount_total or 0)
+                tax_rate = q2(service.tax_rate or 0)
+                subtotal = parts_total + labor_total - discount_total
+                if subtotal < 0:
+                    subtotal = Decimal("0.00")
+                tax_amount = subtotal * (tax_rate / 100.0)
+                service_total = subtotal + tax_amount
+            else:
+                service_total = q2(service_total)
+            amt = service_total
             ref = service.service_number or f"صيانة #{service.id}"
             
             items = []
@@ -1800,9 +2353,63 @@ def partners_statement(partner_id: int):
         expense_pay_q = expense_pay_q.filter(Payment.payment_date < dt)
     expense_payments = expense_pay_q.all()
     
+    customer_payments = []
+    if partner.customer_id:
+        from models import Customer
+        customer_pay_q = (
+            db.session.query(Payment)
+            .options(joinedload(Payment.splits))
+            .filter(
+                Payment.customer_id == partner.customer_id,
+                Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value]),
+            )
+        )
+        if df:
+            customer_pay_q = customer_pay_q.filter(Payment.payment_date >= df)
+        if dt:
+            customer_pay_q = customer_pay_q.filter(Payment.payment_date < dt)
+        customer_payments = customer_pay_q.all()
+        
+        expense_ids_with_customer = [e.id for e in Expense.query.filter(Expense.customer_id == partner.customer_id).all()]
+        if expense_ids_with_customer:
+            customer_expense_pay_q = (
+                db.session.query(Payment)
+                .options(joinedload(Payment.splits))
+                .filter(
+                    Payment.expense_id.isnot(None),
+                    Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value]),
+                    or_(
+                        Payment.customer_id == partner.customer_id,
+                        Payment.expense_id.in_(expense_ids_with_customer)
+                    )
+                )
+            )
+            if df:
+                customer_expense_pay_q = customer_expense_pay_q.filter(Payment.payment_date >= df)
+            if dt:
+                customer_expense_pay_q = customer_expense_pay_q.filter(Payment.payment_date < dt)
+            customer_expense_payments = customer_expense_pay_q.all()
+            customer_payments.extend(customer_expense_payments)
+        else:
+            customer_expense_pay_q = (
+                db.session.query(Payment)
+                .options(joinedload(Payment.splits))
+                .filter(
+                    Payment.expense_id.isnot(None),
+                    Payment.customer_id == partner.customer_id,
+                    Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value, PaymentStatus.FAILED.value]),
+                )
+            )
+            if df:
+                customer_expense_pay_q = customer_expense_pay_q.filter(Payment.payment_date >= df)
+            if dt:
+                customer_expense_pay_q = customer_expense_pay_q.filter(Payment.payment_date < dt)
+            customer_expense_payments = customer_expense_pay_q.all()
+            customer_payments.extend(customer_expense_payments)
+    
     payment_ids = set()
     all_payments = []
-    for p in direct_payments + expense_payments:
+    for p in direct_payments + expense_payments + customer_payments:
         if p.id not in payment_ids:
             payment_ids.add(p.id)
             all_payments.append(p)
@@ -2017,26 +2624,24 @@ def partners_statement(partner_id: int):
                     total_credit += split_credit
         else:
             # ✅ الدفعة بدون splits - نعرضها كالمعتاد
-            entry_type = "CHECK_BOUNCED" if is_bounced else ("CHECK_PENDING" if is_pending and method_raw == 'cheque' else "PAYMENT_OUT")
-            
-            entries.append({
-                "date": d,
-                "type": entry_type,
-                "ref": ref,
-                "statement": statement,
-                "debit": Decimal("0.00") if is_bounced else amt,
-                "credit": amt if is_bounced else Decimal("0.00"),
-                "payment_details": payment_details,
-                "notes": notes
-            })
-            
-            if is_bounced:
-                total_credit += amt
+            if is_out:
+                entry_type = "CHECK_BOUNCED" if is_bounced else ("CHECK_PENDING" if is_pending and method_raw == 'cheque' else "PAYMENT_OUT")
+                entries.append({
+                    "date": d,
+                    "type": entry_type,
+                    "ref": ref,
+                    "statement": statement,
+                    "debit": Decimal("0.00") if is_bounced else amt,
+                    "credit": amt if is_bounced else Decimal("0.00"),
+                    "payment_details": payment_details,
+                    "notes": notes
+                })
+                if is_bounced:
+                    total_credit += amt
+                else:
+                    total_debit += amt
             else:
-                total_debit += amt
-                # ✅ الدفعة بدون splits - نعرضها كالمعتاد
                 entry_type = "CHECK_BOUNCED" if is_bounced else ("CHECK_PENDING" if is_pending and method_raw == 'cheque' else "PAYMENT_IN")
-                
                 entries.append({
                     "date": d,
                     "type": entry_type,
@@ -2047,17 +2652,18 @@ def partners_statement(partner_id: int):
                     "payment_details": payment_details,
                     "notes": notes
                 })
-                
                 if is_bounced:
                     total_debit += amt
                 else:
                     total_credit += amt
 
-    expense_q = Expense.query.filter(
+    from models import ExpenseType
+    expense_q = Expense.query.join(ExpenseType).filter(
         or_(
             Expense.partner_id == partner.id,
             and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id)
-        )
+        ),
+        func.upper(ExpenseType.code) != "PARTNER_EXPENSE"
     )
     if df:
         expense_q = expense_q.filter(Expense.date >= df)
@@ -2096,6 +2702,252 @@ def partners_statement(partner_id: int):
         })
         total_debit += amt
 
+    if partner.customer_id:
+        from models import PreOrder
+        from routes.partner_settlements import _get_partner_preorders_prepaid, _get_partner_preorders_as_customer, _get_partner_sales_as_customer, _get_partner_service_fees, _get_partner_damaged_items
+        from models import Expense, ExpenseType
+        
+        preorders_prepaid_data = _get_partner_preorders_prepaid(
+            partner.id,
+            partner,
+            df if df else datetime(2024, 1, 1),
+            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+        )
+        
+        if preorders_prepaid_data and isinstance(preorders_prepaid_data, dict) and preorders_prepaid_data.get("items"):
+            for prepaid_item in preorders_prepaid_data.get("items", []):
+                prepaid_date_str = prepaid_item.get("date", "")
+                try:
+                    if prepaid_date_str:
+                        prepaid_date = datetime.strptime(prepaid_date_str, "%Y-%m-%d")
+                    else:
+                        continue
+                except Exception:
+                    continue
+                
+                if df and prepaid_date < df:
+                    continue
+                if dt and prepaid_date >= dt:
+                    continue
+                
+                prepaid_amount = Decimal(str(prepaid_item.get("amount_ils", 0) or 0))
+                if prepaid_amount > 0:
+                    ref_prepaid = f"عربون حجز #{prepaid_item.get('preorder_id', '')}"
+                    statement_prepaid = f"عربون حجز مسبق - {prepaid_item.get('product', 'منتج')}"
+                    
+                    entries.append({
+                        "date": prepaid_date,
+                        "type": "PREPAID",
+                        "ref": ref_prepaid,
+                        "statement": statement_prepaid,
+                        "debit": Decimal("0.00"),
+                        "credit": prepaid_amount,
+                        "notes": f"حالة الحجز: {prepaid_item.get('status', '')}"
+                    })
+                    total_credit += prepaid_amount
+        
+        preorders_to_partner_data = _get_partner_preorders_as_customer(
+            partner.id,
+            partner,
+            df if df else datetime(2024, 1, 1),
+            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+        )
+        
+        if preorders_to_partner_data and isinstance(preorders_to_partner_data, dict) and preorders_to_partner_data.get("items"):
+            for preorder_item in preorders_to_partner_data.get("items", []):
+                preorder_date_str = preorder_item.get("date", "")
+                try:
+                    if preorder_date_str:
+                        preorder_date = datetime.strptime(preorder_date_str, "%Y-%m-%d")
+                    else:
+                        continue
+                except Exception:
+                    continue
+                
+                if df and preorder_date < df:
+                    continue
+                if dt and preorder_date >= dt:
+                    continue
+                
+                preorder_amount = Decimal(str(preorder_item.get("amount_ils", 0) or 0))
+                if preorder_amount > 0:
+                    ref_preorder = preorder_item.get('preorder_number', f"حجز #{preorder_item.get('preorder_id', '')}")
+                    statement_preorder = f"حجز مسبق للشريك - {ref_preorder}"
+                    
+                    entries.append({
+                        "date": preorder_date,
+                        "type": "PREORDER",
+                        "ref": ref_preorder,
+                        "statement": statement_preorder,
+                        "debit": preorder_amount,
+                        "credit": Decimal("0.00"),
+                        "notes": f"حالة الحجز: {preorder_item.get('status', '')}"
+                    })
+                    total_debit += preorder_amount
+        
+        sales_to_partner_data = _get_partner_sales_as_customer(
+            partner.id,
+            partner,
+            df if df else datetime(2024, 1, 1),
+            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+        )
+        
+        if sales_to_partner_data and isinstance(sales_to_partner_data, dict) and sales_to_partner_data.get("items"):
+            for sale_item in sales_to_partner_data.get("items", []):
+                sale_date_str = sale_item.get("date", "")
+                try:
+                    if sale_date_str:
+                        sale_date = datetime.strptime(sale_date_str, "%Y-%m-%d")
+                    else:
+                        continue
+                except Exception:
+                    continue
+                
+                if df and sale_date < df:
+                    continue
+                if dt and sale_date >= dt:
+                    continue
+                
+                sale_amount = Decimal(str(sale_item.get("amount_ils", 0) or 0))
+                if sale_amount > 0:
+                    ref_sale = sale_item.get('reference', f"مبيعة #{sale_item.get('sale_id', '')}")
+                    statement_sale = f"مبيعات للشريك - {ref_sale}"
+                    
+                    entries.append({
+                        "date": sale_date,
+                        "type": "SALE_TO_PARTNER",
+                        "ref": ref_sale,
+                        "statement": statement_sale,
+                        "debit": sale_amount,
+                        "credit": Decimal("0.00"),
+                        "notes": sale_item.get('notes', '')
+                    })
+                    total_debit += sale_amount
+        
+        service_fees_data = _get_partner_service_fees(
+            partner.id,
+            partner,
+            df if df else datetime(2024, 1, 1),
+            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+        )
+        
+        if service_fees_data and isinstance(service_fees_data, dict) and service_fees_data.get("items"):
+            for service_item in service_fees_data.get("items", []):
+                service_date_str = service_item.get("date", "")
+                try:
+                    if service_date_str:
+                        service_date = datetime.strptime(service_date_str, "%Y-%m-%d")
+                    else:
+                        continue
+                except Exception:
+                    continue
+                
+                if df and service_date < df:
+                    continue
+                if dt and service_date >= dt:
+                    continue
+                
+                service_amount = Decimal(str(service_item.get("amount_ils", 0) or 0))
+                if service_amount > 0:
+                    ref_service = service_item.get('reference', f"صيانة #{service_item.get('service_id', '')}")
+                    statement_service = f"رسوم صيانة للشريك - {ref_service}"
+                    
+                    entries.append({
+                        "date": service_date,
+                        "type": "SERVICE_FEE",
+                        "ref": ref_service,
+                        "statement": statement_service,
+                        "debit": service_amount,
+                        "credit": Decimal("0.00"),
+                        "notes": service_item.get('notes', '')
+                    })
+                    total_debit += service_amount
+        
+        damaged_items_data = _get_partner_damaged_items(
+            partner.id,
+            df if df else datetime(2024, 1, 1),
+            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+        )
+        
+        if damaged_items_data and isinstance(damaged_items_data, dict) and damaged_items_data.get("items"):
+            for damaged_item in damaged_items_data.get("items", []):
+                damaged_date_str = damaged_item.get("date", "")
+                try:
+                    if damaged_date_str:
+                        damaged_date = datetime.strptime(damaged_date_str, "%Y-%m-%d")
+                    else:
+                        continue
+                except Exception:
+                    continue
+                
+                if df and damaged_date < df:
+                    continue
+                if dt and damaged_date >= dt:
+                    continue
+                
+                damaged_amount = Decimal(str(damaged_item.get("amount_ils", 0) or 0))
+                if damaged_amount > 0:
+                    ref_damaged = f"تالف #{damaged_item.get('return_line_id', '')}"
+                    statement_damaged = f"قطع تالفة - {damaged_item.get('product_name', 'منتج')}"
+                    
+                    entries.append({
+                        "date": damaged_date,
+                        "type": "DAMAGED_ITEM",
+                        "ref": ref_damaged,
+                        "statement": statement_damaged,
+                        "debit": damaged_amount,
+                        "credit": Decimal("0.00"),
+                        "notes": f"حالة: {damaged_item.get('condition', '')}"
+                    })
+                    total_debit += damaged_amount
+        
+        service_expenses = Expense.query.join(ExpenseType).filter(
+            or_(
+                Expense.partner_id == partner.id,
+                and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id)
+            ),
+            Expense.date >= (df if df else datetime(2024, 1, 1)),
+            Expense.date <= ((dt - timedelta(days=1)) if dt else datetime.utcnow()),
+            func.upper(ExpenseType.code) == "PARTNER_EXPENSE"
+        ).all()
+        
+        for exp in service_expenses:
+            d = exp.date
+            if df and d < df:
+                continue
+            if dt and d >= dt:
+                continue
+            
+            amt = q2(exp.amount or 0)
+            if exp.currency and exp.currency != "ILS" and amt > 0:
+                try:
+                    from models import convert_amount
+                    convert_date = d if d else (df if df else partner.created_at)
+                    amt = convert_amount(amt, exp.currency, "ILS", convert_date)
+                except Exception as e:
+                    try:
+                        from flask import current_app
+                        current_app.logger.error(f"Error converting service expense #{exp.id} amount: {e}")
+                    except Exception:
+                        pass
+            
+            exp_type_name = getattr(getattr(exp, 'type', None), 'name', 'توريد خدمة')
+            ref = f"توريد خدمة #{exp.id}"
+            statement = f"توريد خدمة: {exp_type_name}"
+            if exp.description:
+                statement += f" - {exp.description}"
+            
+            entries.append({
+                "date": d,
+                "type": "SERVICE_EXPENSE",
+                "ref": ref,
+                "statement": statement,
+                "debit": Decimal("0.00"),
+                "credit": amt,
+                "notes": exp.notes or ''
+            })
+            total_credit += amt
+
     opening_balance = Decimal(getattr(partner, 'opening_balance', 0) or 0)
     if opening_balance != 0 and partner.currency and partner.currency != "ILS":
         try:
@@ -2121,24 +2973,33 @@ def partners_statement(partner_id: int):
             "type": "OPENING_BALANCE",
             "ref": "OB-PARTNER",
             "statement": "الرصيد الافتتاحي",
-            "debit": abs(opening_balance) if opening_balance > 0 else Decimal("0.00"),
-            "credit": abs(opening_balance) if opening_balance < 0 else Decimal("0.00"),
+            "debit": abs(opening_balance) if opening_balance < 0 else Decimal("0.00"),
+            "credit": abs(opening_balance) if opening_balance > 0 else Decimal("0.00"),
         }
         entries.insert(0, opening_entry)
         if opening_balance > 0:
-            total_debit += abs(opening_balance)
-        else:
             total_credit += abs(opening_balance)
+        else:
+            total_debit += abs(opening_balance)
 
-    entries.sort(key=lambda e: (e["date"] or datetime.min, e["type"], e["ref"]))
+    def sort_key(entry):
+        if entry.get("type") == "OPENING_BALANCE":
+            return (datetime.min, "", "")  # الرصيد الافتتاحي دائماً أولاً
+        return (entry.get("date") or datetime.min, entry.get("type", ""), entry.get("ref", ""))
+    
+    entries.sort(key=sort_key)
 
-    balance = Decimal("0.00")
+    balance = D(0)
     out = []
     for e in entries:
+        # الرصيد التراكمي = دائن - مدين (ما له - ما عليه)
+        # credit (دائن = ما له) يزيد الرصيد، debit (مدين = ما عليه) يقلل الرصيد
         d = q2(e["debit"])
         c = q2(e["credit"])
-        balance += d - c
+        balance = balance + c - d
         out.append({**e, "debit": d, "credit": c, "balance": balance})
+    
+    balance = total_credit - total_debit
     
     from routes.partner_settlements import _calculate_smart_partner_balance
     balance_data = _calculate_smart_partner_balance(
@@ -2192,6 +3053,13 @@ def partners_statement(partner_id: int):
     else:
         try:
             balance_breakdown = build_partner_balance_view(partner_id, db.session)
+            if balance_breakdown and balance_breakdown.get("success"):
+                model_balance = float(partner.current_balance or 0)
+                calculated_balance = balance_breakdown.get("balance", {}).get("amount", 0)
+                if abs(model_balance - calculated_balance) > 0.01:
+                    current_app.logger.warning(
+                        f"Partner {partner_id} balance mismatch: model={model_balance}, calculated={calculated_balance}"
+                    )
         except Exception as exc:
             current_app.logger.warning("partner_balance_breakdown_statement_failed: %s", exc)
     
@@ -2265,6 +3133,126 @@ def partners_statement(partner_id: int):
         except Exception:
             pass
     
+    all_partner_products = []
+    try:
+        from models import ProductPartner, WarehousePartnerShare, Product, Warehouse, StockLevel, SaleLine, Sale, SaleStatus
+        from sqlalchemy import func
+        
+        product_shares = db.session.query(
+            ProductPartner.product_id,
+            ProductPartner.share_percent,
+            db.null().label('warehouse_id')
+        ).filter(
+            ProductPartner.partner_id == partner.id,
+            ProductPartner.share_percent > 0
+        ).all()
+        
+        warehouse_shares = db.session.query(
+            WarehousePartnerShare.product_id,
+            WarehousePartnerShare.share_percentage.label('share_percent'),
+            WarehousePartnerShare.warehouse_id
+        ).filter(
+            WarehousePartnerShare.partner_id == partner.id,
+            WarehousePartnerShare.share_percentage > 0
+        ).all()
+        
+        all_shares = {}
+        for ps in product_shares:
+            key = (ps.product_id, None)
+            if key not in all_shares or (ps.share_percent or 0) > (all_shares[key].get('share_percent', 0) or 0):
+                all_shares[key] = {
+                    'product_id': ps.product_id,
+                    'warehouse_id': None,
+                    'share_percent': float(ps.share_percent or 0)
+                }
+        
+        for ws in warehouse_shares:
+            key = (ws.product_id, ws.warehouse_id)
+            if key not in all_shares or (ws.share_percent or 0) > (all_shares[key].get('share_percent', 0) or 0):
+                all_shares[key] = {
+                    'product_id': ws.product_id,
+                    'warehouse_id': ws.warehouse_id,
+                    'share_percent': float(ws.share_percent or 0)
+                }
+        
+        for key, share_info in all_shares.items():
+            product_id = share_info['product_id']
+            warehouse_id = share_info['warehouse_id']
+            share_pct = share_info['share_percent']
+            
+            product = db.session.get(Product, product_id)
+            if not product:
+                continue
+            
+            warehouse = db.session.get(Warehouse, warehouse_id) if warehouse_id else None
+            
+            stock_qty = 0
+            if warehouse_id:
+                stock = db.session.query(StockLevel).filter(
+                    StockLevel.warehouse_id == warehouse_id,
+                    StockLevel.product_id == product_id
+                ).first()
+                if stock:
+                    stock_qty = stock.quantity or 0
+            else:
+                total_stock = db.session.query(func.sum(StockLevel.quantity)).filter(
+                    StockLevel.product_id == product_id,
+                    StockLevel.quantity > 0
+                ).scalar() or 0
+                stock_qty = total_stock
+            
+            sold_qty = 0
+            if df or dt:
+                sale_filter = SaleLine.product_id == product_id
+                if warehouse_id:
+                    sale_filter = and_(sale_filter, SaleLine.warehouse_id == warehouse_id)
+                if df:
+                    sale_filter = and_(sale_filter, Sale.sale_date >= df)
+                if dt:
+                    sale_filter = and_(sale_filter, Sale.sale_date < dt)
+                
+                sold_result = db.session.query(func.sum(SaleLine.quantity)).join(
+                    Sale, Sale.id == SaleLine.sale_id
+                ).filter(
+                    sale_filter,
+                    Sale.status == SaleStatus.CONFIRMED.value
+                ).scalar() or 0
+                sold_qty = sold_result
+            else:
+                sale_filter = SaleLine.product_id == product_id
+                if warehouse_id:
+                    sale_filter = and_(sale_filter, SaleLine.warehouse_id == warehouse_id)
+                
+                sold_result = db.session.query(func.sum(SaleLine.quantity)).join(
+                    Sale, Sale.id == SaleLine.sale_id
+                ).filter(
+                    sale_filter,
+                    Sale.status == SaleStatus.CONFIRMED.value
+                ).scalar() or 0
+                sold_qty = sold_result
+            
+            status = "غير مباع" if stock_qty > 0 else ("مباع" if sold_qty > 0 else "لا يوجد")
+            
+            all_partner_products.append({
+                'product_id': product_id,
+                'product_name': product.name,
+                'sku': product.sku or '—',
+                'warehouse_id': warehouse_id,
+                'warehouse_name': warehouse.name if warehouse else 'كل المستودعات',
+                'share_pct': share_pct,
+                'stock_qty': stock_qty,
+                'sold_qty': sold_qty,
+                'status': status,
+                'purchase_price': float(product.purchase_price or 0),
+                'selling_price': float(product.selling_price or 0)
+            })
+    except Exception as e:
+        try:
+            from flask import current_app
+            current_app.logger.error(f"Error fetching all partner products: {e}")
+        except Exception:
+            pass
+    
     # ✅ إضافة نسبة الشريك في المخزون غير المباع (حسب سعر التكلفة)
     if inventory_items:
         total_inventory_share = sum(item.get('partner_share_value', 0) for item in inventory_items)
@@ -2291,10 +3279,11 @@ def partners_statement(partner_id: int):
         ledger_entries=out,
         total_debit=total_debit,
         total_credit=total_credit,
-        balance=balance_unified,
+        balance=float(balance),
         balance_data=balance_data,
         balance_breakdown=balance_breakdown,
         inventory_items=inventory_items,
+        all_partner_products=all_partner_products,
         date_from=df if df else None,
         date_to=(dt - timedelta(days=1)) if dt else None,
     )

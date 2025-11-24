@@ -83,7 +83,7 @@
                                         </small>
                                     </td>
                                     <td class="text-end">
-                                        <strong class="{% if settlement.closing_balance > 0 %}text-danger{% elif settlement.closing_balance < 0 %}text-success{% else %}text-secondary{% endif %}">
+                                        <strong class="{% if settlement.closing_balance > 0 %}text-success{% elif settlement.closing_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
                                             {{ "%.2f"|format(settlement.closing_balance|abs) }}
                                         </strong>
                                         <br><small class="badge {% if settlement.closing_balance > 0 %}bg-danger{% elif settlement.closing_balance < 0 %}bg-success{% else %}bg-secondary{% endif %}">

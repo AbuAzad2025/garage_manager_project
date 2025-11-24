@@ -1,22 +1,43 @@
 {
-  "timestamp": "2025-11-18T03:00:00.348000",
+  "timestamp": "2025-11-22T03:00:00.301082",
   "changes": {
     "new_tables": [],
     "new_fields": {},
     "new_routes": [
       {
-        "path": "/api/first-incomplete",
+        "path": "/api/get-details/<check_token>",
         "methods": [
           "GET"
         ],
         "file": "routes\\checks.py"
       },
       {
-        "path": "/api/unsettle/<check_token>",
+        "path": "/receivables-payables",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\financial_reports.py"
+      },
+      {
+        "path": "/cogs-audit\", methods=[\"GET\"], endpoint=\"cogs_audit_report",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\ledger_blueprint.py"
+      },
+      {
+        "path": "/fix-cashed-checks-balance",
         "methods": [
           "POST"
         ],
-        "file": "routes\\checks.py"
+        "file": "routes\\ledger_control.py"
+      },
+      {
+        "path": "/verify-customer-balances",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\ledger_control.py"
       }
     ],
     "new_models": [],

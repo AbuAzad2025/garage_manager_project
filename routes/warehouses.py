@@ -3033,8 +3033,29 @@ def preorder_convert_to_sale(preorder_id):
         db.session.add(sale_line)
         db.session.flush()  # لحساب total_amount من SaleLine
         
-        # الآن نحدث total_paid بالعربون
-        sale.total_paid = prepaid
+        # ربط Payment المرتبط بـ PreOrder بالـ Sale أيضاً
+        prepaid_payment = Payment.query.filter(
+            Payment.preorder_id == preorder.id,
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status == PaymentStatus.COMPLETED.value
+        ).first()
+        
+        if prepaid_payment:
+            prepaid_payment.sale_id = sale.id
+            if not prepaid_payment.customer_id:
+                prepaid_payment.customer_id = sale.customer_id
+            db.session.add(prepaid_payment)
+        
+        db.session.flush()
+        db.session.refresh(sale)
+        
+        sale.total_paid = Decimal(str(prepaid))
+        db.session.add(sale)
+        db.session.flush()
+        
+        db.session.refresh(sale)
+        sale.balance_due = Decimal(str(sale.total_amount or 0)) - Decimal(str(sale.total_paid or 0))
+        db.session.add(sale)
         
         # تحديث StockLevel
         sl = StockLevel.query.filter_by(

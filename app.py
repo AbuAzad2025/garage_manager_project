@@ -770,12 +770,15 @@ def create_app(config_object=Config) -> Flask:
     @app.after_request
     def _access_log(resp):
         try:
+            path = request.path
+            if path.startswith('/static/') or path == '/favicon.ico' or path.startswith('/_'):
+                return resp
             app.logger.info(
                 "access",
                 extra={
                     "event": "http.access",
                     "method": request.method,
-                    "path": request.path,
+                    "path": path,
                     "status": resp.status_code,
                     "remote_ip": request.headers.get("X-Forwarded-For", request.remote_addr),
                 },

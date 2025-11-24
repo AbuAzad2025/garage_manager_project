@@ -1929,7 +1929,7 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
     credit_limit = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"))
     discount_rate = Column(Numeric(5, 2), default=0, nullable=False, server_default=sa_text("0"))
     currency = Column(String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
-    opening_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (سالب=عليه لنا، موجب=له علينا)")
+    opening_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له رصيد عندنا، سالب=لنا رصيد عنده)")
     
     current_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), index=True, comment="الرصيد الحالي المحدث")
     sales_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد المبيعات")
@@ -2081,6 +2081,30 @@ class Customer(db.Model, TimestampMixin, AuditMixin, UserMixin):
                     total += convert_amount(amt, p.currency, "ILS", p.payment_date)
                 except Exception:
                     pass
+        
+        active_preorders = db.session.query(PreOrder).filter(
+            PreOrder.customer_id == self.id,
+            PreOrder.prepaid_amount > 0,
+            PreOrder.status != 'FULFILLED',
+            PreOrder.status != 'CANCELLED'
+        ).all()
+        
+        for po in active_preorders:
+            has_payment_for_sale = db.session.query(Payment).filter(
+                Payment.preorder_id == po.id,
+                Payment.sale_id.isnot(None)
+            ).first() is not None
+            
+            if not has_payment_for_sale:
+                prepaid_amt = Decimal(str(po.prepaid_amount or 0))
+                if po.currency == "ILS":
+                    total += prepaid_amt
+                else:
+                    try:
+                        total += convert_amount(prepaid_amt, po.currency, "ILS", po.preorder_date or po.created_at)
+                    except Exception:
+                        pass
+        
         return float(total)
 
     @total_paid.expression
@@ -2308,7 +2332,7 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     notes = db.Column(db.Text)
     payment_terms = db.Column(db.String(50))
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
-    opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له علينا، سالب=عليه لنا)")
+    opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له رصيد عندنا، سالب=لنا رصيد عنده)")
     
     current_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), index=True, comment="الرصيد الحالي المحدث")
     exchange_items_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد قطع التبادل")
@@ -2320,7 +2344,8 @@ class Supplier(db.Model, TimestampMixin, AuditMixin):
     payments_out_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد الدفعات الصادرة")
     preorders_prepaid_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد أرصدة الحجوزات")
     returns_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد المرتجعات Exchange")
-    expenses_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد مصروفات توريد الخدمة")
+    expenses_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد المصروفات العادية (تُطرح)")
+    service_expenses_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد مصروفات توريد الخدمة (تُضاف)")
     returned_checks_in_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد الشيكات المرتدة الواردة")
     returned_checks_out_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد الشيكات المرتدة الصادرة")
     
@@ -2907,7 +2932,7 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
     address = db.Column(db.String(200))
     share_percentage = db.Column(db.Numeric(5, 2), default=0, nullable=False, server_default=sa_text("0"))
     currency = db.Column(db.String(10), default="ILS", nullable=False, server_default=sa_text("'ILS'"))
-    opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له علينا، سالب=عليه لنا)")
+    opening_balance = db.Column(db.Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="الرصيد الافتتاحي (موجب=له رصيد عندنا، سالب=لنا رصيد عنده)")
     
     current_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), index=True, comment="الرصيد الحالي المحدث")
     inventory_balance = Column(Numeric(12, 2), default=0, nullable=False, server_default=sa_text("0"), comment="رصيد المخزون")
@@ -2996,11 +3021,14 @@ class Partner(db.Model, TimestampMixin, AuditMixin):
                 except Exception:
                     pass
         
-        expenses = db.session.query(Expense).filter(
+        from models import ExpenseType
+        from sqlalchemy import func
+        expenses = db.session.query(Expense).join(ExpenseType).filter(
             or_(
                 Expense.partner_id == self.id,
                 and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == self.id)
-            )
+            ),
+            func.upper(ExpenseType.code) != "PARTNER_EXPENSE"
         ).all()
         for exp in expenses:
             amt = Decimal(str(exp.amount or 0))
@@ -6911,8 +6939,17 @@ def _payment_clear_balance_cache(mapper, connection, target: "Payment"):
             cache.delete(f"entity_balance_CUSTOMER_{target.customer_id}")
         if target.supplier_id:
             cache.delete(f"entity_balance_SUPPLIER_{target.supplier_id}")
+            update_supplier_balance(target.supplier_id, connection)
         if target.partner_id:
             cache.delete(f"entity_balance_PARTNER_{target.partner_id}")
+    except Exception:
+        pass
+
+@event.listens_for(Payment, "after_delete")
+def _payment_update_supplier_balance_on_delete(mapper, connection, target: "Payment"):
+    try:
+        if target.supplier_id:
+            update_supplier_balance(target.supplier_id, connection)
     except Exception:
         pass
 
@@ -7873,64 +7910,6 @@ def _update_sale_payment_totals(connection, sale_id):
         }
     )
 
-
-@event.listens_for(Payment, "after_insert", propagate=True)
-@event.listens_for(Payment, "after_update", propagate=True)
-@event.listens_for(Payment, "after_delete", propagate=True)
-def _update_partner_supplier_balance_on_payment(mapper, connection, target: "Payment"):
-    """تحديث رصيد الشريك/المورد عند تغيير الدفعة"""
-    try:
-        # تحديث رصيد الشريك
-        if hasattr(target, 'partner_id') and target.partner_id:
-            update_partner_balance(target.partner_id, connection)
-        
-        # تحديث رصيد المورد
-        if hasattr(target, 'supplier_id') and target.supplier_id:
-            update_supplier_balance(target.supplier_id, connection)
-        
-        # تحديث عبر customer_id للشريك
-        if hasattr(target, 'customer_id') and target.customer_id:
-            from sqlalchemy import text as sa_text
-            # البحث عن الشريك/المورد المرتبط بهذا العميل
-            partner_result = connection.execute(
-                sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
-                {"cid": target.customer_id}
-            ).fetchone()
-            if partner_result:
-                update_partner_balance(partner_result[0], connection)
-            
-            supplier_result = connection.execute(
-                sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
-                {"cid": target.customer_id}
-            ).fetchone()
-            if supplier_result:
-                update_supplier_balance(supplier_result[0], connection)
-        
-        # تحديث عبر sale_id
-        if hasattr(target, 'sale_id') and target.sale_id:
-            from sqlalchemy import text as sa_text
-            sale_result = connection.execute(
-                sa_text("SELECT customer_id FROM sales WHERE id = :sid"),
-                {"sid": target.sale_id}
-            ).fetchone()
-            if sale_result and sale_result[0]:
-                # البحث عن الشريك/المورد
-                partner_result = connection.execute(
-                    sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
-                    {"cid": sale_result[0]}
-                ).fetchone()
-                if partner_result:
-                    update_partner_balance(partner_result[0], connection)
-                
-                supplier_result = connection.execute(
-                    sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
-                    {"cid": sale_result[0]}
-                ).fetchone()
-                if supplier_result:
-                    update_supplier_balance(supplier_result[0], connection)
-    except Exception as e:
-        # لا نريد أن يفشل الـ transaction بسبب تحديث الرصيد
-        pass
 
 @event.listens_for(Payment, "after_insert", propagate=True)
 @event.listens_for(Payment, "after_update", propagate=True)
@@ -14179,64 +14158,10 @@ def _resource_create_cost(mapper, connection, target: "ProjectResource"):
         pass
 
 
-@event.listens_for(SaleReturn, "after_insert", propagate=True)
-@event.listens_for(SaleReturn, "after_update", propagate=True)
-@event.listens_for(SaleReturn, "after_delete", propagate=True)
-def _update_partner_on_return_change(mapper, connection, target):
-    try:
-        if target.sale_id:
-            from sqlalchemy import text as sa_text
-            sale_result = connection.execute(
-                sa_text("SELECT customer_id FROM sales WHERE id = :sid"),
-                {"sid": target.sale_id}
-            ).fetchone()
-            if sale_result and sale_result[0]:
-                partner_result = connection.execute(
-                    sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
-                    {"cid": sale_result[0]}
-                ).fetchone()
-                if partner_result:
-                    update_partner_balance(partner_result[0], connection)
-    except Exception:
-        pass
 
 
-@event.listens_for(ServiceRequest, "after_insert", propagate=True)
-@event.listens_for(ServiceRequest, "after_update", propagate=True)
-@event.listens_for(ServiceRequest, "after_delete", propagate=True)
-def _update_partner_on_service_change(mapper, connection, target):
-    try:
-        if hasattr(target, 'customer_id') and target.customer_id:
-            from sqlalchemy import text as sa_text
-            partner_result = connection.execute(
-                sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
-                {"cid": target.customer_id}
-            ).fetchone()
-            if partner_result:
-                update_partner_balance(partner_result[0], connection)
-    except Exception:
-        pass
 
 
-@event.listens_for(Expense, "after_insert", propagate=True)
-@event.listens_for(Expense, "after_update", propagate=True)
-@event.listens_for(Expense, "after_delete", propagate=True)
-def _update_partner_on_expense_change(mapper, connection, target):
-    try:
-        if hasattr(target, 'partner_id') and target.partner_id:
-            update_partner_balance(target.partner_id, connection)
-    except Exception:
-        pass
-
-@event.listens_for(Expense, "after_insert", propagate=True)
-@event.listens_for(Expense, "after_update", propagate=True)
-@event.listens_for(Expense, "after_delete", propagate=True)
-def _update_supplier_on_expense_change(mapper, connection, target):
-    try:
-        if hasattr(target, 'supplier_id') and target.supplier_id:
-            update_supplier_balance(target.supplier_id, connection)
-    except Exception:
-        pass
 
 class CostCenterAlert(db.Model, TimestampMixin, AuditMixin):
     __tablename__ = 'cost_center_alerts'
@@ -15207,6 +15132,58 @@ def _payment_update_customer_balance(mapper, connection, target):
             _queue_customer_balance(session, customer_id)
         _queue_supplier_balance(session, getattr(target, "supplier_id", None))
         _queue_partner_balance(session, getattr(target, "partner_id", None))
+        
+        if hasattr(target, 'customer_id') and target.customer_id:
+            from sqlalchemy import text as sa_text
+            try:
+                partner_result = connection.execute(
+                    sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+                    {"cid": target.customer_id}
+                ).fetchone()
+                if partner_result:
+                    _queue_partner_balance(session, partner_result[0])
+            except Exception:
+                pass
+            
+            try:
+                supplier_result = connection.execute(
+                    sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+                    {"cid": target.customer_id}
+                ).fetchone()
+                if supplier_result:
+                    _queue_supplier_balance(session, supplier_result[0])
+            except Exception:
+                pass
+        
+        if hasattr(target, 'sale_id') and target.sale_id:
+            from sqlalchemy import text as sa_text
+            try:
+                sale_result = connection.execute(
+                    sa_text("SELECT customer_id FROM sales WHERE id = :sid"),
+                    {"sid": target.sale_id}
+                ).fetchone()
+                if sale_result and sale_result[0]:
+                    try:
+                        partner_result = connection.execute(
+                            sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+                            {"cid": sale_result[0]}
+                        ).fetchone()
+                        if partner_result:
+                            _queue_partner_balance(session, partner_result[0])
+                    except Exception:
+                        pass
+                    
+                    try:
+                        supplier_result = connection.execute(
+                            sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+                            {"cid": sale_result[0]}
+                        ).fetchone()
+                        if supplier_result:
+                            _queue_supplier_balance(session, supplier_result[0])
+                    except Exception:
+                        pass
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -15216,8 +15193,21 @@ def _payment_update_customer_balance(mapper, connection, target):
 @event.listens_for(Sale, "after_delete")
 def _sale_update_customer_balance(mapper, connection, target):
     try:
-        _queue_customer_balance(target, getattr(target, "customer_id", None))
-        _queue_partner_balance(target, getattr(target, "partner_id", None))
+        session = _balance_get_session(target)
+        _queue_customer_balance(session, getattr(target, "customer_id", None))
+        _queue_partner_balance(session, getattr(target, "partner_id", None))
+        
+        if hasattr(target, 'customer_id') and target.customer_id:
+            from sqlalchemy import text as sa_text
+            try:
+                supplier_result = connection.execute(
+                    sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+                    {"cid": target.customer_id}
+                ).fetchone()
+                if supplier_result:
+                    _queue_supplier_balance(session, supplier_result[0])
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -15227,8 +15217,66 @@ def _sale_update_customer_balance(mapper, connection, target):
 @event.listens_for(SaleReturn, "after_delete")
 def _sale_return_update_customer_balance(mapper, connection, target):
     try:
-        _queue_customer_balance(target, getattr(target, "customer_id", None))
-        _queue_partner_balance(target, getattr(target, "partner_id", None))
+        session = _balance_get_session(target)
+        _queue_customer_balance(session, getattr(target, "customer_id", None))
+        _queue_partner_balance(session, getattr(target, "partner_id", None))
+        
+        customer_id_to_check = None
+        if hasattr(target, 'customer_id') and target.customer_id:
+            customer_id_to_check = target.customer_id
+        elif hasattr(target, 'sale_id') and target.sale_id:
+            from sqlalchemy import text as sa_text
+            try:
+                sale_result = connection.execute(
+                    sa_text("SELECT customer_id FROM sales WHERE id = :sid"),
+                    {"sid": target.sale_id}
+                ).fetchone()
+                if sale_result and sale_result[0]:
+                    customer_id_to_check = sale_result[0]
+                    partner_result = connection.execute(
+                        sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+                        {"cid": sale_result[0]}
+                    ).fetchone()
+                    if partner_result:
+                        _queue_partner_balance(session, partner_result[0])
+            except Exception:
+                pass
+        
+        if customer_id_to_check:
+            from sqlalchemy import text as sa_text
+            try:
+                supplier_result = connection.execute(
+                    sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+                    {"cid": customer_id_to_check}
+                ).fetchone()
+                if supplier_result:
+                    _queue_supplier_balance(session, supplier_result[0])
+            except Exception:
+                pass
+        
+        if hasattr(target, 'lines') and target.lines:
+            try:
+                from sqlalchemy import text as sa_text
+                product_ids = [line.product_id for line in target.lines if hasattr(line, 'product_id') and line.product_id]
+                if product_ids:
+                    partner_results = connection.execute(
+                        sa_text("""
+                            SELECT DISTINCT partner_id 
+                            FROM warehouse_partner_shares 
+                            WHERE product_id = ANY(:pids)
+                            UNION
+                            SELECT DISTINCT partner_id 
+                            FROM product_partners 
+                            WHERE product_id = ANY(:pids)
+                        """),
+                        {"pids": product_ids}
+                    ).fetchall()
+                    
+                    for partner_row in partner_results:
+                        if partner_row[0]:
+                            _queue_partner_balance(session, partner_row[0])
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -15238,8 +15286,9 @@ def _sale_return_update_customer_balance(mapper, connection, target):
 @event.listens_for(Invoice, "after_delete")
 def _invoice_update_customer_balance(mapper, connection, target):
     try:
-        _queue_customer_balance(target, getattr(target, "customer_id", None))
-        _queue_partner_balance(target, getattr(target, "partner_id", None))
+        session = _balance_get_session(target)
+        _queue_customer_balance(session, getattr(target, "customer_id", None))
+        _queue_partner_balance(session, getattr(target, "partner_id", None))
     except Exception:
         pass
 
@@ -15249,8 +15298,31 @@ def _invoice_update_customer_balance(mapper, connection, target):
 @event.listens_for(ServiceRequest, "after_delete")
 def _service_update_customer_balance(mapper, connection, target):
     try:
-        _queue_customer_balance(target, getattr(target, "customer_id", None))
-        _queue_partner_balance(target, getattr(target, "partner_id", None))
+        session = _balance_get_session(target)
+        _queue_customer_balance(session, getattr(target, "customer_id", None))
+        _queue_partner_balance(session, getattr(target, "partner_id", None))
+        
+        if hasattr(target, 'customer_id') and target.customer_id:
+            from sqlalchemy import text as sa_text
+            try:
+                partner_result = connection.execute(
+                    sa_text("SELECT id FROM partners WHERE customer_id = :cid"),
+                    {"cid": target.customer_id}
+                ).fetchone()
+                if partner_result:
+                    _queue_partner_balance(session, partner_result[0])
+            except Exception:
+                pass
+            
+            try:
+                supplier_result = connection.execute(
+                    sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+                    {"cid": target.customer_id}
+                ).fetchone()
+                if supplier_result:
+                    _queue_supplier_balance(session, supplier_result[0])
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -15260,8 +15332,21 @@ def _service_update_customer_balance(mapper, connection, target):
 @event.listens_for(PreOrder, "after_delete")
 def _preorder_update_customer_balance(mapper, connection, target):
     try:
-        _queue_customer_balance(target, getattr(target, "customer_id", None))
-        _queue_partner_balance(target, getattr(target, "partner_id", None))
+        session = _balance_get_session(target)
+        _queue_customer_balance(session, getattr(target, "customer_id", None))
+        _queue_partner_balance(session, getattr(target, "partner_id", None))
+        
+        if hasattr(target, 'customer_id') and target.customer_id:
+            from sqlalchemy import text as sa_text
+            try:
+                supplier_result = connection.execute(
+                    sa_text("SELECT id FROM suppliers WHERE customer_id = :cid"),
+                    {"cid": target.customer_id}
+                ).fetchone()
+                if supplier_result:
+                    _queue_supplier_balance(session, supplier_result[0])
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -15271,7 +15356,8 @@ def _preorder_update_customer_balance(mapper, connection, target):
 @event.listens_for(OnlinePreOrder, "after_delete")
 def _online_preorder_update_customer_balance(mapper, connection, target):
     try:
-        _queue_customer_balance(target, getattr(target, "customer_id", None))
+        session = _balance_get_session(target)
+        _queue_customer_balance(session, getattr(target, "customer_id", None))
     except Exception:
         pass
 
@@ -15281,8 +15367,12 @@ def _online_preorder_update_customer_balance(mapper, connection, target):
 @event.listens_for(Expense, "after_delete")
 def _expense_update_customer_balance(mapper, connection, target):
     try:
-        _queue_customer_balance(target, getattr(target, "customer_id", None))
-        _queue_supplier_balance(target, getattr(target, "supplier_id", None))
+        session = _balance_get_session(target)
+        _queue_customer_balance(session, getattr(target, "customer_id", None))
+        supplier_id = getattr(target, "supplier_id", None)
+        if supplier_id:
+            _queue_supplier_balance(session, supplier_id)
+        _queue_partner_balance(session, getattr(target, "partner_id", None))
     except Exception:
         pass
 
@@ -15292,12 +15382,12 @@ def _expense_update_customer_balance(mapper, connection, target):
 @event.listens_for(Check, "after_delete")
 def _check_update_customer_balance(mapper, connection, target):
     try:
-        _queue_customer_balance(target, getattr(target, "customer_id", None))
-        _queue_supplier_balance(target, getattr(target, "supplier_id", None))
-        _queue_partner_balance(target, getattr(target, "partner_id", None))
+        session = _balance_get_session(target)
+        _queue_customer_balance(session, getattr(target, "customer_id", None))
+        _queue_supplier_balance(session, getattr(target, "supplier_id", None))
+        _queue_partner_balance(session, getattr(target, "partner_id", None))
         
         if target.payment_id:
-            session = _balance_get_session(target)
             try:
                 payment = session.get(Payment, target.payment_id)
             except Exception:

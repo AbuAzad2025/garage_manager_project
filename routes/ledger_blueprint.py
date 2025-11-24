@@ -353,15 +353,35 @@ def get_ledger_data():
             expenses = LedgerQueryOptimizer.get_expenses_optimized(from_date, to_date)
             
             for expense in expenses:
-                credit = CurrencyConverter.convert_to_ils(
+                amount_ils = CurrencyConverter.convert_to_ils(
                     float(expense.amount or 0),
                     expense.currency or 'ILS',
                     expense.date,
                     getattr(expense, 'fx_rate_used', None)
                 )
-                running_balance -= credit
                 
                 exp_type = expense.type.name if expense.type else "مصروف"
+                exp_type_code = None
+                if expense.type and hasattr(expense.type, 'code'):
+                    exp_type_code = (expense.type.code or '').strip().upper()
+                
+                is_supplier_service = (
+                    exp_type_code == "SUPPLIER_EXPENSE" or
+                    (expense.supplier_id and (getattr(expense, 'payee_type', '') or '').upper() == "SUPPLIER")
+                )
+                is_partner_service = (
+                    exp_type_code == "PARTNER_EXPENSE" or
+                    (expense.partner_id and (getattr(expense, 'payee_type', '') or '').upper() == "PARTNER")
+                )
+                
+                if is_supplier_service or is_partner_service:
+                    debit = amount_ils
+                    credit = 0.0
+                    running_balance += debit
+                else:
+                    debit = 0.0
+                    credit = amount_ils
+                    running_balance -= credit
                 
                 expense_entity_name = "غير محدد"
                 expense_entity_type = ""
@@ -391,7 +411,7 @@ def get_ledger_data():
                     "type": "expense",
                     "type_ar": exp_type,
                     "description": expense.description or f"مصروف - {exp_type}",
-                    "debit": 0.0,
+                    "debit": debit,
                     "credit": credit,
                     "balance": running_balance,
                     "entity_name": expense_entity_name,
@@ -403,6 +423,20 @@ def get_ledger_data():
             payments = LedgerQueryOptimizer.get_payments_optimized(from_date, to_date)
             
             for payment in payments:
+                if payment.entity_type and payment.entity_type.upper() == "EXPENSE" and payment.expense_id:
+                    expense = db.session.get(Expense, payment.expense_id) if payment.expense_id else None
+                    if expense:
+                        exp_type_code = None
+                        if expense.type and hasattr(expense.type, 'code'):
+                            exp_type_code = (expense.type.code or '').strip().upper()
+                        is_service_supply = (
+                            exp_type_code == "PARTNER_EXPENSE" or
+                            exp_type_code == "SUPPLIER_EXPENSE" or
+                            (expense.partner_id and (getattr(expense, 'payee_type', '') or '').upper() == "PARTNER") or
+                            (expense.supplier_id and (getattr(expense, 'payee_type', '') or '').upper() == "SUPPLIER")
+                        )
+                        if not is_service_supply:
+                            continue
                 payment_status = getattr(payment, 'status', 'COMPLETED')
                 
                 checks_related = LedgerQueryOptimizer.get_checks_for_payment(payment.id)
@@ -670,7 +704,7 @@ def get_ledger_data():
         # 4. الصيانة (Service Requests)
         ignore_tag = "[LEDGER_SKIP]"
         ignore_tag_upper = ignore_tag.upper()
-        if not transaction_type or transaction_type in ['maintenance', 'service']:
+        if not transaction_type or transaction_type in ['maintenance', 'service', 'payment']:
             services = LedgerQueryOptimizer.get_services_optimized(from_date, to_date)
             for service in services:
                 text_notes = " ".join(filter(None, [
@@ -681,16 +715,20 @@ def get_ledger_data():
                 ])).upper()
                 if ignore_tag_upper in text_notes:
                     continue
+                
                 parts_total = float(service.parts_total or 0)
                 labor_total = float(service.labor_total or 0)
                 discount = float(service.discount_total or 0)
                 tax_rate = float(service.tax_rate or 0)
                 
-                subtotal = parts_total + labor_total - discount
-                if subtotal < 0:
-                    subtotal = 0
-                tax_amount = subtotal * (tax_rate / 100.0)
-                service_total = subtotal + tax_amount
+                service_total = float(service.total_amount or 0)
+                
+                if service_total <= 0:
+                    subtotal = parts_total + labor_total - discount
+                    if subtotal < 0:
+                        subtotal = 0
+                    tax_amount = subtotal * (tax_rate / 100.0)
+                    service_total = subtotal + tax_amount
                 
                 if service_total <= 0:
                     continue
@@ -705,13 +743,24 @@ def get_ledger_data():
                 
                 running_balance += debit
                 customer_name = service.customer.name if service.customer else "عميل غير محدد"
+                
+                description_parts = [f"صيانة - {customer_name}"]
+                description_parts.append(f"قطع: {parts_total:.2f} + عمالة: {labor_total:.2f}")
+                if discount > 0:
+                    description_parts.append(f"خصم: {discount:.2f}")
+                if tax_rate > 0:
+                    tax_amount_calc = (parts_total + labor_total - discount) * (tax_rate / 100.0)
+                    if tax_amount_calc > 0:
+                        description_parts.append(f"ضريبة ({tax_rate:.1f}%): {tax_amount_calc:.2f}")
+                description_parts.append(f"الإجمالي: {service_total:.2f}")
+                
                 ledger_entries.append({
                     "id": service.id,
                     "date": service.created_at.strftime('%Y-%m-%d') if service.created_at else datetime.utcnow().strftime('%Y-%m-%d'),
                     "transaction_number": service.service_number or f"SRV-{service.id}",
                     "type": "service",
                     "type_ar": "صيانة",
-                    "description": f"صيانة - {customer_name} - قطع: {parts_total:.2f} + عمالة: {labor_total:.2f}",
+                    "description": " | ".join(description_parts),
                     "debit": debit,
                     "credit": 0.0,
                     "balance": running_balance,
@@ -719,7 +768,141 @@ def get_ledger_data():
                     "entity_type": "عميل"
                 })
         
-        # 5. القيود اليدوية (Manual Journal Entries)
+        # 5. الحجوزات المسبقة (Preorders)
+        if not transaction_type or transaction_type in ['preorder', 'prepaid']:
+            preorders_query = PreOrder.query.filter(
+                PreOrder.status != 'CANCELLED',
+                PreOrder.status != 'FULFILLED'
+            )
+            if from_date:
+                preorders_query = preorders_query.filter(PreOrder.preorder_date >= from_date)
+            if to_date:
+                preorders_query = preorders_query.filter(PreOrder.preorder_date <= to_date)
+            
+            for preorder in preorders_query.order_by(PreOrder.preorder_date).all():
+                total_amount = CurrencyConverter.convert_to_ils(
+                    float(preorder.total_amount or 0),
+                    preorder.currency or 'ILS',
+                    preorder.preorder_date or preorder.created_at or datetime.utcnow(),
+                    getattr(preorder, 'fx_rate_used', None)
+                )
+                
+                if total_amount > 0:
+                    customer_name = preorder.customer.name if preorder.customer else "عميل غير محدد"
+                    product_name = preorder.product.name if preorder.product else "منتج"
+                    running_balance += total_amount
+                    
+                    ledger_entries.append({
+                        "id": preorder.id,
+                        "date": (preorder.preorder_date or preorder.created_at or datetime.utcnow()).strftime('%Y-%m-%d'),
+                        "transaction_number": preorder.reference or f"PRE-{preorder.id}",
+                        "type": "preorder",
+                        "type_ar": "حجز مسبق",
+                        "description": f"حجز مسبق - {customer_name} - {product_name}",
+                        "debit": total_amount,
+                        "credit": 0.0,
+                        "balance": running_balance,
+                        "entity_name": customer_name,
+                        "entity_type": "عميل"
+                    })
+                
+                prepaid_amount = CurrencyConverter.convert_to_ils(
+                    float(preorder.prepaid_amount or 0),
+                    preorder.currency or 'ILS',
+                    preorder.preorder_date or preorder.created_at or datetime.utcnow(),
+                    getattr(preorder, 'fx_rate_used', None)
+                )
+                
+                if prepaid_amount > 0:
+                    customer_name = preorder.customer.name if preorder.customer else "عميل غير محدد"
+                    running_balance -= prepaid_amount
+                    
+                    ledger_entries.append({
+                        "id": f"PREPAID-{preorder.id}",
+                        "date": (preorder.preorder_date or preorder.created_at or datetime.utcnow()).strftime('%Y-%m-%d'),
+                        "transaction_number": preorder.reference or f"PRE-{preorder.id}",
+                        "type": "prepaid",
+                        "type_ar": "عربون حجز",
+                        "description": f"عربون حجز مسبق - {customer_name}",
+                        "debit": 0.0,
+                        "credit": prepaid_amount,
+                        "balance": running_balance,
+                        "entity_name": customer_name,
+                        "entity_type": "عميل"
+                    })
+        
+        # 6. التوريدات (Exchange Transactions)
+        if not transaction_type or transaction_type in ['purchase', 'exchange']:
+            from models import ExchangeTransaction, Warehouse, WarehouseType
+            exchange_warehouses = db.session.query(Warehouse.id).filter(
+                Warehouse.warehouse_type == WarehouseType.EXCHANGE.value
+            ).all()
+            warehouse_ids = [w[0] for w in exchange_warehouses]
+            
+            if warehouse_ids:
+                exchange_txs_query = ExchangeTransaction.query.filter(
+                    ExchangeTransaction.warehouse_id.in_(warehouse_ids)
+                )
+                if from_date:
+                    exchange_txs_query = exchange_txs_query.filter(ExchangeTransaction.created_at >= from_date)
+                if to_date:
+                    exchange_txs_query = exchange_txs_query.filter(ExchangeTransaction.created_at <= to_date)
+                
+                for tx in exchange_txs_query.order_by(ExchangeTransaction.created_at).all():
+                    qty = int(tx.quantity or 0)
+                    unit_cost = float(tx.unit_cost or 0)
+                    if unit_cost <= 0 and tx.product:
+                        unit_cost = float(tx.product.purchase_price or 0)
+                    
+                    amount = qty * unit_cost
+                    tx_currency = getattr(tx, 'currency', None) or (tx.product.currency if tx.product else 'ILS') or 'ILS'
+                    
+                    amount_ils = CurrencyConverter.convert_to_ils(
+                        amount,
+                        tx_currency,
+                        tx.created_at or datetime.utcnow(),
+                        getattr(tx, 'fx_rate_used', None)
+                    )
+                    
+                    if amount_ils <= 0:
+                        continue
+                    
+                    direction = (getattr(tx, 'direction', '') or '').upper()
+                    supplier_name = tx.supplier.name if tx.supplier else "مورد غير محدد"
+                    product_name = tx.product.name if tx.product else "منتج"
+                    
+                    if direction in {'IN', 'PURCHASE', 'CONSIGN_IN'}:
+                        running_balance -= amount_ils
+                        ledger_entries.append({
+                            "id": tx.id,
+                            "date": (tx.created_at or datetime.utcnow()).strftime('%Y-%m-%d'),
+                            "transaction_number": f"TX-{tx.id}",
+                            "type": "purchase",
+                            "type_ar": "توريد",
+                            "description": f"توريد {product_name} - {qty} قطعة - {supplier_name}",
+                            "debit": 0.0,
+                            "credit": amount_ils,
+                            "balance": running_balance,
+                            "entity_name": supplier_name,
+                            "entity_type": "مورد"
+                        })
+                    elif direction in {'OUT', 'RETURN', 'CONSIGN_OUT'}:
+                        running_balance += amount_ils
+                        ledger_entries.append({
+                            "id": tx.id,
+                            "date": (tx.created_at or datetime.utcnow()).strftime('%Y-%m-%d'),
+                            "transaction_number": f"TX-{tx.id}",
+                            "type": "return",
+                            "type_ar": "مرتجع",
+                            "description": f"مرتجع {product_name} - {qty} قطعة - {supplier_name}",
+                            "debit": amount_ils,
+                            "credit": 0.0,
+                            "balance": running_balance,
+                            "entity_name": supplier_name,
+                            "entity_type": "مورد"
+                        })
+        
+        # 7. القيود اليدوية (Manual Journal Entries)
         if not transaction_type or transaction_type in ['manual', 'journal']:
             manual_batches_query = GLBatch.query.filter(GLBatch.source_type == 'MANUAL')
             if from_date:
@@ -859,18 +1042,22 @@ def get_ledger_data():
         
         total_services = 0.0
         for service in services_query.limit(10000).all():
-            # حساب إجمالي الخدمة من parts_total + labor_total + tax - discount
-            parts_total = float(service.parts_total or 0)
-            labor_total = float(service.labor_total or 0)
-            discount = float(service.discount_total or 0)
-            tax_rate = float(service.tax_rate or 0)
+            # استخدام total_amount المحفوظ في قاعدة البيانات (بعد الخصم والضريبة)
+            service_total = float(service.total_amount or 0)
             
-            # الحساب: (parts + labor - discount) * (1 + tax_rate/100)
-            subtotal = parts_total + labor_total - discount
-            if subtotal < 0:
-                subtotal = 0
-            tax_amount = subtotal * (tax_rate / 100.0)
-            service_total = subtotal + tax_amount
+            # إذا كان total_amount غير موجود أو صفر، نحسبه يدوياً
+            if service_total <= 0:
+                parts_total = float(service.parts_total or 0)
+                labor_total = float(service.labor_total or 0)
+                discount = float(service.discount_total or 0)
+                tax_rate = float(service.tax_rate or 0)
+                
+                # الحساب: (parts + labor - discount) * (1 + tax_rate/100)
+                subtotal = parts_total + labor_total - discount
+                if subtotal < 0:
+                    subtotal = 0
+                tax_amount = subtotal * (tax_rate / 100.0)
+                service_total = subtotal + tax_amount
             
             # تحويل للشيقل إذا كانت بعملة أخرى
             service_currency = getattr(service, 'currency', 'ILS') or 'ILS'
@@ -1025,8 +1212,6 @@ def get_ledger_data():
                 total_service_costs += qty_used * unit_cost
         
         # 6. حساب الحجوزات المسبقة
-        from models import PreOrder
-        
         preorders_query = PreOrder.query
         if from_date:
             preorders_query = preorders_query.filter(PreOrder.created_at >= from_date)
@@ -1729,7 +1914,7 @@ def get_receivables_detailed_summary():
         receivables_totals = {
             'total_debit': sum([r['debit'] for r in receivables]),
             'total_credit': sum([r['credit'] for r in receivables]),
-            'net_balance': sum([r['debit'] for r in receivables]) - sum([r['credit'] for r in receivables])
+            'net_balance': sum([r['credit'] for r in receivables]) - sum([r['debit'] for r in receivables])
         }
         
         return jsonify({
@@ -2055,9 +2240,21 @@ def trial_balance():
 # @permission_required("view_reports", "view_ledger")  # Commented out
 def account_ledger(account):
     dfrom, dto = _parse_dates()
-    q_open = (db.session.query(func.coalesce(func.sum(GLEntry.debit - GLEntry.credit), 0.0))
-              .join(GLBatch, GLBatch.id == GLEntry.batch_id)
-              .filter(GLEntry.account == account, GLBatch.posted_at < dfrom))
+    
+    account_obj = Account.query.filter_by(code=account).first()
+    is_asset_or_expense = True
+    if account_obj:
+        acc_type = (account_obj.type or "").upper()
+        is_asset_or_expense = acc_type in ["ASSET", "EXPENSE"]
+    
+    if is_asset_or_expense:
+        q_open = (db.session.query(func.coalesce(func.sum(GLEntry.debit - GLEntry.credit), 0.0))
+                  .join(GLBatch, GLBatch.id == GLEntry.batch_id)
+                  .filter(GLEntry.account == account, GLBatch.posted_at < dfrom))
+    else:
+        q_open = (db.session.query(func.coalesce(func.sum(GLEntry.credit - GLEntry.debit), 0.0))
+                  .join(GLBatch, GLBatch.id == GLEntry.batch_id)
+                  .filter(GLEntry.account == account, GLBatch.posted_at < dfrom))
     q_open = _entity_filter(q_open)
     opening = float(q_open.scalar() or 0.0)
     base = (db.session.query(
@@ -2085,11 +2282,18 @@ def account_ledger(account):
         running_start = opening
         if rows:
             first = rows[0]
-            q_prefix = (db.session.query(func.coalesce(func.sum(GLEntry.debit - GLEntry.credit), 0.0))
-                        .join(GLBatch, GLBatch.id == GLEntry.batch_id)
-                        .filter(GLEntry.account == account,
-                                or_(GLBatch.posted_at < first.posted_at,
-                                    and_(GLBatch.posted_at == first.posted_at, GLEntry.id < first.entry_id))))
+            if is_asset_or_expense:
+                q_prefix = (db.session.query(func.coalesce(func.sum(GLEntry.debit - GLEntry.credit), 0.0))
+                            .join(GLBatch, GLBatch.id == GLEntry.batch_id)
+                            .filter(GLEntry.account == account,
+                                    or_(GLBatch.posted_at < first.posted_at,
+                                        and_(GLBatch.posted_at == first.posted_at, GLEntry.id < first.entry_id))))
+            else:
+                q_prefix = (db.session.query(func.coalesce(func.sum(GLEntry.credit - GLEntry.debit), 0.0))
+                            .join(GLBatch, GLBatch.id == GLEntry.batch_id)
+                            .filter(GLEntry.account == account,
+                                    or_(GLBatch.posted_at < first.posted_at,
+                                        and_(GLBatch.posted_at == first.posted_at, GLEntry.id < first.entry_id))))
             q_prefix = _entity_filter(q_prefix).filter(GLBatch.posted_at >= dfrom, GLBatch.posted_at < dto)
             running_start += float(q_prefix.scalar() or 0.0)
         running = running_start
@@ -2097,7 +2301,10 @@ def account_ledger(account):
         for r in rows:
             dr = float(r.debit or 0.0)
             cr = float(r.credit or 0.0)
-            running += (dr - cr)
+            if is_asset_or_expense:
+                running += (dr - cr)
+            else:
+                running += (cr - dr)
             
             # 🧠 استخراج الجهة بذكاء من batch
             batch_obj = GLBatch(
@@ -2140,7 +2347,10 @@ def account_ledger(account):
     for r in rows:
         dr = float(r.debit or 0.0)
         cr = float(r.credit or 0.0)
-        running += (dr - cr)
+        if is_asset_or_expense:
+            running += (dr - cr)
+        else:
+            running += (cr - dr)
         
         # 🧠 استخراج الجهة بذكاء من batch
         batch_obj = GLBatch(

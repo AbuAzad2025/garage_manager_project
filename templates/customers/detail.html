@@ -91,7 +91,7 @@
       <div class="dashboard-stats-card h-100 text-white" style="background:linear-gradient(135deg,#141e30,#243b55)">
         <div class="card-body text-center">
           <h6 class="text-white-50 mb-1">🎯 الوضع الحالي</h6>
-          <h3 class="mb-0 fw-bold {% if balance_view.balance.amount > 0 %}text-danger{% elif balance_view.balance.amount < 0 %}text-success{% endif %}">
+          <h3 class="mb-0 fw-bold {% if balance_view.balance.amount > 0 %}text-success{% elif balance_view.balance.amount < 0 %}text-danger{% endif %}">
             {{ balance_view.balance.amount|format_currency }}
           </h3>
           <small class="text-white-50">{{ balance_view.balance.action }}</small>

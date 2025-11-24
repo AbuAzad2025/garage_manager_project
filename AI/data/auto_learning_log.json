@@ -1402,5 +1402,115 @@
       "new_templates": [],
       "new_forms": []
     }
+  },
+  {
+    "timestamp": "2025-11-22T03:00:05.262249",
+    "changes_count": {
+      "tables": 0,
+      "fields": 0,
+      "routes": 5,
+      "models": 0,
+      "templates": 0,
+      "forms": 0
+    },
+    "changes": {
+      "new_tables": [],
+      "new_fields": {},
+      "new_routes": [
+        {
+          "path": "/api/get-details/<check_token>",
+          "methods": [
+            "GET"
+          ],
+          "file": "routes\\checks.py"
+        },
+        {
+          "path": "/receivables-payables",
+          "methods": [
+            "GET"
+          ],
+          "file": "routes\\financial_reports.py"
+        },
+        {
+          "path": "/cogs-audit\", methods=[\"GET\"], endpoint=\"cogs_audit_report",
+          "methods": [
+            "GET"
+          ],
+          "file": "routes\\ledger_blueprint.py"
+        },
+        {
+          "path": "/fix-cashed-checks-balance",
+          "methods": [
+            "POST"
+          ],
+          "file": "routes\\ledger_control.py"
+        },
+        {
+          "path": "/verify-customer-balances",
+          "methods": [
+            "POST"
+          ],
+          "file": "routes\\ledger_control.py"
+        }
+      ],
+      "new_models": [],
+      "new_templates": [],
+      "new_forms": []
+    }
+  },
+  {
+    "timestamp": "2025-11-22T03:00:05.332976",
+    "changes_count": {
+      "tables": 0,
+      "fields": 0,
+      "routes": 5,
+      "models": 0,
+      "templates": 0,
+      "forms": 0
+    },
+    "changes": {
+      "new_tables": [],
+      "new_fields": {},
+      "new_routes": [
+        {
+          "path": "/api/get-details/<check_token>",
+          "methods": [
+            "GET"
+          ],
+          "file": "routes\\checks.py"
+        },
+        {
+          "path": "/receivables-payables",
+          "methods": [
+            "GET"
+          ],
+          "file": "routes\\financial_reports.py"
+        },
+        {
+          "path": "/cogs-audit\", methods=[\"GET\"], endpoint=\"cogs_audit_report",
+          "methods": [
+            "GET"
+          ],
+          "file": "routes\\ledger_blueprint.py"
+        },
+        {
+          "path": "/fix-cashed-checks-balance",
+          "methods": [
+            "POST"
+          ],
+          "file": "routes\\ledger_control.py"
+        },
+        {
+          "path": "/verify-customer-balances",
+          "methods": [
+            "POST"
+          ],
+          "file": "routes\\ledger_control.py"
+        }
+      ],
+      "new_models": [],
+      "new_templates": [],
+      "new_forms": []
+    }
   }
 ]

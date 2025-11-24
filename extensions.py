@@ -339,6 +339,28 @@ def perform_wal_checkpoint(app):
         app.logger.warning(f"⚠️ WAL Checkpoint error: {e}")
 
 
+def quick_wal_checkpoint():
+    """تفريغ WAL checkpoint بسرعة - للاستخدام في قوائم الموردين/العملاء/الشركاء"""
+    try:
+        from flask import current_app
+        from sqlalchemy import text
+        uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if not uri.startswith("sqlite:///"):
+            return
+        
+        try:
+            db.session.execute(text("PRAGMA wal_checkpoint(PASSIVE)"))
+            db.session.commit()
+        except Exception:
+            try:
+                db.session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+    except Exception:
+        pass
+
+
 def perform_vacuum_optimize(app):
     """تنفيذ VACUUM دوري لتنظيف وتحسين قاعدة البيانات"""
     try:

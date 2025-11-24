@@ -23,11 +23,11 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-from sqlalchemy import func, or_, case
+from sqlalchemy import func, or_, case, exists, and_, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import joinedload, load_only, selectinload, sessionmaker
 
-from extensions import db
+from extensions import db, quick_wal_checkpoint
 from forms import CustomerForm, CustomerImportForm, ExportContactsForm
 from models import (
     AuditLog,
@@ -43,6 +43,8 @@ from models import (
     ServiceRequest,
     PreOrder,
     OnlinePreOrder,
+    Expense,
+    ExpenseType,
 )
 import utils
 from utils import archive_record, restore_record
@@ -259,12 +261,37 @@ def list_customers():
             customers_list = list(pag.items)
             pagination = pag
 
+    mismatches = []
     for customer in customers_list:
         if hasattr(customer, 'calculated_balance'):
             continue
         balance_val = _get_balance_value(customer)
         try:
             setattr(customer, "calculated_balance", balance_val)
+        except Exception:
+            pass
+        
+        stored_balance = float(customer.current_balance or 0)
+        if abs(stored_balance - balance_val) > 0.01:
+            mismatches.append(customer.id)
+    
+    if mismatches:
+        try:
+            from utils.customer_balance_updater import update_customer_balance_components
+            from sqlalchemy.orm import sessionmaker
+            SessionFactory = sessionmaker(bind=db.engine)
+            session = SessionFactory()
+            try:
+                for customer_id in mismatches[:10]:
+                    try:
+                        update_customer_balance_components(customer_id, session)
+                    except Exception:
+                        pass
+                session.commit()
+            except Exception:
+                session.rollback()
+            finally:
+                session.close()
         except Exception:
             pass
 
@@ -407,6 +434,8 @@ def list_customers():
             current_app.logger.error("customers_print_pdf_error: %s", exc)
             context["pdf_export"] = False
 
+    quick_wal_checkpoint()
+    
     return render_template("customers/list.html", **context)
 
 
@@ -878,11 +907,12 @@ def export_customer_vcf(customer_id):
     vcf = "BEGIN:VCARD\r\nVERSION:3.0\r\n" f"FN:{c.name}\r\n" f"TEL:{c.phone or ''}\r\n" f"EMAIL:{c.email or ''}\r\n" "END:VCARD\r\n"
     return Response(vcf, mimetype="text/vcard; charset=utf-8", headers={"Content-Disposition": f"attachment; filename={safe_name}.vcf"})
 
+# ⚠️ قبل التعديل: اقرأ ACCOUNTING_RULES.md - قواعد المحاسبة الأساسية
 @customers_bp.route("/<int:customer_id>/account_statement", methods=["GET"], endpoint="account_statement")
 @login_required
 # @permission_required("manage_customers")  # Commented out - function not available
 def account_statement(customer_id):
-    from models import Check
+    from models import Check, CheckStatus
     
     c = db.session.get(Customer, customer_id) or abort(404)
     db.session.refresh(c)
@@ -995,6 +1025,29 @@ def account_statement(customer_id):
         joinedload(Sale.lines).load_only(SaleLine.id, SaleLine.quantity, SaleLine.unit_price, SaleLine.line_total, SaleLine.line_receiver, SaleLine.note),
         joinedload(Sale.lines).joinedload(SaleLine.product).load_only(Product.id, Product.name)
     ).order_by(Sale.sale_date, Sale.id).all()
+    
+    for s in sales:
+        if s.preorder_id:
+            preorder = PreOrder.query.get(s.preorder_id)
+            if preorder:
+                prepaid_amount = D(preorder.prepaid_amount or 0)
+                if prepaid_amount > 0:
+                    prepaid_payment = Payment.query.filter(
+                        Payment.preorder_id == preorder.id,
+                        Payment.direction == 'IN',
+                        Payment.status.in_(['COMPLETED', 'PENDING']),
+                        Payment.sale_id.is_(None)
+                    ).first()
+                    
+                    if prepaid_payment:
+                        prepaid_payment.sale_id = s.id
+                        if not prepaid_payment.customer_id:
+                            prepaid_payment.customer_id = s.customer_id
+                        db.session.add(prepaid_payment)
+    
+    db.session.flush()
+    db.session.expire_all()
+    
     for s in sales:
         sale_lines = getattr(s, 'lines', []) or []
         items = []
@@ -1034,44 +1087,51 @@ def account_statement(customer_id):
 
     services = ServiceRequest.query.filter_by(customer_id=customer_id).order_by(ServiceRequest.completed_at, ServiceRequest.id).all()
     for srv in services:
+        service_total = D(getattr(srv, "total_amount", 0) or 0)
+        if service_total <= 0:
+            service_total = D(service_grand_total(srv))
         entries.append({
             "date": getattr(srv, "completed_at", None) or getattr(srv, "created_at", None),
             "type": "SERVICE",
             "ref": getattr(srv, "service_number", None) or f"SRV-{srv.id}",
             "statement": generate_statement("SERVICE", srv),
-            "debit": D(service_grand_total(srv)),  # الخدمة = عليه (مدين)
+            "debit": service_total,
             "credit": D(0),
             "notes": getattr(srv, 'notes', '') or '',
         })
 
-    preorders = PreOrder.query.filter_by(customer_id=customer_id).order_by(PreOrder.created_at, PreOrder.id).all()
+    preorders = PreOrder.query.filter(
+        PreOrder.customer_id == customer_id,
+        PreOrder.status != 'CANCELLED',
+        PreOrder.status != 'FULFILLED'
+    ).order_by(PreOrder.created_at, PreOrder.id).all()
+    
     for pre in preorders:
-        # العربون يُحسب كدفعة واردة (credit) - حق له
-        prepaid_amount = D(pre.prepaid_amount or 0)
+        prepaid_amount_raw = pre.prepaid_amount
+        prepaid_amount = D(prepaid_amount_raw or 0) if prepaid_amount_raw is not None else D(0)
         total_amount = D(pre.total_amount or 0)
-        remaining_amount = total_amount - prepaid_amount
         
-        # إضافة الحجز (عليه) - الحجز = عليه (مدين)
-        entries.append({
-            "date": pre.created_at,
-            "type": "PREORDER",
-            "ref": getattr(pre, "order_number", None) or f"PRE-{pre.id}",
-            "statement": generate_statement("PREORDER", pre),
-            "debit": total_amount,  # الحجز = عليه (مدين)
-            "credit": D(0),
-            "notes": getattr(pre, 'notes', '') or '',
-        })
+        preorder_ref = getattr(pre, "order_number", None) or getattr(pre, "reference", None) or f"PRE-{pre.id}"
         
-        # إضافة العربون (له) - إذا كان العربون > 0
-        # العربون = دفع مسبق = له (دائن) = تقليل ما عليه
+        if total_amount > 0:
+            entries.append({
+                "date": pre.preorder_date or pre.created_at or datetime.now(),
+                "type": "PREORDER",
+                "ref": preorder_ref,
+                "statement": generate_statement("PREORDER", pre),
+                "debit": total_amount,
+                "credit": D(0),
+                "notes": getattr(pre, 'notes', '') or '',
+            })
+        
         if prepaid_amount > 0:
             entries.append({
-                "date": pre.created_at,
+                "date": pre.preorder_date or pre.created_at or datetime.now(),
                 "type": "PREPAID",
-                "ref": getattr(pre, "order_number", None) or f"PRE-{pre.id}",
-                "statement": f"عربون حجز {getattr(pre, 'order_number', None) or f'PRE-{pre.id}'}",
+                "ref": preorder_ref,
+                "statement": f"عربون حجز {preorder_ref}",
                 "debit": D(0),
-                "credit": prepaid_amount,  # العربون = له (دائن) = تقليل ما عليه
+                "credit": prepaid_amount,
                 "notes": "عربون مدفوع - حق له",
             })
 
@@ -1107,10 +1167,20 @@ def account_statement(customer_id):
     payment_statuses = ['COMPLETED', 'PENDING', 'BOUNCED', 'FAILED', 'REJECTED']
     
     # ✅ إضافة joinedload(Payment.splits) لجميع استعلامات الدفعات لضمان تحميل splits
+    # ✅ البحث عن جميع الدفعات المباشرة للعميل (بما في ذلك entity_type == 'CUSTOMER')
     payments_direct = Payment.query.filter(
         Payment.customer_id == customer_id,
         Payment.status.in_(payment_statuses)
     ).options(joinedload(Payment.splits)).all()
+    
+    payments_direct_filtered = []
+    for p in payments_direct:
+        if p.preorder_id and not p.sale_id:
+            preorder = PreOrder.query.get(p.preorder_id)
+            if preorder and preorder.status != 'FULFILLED':
+                continue
+        payments_direct_filtered.append(p)
+    payments_direct = payments_direct_filtered
     
     payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(
         Sale.customer_id == customer_id,
@@ -1129,12 +1199,34 @@ def account_statement(customer_id):
     
     payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(
         PreOrder.customer_id == customer_id,
-        Payment.status.in_(payment_statuses)
+        Payment.status.in_(payment_statuses),
+        or_(
+            PreOrder.status == 'FULFILLED',
+            Payment.sale_id.isnot(None)
+        )
     ).options(joinedload(Payment.splits)).all()
+    
+    from models import Expense
+    expense_ids_with_customer = [e.id for e in Expense.query.filter(Expense.customer_id == customer_id).all()]
+    if expense_ids_with_customer:
+        payments_from_expenses = Payment.query.filter(
+            Payment.expense_id.isnot(None),
+            Payment.status.in_(payment_statuses),
+            or_(
+                Payment.customer_id == customer_id,
+                Payment.expense_id.in_(expense_ids_with_customer)
+            )
+        ).options(joinedload(Payment.splits)).all()
+    else:
+        payments_from_expenses = Payment.query.filter(
+            Payment.expense_id.isnot(None),
+            Payment.customer_id == customer_id,
+            Payment.status.in_(payment_statuses)
+        ).options(joinedload(Payment.splits)).all()
 
     seen = set()
     all_payments = []
-    for p in payments_direct + payments_from_sales + payments_from_invoices + payments_from_services + payments_from_preorders:
+    for p in payments_direct + payments_from_sales + payments_from_invoices + payments_from_services + payments_from_preorders + payments_from_expenses:
         if p.id in seen:
             continue
         seen.add(p.id)
@@ -1159,8 +1251,6 @@ def account_statement(customer_id):
                     split_method_val = split_method_val.value
                 split_method_raw = str(split_method_val or "").lower()
                 if 'check' in split_method_raw or 'cheque' in split_method_raw:
-                    # البحث عن الشيكات المرتبطة بالـ split (باستخدام LIKE للبحث عن PMT-SPLIT-{split.id}-%)
-                    from sqlalchemy import or_
                     split_checks = Check.query.filter(
                         or_(
                             Check.reference_number == f"PMT-SPLIT-{split.id}",
@@ -1444,15 +1534,14 @@ def account_statement(customer_id):
         
         # حساب debit/credit
         # في محاسبة العملاء:
-        # - الدفعة الواردة (IN) = العميل دفع لنا = credit (دائن) = تقليل ما عليه
-        # - الدفعة الصادرة (OUT) = دفعنا للعميل = debit (مدين) = زيادة ما عليه
+        # - الدفعة الواردة (IN) = العميل دفع لنا = له (حق له = تقليل ما عليه) = credit (دائن)
+        # - الدفعة الصادرة (OUT) = دفعنا للعميل = عليه (التزام عليه = يجب أن يعيد المبلغ) = debit (مدين)
         
         returned_checks_amount = D(0)
         returned_checks_list = []
         
         if splits:
             from models import PaymentMethod
-            from sqlalchemy import or_
             
             payment_checks = Check.query.filter(
                 Check.payment_id == p.id
@@ -1533,30 +1622,14 @@ def account_statement(customer_id):
         if has_legal_check or has_settled_check:
             debit_val = D(0)
             credit_val = D(0)
-        elif is_bounced and splits:
-            amount_without_returned = D(p.total_amount or 0) - returned_checks_amount
-            if amount_without_returned > 0:
-                if is_in:
-                    debit_val = amount_without_returned
-                    credit_val = D(0)
-                else:
-                    debit_val = D(0)
-                    credit_val = amount_without_returned
-            else:
-                debit_val = D(0)
-                credit_val = D(0)
-        elif is_bounced:
-            amount = D(p.total_amount or 0)
-            if is_in:
-                debit_val = amount
-                credit_val = D(0)
-            else:
-                debit_val = D(0)
-                credit_val = amount
         else:
             amount = D(p.total_amount or 0)
-            debit_val = amount if is_out else D(0)
-            credit_val = amount if is_in else D(0)
+            if is_in:
+                debit_val = D(0)
+                credit_val = amount  # الدفعة الواردة (IN) = له (حق له) = دائن
+            else:
+                debit_val = amount  # الدفعة الصادرة (OUT) = عليه (التزام عليه) = مدين
+                credit_val = D(0)
         
         # التحقق من عدم تكرار نفس الشيك في دفعات مختلفة
         # إذا كان الشيك مرتبط بهذه الدفعة وكان نفس الشيك ظهر في دفعة سابقة، نتخطى هذه الدفعة
@@ -1643,7 +1716,6 @@ def account_statement(customer_id):
                     split_check_for_cashed = None
                     split_checks = []
                     if 'check' in split_method_raw or 'cheque' in split_method_raw:
-                        from sqlalchemy import or_
                         split_checks = Check.query.filter(
                             or_(
                                 Check.reference_number == f"PMT-SPLIT-{split.id}",
@@ -1704,9 +1776,13 @@ def account_statement(customer_id):
                     if receiver_name and not split_is_bounced:
                         split_statement += f" - لـيـد ({receiver_name})"
                     
-                    # حساب debit/credit للـ split (يبقى القيد الأصلي كما هو)
-                    split_debit = split_amount_ils if is_out else D(0)
-                    split_credit = split_amount_ils if is_in else D(0)
+                    # حساب debit/credit للـ split
+                    if is_in:
+                        split_debit = D(0)
+                        split_credit = split_amount_ils  # الدفعة الواردة (IN) = له (حق له) = دائن
+                    else:
+                        split_debit = split_amount_ils  # الدفعة الصادرة (OUT) = عليه (التزام عليه) = مدين
+                        split_credit = D(0)
                     
                     # إنشاء payment_details للـ split
                     split_payment_details = {
@@ -1778,8 +1854,8 @@ def account_statement(customer_id):
                             "type": "CHECK_RETURNED",
                             "ref": f"SPLIT-RETURN-{split.id}-CHK-{getattr(split_check, 'id', 'NA')}",
                             "statement": returned_statement,
-                            "debit": split_amount_ils if is_in else D(0),
-                            "credit": split_amount_ils if is_out else D(0),
+                            "debit": D(0),  # كل الدفعات = له (حق له) = دائن
+                            "credit": split_amount_ils,
                             "payment_details": returned_details,
                             "notes": notes,
                         })
@@ -1808,12 +1884,10 @@ def account_statement(customer_id):
                     if check.check_bank:
                         check_statement += f" - {check.check_bank}"
                     
-                    if is_in:
-                        returned_debit = check_amt
-                        returned_credit = D(0)
-                    else:
-                        returned_debit = D(0)
-                        returned_credit = check_amt
+                    # الشيك المرتجع = نعيد المبلغ كالتزام عليه (مدين)
+                    # في كلتا الحالتين (IN أو OUT)، الشيك المرتجع يزيد ما عليه
+                    returned_debit = check_amt  # الشيك المرتجع = عليه (مدين)
+                    returned_credit = D(0)
                     
                     entries.append({
                         "date": check.check_date or getattr(p, "payment_date", None) or getattr(p, "created_at", None),
@@ -1960,6 +2034,49 @@ def account_statement(customer_id):
             "notes": check.notes or "شيك يدوي",
         })
 
+    expenses = Expense.query.filter_by(customer_id=customer_id).order_by(Expense.date, Expense.id).all()
+    for exp in expenses:
+        amt = D(exp.amount or 0)
+        if exp.currency and exp.currency != "ILS":
+            try:
+                from models import convert_amount
+                amt = convert_amount(amt, exp.currency, "ILS", exp.date)
+            except Exception:
+                pass
+        
+        exp_type_code = None
+        if exp.type_id:
+            exp_type = ExpenseType.query.filter_by(id=exp.type_id).first()
+            if exp_type:
+                exp_type_code = (exp_type.code or "").strip().upper()
+        
+        is_service_expense = (
+            exp_type_code in ('PARTNER_EXPENSE', 'SERVICE_EXPENSE') or
+            (exp.partner_id and exp.payee_type and exp.payee_type.upper() == "PARTNER") or
+            (exp.supplier_id and exp.payee_type and exp.payee_type.upper() == "SUPPLIER")
+        )
+        
+        if is_service_expense:
+            statement = f"توريد خدمات لصالحه - {exp_type.name if exp_type else 'مصروف'}"
+            entry_type = "SERVICE_EXPENSE"
+            debit_val = D(0)
+            credit_val = amt
+        else:
+            statement = f"مصروف / خصم - {exp_type.name if exp_type else 'مصروف'}"
+            entry_type = "EXPENSE"
+            debit_val = amt  # المصروف = عليه (مدين)
+            credit_val = D(0)
+        
+        entries.append({
+            "date": exp.date or exp.created_at,
+            "type": entry_type,
+            "ref": f"EXP-{exp.id}",
+            "statement": statement,
+            "debit": debit_val,
+            "credit": credit_val,
+            "notes": exp.notes or '',
+        })
+
     opening_balance = D(getattr(c, 'opening_balance', 0) or 0)
     if opening_balance != 0 and c.currency != "ILS":
         try:
@@ -1981,50 +2098,163 @@ def account_statement(customer_id):
             "type": "OPENING_BALANCE",
             "ref": "OB-001",
             "statement": "الرصيد الافتتاحي",
-            "debit": abs(opening_balance) if opening_balance < 0 else D(0),
-            "credit": abs(opening_balance) if opening_balance > 0 else D(0),
+            "debit": abs(opening_balance) if opening_balance < 0 else D(0),  # السالب (عليه) = مدين
+            "credit": abs(opening_balance) if opening_balance > 0 else D(0),  # الموجب (له) = دائن
             "notes": "الرصيد السابق قبل بدء النظام",
         }
         entries.insert(0, opening_entry)
     
-    entries.sort(key=lambda x: (x["date"] or datetime.min, x["ref"]))
+    def sort_key(entry):
+        if entry.get("type") == "OPENING_BALANCE":
+            return (datetime.min, "")  # الرصيد الافتتاحي دائماً أولاً
+        return (entry.get("date") or datetime.min, entry.get("ref") or "")
+    
+    manual_checks = Check.query.filter(
+        Check.payment_id.is_(None),
+        Check.customer_id == customer_id,
+        ~Check.status.in_([CheckStatus.CANCELLED.value, CheckStatus.ARCHIVED.value])
+    ).all()
+    
+    for check in manual_checks:
+        d = check.check_date
+        amt = D(check.amount or 0)
+        if check.currency and check.currency != "ILS" and amt > 0:
+            try:
+                from models import convert_amount
+                convert_date = d if d else datetime.now()
+                amt = convert_amount(amt, check.currency, "ILS", convert_date)
+            except Exception as e:
+                try:
+                    current_app.logger.error(f"Error converting check #{check.id} amount: {e}")
+                except Exception:
+                    pass
+        
+        direction_value = check.direction.value if hasattr(check.direction, 'value') else str(check.direction)
+        is_out = direction_value == 'OUT'
+        check_status = check.status.value if hasattr(check.status, 'value') else str(check.status)
+        
+        ref = f"شيك #{check.check_number}"
+        check_bank = check.check_bank or ''
+        check_due_date = check.check_due_date.strftime('%Y-%m-%d') if check.check_due_date else ''
+        
+        if check_status == CheckStatus.RETURNED.value or check_status == CheckStatus.BOUNCED.value:
+            if is_out:
+                statement = f"↩️ شيك مرتجع صادر - {check_bank} - {ref}"
+                entry_type = "CHECK_BOUNCED"
+            else:
+                statement = f"↩️ شيك مرتجع وارد - {check_bank} - {ref}"
+                entry_type = "CHECK_BOUNCED"
+        elif check_status == CheckStatus.PENDING.value:
+            statement = f"⏳ شيك معلق - {check_bank} - {ref}"
+            entry_type = "CHECK_PENDING"
+        elif check_status == CheckStatus.CASHED.value:
+            if is_out:
+                statement = f"✅ شيك تم صرفه صادر - {check_bank} - {ref}"
+            else:
+                statement = f"✅ شيك تم صرفه وارد - {check_bank} - {ref}"
+            entry_type = "CHECK_CASHED"
+        elif check_status == CheckStatus.RESUBMITTED.value:
+            statement = f"🔄 شيك معاد للبنك - {check_bank} - {ref}"
+            entry_type = "CHECK_RESUBMITTED"
+        elif check_status == CheckStatus.ARCHIVED.value:
+            statement = f"📦 شيك مؤرشف - {check_bank} - {ref}"
+            entry_type = "CHECK_ARCHIVED"
+        else:
+            if is_out:
+                statement = f"شيك صادر - {check_bank} - {ref}"
+            else:
+                statement = f"شيك وارد - {check_bank} - {ref}"
+            entry_type = "CHECK_PENDING" if check_status == CheckStatus.PENDING.value else "PAYMENT"
+        
+        payment_details = {
+            'method': 'شيك',
+            'method_raw': 'cheque',
+            'check_number': check.check_number,
+            'check_bank': check_bank,
+            'check_due_date': check_due_date,
+            'check_status': check_status,
+            'is_check_settled': False,
+            'is_check_legal': False,
+            'is_check_resubmitted': check_status == CheckStatus.RESUBMITTED.value,
+            'is_check_archived': check_status == CheckStatus.ARCHIVED.value,
+            'check_notes': check.notes or ''
+        }
+        
+        if is_out:
+            entries.append({
+                "date": d,
+                "type": entry_type,
+                "ref": ref,
+                "statement": statement,
+                "debit": amt,
+                "credit": D(0),
+                "payment_details": payment_details,
+                "notes": check.notes or ''
+            })
+        else:
+            entries.append({
+                "date": d,
+                "type": entry_type,
+                "ref": ref,
+                "statement": statement,
+                "debit": D(0),
+                "credit": amt,
+                "payment_details": payment_details,
+                "notes": check.notes or ''
+            })
 
-    # ✅ الرصيد يبدأ من opening_balance مباشرة
+    entries.sort(key=sort_key)
+
     running = opening_balance
     for e in entries:
-        # ✅ تخطي الرصيد الافتتاحي في الحساب لأنه تم إضافته مسبقاً
         if e.get("type") == "OPENING_BALANCE":
             e["balance"] = running
-        else:
-            running = running - e["debit"] + e["credit"]
-            e["balance"] = running
+            continue
+        running = running + e["credit"] - e["debit"]
+        e["balance"] = running
 
     total_debit = sum(e["debit"] for e in entries)
     total_credit = sum(e["credit"] for e in entries)
     
+    balance = total_credit - total_debit
+    
+    if abs(float(balance - running)) > 0.01:
+        current_app.logger.warning(
+            f"⚠️ عدم تطابق الرصيد في كشف حساب العميل {customer_id}: "
+            f"balance_from_totals={balance}, running_balance={running}, "
+            f"difference={abs(float(balance - running))}"
+        )
+    
     db.session.refresh(c)
-    balance = D(c.current_balance or 0)
+    current_balance = D(c.current_balance or 0)
     
     final_running_balance = running
     if entries:
         final_running_balance = entries[-1]["balance"]
     
-    if abs(float(balance - final_running_balance)) > 0.01:
+    if abs(float(current_balance - final_running_balance)) > 0.01:
         current_app.logger.warning(
             f"⚠️ عدم تطابق الرصيد في كشف حساب العميل {customer_id}: "
-            f"current_balance={balance}, calculated_balance={final_running_balance}, "
-            f"difference={abs(float(balance - final_running_balance))}"
+            f"current_balance={current_balance}, calculated_balance={final_running_balance}, "
+            f"difference={abs(float(current_balance - final_running_balance))}"
         )
         try:
-            _recalculate_customer_balance(customer_id)
-            db.session.refresh(c)
-            balance = D(c.current_balance or 0)
+            from utils.customer_balance_updater import update_customer_balance_components
+            from sqlalchemy.orm import sessionmaker
+            SessionFactory = sessionmaker(bind=db.engine)
+            session = SessionFactory()
+            try:
+                update_customer_balance_components(customer_id, session)
+                session.commit()
+                db.session.refresh(c)
+                current_balance = D(c.current_balance or 0)
+            except Exception as e:
+                session.rollback()
+                current_app.logger.warning(f"⚠️ تعذر إعادة احتساب رصيد العميل {customer_id}: {e}")
+            finally:
+                session.close()
         except Exception as e:
             current_app.logger.warning(f"⚠️ تعذر إعادة احتساب رصيد العميل {customer_id}: {e}")
-            balance = final_running_balance
-        else:
-            if abs(float(balance - final_running_balance)) > 0.01:
-                balance = final_running_balance
 
     total_invoices_calc = D('0.00')
     for inv in invoices:

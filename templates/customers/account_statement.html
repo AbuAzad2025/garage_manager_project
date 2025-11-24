@@ -553,6 +553,10 @@
                     - {{ e.ref }}
                   {% endif %}
                 
+                {# للعربونات #}
+                {% elif e.type == 'PREPAID' %}
+                  {{ e.statement }}
+                
                 {# للحجوزات الأونلاين #}
                 {% elif e.type == 'ONLINE_PREORDER' %}
                   طلب أونلاين

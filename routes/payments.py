@@ -1646,9 +1646,8 @@ def create_payment():
 def create_expense_payment(exp_id):
     exp = utils._get_or_404(Expense, exp_id)
     form = PaymentForm()
-    # السماح بجميع الاتجاهات لجميع الجهات عدا المصاريف
     form._incoming_entities = set()
-    form._outgoing_entities = {"EXPENSE"}  # المصاريف فقط صادرة
+    form._outgoing_entities = {"EXPENSE"}
     form.entity_type.data = "EXPENSE"
     if hasattr(form, "_entity_field_map") and "EXPENSE" in form._entity_field_map:
         getattr(form, form._entity_field_map["EXPENSE"]).data = exp.id
@@ -2994,6 +2993,45 @@ def _collect_partner_rights(partner: Partner, date_from: datetime, date_to: date
             )
         )
 
+    from models import Expense, ExpenseType
+    from sqlalchemy import or_, and_, func
+    service_expenses = db.session.query(Expense).join(ExpenseType).filter(
+        or_(
+            Expense.partner_id == partner.id,
+            and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id),
+        ),
+        Expense.date >= date_from,
+        Expense.date <= date_to,
+        func.upper(ExpenseType.code) == "PARTNER_EXPENSE"
+    ).all()
+    for expense in service_expenses:
+        amount = float(expense.amount or 0)
+        if not amount:
+            continue
+        amount_ils = amount
+        currency = expense.currency or "ILS"
+        try:
+            amount_ils = float(_convert_to_ils(Decimal(str(amount)), currency, expense.date or datetime.utcnow()))
+        except Exception:
+            amount_ils = amount
+        exp_type_name = getattr(getattr(expense, 'type', None), 'name', 'توريد خدمة')
+        entries.append(
+            LedgerEntry.create(
+                date=expense.date or datetime.utcnow(),
+                label=f"توريد خدمة: {exp_type_name}" + (f" - {expense.description}" if expense.description else ""),
+                amount=amount_ils,
+                direction="credit",
+                category="rights_service_supply",
+                reference=f"EXP-{expense.id}",
+                details={
+                    "expense_id": expense.id,
+                    "description": expense.description,
+                    "currency": currency,
+                    "original_amount": amount,
+                },
+            )
+        )
+
     return entries
 
 
@@ -3029,17 +3067,22 @@ def _collect_partner_obligations(partner: Partner, date_from: datetime, date_to:
 
     service_fees = _get_partner_service_fees(partner.id, partner, date_from, date_to)
     for item in service_fees.get("items", []):
-        amount = float(item.get("amount_ils") or item.get("amount") or 0)
-        if not amount:
+        amount_ils = float(item.get("amount_ils") or item.get("amount") or 0)
+        if not amount_ils:
             continue
+        
+        service_number = item.get("service_number") or f"SRV-{item.get('service_id', '')}"
+        
+        label = f"صيانة #{service_number} - الإجمالي: {amount_ils:.2f} ₪"
+        
         entries.append(
             LedgerEntry.create(
                 date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
-                label="رسوم صيانة على الشريك",
-                amount=amount,
+                label=label,
+                amount=amount_ils,
                 direction="debit",
                 category="obligations_service",
-                reference=item.get("reference"),
+                reference=item.get("service_number") or item.get("reference"),
                 details=item,
             )
         )
@@ -3061,13 +3104,16 @@ def _collect_partner_obligations(partner: Partner, date_from: datetime, date_to:
             )
         )
 
-    expenses_q = db.session.query(Expense).filter(
+    from models import ExpenseType
+    from sqlalchemy import func
+    expenses_q = db.session.query(Expense).join(ExpenseType).filter(
         or_(
             Expense.partner_id == partner.id,
             and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id),
         ),
         Expense.date >= date_from,
         Expense.date <= date_to,
+        func.upper(ExpenseType.code) != "PARTNER_EXPENSE"
     ).all()
     for expense in expenses_q:
         amount = float(expense.amount or 0)

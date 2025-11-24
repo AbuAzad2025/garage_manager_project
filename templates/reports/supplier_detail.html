@@ -84,7 +84,7 @@
                         </div>
                         <div class="col-sm-6">
                             <strong>الرصيد الحالي:</strong> 
-                            <span class="badge {% if current_balance > 0 %}bg-danger{% elif current_balance < 0 %}bg-success{% else %}bg-secondary{% endif %} fs-6">
+                            <span class="badge {% if current_balance > 0 %}bg-success{% elif current_balance < 0 %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
                                 {{ current_balance|format_currency }}
                             </span><br>
                             <strong>العنوان:</strong> {{ supplier.address or 'غير محدد' }}<br>
@@ -123,7 +123,7 @@
                         </div>
                         <div class="col-6 col-md-4 mb-3">
                             <strong class="text-primary">🎯 الرصيد</strong><br>
-                            <span class="fs-4 fw-bold {{ balance_data.get('balance', {}).get('amount', 0) > 0 and 'text-danger' or balance_data.get('balance', {}).get('amount', 0) < 0 and 'text-success' or '' }}">
+                            <span class="fs-4 fw-bold {{ balance_data.get('balance', {}).get('amount', 0) > 0 and 'text-success' or balance_data.get('balance', {}).get('amount', 0) < 0 and 'text-danger' or '' }}">
                                 {{ "%.2f"|format((balance_data.get('balance', {}).get('amount', 0)|abs)) }} ₪
                             </span><br>
                             <small class="text-muted">{{ balance_data.get('balance', {}).get('action', '') }}</small>
@@ -254,7 +254,7 @@
                 <div class="col-md-4">
                     <div class="alert alert-light border mb-0">
                         <div class="small text-muted">الوضع الحالي</div>
-                        <div class="fw-bold {% if supplier_breakdown.balance.amount > 0 %}text-danger{% elif supplier_breakdown.balance.amount < 0 %}text-success{% else %}text-secondary{% endif %}">
+                        <div class="fw-bold {% if supplier_breakdown.balance.amount > 0 %}text-success{% elif supplier_breakdown.balance.amount < 0 %}text-danger{% else %}text-secondary{% endif %}">
                             {{ supplier_breakdown.balance.amount|format_currency }}
                         </div>
                         <small class="text-muted">{{ supplier_breakdown.balance.action }}</small>

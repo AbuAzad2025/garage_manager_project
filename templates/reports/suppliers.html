@@ -54,7 +54,7 @@
       <div class="card shadow-sm border-primary h-100">
         <div class="card-body text-center">
           <div class="text-muted small">إجمالي الرصيد</div>
-          <div class="fs-3 fw-bold {% if totals.balance > 0 %}text-danger{% elif totals.balance < 0 %}text-success{% else %}text-secondary{% endif %}">
+          <div class="fs-3 fw-bold {% if totals.balance > 0 %}text-success{% elif totals.balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
             {{ "{:,.2f}".format(totals.balance or 0) }} ₪
           </div>
           <small class="text-muted">
@@ -86,7 +86,7 @@
                 <td>{{ r.name }}</td>
                 <td class="text-end">
                   {% set balance = r.balance or 0 %}
-                  <span class="fw-bold {% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% else %}text-secondary{% endif %}">
+                  <span class="fw-bold {% if balance > 0 %}text-success{% elif balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
                     {{ "{:,.2f}".format(balance) }} ₪
                   </span>
                   <br>

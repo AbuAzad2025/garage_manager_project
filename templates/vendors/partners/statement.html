@@ -288,9 +288,16 @@
   </div>
 
   {% set type_labels = {
-    'EXPENSE': 'توريد خدمة',
+    'EXPENSE': 'مصروف',
+    'SERVICE_EXPENSE': 'توريد خدمة',
     'PARTNER_SALE_SHARE': 'نسبة ربح من مبيعات',
+    'PARTNER_SALE_RETURN': 'خصم مرتجع مبيعات',
     'PARTNER_INVENTORY_SHARE': 'نسبة في المخزون',
+    'PREORDER': 'حجز مسبق',
+    'PREPAID': 'عربون حجز',
+    'SALE_TO_PARTNER': 'مبيعات للشريك',
+    'SERVICE_FEE': 'رسوم صيانة',
+    'DAMAGED_ITEM': 'قطع تالفة',
     'PAYMENT_OUT': 'سداد للشريك',
     'PAYMENT_IN': 'قبض من الشريك',
     'CHECK_PENDING': 'شيك معلق',
@@ -300,16 +307,23 @@
     'OPENING_BALANCE': 'رصيد افتتاحي'
   } %}
   {% set type_badges = {
-    'EXPENSE': 'bg-info text-white',
+    'EXPENSE': 'bg-secondary text-white',
+    'SERVICE_EXPENSE': 'bg-info text-white',
+    'PARTNER_SALE_SHARE': 'bg-success text-white',
+    'PARTNER_SALE_RETURN': 'bg-danger text-white',
+    'PARTNER_INVENTORY_SHARE': 'bg-warning text-dark',
+    'PREORDER': 'bg-primary text-white',
+    'PREPAID': 'bg-success text-white',
+    'SALE_TO_PARTNER': 'bg-danger text-white',
+    'SERVICE_FEE': 'bg-danger text-white',
+    'DAMAGED_ITEM': 'bg-dark text-white',
     'PAYMENT_OUT': 'bg-danger',
     'PAYMENT_IN': 'bg-success',
     'CHECK_PENDING': 'bg-warning text-dark',
     'CHECK_BOUNCED': 'bg-danger',
     'SHARE': 'bg-primary',
     'SETTLEMENT': 'bg-info',
-    'OPENING_BALANCE': 'bg-purple text-white',
-    'PARTNER_SALE_SHARE': 'bg-success text-white',
-    'PARTNER_INVENTORY_SHARE': 'bg-warning text-dark'
+    'OPENING_BALANCE': 'bg-purple text-white'
   } %}
 
   <div class="card shadow-sm rounded">
@@ -617,6 +631,73 @@
       <div class="alert alert-info mt-3 mb-0">
         <i class="fas fa-info-circle ml-2"></i>
         <strong>ملاحظة:</strong> هذا الجدول يعرض القطع الموجودة في المخزون (غير المباعة) مع نسبة مشاركة الشريك فيها.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if all_partner_products %}
+  <div class="card shadow-sm mt-4">
+    <div class="card-header bg-primary text-white">
+      <h5 class="mb-0"><i class="fas fa-list-check ml-2"></i>جميع القطع التي للشريك نسبة بها (مباعة وغير مباعة)</h5>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered table-striped align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>اسم المنتج</th>
+              <th>SKU</th>
+              <th>المستودع</th>
+              <th class="text-center">نسبة الشريك</th>
+              <th class="text-center">الكمية في المخزون</th>
+              <th class="text-center">الكمية المباعة</th>
+              <th class="text-center">الحالة</th>
+              <th class="text-end">سعر الشراء</th>
+              <th class="text-end">سعر البيع</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in all_partner_products %}
+              <tr>
+                <td><strong>{{ item.product_name }}</strong></td>
+                <td class="text-muted">{{ item.sku }}</td>
+                <td>{{ item.warehouse_name }}</td>
+                <td class="text-center"><strong class="text-primary">{{ "%.2f"|format(item.share_pct) }}%</strong></td>
+                <td class="text-center">
+                  {% if item.stock_qty > 0 %}
+                    <span class="badge bg-info">{{ item.stock_qty }}</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if item.sold_qty > 0 %}
+                    <span class="badge bg-success">{{ item.sold_qty }}</span>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if item.status == "غير مباع" %}
+                    <span class="badge bg-warning text-dark">{{ item.status }}</span>
+                  {% elif item.status == "مباع" %}
+                    <span class="badge bg-success">{{ item.status }}</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ item.status }}</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">{{ "%.2f"|format(item.purchase_price) }} ₪</td>
+                <td class="text-end">{{ "%.2f"|format(item.selling_price) }} ₪</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="alert alert-info mt-3 mb-0">
+        <i class="fas fa-info-circle ml-2"></i>
+        <strong>ملاحظة:</strong> هذا الجدول يعرض جميع القطع التي للشريك نسبة بها، سواء كانت مباعة أو غير مباعة. 
+        القطع غير المباعة تُحسب في رصيد المخزون، والقطع المباعة تُحسب في نسبة المبيعات.
       </div>
     </div>
   </div>

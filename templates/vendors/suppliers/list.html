@@ -270,7 +270,7 @@
             <td class="supplier-name">{{ s.name }}</td>
             <td class="supplier-phone">{{ s.phone or '—' }}</td>
             <td data-sort-value="{{ s.current_balance or 0 }}">
-              <span class="badge {% if (s.current_balance or 0) > 0 %}bg-danger{% elif (s.current_balance or 0) == 0 %}bg-secondary{% else %}bg-success{% endif %}">
+              <span class="badge {% if (s.current_balance or 0) > 0 %}bg-success{% elif (s.current_balance or 0) == 0 %}bg-secondary{% else %}bg-danger{% endif %}">
                 {{ '%.2f'|format(s.current_balance or 0) }} ₪
               </span>
             </td>
