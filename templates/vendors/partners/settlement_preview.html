@@ -54,16 +54,27 @@ body[data-sidebar-position="right"] .content-wrapper section.content .container-
     padding-right: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 body[data-sidebar-position="right"] .content-wrapper section.content {
     width: 100% !important;
     max-width: 100% !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 body[data-sidebar-position="right"] .content-wrapper {
     width: 100% !important;
     max-width: 100% !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+body[data-sidebar-position="right"] section.content .container-fluid > * {
+    max-width: 100% !important;
+    box-sizing: border-box;
 }
 
 @media (max-width: 992px) {
@@ -199,16 +210,45 @@ body[data-sidebar-position="right"] section.content .container-fluid {
     margin-left: 0 !important;
     margin-right: 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
 }
 
 .settlement-detail-card table {
     width: 100% !important;
+    max-width: 100% !important;
     margin-left: 0 !important;
     margin-right: 0 !important;
     min-width: 600px;
     table-layout: auto;
+    box-sizing: border-box;
+}
+
+body[data-sidebar-position="right"] .settlement-detail-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+body[data-sidebar-position="right"] .settlement-detail-card .card-body {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+body[data-sidebar-position="right"] .settlement-detail-card .table-responsive {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+}
+
+body[data-sidebar-position="right"] .settlement-detail-card table {
+    max-width: 100% !important;
+    box-sizing: border-box;
 }
 
 .settlement-detail-card table th,
@@ -1313,6 +1353,8 @@ section.content .container-fluid .col-md-12 {
       if (sidebarPosition === 'right') {
         contentWrapper.style.setProperty('width', '100%', 'important');
         contentWrapper.style.setProperty('max-width', '100%', 'important');
+        contentWrapper.style.setProperty('box-sizing', 'border-box', 'important');
+        contentWrapper.style.setProperty('overflow-x', 'hidden', 'important');
       }
     }
     
@@ -1324,12 +1366,16 @@ section.content .container-fluid .col-md-12 {
       if (sidebarPosition === 'right') {
         contentSection.style.setProperty('width', '100%', 'important');
         contentSection.style.setProperty('max-width', '100%', 'important');
+        contentSection.style.setProperty('box-sizing', 'border-box', 'important');
+        contentSection.style.setProperty('overflow-x', 'hidden', 'important');
       }
     }
     
     if (sidebarPosition === 'right') {
       containerFluid.style.setProperty('width', '100%', 'important');
       containerFluid.style.setProperty('max-width', '100%', 'important');
+      containerFluid.style.setProperty('box-sizing', 'border-box', 'important');
+      containerFluid.style.setProperty('overflow-x', 'hidden', 'important');
     }
     
     containerFluid.style.setProperty('padding-left', '0', 'important');
@@ -1345,14 +1391,34 @@ section.content .container-fluid .col-md-12 {
       card.style.setProperty('margin-left', '0', 'important');
       card.style.setProperty('margin-right', '0', 'important');
       card.style.setProperty('width', '100%', 'important');
+      if (sidebarPosition === 'right') {
+        card.style.setProperty('max-width', '100%', 'important');
+        card.style.setProperty('box-sizing', 'border-box', 'important');
+        card.style.setProperty('overflow', 'hidden', 'important');
+      }
     });
     
-    const tables = containerFluid.querySelectorAll('.table-responsive, table, .table');
+    const tableResponsives = containerFluid.querySelectorAll('.table-responsive');
+    tableResponsives.forEach(tableResp => {
+      tableResp.style.setProperty('margin-left', '0', 'important');
+      tableResp.style.setProperty('margin-right', '0', 'important');
+      tableResp.style.setProperty('width', '100%', 'important');
+      if (sidebarPosition === 'right') {
+        tableResp.style.setProperty('max-width', '100%', 'important');
+        tableResp.style.setProperty('box-sizing', 'border-box', 'important');
+      }
+    });
+    
+    const tables = containerFluid.querySelectorAll('table, .table');
     tables.forEach(table => {
       table.style.setProperty('margin-left', '0', 'important');
       table.style.setProperty('margin-right', '0', 'important');
       if (table.tagName === 'TABLE' || table.classList.contains('table')) {
         table.style.setProperty('width', '100%', 'important');
+        if (sidebarPosition === 'right') {
+          table.style.setProperty('max-width', '100%', 'important');
+          table.style.setProperty('box-sizing', 'border-box', 'important');
+        }
       }
     });
     
