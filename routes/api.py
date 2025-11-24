@@ -2,7 +2,7 @@
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
-from flask import Blueprint, Response, current_app, jsonify, request, render_template
+from flask import Blueprint, Response, current_app, jsonify, request, render_template, abort
 from flask_login import current_user, login_required
 from sqlalchemy import func, or_, text, case
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
@@ -787,8 +787,10 @@ def permissions_csv():
 @bp.get("/search_categories")
 @login_required
 @limiter.limit("60/minute")
-# @permission_required("manage_inventory", "view_inventory")  # Commented out
 def search_categories():
+    allowed = utils.is_super() or utils.is_admin() or _user_has_any("manage_inventory", "view_inventory", "manage_service", "view_service")
+    if not allowed:
+        abort(403)
     q = (request.args.get("q") or "").strip()
     limit = _limit_from_request(20, 50)
     query = ProductCategory.query
@@ -797,13 +799,34 @@ def search_categories():
     results = query.order_by(ProductCategory.name).limit(limit).all()
     return jsonify({"results": [{"id": c.id, "text": c.name} for c in results]})
 
+def _user_has_any(*codes):
+    fn = getattr(current_user, "has_permission", None)
+    if callable(fn):
+        for code in codes:
+            try:
+                if fn(code):
+                    return True
+            except Exception:
+                continue
+    return False
+
 @bp.get("/customers", endpoint="customers")
 @bp.get("/search_customers", endpoint="search_customers")
 @login_required
 @limiter.limit("60/minute")
-@permission_required("manage_customers", "add_customer")
 def api_customers():
-    return utils.search_model(Customer, ["name", "phone", "email"], label_attr="name")
+    allowed = (
+        utils.is_super()
+        or utils.is_admin()
+        or _user_has_any("manage_customers", "add_customer", "manage_service", "view_service")
+    )
+    if not allowed:
+        abort(403)
+    extra_filters = [
+        Customer.is_archived == False,
+        Customer.is_active == True
+    ]
+    return utils.search_model(Customer, ["name", "phone", "email"], label_attr="name", extra_filters=extra_filters)
 
 @bp.post("/customers")
 @login_required
@@ -1668,7 +1691,11 @@ def update_stock(warehouse_id: int):
         db.session.add(sl)
 
     if quantity is not None:
-        sl.quantity = max(0, quantity)
+        new_quantity = max(0, quantity)
+        current_reserved = int(sl.reserved_quantity or 0)
+        if new_quantity < current_reserved:
+            return _err("validation_error", f"الكمية ({new_quantity}) لا يمكن أن تكون أقل من الكمية المحجوزة ({current_reserved})", 400, {"quantity": ["الكمية أقل من المحجوز"]})
+        sl.quantity = new_quantity
     if min_stock is not None:
         sl.min_stock = max(0, min_stock)
     if max_stock is not None:
@@ -1703,21 +1730,33 @@ def transfer_between_warehouses(warehouse_id: int):
     if not (pid and sid and did and qty and qty > 0) or sid == did:
         return _err("invalid", "invalid form", 400)
 
-    src = StockLevel.query.filter_by(warehouse_id=sid, product_id=pid).first()
-    available = int((getattr(src, "quantity", 0) or 0) - (getattr(src, "reserved_quantity", 0) or 0)) if src else 0
-    if available < qty:
-        return _err("insufficient_stock", "", 400, {"available": max(available, 0)})
-
     _lock_stock_rows([(pid, sid), (pid, did)])
+    
+    src = StockLevel.query.filter_by(warehouse_id=sid, product_id=pid).with_for_update().first()
     if not src:
         src = StockLevel(warehouse_id=sid, product_id=pid, quantity=0, reserved_quantity=0)
         db.session.add(src)
-    src.quantity = int(src.quantity or 0) - qty
+        db.session.flush()
+    
+    src_qty = int(src.quantity or 0)
+    src_reserved = int(src.reserved_quantity or 0)
+    available = src_qty - src_reserved
+    
+    if available < qty:
+        return _err("insufficient_stock", f"الكمية المتاحة غير كافية: المتاح {available}، المطلوب {qty}", 400, {"available": max(available, 0), "required": qty})
+    
+    new_src_qty = src_qty - qty
+    if new_src_qty < 0:
+        return _err("insufficient_stock", "الكمية ستكون سالبة", 400)
+    
+    src.quantity = new_src_qty
 
-    dst = StockLevel.query.filter_by(warehouse_id=did, product_id=pid).first()
+    dst = StockLevel.query.filter_by(warehouse_id=did, product_id=pid).with_for_update().first()
     if not dst:
         dst = StockLevel(warehouse_id=did, product_id=pid, quantity=0, reserved_quantity=0)
         db.session.add(dst)
+        db.session.flush()
+    
     dst.quantity = int(dst.quantity or 0) + qty
 
     t = Transfer(
@@ -2946,15 +2985,25 @@ def delete_exchange_transaction(id: int):
 # Equipment Types
 # =============================================================================
 
-@bp.get("/equipment-types/search")
+@bp.get("/equipment-types/search", endpoint="search_equipment_types")
 @login_required
+@limiter.limit("60/minute")
 def search_equipment_types():
+    allowed = utils.is_super() or utils.is_admin() or _user_has_any("manage_inventory", "view_inventory", "manage_service", "view_service")
+    if not allowed:
+        abort(403)
     q = (request.args.get("q") or "").strip()
     query = EquipmentType.query
     if q:
-        query = query.filter(EquipmentType.name.ilike(f"%{q}%"))
+        query = query.filter(
+            or_(
+                EquipmentType.name.ilike(f"%{q}%"),
+                EquipmentType.category.ilike(f"%{q}%"),
+                EquipmentType.model.ilike(f"%{q}%")
+            )
+        )
     results = [{"id": et.id, "text": et.name} for et in query.order_by(EquipmentType.name).limit(20).all()]
-    return jsonify(results)
+    return jsonify({"results": results})
 
 @bp.post("/equipment-types/create")
 @login_required
@@ -3959,12 +4008,9 @@ def get_warehouse_info(warehouse_id):
         }), 500
 
 
-# ===== Partners API =====
-
 @bp.route('/partners', methods=['GET'])
 @login_required
 def get_partners():
-    """جلب قائمة الشركاء مع نسبة المساهمة"""
     try:
         partners = Partner.query.filter_by(is_archived=False).all()
         
@@ -4008,6 +4054,7 @@ def get_suppliers():
         
         suppliers_list = []
         for supplier in suppliers:
+            db.session.refresh(supplier)
             supplier_data = {
                 'id': supplier.id,
                 'name': supplier.name,

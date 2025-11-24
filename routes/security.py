@@ -10,6 +10,7 @@ from functools import wraps
 import json
 import os
 import warnings
+from collections import defaultdict, Counter
 
 from AI.engine.ai_service import (
     ai_chat_with_search,
@@ -765,7 +766,80 @@ def system_cleanup():
     
     # قائمة الجداول القابلة للتنظيف
     cleanable_tables = _get_cleanable_tables()
-    return render_template('security/system_cleanup.html', tables=cleanable_tables)
+    
+    category_map = defaultdict(list)
+    for table in cleanable_tables:
+        category_map[table.get('category', 'أخرى')].append(table)
+    
+    danger_counts = Counter(table.get('danger', 'medium') for table in cleanable_tables)
+    
+    category_order = [
+        'المستخدمين والأدوار',
+        'الجهات',
+        'العمليات المالية',
+        'العمليات المحاسبية',
+        'المبيعات والصيانة',
+        'المخزون والمنتجات',
+        'السجلات واللوجات',
+        'التسوق الإلكتروني',
+        'أخرى',
+    ]
+    danger_zone_categories = {'الجهات', 'المخزون والمنتجات'}
+    category_icons = {
+        'المستخدمين والأدوار': 'fas fa-users text-primary',
+        'الجهات': 'fas fa-user-friends text-danger',
+        'العمليات المالية': 'fas fa-money-bill-wave text-success',
+        'العمليات المحاسبية': 'fas fa-book text-info',
+        'المبيعات والصيانة': 'fas fa-shopping-cart text-warning',
+        'المخزون والمنتجات': 'fas fa-warehouse text-danger',
+        'السجلات واللوجات': 'fas fa-clipboard-list text-secondary',
+        'التسوق الإلكتروني': 'fas fa-shopping-bag text-primary',
+        'أخرى': 'fas fa-folder-open text-muted',
+    }
+    category_descriptions = {
+        'المستخدمين والأدوار': 'حسابات الدخول والأذونات المرتبطة بها.',
+        'الجهات': 'العملاء والموردون والشركاء والموظفون.',
+        'العمليات المالية': 'المدفوعات والشيكات والمصاريف.',
+        'العمليات المحاسبية': 'دفعات القيود والحسابات العامة.',
+        'المبيعات والصيانة': 'المبيعات، الفواتير وطلبات الصيانة.',
+        'المخزون والمنتجات': 'المنتجات والمخازن والتبادلات.',
+        'السجلات واللوجات': 'السجلات، التنبيهات، وإشعارات النظام.',
+        'التسوق الإلكتروني': 'الحجوزات والمتاجر الإلكترونية.',
+        'أخرى': 'جداول مساندة أو ثانوية.',
+    }
+    
+    def build_category_payload(name, items):
+        sorted_tables = sorted(items, key=lambda t: t.get('display', ''))
+        return {
+            'name': name,
+            'icon': category_icons.get(name, 'fas fa-folder'),
+            'description': category_descriptions.get(name, ''),
+            'tables': sorted_tables,
+            'total': len(sorted_tables),
+            'high_danger': sum(1 for t in sorted_tables if t.get('danger') == 'high'),
+            'danger_zone': name in danger_zone_categories,
+        }
+    
+    ordered_categories = []
+    for name in category_order:
+        if name in category_map:
+            ordered_categories.append(build_category_payload(name, category_map.pop(name)))
+    for name in sorted(category_map.keys()):
+        ordered_categories.append(build_category_payload(name, category_map[name]))
+    
+    stats = {
+        'total_tables': len(cleanable_tables),
+        'high_danger_tables': danger_counts.get('high', 0),
+        'medium_danger_tables': danger_counts.get('medium', 0),
+        'low_danger_tables': danger_counts.get('low', 0),
+    }
+    
+    return render_template(
+        'security/system_cleanup.html',
+        tables=cleanable_tables,
+        categories=ordered_categories,
+        stats=stats,
+    )
 
 
 

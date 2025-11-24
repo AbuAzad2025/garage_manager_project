@@ -30,9 +30,9 @@
     <div class="col-md-3 col-sm-6">
       <div class="card h-100 shadow-sm">
         <div class="card-body text-center">
-          <div class="text-muted small">{{ FIELD_LABELS.get("total_missing_qty", "إجمالي النقص") }}</div>
+          <div class="text-muted small">{{ FIELD_LABELS.get("total_on_hand", "إجمالي المتوفر") }}</div>
           <div class="fs-4 fw-bold">
-            {{ data|map(attribute='missing')|sum }}
+            {{ data|map(attribute='total_on_hand')|sum }}
           </div>
         </div>
       </div>
@@ -49,20 +49,33 @@
             <tr>
               <th>#</th>
               <th>{{ FIELD_LABELS.get("product_name", "المنتج") }}</th>
-              <th>{{ FIELD_LABELS.get("on_hand", "المتوفر") }}</th>
-              <th>{{ FIELD_LABELS.get("min_qty", "الحد الأدنى") }}</th>
+              <th>{{ FIELD_LABELS.get("sku", "SKU") }}</th>
+              <th>{{ FIELD_LABELS.get("warehouse", "المستودع") }}</th>
+              <th>{{ FIELD_LABELS.get("quantity", "الكمية") }}</th>
+              <th>{{ FIELD_LABELS.get("min_stock", "الحد الأدنى") }}</th>
+              <th>{{ FIELD_LABELS.get("available", "المتاح") }}</th>
               <th>{{ FIELD_LABELS.get("missing", "النقص") }}</th>
             </tr>
           </thead>
           <tbody>
             {% for row in data %}
-              <tr>
-                <td>{{ row.id }}</td>
-                <td>{{ row.name }}</td>
-                <td class="text-end">{{ row.on_hand }}</td>
-                <td class="text-end">{{ row.min_qty }}</td>
-                <td class="text-end text-danger fw-bold">{{ row.missing }}</td>
-              </tr>
+              {% for stock in row.stocks %}
+                <tr>
+                  {% if loop.first %}
+                    <td rowspan="{{ row.stocks|length }}">{{ row.id }}</td>
+                    <td rowspan="{{ row.stocks|length }}"><strong>{{ row.name }}</strong></td>
+                    <td rowspan="{{ row.stocks|length }}">{{ row.sku or "-" }}</td>
+                  {% endif %}
+                  <td>{{ stock.warehouse_name }}</td>
+                  <td class="text-end">{{ stock.quantity }}</td>
+                  <td class="text-end">{{ stock.min_stock }}</td>
+                  <td class="text-end">{{ stock.available }}</td>
+                  <td class="text-end text-danger fw-bold">
+                    {% set missing = stock.min_stock - stock.quantity %}
+                    {% if missing > 0 %}{{ missing }}{% else %}-{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
             {% endfor %}
           </tbody>
         </table>

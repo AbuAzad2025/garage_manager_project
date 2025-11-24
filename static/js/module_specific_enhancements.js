@@ -313,7 +313,7 @@
     })) {}
   };
   
-  window.bulkDeleteUsers = function() {
+window.bulkDeleteUsers = function() {
     const selected = getSelectedUserIds();
     if (selected.length === 0) return;
     
@@ -1026,5 +1026,34 @@
     }
   });
   
+  function syncCustomerBalances() {
+    try {
+      const primaryDisplay = {};
+      document.querySelectorAll('[data-balance-customer]').forEach((el) => {
+        const cid = el.dataset.balanceCustomer;
+        if (!cid) return;
+        if (!primaryDisplay[cid]) {
+          primaryDisplay[cid] = el;
+        }
+      });
+      document.querySelectorAll('[data-balance-customer]').forEach((el) => {
+        const cid = el.dataset.balanceCustomer;
+        if (!cid) return;
+        const template = primaryDisplay[cid];
+        if (!template || template === el) return;
+        el.textContent = template.textContent;
+        el.className = template.className;
+      });
+    } catch (err) {
+      console.error('syncCustomerBalances failed', err);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncCustomerBalances);
+  } else {
+    syncCustomerBalances();
+  }
+
 })();
 

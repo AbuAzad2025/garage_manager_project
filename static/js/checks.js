@@ -302,16 +302,17 @@
                 else if (check.fx_rate_issue_source === 'manual') fxIcon = '✍️';
                 else fxIcon = '⚙️';
                 
-                fxRateDisplay = '<small>' + parseFloat(check.fx_rate_issue).toFixed(4) + ' ' + fxIcon + '</small>';
+                var issueRate = parseFloat(check.fx_rate_issue) || 0;
+                fxRateDisplay = '<small>' + (isNaN(issueRate) ? '0.0000' : issueRate.toFixed(4)) + ' ' + fxIcon + '</small>';
                 
-                // إذا تم صرف الشيك وهناك سعر صرف مختلف
                 if (check.status === 'CASHED' && check.fx_rate_cash && check.fx_rate_cash !== check.fx_rate_issue) {
                     var cashIcon = '';
                     if (check.fx_rate_cash_source === 'online') cashIcon = '🌐';
                     else if (check.fx_rate_cash_source === 'manual') cashIcon = '✍️';
                     else cashIcon = '⚙️';
                     
-                    fxRateDisplay += '<br><small class="text-success"><strong>صرف: ' + parseFloat(check.fx_rate_cash).toFixed(4) + ' ' + cashIcon + '</strong></small>';
+                    var cashRate = parseFloat(check.fx_rate_cash) || 0;
+                    fxRateDisplay += '<br><small class="text-success"><strong>صرف: ' + (isNaN(cashRate) ? '0.0000' : cashRate.toFixed(4)) + ' ' + cashIcon + '</strong></small>';
                 }
             }
             
@@ -343,7 +344,8 @@
             arr.forEach(function(c) {
                 const curr = (c.currency || 'ILS').toUpperCase();
                 if (!totals[curr]) totals[curr] = 0;
-                totals[curr] += parseFloat(c.amount) || 0;
+                const amt = parseFloat(c.amount) || 0;
+                if (!isNaN(amt)) totals[curr] += amt;
             });
             return totals;
         };
@@ -567,8 +569,8 @@
                                 <tr><th>البنك:</th><td><i class="fas fa-university text-primary"></i> ${check.check_bank || '-'}</td></tr>
                                 <tr><th>المبلغ:</th><td><strong class="text-success" style="font-size: 1.2em;">${formatCurrency(check.amount || 0)} ${check.currency || 'ILS'}</strong></td></tr>
                                 ${check.currency && check.currency != 'ILS' ? '<tr><th>العملة:</th><td><span class="badge badge-secondary">' + check.currency + '</span></td></tr>' : ''}
-                                ${check.currency && check.currency != 'ILS' && check.fx_rate_issue ? '<tr class="bg-light"><th>💱 سعر الصرف (إصدار):</th><td><strong>' + parseFloat(check.fx_rate_issue).toFixed(4) + '</strong> ' + (check.fx_rate_issue_source === 'online' ? '🌐' : check.fx_rate_issue_source === 'manual' ? '✍️' : '⚙️') + ' <small class="text-muted">(' + (check.fx_rate_issue_timestamp || '-') + ')</small><br><small class="text-info">المبلغ بالشيكل: ' + formatCurrency((check.amount || 0) * (check.fx_rate_issue || 1)) + ' ₪</small></td></tr>' : ''}
-                                ${check.currency && check.currency != 'ILS' && check.status === 'CASHED' && check.fx_rate_cash ? '<tr class="bg-success text-white"><th>💰 سعر الصرف (صرف):</th><td><strong>' + parseFloat(check.fx_rate_cash).toFixed(4) + '</strong> ' + (check.fx_rate_cash_source === 'online' ? '🌐' : check.fx_rate_cash_source === 'manual' ? '✍️' : '⚙️') + ' <small>(' + (check.fx_rate_cash_timestamp || '-') + ')</small><br><small>المبلغ الفعلي: <strong>' + formatCurrency((check.amount || 0) * (check.fx_rate_cash || 1)) + ' ₪</strong></small></td></tr>' : ''}
+                                ${check.currency && check.currency != 'ILS' && check.fx_rate_issue ? (function() { var rate = parseFloat(check.fx_rate_issue) || 0; var amt = (check.amount || 0) * (rate || 1); return '<tr class="bg-light"><th>💱 سعر الصرف (إصدار):</th><td><strong>' + (isNaN(rate) ? '0.0000' : rate.toFixed(4)) + '</strong> ' + (check.fx_rate_issue_source === 'online' ? '🌐' : check.fx_rate_issue_source === 'manual' ? '✍️' : '⚙️') + ' <small class="text-muted">(' + (check.fx_rate_issue_timestamp || '-') + ')</small><br><small class="text-info">المبلغ بالشيكل: ' + formatCurrency(amt) + ' ₪</small></td></tr>'; })() : ''}
+                                ${check.currency && check.currency != 'ILS' && check.status === 'CASHED' && check.fx_rate_cash ? (function() { var rate = parseFloat(check.fx_rate_cash) || 0; var amt = (check.amount || 0) * (rate || 1); return '<tr class="bg-success text-white"><th>💰 سعر الصرف (صرف):</th><td><strong>' + (isNaN(rate) ? '0.0000' : rate.toFixed(4)) + '</strong> ' + (check.fx_rate_cash_source === 'online' ? '🌐' : check.fx_rate_cash_source === 'manual' ? '✍️' : '⚙️') + ' <small>(' + (check.fx_rate_cash_timestamp || '-') + ')</small><br><small>المبلغ الفعلي: <strong>' + formatCurrency(amt) + ' ₪</strong></small></td></tr>'; })() : ''}
                                 ${check.currency && check.currency != 'ILS' && check.fx_rate_issue && check.fx_rate_cash && check.fx_rate_cash !== check.fx_rate_issue ? '<tr class="bg-warning"><th>📊 فرق سعر الصرف:</th><td><strong>' + formatCurrency((check.amount || 0) * (check.fx_rate_cash - check.fx_rate_issue)) + ' ₪</strong> ' + ((check.fx_rate_cash > check.fx_rate_issue) ? '<span class="badge badge-success">ربح ✓</span>' : '<span class="badge badge-danger">خسارة ✗</span>') + '</td></tr>' : ''}
                                 <tr><th>تاريخ الاستحقاق:</th><td>${check.due_date_formatted || check.check_due_date || '-'}</td></tr>
                                 ${check.days_until_due ? '<tr><th>الأيام المتبقية:</th><td><span class="badge badge-' + (check.days_until_due < 0 ? 'danger' : check.days_until_due <= 7 ? 'warning' : 'info') + '">' + check.days_until_due + ' يوم</span></td></tr>' : ''}
@@ -680,87 +682,125 @@
         const bank = el.getAttribute('data-bank') || '';
         const checkNumber = el.getAttribute('data-check-number') || token;
 
-        const selectOptions = [
-            { value: '', label: '-- بدون تغيير --' },
-            { value: 'CUSTOMER', label: 'عميل' },
-            { value: 'SUPPLIER', label: 'مورد' },
-            { value: 'PARTNER', label: 'شريك' },
-        ].map(opt => `<option value="${opt.value}" ${opt.value === entityType ? 'selected' : ''}>${opt.label}</option>`).join('');
-
-        const html = `
-            <div class="text-right" dir="rtl">
-                <label class="d-block font-weight-bold mb-1">نوع الجهة</label>
-                <select id="check-edit-entity-type" class="swal2-input" style="width:100%;">${selectOptions}</select>
-                <label class="d-block font-weight-bold mt-3 mb-1">معرّف الجهة</label>
-                <input type="number" id="check-edit-entity-id" class="swal2-input" placeholder="ID" value="${htmlEscape(entityId)}">
-                <label class="d-block font-weight-bold mt-3 mb-1">تاريخ الاستحقاق</label>
-                <input type="date" id="check-edit-due-date" class="swal2-input" value="${htmlEscape(dueDate)}">
-                <label class="d-block font-weight-bold mt-3 mb-1">المبلغ</label>
-                <input type="number" step="0.01" id="check-edit-amount" class="swal2-input" value="${htmlEscape(amount)}">
-                <label class="d-block font-weight-bold mt-3 mb-1">العملة</label>
-                <input type="text" id="check-edit-currency" class="swal2-input" value="${htmlEscape(currency)}">
-                <label class="d-block font-weight-bold mt-3 mb-1">البنك</label>
-                <input type="text" id="check-edit-bank" class="swal2-input" value="${htmlEscape(bank)}">
-            </div>
-        `;
-
-        Swal.fire({
-            title: `تعديل الشيك ${htmlEscape(checkNumber)}`,
-            html: html,
-            focusConfirm: false,
-            showCancelButton: true,
-            confirmButtonText: 'حفظ',
-            cancelButtonText: 'إلغاء',
-            preConfirm: () => {
-                const selectedType = document.getElementById('check-edit-entity-type').value;
-                const selectedId = (document.getElementById('check-edit-entity-id').value || '').trim();
-                const dueDateVal = document.getElementById('check-edit-due-date').value;
-                const amountVal = document.getElementById('check-edit-amount').value;
-                const currencyVal = (document.getElementById('check-edit-currency').value || 'ILS').toUpperCase();
-                const bankVal = document.getElementById('check-edit-bank').value;
-
-                if (!amountVal || parseFloat(amountVal) <= 0) {
-                    Swal.showValidationMessage('يرجى إدخال مبلغ صحيح أكبر من صفر.');
-                    return false;
-                }
-                if (selectedType && !selectedId) {
-                    Swal.showValidationMessage('يرجى إدخال معرف الجهة عند اختيار نوع جهة.');
-                    return false;
-                }
-                return {
-                    entity_type: selectedType,
-                    entity_id: selectedId || null,
-                    due_date: dueDateVal || null,
-                    amount: amountVal,
-                    currency: currencyVal || 'ILS',
-                    bank: bankVal
-                };
+        $.ajax({
+            url: '/checks/api/get-details/' + token,
+            method: 'GET',
+            xhrFields: { withCredentials: true }
+        }).then(function(response) {
+            if (!response.success) {
+                throw new Error(response.message || 'فشل جلب البيانات');
             }
-        }).then((result) => {
-            if (!result.isConfirmed || !token) {
-                return;
-            }
-            $.ajax({
-                url: '/checks/api/update-details/' + token,
-                method: 'POST',
-                contentType: 'application/json',
-                xhrFields: { withCredentials: true },
-                data: JSON.stringify(result.value)
-            }).then(response => {
-                if (!response.success) {
-                    throw new Error(response.message || 'فشل التحديث');
+            const resubmitCount = response.resubmit_allowed_count || 1;
+            const legalReturnCount = response.legal_return_allowed_count || 1;
+
+            const selectOptions = [
+                { value: '', label: '-- بدون تغيير --' },
+                { value: 'CUSTOMER', label: 'عميل' },
+                { value: 'SUPPLIER', label: 'مورد' },
+                { value: 'PARTNER', label: 'شريك' },
+            ].map(opt => `<option value="${opt.value}" ${opt.value === entityType ? 'selected' : ''}>${opt.label}</option>`).join('');
+
+            const html = `
+                <div class="text-right" dir="rtl">
+                    <label class="d-block font-weight-bold mb-1">نوع الجهة</label>
+                    <select id="check-edit-entity-type" class="swal2-input" style="width:100%;">${selectOptions}</select>
+                    <label class="d-block font-weight-bold mt-3 mb-1">معرّف الجهة</label>
+                    <input type="number" id="check-edit-entity-id" class="swal2-input" placeholder="ID" value="${htmlEscape(entityId)}">
+                    <label class="d-block font-weight-bold mt-3 mb-1">تاريخ الاستحقاق</label>
+                    <input type="date" id="check-edit-due-date" class="swal2-input" value="${htmlEscape(dueDate)}">
+                    <label class="d-block font-weight-bold mt-3 mb-1">المبلغ</label>
+                    <input type="number" step="0.01" id="check-edit-amount" class="swal2-input" value="${htmlEscape(amount)}">
+                    <label class="d-block font-weight-bold mt-3 mb-1">العملة</label>
+                    <input type="text" id="check-edit-currency" class="swal2-input" value="${htmlEscape(currency)}">
+                    <label class="d-block font-weight-bold mt-3 mb-1">البنك</label>
+                    <input type="text" id="check-edit-bank" class="swal2-input" value="${htmlEscape(bank)}">
+                    <hr style="margin: 15px 0;">
+                    <label class="d-block font-weight-bold mt-3 mb-1">عدد مرات السماح بإعادة الإرسال للبنك</label>
+                    <input type="number" min="1" id="check-edit-resubmit-count" class="swal2-input" value="${resubmitCount}" placeholder="الافتراضي: 1">
+                    <small class="text-muted d-block mt-1">زيادة هذا العدد يسمح بإعادة إرسال الشيك للبنك أكثر من مرة</small>
+                    <label class="d-block font-weight-bold mt-3 mb-1">عدد مرات السماح بالرجوع من الحالة القانونية</label>
+                    <input type="number" min="1" id="check-edit-legal-return-count" class="swal2-input" value="${legalReturnCount}" placeholder="الافتراضي: 1">
+                    <small class="text-muted d-block mt-1">زيادة هذا العدد يسمح بإرجاع الشيك من الحالة القانونية أكثر من مرة</small>
+                </div>
+            `;
+
+            Swal.fire({
+                title: `تعديل الشيك ${htmlEscape(checkNumber)}`,
+                html: html,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'حفظ',
+                cancelButtonText: 'إلغاء',
+                preConfirm: () => {
+                    const selectedType = document.getElementById('check-edit-entity-type').value;
+                    const selectedId = (document.getElementById('check-edit-entity-id').value || '').trim();
+                    const dueDateVal = document.getElementById('check-edit-due-date').value;
+                    const amountVal = document.getElementById('check-edit-amount').value;
+                    const currencyVal = (document.getElementById('check-edit-currency').value || 'ILS').toUpperCase();
+                    const bankVal = document.getElementById('check-edit-bank').value;
+                    const resubmitCount = document.getElementById('check-edit-resubmit-count').value;
+                    const legalReturnCount = document.getElementById('check-edit-legal-return-count').value;
+
+                    const amountNum = parseFloat(amountVal) || 0;
+                    if (!amountVal || isNaN(amountNum) || amountNum <= 0) {
+                        Swal.showValidationMessage('يرجى إدخال مبلغ صحيح أكبر من صفر.');
+                        return false;
+                    }
+                    if (selectedType && !selectedId) {
+                        Swal.showValidationMessage('يرجى إدخال معرف الجهة عند اختيار نوع جهة.');
+                        return false;
+                    }
+                    const result = {
+                        entity_type: selectedType,
+                        entity_id: selectedId || null,
+                        due_date: dueDateVal || null,
+                        amount: amountVal,
+                        currency: currencyVal || 'ILS',
+                        bank: bankVal
+                    };
+                    if (resubmitCount) {
+                        const count = parseInt(resubmitCount);
+                        if (!isNaN(count) && count >= 1) {
+                            result.resubmit_allowed_count = count;
+                        }
+                    }
+                    if (legalReturnCount) {
+                        const count = parseInt(legalReturnCount);
+                        if (!isNaN(count) && count >= 1) {
+                            result.legal_return_allowed_count = count;
+                        }
+                    }
+                    return result;
                 }
-                Swal.fire({
-                    title: 'تم الحفظ',
-                    text: 'تم تعديل بيانات الشيك بنجاح.',
-                    icon: 'success',
-                    timer: 2000
+            }).then((result) => {
+                if (!result.isConfirmed || !token) {
+                    return;
+                }
+                $.ajax({
+                    url: '/checks/api/update-details/' + token,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    xhrFields: { withCredentials: true },
+                    data: JSON.stringify(result.value)
+                }).then(response => {
+                    if (!response.success) {
+                        throw new Error(response.message || 'فشل التحديث');
+                    }
+                    Swal.fire({
+                        title: 'تم الحفظ',
+                        text: 'تم تعديل بيانات الشيك بنجاح.',
+                        icon: 'success',
+                        timer: 2000
+                    });
+                    setTimeout(() => loadAndCategorizeChecks(), 600);
+                }).catch(error => {
+                    const msg = error.responseJSON?.message || error.message || 'حدث خطأ غير متوقع';
+                    Swal.fire('خطأ', msg, 'error');
                 });
-                setTimeout(() => loadAndCategorizeChecks(), 600);
-            }).catch(error => {
-                const msg = error.responseJSON?.message || error.message || 'حدث خطأ غير متوقع';
-                Swal.fire('خطأ', msg, 'error');
             });
+        }).catch(error => {
+            const msg = error.responseJSON?.message || error.message || 'حدث خطأ غير متوقع';
+            Swal.fire('خطأ', msg, 'error');
         });
     };
 

@@ -1,24 +1,9 @@
 {
-  "timestamp": "2025-11-18T03:00:00.348000",
+  "timestamp": "2025-11-24T03:00:00.363092",
   "changes": {
     "new_tables": [],
     "new_fields": {},
-    "new_routes": [
-      {
-        "path": "/api/first-incomplete",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\checks.py"
-      },
-      {
-        "path": "/api/unsettle/<check_token>",
-        "methods": [
-          "POST"
-        ],
-        "file": "routes\\checks.py"
-      }
-    ],
+    "new_routes": [],
     "new_models": [],
     "new_templates": [],
     "new_forms": []

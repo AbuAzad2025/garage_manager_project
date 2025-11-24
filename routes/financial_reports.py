@@ -27,7 +27,6 @@ def income_statement():
         end_date = request.args.get('end_date')
         
         if not start_date or not end_date:
-            # افتراضي: الشهر الحالي
             today = date.today()
             start_date = today.replace(day=1)
             end_date = today
@@ -37,22 +36,27 @@ def income_statement():
         if isinstance(end_date, str):
             end_date = datetime.fromisoformat(end_date).date()
         
+        end_date_dt = datetime.combine(end_date, datetime.max.time())
+        
         revenue_query = db.session.query(
             func.sum(GLEntry.credit).label('total_revenue')
         ).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at >= start_date,
-            GLBatch.posted_at <= end_date,
-            GLEntry.account.like('4%')  # حسابات الإيرادات
-        ).scalar() or 0
+            GLBatch.posted_at <= end_date_dt,
+            Account.type == 'REVENUE'
+        ).join(Account, Account.code == GLEntry.account).scalar() or 0
         
         cogs_query = db.session.query(
             func.sum(GLEntry.debit).label('total_cogs')
         ).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at >= start_date,
-            GLBatch.posted_at <= end_date,
-            GLEntry.account.like('51%')  # حسابات COGS
+            GLBatch.posted_at <= end_date_dt,
+            or_(
+                GLEntry.account.like('51%'),
+                GLEntry.account == '5105_COGS_EXCHANGE'
+            )
         ).scalar() or 0
         
         expenses_query = db.session.query(
@@ -60,17 +64,21 @@ def income_statement():
         ).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at >= start_date,
-            GLBatch.posted_at <= end_date,
-            GLEntry.account.like('5%')  # حسابات المصروفات
-        ).scalar() or 0
+            GLBatch.posted_at <= end_date_dt,
+            Account.type == 'EXPENSE',
+            ~GLEntry.account.like('51%')
+        ).join(Account, Account.code == GLEntry.account).scalar() or 0
         
         taxes_query = db.session.query(
             func.sum(GLEntry.debit).label('total_taxes')
         ).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at >= start_date,
-            GLBatch.posted_at <= end_date,
-            GLEntry.account.like('21%')  # حسابات الضرائب
+            GLBatch.posted_at <= end_date_dt,
+            or_(
+                GLEntry.account.like('21%'),
+                GLEntry.account == '2100_VAT_PAYABLE'
+            )
         ).scalar() or 0
         
         total_revenue = float(revenue_query)
@@ -88,9 +96,9 @@ def income_statement():
         ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at >= start_date,
-            GLBatch.posted_at <= end_date,
-            GLEntry.account.like('4%')
-        ).group_by(GLEntry.account, Account.name).all()
+            GLBatch.posted_at <= end_date_dt,
+            Account.type == 'REVENUE'
+        ).group_by(GLEntry.account, Account.name).order_by(func.sum(GLEntry.credit).desc()).all()
         
         expense_details = db.session.query(
             GLEntry.account,
@@ -99,9 +107,24 @@ def income_statement():
         ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
             GLBatch.posted_at >= start_date,
-            GLBatch.posted_at <= end_date,
-            GLEntry.account.like('5%')
-        ).group_by(GLEntry.account, Account.name).all()
+            GLBatch.posted_at <= end_date_dt,
+            Account.type == 'EXPENSE',
+            ~GLEntry.account.like('51%')
+        ).group_by(GLEntry.account, Account.name).order_by(func.sum(GLEntry.debit).desc()).all()
+        
+        cogs_details = db.session.query(
+            GLEntry.account,
+            Account.name,
+            func.sum(GLEntry.debit).label('amount')
+        ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
+            GLBatch.status == 'POSTED',
+            GLBatch.posted_at >= start_date,
+            GLBatch.posted_at <= end_date_dt,
+            or_(
+                GLEntry.account.like('51%'),
+                GLEntry.account == '5105_COGS_EXCHANGE'
+            )
+        ).group_by(GLEntry.account, Account.name).order_by(func.sum(GLEntry.debit).desc()).all()
         
         data = {
             'start_date': start_date,
@@ -111,13 +134,17 @@ def income_statement():
             'total_revenue': total_revenue,
             'total_cogs': total_cogs,
             'gross_profit': gross_profit,
+            'gross_margin': (gross_profit / total_revenue * 100) if total_revenue > 0 else 0,
             'operating_expenses': operating_expenses,
             'operating_profit': operating_profit,
+            'operating_margin': (operating_profit / total_revenue * 100) if total_revenue > 0 else 0,
             'total_taxes': total_taxes,
             'net_profit': net_profit,
+            'net_margin': (net_profit / total_revenue * 100) if total_revenue > 0 else 0,
             'is_profit': net_profit >= 0,
             'revenues': revenue_details,
             'expenses': expense_details,
+            'cogs_details': cogs_details,
             'revenue_details': revenue_details,
             'expense_details': expense_details
         }
@@ -134,13 +161,17 @@ def income_statement():
                     'total_revenue': total_revenue,
                     'total_cogs': total_cogs,
                     'gross_profit': gross_profit,
+                    'gross_margin': (gross_profit / total_revenue * 100) if total_revenue > 0 else 0,
                     'operating_expenses': operating_expenses,
                     'operating_profit': operating_profit,
+                    'operating_margin': (operating_profit / total_revenue * 100) if total_revenue > 0 else 0,
                     'total_taxes': total_taxes,
-                    'net_profit': net_profit
+                    'net_profit': net_profit,
+                    'net_margin': (net_profit / total_revenue * 100) if total_revenue > 0 else 0
                 },
                 'details': {
                     'revenue': [{'account': r.account, 'name': r.name, 'amount': float(r.amount)} for r in revenue_details],
+                    'cogs': [{'account': c.account, 'name': c.name, 'amount': float(c.amount)} for c in cogs_details],
                     'expenses': [{'account': e.account, 'name': e.name, 'amount': float(e.amount)} for e in expense_details]
                 }
             })
@@ -461,7 +492,8 @@ def balances_summary():
         total_supplier_balance = 0
         
         for supplier in suppliers:
-            balance = supplier.balance  # استخدام المنطق الموجود
+            db.session.refresh(supplier)
+            balance = supplier.balance
             supplier_balances.append({
                 'id': supplier.id,
                 'name': supplier.name,
@@ -576,7 +608,6 @@ def validation_report():
 @financial_reports_bp.route('/trial-balance')
 @owner_only
 def trial_balance():
-    """📊 ميزان المراجعة (Trial Balance)"""
     try:
         as_of_date = request.args.get('date')
         if not as_of_date:
@@ -584,7 +615,8 @@ def trial_balance():
         else:
             as_of_date = datetime.fromisoformat(as_of_date).date()
         
-        # جلب جميع الحسابات مع أرصدتها
+        as_of_dt = datetime.combine(as_of_date, datetime.max.time())
+        
         accounts_balance = db.session.query(
             GLEntry.account,
             Account.name,
@@ -593,14 +625,13 @@ def trial_balance():
             func.sum(GLEntry.credit).label('total_credit')
         ).join(Account, Account.code == GLEntry.account).join(GLBatch).filter(
             GLBatch.status == 'POSTED',
-            GLBatch.posted_at <= as_of_date
+            GLBatch.posted_at <= as_of_dt
         ).group_by(GLEntry.account, Account.name, Account.type).all()
         
         trial_balance_data = []
         total_debits = 0
         total_credits = 0
         
-        # قاموس الأوصاف
         account_descriptions = {
             'ASSET': 'ما تملكه الشركة من موارد',
             'LIABILITY': 'ما على الشركة من التزامات',
@@ -612,21 +643,36 @@ def trial_balance():
         for acc in accounts_balance:
             debit = float(acc.total_debit or 0)
             credit = float(acc.total_credit or 0)
-            net = debit - credit
+            
+            acc_type = acc.type or 'ASSET'
+            if acc_type in ['ASSET', 'EXPENSE']:
+                net = debit - credit
+                normal_side = 'DR'
+            else:
+                net = credit - debit
+                normal_side = 'CR'
+            
             row = {
                 'account': acc.account,
                 'name': acc.name,
-                'type': acc.type,
-                'description': account_descriptions.get(acc.type, ''),
+                'type': acc_type,
+                'description': account_descriptions.get(acc_type, ''),
                 'debit': debit,
                 'credit': credit,
-                'net': net,
-                'side': 'DR' if net > 0 else 'CR'
+                'net': abs(net),
+                'side': 'DR' if net > 0 else 'CR',
+                'normal_side': normal_side,
+                'is_normal': (net > 0 and normal_side == 'DR') or (net < 0 and normal_side == 'CR')
             }
             trial_balance_data.append(row)
             total_debits += debit
             total_credits += credit
-        trial_balance_data.sort(key=lambda r: (r['type'] or '', r['account']))
+        
+        trial_balance_data.sort(key=lambda r: (
+            {'ASSET': 1, 'LIABILITY': 2, 'EQUITY': 3, 'REVENUE': 4, 'EXPENSE': 5}.get(r['type'], 6),
+            r['account']
+        ))
+        
         grouped_trial_balance = {}
         for row in trial_balance_data:
             t = row['type'] or 'OTHER'
@@ -645,13 +691,57 @@ def trial_balance():
         
         is_balanced = abs(total_debits - total_credits) < 0.01
         
+        ar_gl_balance = 0.0
+        ar_model_balance = 0.0
+        ap_gl_balance = 0.0
+        ap_model_balance = 0.0
+        
+        for row in trial_balance_data:
+            if row['account'] == '1100_AR':
+                ar_gl_net = row['debit'] - row['credit']
+                ar_gl_balance = ar_gl_net
+            elif row['account'] == '2000_AP':
+                ap_gl_net = row['credit'] - row['debit']
+                ap_gl_balance = ap_gl_net
+        
+        customers_total = db.session.query(
+            func.coalesce(func.sum(Customer.current_balance), 0)
+        ).scalar() or 0
+        ar_model_balance = -float(customers_total)
+        
+        suppliers_total = db.session.query(
+            func.coalesce(func.sum(Supplier.current_balance), 0)
+        ).scalar() or 0
+        
+        partners_total = db.session.query(
+            func.coalesce(func.sum(Partner.current_balance), 0)
+        ).scalar() or 0
+        
+        ap_model_balance = float(suppliers_total) + float(partners_total)
+        
+        reconciliation = {
+            'ar': {
+                'gl_balance': ar_gl_balance,
+                'model_balance': ar_model_balance,
+                'difference': abs(ar_gl_balance - ar_model_balance),
+                'is_matched': abs(ar_gl_balance - ar_model_balance) < 0.01
+            },
+            'ap': {
+                'gl_balance': ap_gl_balance,
+                'model_balance': ap_model_balance,
+                'difference': abs(ap_gl_balance - ap_model_balance),
+                'is_matched': abs(ap_gl_balance - ap_model_balance) < 0.01
+            }
+        }
+        
         data = {
             'as_of_date': as_of_date,
             'trial_balance_data': trial_balance_data,
             'grouped_trial_balance': grouped_trial_balance,
             'total_debits': total_debits,
             'total_credits': total_credits,
-            'is_balanced': is_balanced
+            'is_balanced': is_balanced,
+            'reconciliation': reconciliation
         }
         
         # إذا طلب JSON
@@ -665,7 +755,8 @@ def trial_balance():
                     'debit': total_debits,
                     'credit': total_credits,
                     'is_balanced': is_balanced
-                }
+                },
+                'reconciliation': reconciliation
             })
         
         return render_template('reports/financial/trial_balance.html', **data)
@@ -680,27 +771,60 @@ def trial_balance():
 @financial_reports_bp.route('/aging-report')
 @owner_only
 def aging_report():
-    """📊 تقرير الذمم المعمرة (AR/AP Aging Report)"""
     try:
-        report_type = request.args.get('type', 'ar')  # ar=receivables, ap=payables
-        today = date.today()
+        report_type = request.args.get('type', 'ar')
+        as_of_date = request.args.get('as_of_date')
+        if as_of_date:
+            today = datetime.fromisoformat(as_of_date).date()
+        else:
+            today = date.today()
         
         aging_data = []
         
         if report_type == 'ar':
-            # ذمم العملاء
             customers = Customer.query.all()
             for customer in customers:
-                balance = float(customer.balance or 0)
-                if balance < -0.01:  # عليه دين
-                    # حساب عمر أقدم معاملة
-                    oldest_sale = Sale.query.filter_by(customer_id=customer.id, status='CONFIRMED').order_by(Sale.sale_date).first()
-                    age_days = 0
-                    if oldest_sale and oldest_sale.sale_date:
-                        sale_date = oldest_sale.sale_date if isinstance(oldest_sale.sale_date, date) else oldest_sale.sale_date.date()
-                        age_days = (today - sale_date).days
+                db.session.refresh(customer)
+                balance = float(customer.current_balance or 0)
+                if balance < -0.01:
+                    oldest_date = None
                     
-                    # تصنيف حسب العمر
+                    oldest_sale = db.session.query(Sale).filter(
+                        Sale.customer_id == customer.id,
+                        Sale.status == 'CONFIRMED'
+                    ).order_by(Sale.sale_date.asc()).first()
+                    if oldest_sale and oldest_sale.sale_date:
+                        sale_dt = oldest_sale.sale_date
+                        if isinstance(sale_dt, datetime):
+                            sale_dt = sale_dt.date()
+                        if oldest_date is None or sale_dt < oldest_date:
+                            oldest_date = sale_dt
+                    
+                    oldest_invoice = db.session.query(Invoice).filter(
+                        Invoice.customer_id == customer.id,
+                        Invoice.cancelled_at.is_(None)
+                    ).order_by(Invoice.invoice_date.asc()).first()
+                    if oldest_invoice and oldest_invoice.invoice_date:
+                        inv_dt = oldest_invoice.invoice_date
+                        if isinstance(inv_dt, datetime):
+                            inv_dt = inv_dt.date()
+                        if oldest_date is None or inv_dt < oldest_date:
+                            oldest_date = inv_dt
+                    
+                    oldest_service = db.session.query(ServiceRequest).filter(
+                        ServiceRequest.customer_id == customer.id
+                    ).order_by(ServiceRequest.received_at.asc()).first()
+                    if oldest_service and oldest_service.received_at:
+                        svc_dt = oldest_service.received_at
+                        if isinstance(svc_dt, datetime):
+                            svc_dt = svc_dt.date()
+                        if oldest_date is None or svc_dt < oldest_date:
+                            oldest_date = svc_dt
+                    
+                    age_days = 0
+                    if oldest_date:
+                        age_days = max((today - oldest_date).days, 0)
+                    
                     if age_days <= 30:
                         category = '0-30'
                     elif age_days <= 60:
@@ -714,25 +838,117 @@ def aging_report():
                         'id': customer.id,
                         'name': customer.name,
                         'balance': abs(balance),
+                        'balance_display': f"{abs(balance):,.2f}",
                         'age_days': age_days,
+                        'oldest_date': oldest_date.isoformat() if oldest_date else None,
                         'category': category,
-                        'phone': customer.phone or ''
+                        'phone': customer.phone or '',
+                        'currency': customer.currency or 'ILS'
                     })
         else:
-            # ذمم الموردين
             suppliers = Supplier.query.all()
             for supplier in suppliers:
-                balance = float(supplier.balance or 0)
-                if balance > 0.01:  # له علينا
+                db.session.refresh(supplier)
+                balance = float(supplier.current_balance or 0)
+                if balance > 0.01:
+                    oldest_date = None
+                    
+                    oldest_invoice = db.session.query(Invoice).filter(
+                        Invoice.supplier_id == supplier.id,
+                        Invoice.cancelled_at.is_(None)
+                    ).order_by(Invoice.invoice_date.asc()).first()
+                    if oldest_invoice and oldest_invoice.invoice_date:
+                        inv_dt = oldest_invoice.invoice_date
+                        if isinstance(inv_dt, datetime):
+                            inv_dt = inv_dt.date()
+                        if oldest_date is None or inv_dt < oldest_date:
+                            oldest_date = inv_dt
+                    
+                    age_days = 0
+                    if oldest_date:
+                        age_days = max((today - oldest_date).days, 0)
+                    
+                    if age_days <= 30:
+                        category = '0-30'
+                    elif age_days <= 60:
+                        category = '31-60'
+                    elif age_days <= 90:
+                        category = '61-90'
+                    else:
+                        category = '>90'
+                    
                     aging_data.append({
                         'id': supplier.id,
                         'name': supplier.name,
                         'balance': balance,
-                        'age_days': 0,  # يمكن تحسينه
-                        'category': '0-30'
+                        'balance_display': f"{balance:,.2f}",
+                        'age_days': age_days,
+                        'oldest_date': oldest_date.isoformat() if oldest_date else None,
+                        'category': category,
+                        'phone': supplier.phone or '',
+                        'currency': supplier.currency or 'ILS',
+                        'type': 'supplier'
                     })
+            
+            include_partners = request.args.get('include_partners', 'false').lower() == 'true'
+            if include_partners or report_type == 'partners':
+                partners = Partner.query.all()
+                for partner in partners:
+                    db.session.refresh(partner)
+                    balance = float(partner.current_balance or 0)
+                    if balance > 0.01:
+                        oldest_date = None
+                        
+                        oldest_invoice = db.session.query(Invoice).filter(
+                            Invoice.partner_id == partner.id,
+                            Invoice.cancelled_at.is_(None)
+                        ).order_by(Invoice.invoice_date.asc()).first()
+                        if oldest_invoice and oldest_invoice.invoice_date:
+                            inv_dt = oldest_invoice.invoice_date
+                            if isinstance(inv_dt, datetime):
+                                inv_dt = inv_dt.date()
+                            if oldest_date is None or inv_dt < oldest_date:
+                                oldest_date = inv_dt
+                        
+                        oldest_payment = db.session.query(Payment).filter(
+                            Payment.partner_id == partner.id,
+                            Payment.direction == 'OUT',
+                            Payment.status == 'COMPLETED'
+                        ).order_by(Payment.payment_date.asc()).first()
+                        if oldest_payment and oldest_payment.payment_date:
+                            pay_dt = oldest_payment.payment_date
+                            if isinstance(pay_dt, datetime):
+                                pay_dt = pay_dt.date()
+                            if oldest_date is None or pay_dt < oldest_date:
+                                oldest_date = pay_dt
+                        
+                        age_days = 0
+                        if oldest_date:
+                            age_days = max((today - oldest_date).days, 0)
+                        
+                        if age_days <= 30:
+                            category = '0-30'
+                        elif age_days <= 60:
+                            category = '31-60'
+                        elif age_days <= 90:
+                            category = '61-90'
+                        else:
+                            category = '>90'
+                        
+                        aging_data.append({
+                            'id': partner.id,
+                            'name': partner.name,
+                            'balance': balance,
+                            'balance_display': f"{balance:,.2f}",
+                            'age_days': age_days,
+                            'oldest_date': oldest_date.isoformat() if oldest_date else None,
+                            'category': category,
+                            'phone': partner.phone_number or '',
+                            'currency': partner.currency or 'ILS',
+                            'type': 'partner',
+                            'share_percentage': float(partner.share_percentage or 0)
+                        })
         
-        # تجميع حسب الفئة
         aging_summary = {
             '0-30': sum(item['balance'] for item in aging_data if item['category'] == '0-30'),
             '31-60': sum(item['balance'] for item in aging_data if item['category'] == '31-60'),
@@ -740,14 +956,17 @@ def aging_report():
             '>90': sum(item['balance'] for item in aging_data if item['category'] == '>90')
         }
         
+        total = sum(aging_summary.values())
+        
         return jsonify({
             'success': True,
             'report_type': 'aging_report',
             'aging_type': report_type,
             'as_of_date': today.isoformat(),
-            'summary': aging_summary,
-            'total': sum(aging_summary.values()),
-            'details': aging_data
+            'summary': {k: float(v) for k, v in aging_summary.items()},
+            'total': float(total),
+            'details': aging_data,
+            'count': len(aging_data)
         })
         
     except Exception as e:
@@ -866,6 +1085,142 @@ def expense_breakdown():
         
     except Exception as e:
         current_app.logger.error(f"خطأ في تحليل المصروفات: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@financial_reports_bp.route('/receivables-payables')
+@owner_only
+def receivables_payables():
+    try:
+        report_type = request.args.get('type', 'receivables')
+        include_partners = request.args.get('include_partners', 'false').lower() == 'true'
+        as_of_date = request.args.get('as_of_date')
+        if as_of_date:
+            as_of_date = datetime.fromisoformat(as_of_date).date()
+        else:
+            as_of_date = date.today()
+        
+        data = []
+        total_balance = 0.0
+        
+        as_of_dt = datetime.combine(as_of_date, datetime.max.time())
+        
+        if report_type == 'receivables':
+            customers = Customer.query.all()
+            for customer in customers:
+                db.session.refresh(customer)
+                balance = float(customer.current_balance or 0)
+                if abs(balance) > 0.01:
+                    gl_balance = db.session.query(
+                        func.coalesce(func.sum(GLEntry.debit - GLEntry.credit), 0)
+                    ).join(GLBatch).join(Account).filter(
+                        GLBatch.status == 'POSTED',
+                        GLBatch.posted_at <= as_of_dt,
+                        GLBatch.entity_type == 'CUSTOMER',
+                        GLBatch.entity_id == customer.id,
+                        Account.code == '1100_AR'
+                    ).scalar() or 0
+                    
+                    is_owed_to_us = balance < 0
+                    
+                    data.append({
+                        'id': customer.id,
+                        'name': customer.name,
+                        'phone': customer.phone or '',
+                        'currency': customer.currency or 'ILS',
+                        'balance': balance,
+                        'gl_balance': float(gl_balance),
+                        'balance_display': f"{abs(balance):,.2f}",
+                        'owed_to_us': abs(balance) if is_owed_to_us else 0,
+                        'owed_by_us': abs(balance) if not is_owed_to_us else 0,
+                        'status': 'debtor' if balance < 0 else 'creditor',
+                        'status_ar': 'مدين (لنا - عليه يدفع)' if balance < 0 else 'دائن (علينا - له علينا)',
+                        'type': 'customer'
+                    })
+                    total_balance += balance
+        else:
+            suppliers = Supplier.query.all()
+            for supplier in suppliers:
+                db.session.refresh(supplier)
+                balance = float(supplier.current_balance or 0)
+                if abs(balance) > 0.01:
+                    gl_balance = db.session.query(
+                        func.coalesce(func.sum(GLEntry.credit - GLEntry.debit), 0)
+                    ).join(GLBatch).join(Account).filter(
+                        GLBatch.status == 'POSTED',
+                        GLBatch.posted_at <= as_of_dt,
+                        GLBatch.entity_type == 'SUPPLIER',
+                        GLBatch.entity_id == supplier.id,
+                        Account.code == '2000_AP'
+                    ).scalar() or 0
+                    
+                    is_owed_by_us = balance > 0
+                    
+                    data.append({
+                        'id': supplier.id,
+                        'name': supplier.name,
+                        'phone': supplier.phone or '',
+                        'currency': supplier.currency or 'ILS',
+                        'balance': balance,
+                        'gl_balance': float(gl_balance),
+                        'balance_display': f"{abs(balance):,.2f}",
+                        'owed_to_us': abs(balance) if not is_owed_by_us else 0,
+                        'owed_by_us': abs(balance) if is_owed_by_us else 0,
+                        'status': 'creditor' if balance > 0 else 'debtor',
+                        'status_ar': 'دائن (علينا - له علينا)' if balance > 0 else 'مدين (عليه لنا)',
+                        'type': 'supplier'
+                    })
+                    total_balance += balance
+            
+            if include_partners or report_type == 'partners':
+                partners = Partner.query.all()
+                for partner in partners:
+                    db.session.refresh(partner)
+                    balance = float(partner.current_balance or 0)
+                    if abs(balance) > 0.01:
+                        gl_balance = db.session.query(
+                            func.coalesce(func.sum(GLEntry.credit - GLEntry.debit), 0)
+                        ).join(GLBatch).join(Account).filter(
+                            GLBatch.status == 'POSTED',
+                            GLBatch.posted_at <= as_of_dt,
+                            GLBatch.entity_type == 'PARTNER',
+                            GLBatch.entity_id == partner.id,
+                            Account.code == '2000_AP'
+                        ).scalar() or 0
+                        
+                        is_owed_by_us = balance > 0
+                        
+                        data.append({
+                            'id': partner.id,
+                            'name': partner.name,
+                            'phone': partner.phone_number or '',
+                            'currency': partner.currency or 'ILS',
+                            'balance': balance,
+                            'gl_balance': float(gl_balance),
+                            'balance_display': f"{abs(balance):,.2f}",
+                            'owed_to_us': abs(balance) if not is_owed_by_us else 0,
+                            'owed_by_us': abs(balance) if is_owed_by_us else 0,
+                            'status': 'creditor' if balance > 0 else 'debtor',
+                            'status_ar': 'دائن (علينا - له علينا)' if balance > 0 else 'مدين (عليه لنا)',
+                            'type': 'partner',
+                            'share_percentage': float(partner.share_percentage or 0)
+                        })
+                        total_balance += balance
+        
+        data.sort(key=lambda x: abs(x['balance']), reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'report_type': 'receivables_payables',
+            'detail_type': report_type,
+            'as_of_date': as_of_date.isoformat(),
+            'total_balance': float(total_balance),
+            'count': len(data),
+            'details': data
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"خطأ في تقرير الذمم: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

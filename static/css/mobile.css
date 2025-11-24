@@ -6,9 +6,25 @@
 
 /* ═══ 0. Performance Optimizations ═══ */
 
+/* منع Scroll الأفقي على جميع الأجهزة */
+html {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+  position: relative;
+}
+
 /* تحسين تحميل الصور */
 img {
   content-visibility: auto;
+  max-width: 100%;
+  height: auto;
 }
 
 /* تحسين الرسوم */
@@ -17,12 +33,21 @@ img {
   -webkit-touch-callout: none;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 /* تحسين التمرير */
 .content-wrapper,
 .table-responsive,
 .modal-body {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* GPU acceleration */
@@ -63,6 +88,11 @@ img {
     right: 0 !important;
     z-index: 1050 !important;
     padding: 0.5rem !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding-left: calc(0.5rem + env(safe-area-inset-left)) !important;
+    padding-right: calc(0.5rem + env(safe-area-inset-right)) !important;
+    padding-top: calc(0.5rem + env(safe-area-inset-top)) !important;
   }
   
   /* إخفاء العناصر غير المهمة في Navbar على الموبايل */
@@ -167,10 +197,18 @@ img {
     margin-top: 60px !important;
     padding: 0 !important;
     min-height: calc(100vh - 60px) !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    padding-left: env(safe-area-inset-left) !important;
+    padding-right: env(safe-area-inset-right) !important;
   }
   
   .content-wrapper .content {
     padding: 0.75rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
   }
   
   /* ═══ 5. البطاقات (Cards) ═══ */
@@ -636,9 +674,31 @@ img {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   📱 Extra Small Devices - أجهزة صغيرة جداً (320px)
+   📱 iPhone Specific Sizes - أحجام iPhone المحددة
    ═══════════════════════════════════════════════════════════════════ */
 
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  position: relative;
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.wrapper,
+.content-wrapper {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* iPhone SE / 6/7/8 (375px) */
 @media (max-width: 375px) {
   html {
     font-size: 13px !important;
@@ -656,6 +716,115 @@ img {
   .badge {
     font-size: 0.7rem !important;
     padding: 0.25rem 0.5rem !important;
+  }
+}
+
+/* iPhone X/XS/11 Pro (375px with notch) - portrait */
+@media (max-width: 390px) {
+  html {
+    font-size: 14px !important;
+  }
+  
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  .main-header.navbar {
+    padding-top: calc(0.5rem + env(safe-area-inset-top)) !important;
+  }
+  
+  .content-wrapper {
+    margin-top: calc(60px + env(safe-area-inset-top)) !important;
+  }
+}
+
+/* iPhone 6/7/8 Plus / XR / 11 (414px) */
+@media (min-width: 390px) and (max-width: 414px) {
+  html {
+    font-size: 14px !important;
+  }
+  
+  .btn {
+    padding: 0.65rem 1rem !important;
+    font-size: 0.9rem !important;
+  }
+  
+  .card-header {
+    font-size: 0.95rem !important;
+  }
+  
+  .table {
+    font-size: 0.9rem !important;
+  }
+}
+
+/* iPhone 12/13/14 Pro Max (428px) */
+@media (min-width: 414px) and (max-width: 428px) {
+  html {
+    font-size: 15px !important;
+  }
+  
+  .btn {
+    padding: 0.7rem 1.1rem !important;
+    font-size: 0.95rem !important;
+  }
+  
+  .card-header {
+    font-size: 1rem !important;
+  }
+}
+
+/* iPhone with notch support - landscape */
+@media (max-width: 896px) and (orientation: landscape) {
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  .main-header.navbar {
+    padding-left: calc(0.5rem + env(safe-area-inset-left)) !important;
+    padding-right: calc(0.5rem + env(safe-area-inset-right)) !important;
+  }
+}
+
+/* Fix horizontal scroll on all iPhone sizes */
+@media (max-width: 428px) {
+  * {
+    max-width: 100%;
+  }
+  
+  .container,
+  .container-fluid {
+    width: 100%;
+    max-width: 100vw;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  
+  .row {
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+  }
+  
+  .row > * {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  img, video, iframe {
+    max-width: 100%;
+    height: auto;
   }
 }
 

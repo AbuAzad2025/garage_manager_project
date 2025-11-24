@@ -550,13 +550,24 @@
                             </h3>
                         </div>
                         <div class="card-body p-4">
+                            <!-- توضيح الإدخال السريع -->
+                            <div class="alert alert-success mb-4" style="border-right: 4px solid #56ab2f;">
+                                <h6 class="mb-2"><i class="fas fa-lightbulb ml-2"></i><strong>💡 للإدخال السريع لعشرات المنتجات:</strong></h6>
+                                <ol class="mb-0" style="font-size: 0.9rem; line-height: 1.8;">
+                                    <li>اختر المستودع من القائمة</li>
+                                    <li>تأكد أن "إضافة" هو المختار (افتراضي)</li>
+                                    <li>ضع الكمية (افتراضي: 1)</li>
+                                    <li>امسح الباركود واضغط Enter أو زر "تحديث"</li>
+                                    <li>استمر في مسح الباركودات - كل منتج يضاف تلقائياً!</li>
+                                </ol>
+                            </div>
                             <!-- توضيح العمليات -->
                             <div class="alert alert-info mb-4" style="border-right: 4px solid #4facfe;">
-                                <h6 class="mb-2"><i class="fas fa-info-circle ml-2"></i><strong>توضيح أنواع العمليات:</strong></h6>
+                                <h6 class="mb-2"><i class="fas fa-info-circle ml-2"></i><strong>أنواع العمليات:</strong></h6>
                                 <ul class="mb-0" style="font-size: 0.9rem; line-height: 1.8;">
-                                    <li><strong>تعديل:</strong> تعديل الكمية إلى الرقم المحدد (تجاهل القيمة الحالية)</li>
-                                    <li><strong>إضافة:</strong> إضافة الكمية المحددة للمخزون الحالي</li>
-                                    <li><strong>طرح:</strong> طرح الكمية المحددة من المخزون الحالي</li>
+                                    <li><strong>إضافة ⭐:</strong> إضافة الكمية للمخزون الحالي (مثالي للإدخال السريع)</li>
+                                    <li><strong>طرح:</strong> طرح الكمية من المخزون الحالي</li>
+                                    <li><strong>تعديل:</strong> تعيين الكمية إلى القيمة المحددة (تجاهل القيمة الحالية)</li>
                                 </ul>
                             </div>
                             
@@ -621,7 +632,11 @@
                                             الكمية:
                                         </label>
                                         <input type="number" class="form-control form-control-modern" id="quantity-change" 
-                                               value="0" min="-9999" max="9999" step="1">
+                                               value="1" min="1" max="9999" step="1">
+                                        <small class="form-text text-muted mt-1">
+                                            <i class="fas fa-info-circle ml-1"></i>
+                                            الكمية لكل مسح (افتراضي: 1)
+                                        </small>
                                     </div>
                                 </div>
                                 
@@ -632,10 +647,14 @@
                                             نوع العملية:
                                         </label>
                                         <select class="form-control form-control-modern" id="operation-type">
-                                            <option value="adjust">تعديل</option>
-                                            <option value="add">إضافة</option>
+                                            <option value="add" selected>إضافة ⭐ (للإدخال السريع)</option>
                                             <option value="subtract">طرح</option>
+                                            <option value="adjust">تعديل</option>
                                         </select>
+                                        <small class="form-text text-muted mt-1">
+                                            <i class="fas fa-info-circle ml-1"></i>
+                                            "إضافة" للإدخال السريع
+                                        </small>
                                     </div>
                                 </div>
                                 
@@ -906,6 +925,18 @@ $(document).ready(function() {
     $('#barcode-input').keypress(function(e) {
         if (e.which === 13) {
             $('#scan-btn').click();
+        }
+    });
+    
+    $('#inventory-barcode').keypress(function(e) {
+        if (e.which === 13) {
+            e.preventDefault();
+            if ($('#warehouse-select').val()) {
+                $('#update-inventory-btn').click();
+            } else {
+                showNotification('يرجى اختيار المستودع أولاً', 'error');
+                $('#warehouse-select').focus();
+            }
         }
     });
     
@@ -1359,13 +1390,15 @@ $(document).ready(function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showNotification(`تم تحديث المخزون بنجاح. الكمية الجديدة: ${data.new_quantity}`, 'success');
+                showNotification(`✅ تم إضافة ${quantityChange} للمنتج "${data.product.name}". الكمية الجديدة: ${data.new_quantity}`, 'success');
                 $('#inventory-barcode').val('');
-                $('#quantity-change').val(0);
+                $('#inventory-barcode').focus();
+                $('#quantity-change').val(1);
                 $('#current-stock-info').hide();
                 $('#quantity-warning').hide();
             } else {
                 showNotification('خطأ في تحديث المخزون: ' + data.error, 'error');
+                $('#inventory-barcode').focus();
             }
         })
         .catch(error => {

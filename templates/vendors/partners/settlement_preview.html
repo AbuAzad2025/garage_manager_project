@@ -4,11 +4,322 @@
 {% block head_extra %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/statement-print.css') }}">
 <style>
+section.content {
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+body[data-sidebar-position="left"] section.content {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+body[data-sidebar-position="right"] section.content {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.content-wrapper {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+body[data-sidebar-position="left"] .content-wrapper,
+body[data-sidebar-position="right"] .content-wrapper,
+body .content-wrapper {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+body[data-sidebar-position="left"] .content-wrapper section.content,
+body[data-sidebar-position="right"] .content-wrapper section.content,
+body .content-wrapper section.content {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+body[data-sidebar-position="left"] .content-wrapper section.content .container-fluid,
+body .content-wrapper section.content .container-fluid {
+    padding-left: 0 !important;
+    padding-right: 15px !important;
+}
+
+body[data-sidebar-position="right"] .content-wrapper section.content .container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+body[data-sidebar-position="right"] .content-wrapper section.content {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+body[data-sidebar-position="right"] .content-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+body[data-sidebar-position="right"] section.content .container-fluid > * {
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+@media (max-width: 992px) {
+    body[data-sidebar-position="left"] .content-wrapper section.content .container-fluid,
+    body .content-wrapper section.content .container-fluid {
+        padding-right: 10px !important;
+    }
+    
+    body[data-sidebar-position="right"] .content-wrapper section.content .container-fluid {
+        padding-right: 0 !important;
+    }
+}
+
+section.content > .container-fluid > * {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+section.content .container-fluid .card,
+section.content .container-fluid .alert,
+section.content .container-fluid h4,
+section.content .container-fluid .balance-summary,
+section.content .container-fluid .currency-note {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+}
+
+section.content .container-fluid .table-responsive,
+section.content .container-fluid table,
+section.content .container-fluid .table {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+}
+
+section.content .container-fluid .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+}
+
+section.content .container-fluid table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: auto;
+}
+
+@media (max-width: 992px) {
+    section.content .container-fluid .table-responsive {
+        margin-left: -10px;
+        margin-right: -10px;
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+}
+
+section.content .container-fluid .card-header {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+section.content .container-fluid {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 15px !important;
+    box-sizing: border-box !important;
+    transition: padding 0.3s ease;
+}
+
+body[data-sidebar-position="left"] section.content .container-fluid {
+    padding-left: 0 !important;
+    padding-right: 15px !important;
+}
+
+body[data-sidebar-position="right"] section.content .container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+@media (max-width: 992px) {
+    section.content .container-fluid {
+        padding-left: 0 !important;
+        padding-right: 10px !important;
+    }
+    
+    body[data-sidebar-position="left"] section.content .container-fluid,
+    body[data-sidebar-position="right"] section.content .container-fluid {
+        padding-left: 0 !important;
+        padding-right: 10px !important;
+    }
+}
+
 .settlement-detail-card {
     border-radius: 12px;
     box-shadow: 0 3px 15px rgba(0,0,0,0.1);
     margin-bottom: 20px;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
     overflow: hidden;
+    width: 100% !important;
+}
+
+.settlement-detail-card .card-body {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+}
+
+@media (max-width: 768px) {
+    .settlement-detail-card .card-body {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .settlement-detail-card .card-body {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+    
+    .settlement-detail-card .card-header {
+        padding: 12px 10px !important;
+    }
+    
+    .settlement-detail-card .card-header h5 {
+        font-size: 0.9rem !important;
+    }
+}
+
+.settlement-detail-card .table-responsive {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+}
+
+.settlement-detail-card table {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    min-width: 600px;
+    table-layout: auto;
+    box-sizing: border-box;
+}
+
+body[data-sidebar-position="right"] .settlement-detail-card {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+body[data-sidebar-position="right"] .settlement-detail-card .card-body {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+body[data-sidebar-position="right"] .settlement-detail-card .table-responsive {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box;
+}
+
+body[data-sidebar-position="right"] .settlement-detail-card table {
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+.settlement-detail-card table th,
+.settlement-detail-card table td {
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+}
+
+.settlement-detail-card table th {
+    font-weight: 600;
+    background-color: #f8f9fa;
+}
+
+@media (max-width: 1200px) {
+    .settlement-detail-card table {
+        min-width: 500px;
+    }
+    
+    .settlement-detail-card table th,
+    .settlement-detail-card table td {
+        padding: 6px 10px;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .settlement-detail-card .card-body {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+    }
+    
+    .settlement-detail-card table {
+        min-width: 400px;
+        font-size: 0.8rem;
+    }
+    
+    .settlement-detail-card table th,
+    .settlement-detail-card table td {
+        padding: 5px 8px;
+        font-size: 0.8rem;
+    }
+    
+    .settlement-detail-card table .text-end {
+        text-align: left !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .settlement-detail-card table {
+        min-width: 350px;
+    }
+    
+    .settlement-detail-card table th,
+    .settlement-detail-card table td {
+        padding: 4px 6px;
+        font-size: 0.75rem;
+    }
+}
+
+section.content .container-fluid .row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+section.content .container-fluid .col-md-6,
+section.content .container-fluid .col-md-3,
+section.content .container-fluid .col-md-4,
+section.content .container-fluid .col-md-12 {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
 }
 
 .settlement-header {
@@ -22,6 +333,7 @@
     border-radius: 10px;
     padding: 20px;
     margin-bottom: 20px;
+    margin-left: 0 !important;
 }
 
 .balance-box {
@@ -58,6 +370,64 @@
     margin-bottom: 5px;
 }
 
+@media (max-width: 992px) {
+    .balance-summary {
+        padding: 15px !important;
+    }
+    
+    .balance-box {
+        padding: 12px !important;
+    }
+    
+    .balance-amount {
+        font-size: 1.5rem;
+    }
+    
+    .balance-label {
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .balance-summary {
+        padding: 12px !important;
+    }
+    
+    .balance-box {
+        padding: 10px !important;
+        margin-bottom: 10px;
+    }
+    
+    .balance-amount {
+        font-size: 1.3rem;
+    }
+    
+    .balance-label {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .balance-summary .row {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    
+    .balance-summary .col-md-3 {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+        margin-bottom: 10px;
+    }
+    
+    .balance-amount {
+        font-size: 1.1rem;
+    }
+    
+    .balance-label {
+        font-size: 0.75rem;
+    }
+}
+
 .detail-section {
     background: white;
     border-radius: 8px;
@@ -72,6 +442,7 @@
     border-radius: 6px;
     font-size: 0.9rem;
     color: #0d47a1;
+    margin-left: 0 !important;
 }
 
 .summary-box {
@@ -155,7 +526,7 @@
             <div class="card mb-3">
                 <div class="card-body">
                     <form method="GET" action="{{ url_for('partner_settlements_bp.partner_settlement', partner_id=partner.id) }}" class="row g-3 align-items-end">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                         <div class="col-md-4">
                             <label for="date_from" class="form-label"><i class="fas fa-calendar-alt"></i> من تاريخ</label>
                             <input type="date" class="form-control" id="date_from" name="date_from" 
@@ -232,7 +603,7 @@
             {% if balance_data.opening_balance %}
             <div class="alert alert-secondary" style="border-left: 4px solid #6c757d;">
                 <h5><i class="fas fa-balance-scale"></i> الرصيد الافتتاحي (بداية الفترة)</h5>
-                <h3 class="{% if balance_data.opening_balance.amount > 0 %}text-success{% elif balance_data.opening_balance.amount < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                <h3 class="{% if balance_data.opening_balance.amount > 0 %}text-danger{% elif balance_data.opening_balance.amount < 0 %}text-success{% else %}text-secondary{% endif %}">
                     {{ "%.2f"|format(balance_data.opening_balance.amount|abs) }} ₪
                 </h3>
                 <small>{{ balance_data.opening_balance.direction }}</small>
@@ -241,7 +612,7 @@
 
             <!-- الملخص المالي -->
             <div class="balance-summary">
-            <div class="row">
+                <div class="row">
                     <div class="col-md-3 mb-3">
                         <div class="balance-box share">
                             <div class="balance-label">🟢 حقوق الشريك</div>
@@ -249,8 +620,8 @@
                                 {{ "%.2f"|format(balance_data.rights.total) }}
                             </div>
                             <small class="text-muted">₪ مخزون + مبيعات + حجوزات</small>
+                        </div>
                     </div>
-                </div>
                     <div class="col-md-3 mb-3">
                         <div class="balance-box paid">
                             <div class="balance-label">🔴 التزاماته</div>
@@ -258,8 +629,8 @@
                                 {{ "%.2f"|format(balance_data.obligations.total) }}
                             </div>
                             <small class="text-muted">₪ مشترياته + صيانته</small>
+                        </div>
                     </div>
-                </div>
                     <div class="col-md-3 mb-3">
                         <div class="balance-box" style="border-left: 4px solid #ffc107;">
                             <div class="balance-label">💰 الدفعات المسددة</div>
@@ -267,14 +638,14 @@
                                 {{ "%.2f"|format(balance_data.payments.total_settled) }}
                             </div>
                             <small class="text-muted">₪ دفعنا: {{ "%.0f"|format(balance_data.payments.total_paid) }} | دفع: {{ "%.0f"|format(balance_data.payments.total_received) }}</small>
+                        </div>
                     </div>
-                </div>
                     <div class="col-md-3 mb-3">
                         <div class="balance-box final">
                             <div class="balance-label">🎯 الرصيد النهائي</div>
-                            <div class="balance-amount {% if balance_data.balance.amount > 0 %}text-success{% elif balance_data.balance.amount < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                            <div class="balance-amount {% if balance_data.balance.amount > 0 %}text-danger{% elif balance_data.balance.amount < 0 %}text-success{% else %}text-secondary{% endif %}">
                                 {{ "%.2f"|format(balance_data.balance.amount|abs) }}
-                    </div>
+                            </div>
                             <small class="text-muted">₪ {{ balance_data.balance.action }}</small>
                         </div>
                     </div>
@@ -629,46 +1000,6 @@
                 </div>
             </div>
             {% endif %}
-            <!-- رسوم صيانة -->
-            {% if balance_data.obligations.service_fees.get('items', [])|length > 0 %}
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover">
-                            <thead>
-                                <tr>
-                                    <th>رقم الفاتورة</th>
-                                    <th>التاريخ</th>
-                                    <th>المنتجات</th>
-                                    <th class="text-end">المبلغ</th>
-                                    <th>العملة</th>
-                                    <th class="text-end">بالشيقل</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in balance_data.obligations.sales_to_partner.get('items', []) %}
-                                <tr>
-                                    <td><code>{{ item.sale_number }}</code></td>
-                                    <td><small>{{ item.date }}</small></td>
-                                    <td><small>{% for p in item.products %}{{ p.name }} ({{p.qty}}){% if not loop.last %}, {% endif %}{% endfor %}</small></td>
-                                    <td class="text-end">{{ "%.2f"|format(item.amount) }}</td>
-                                    <td>{{ item.currency }}</td>
-                                    <td class="text-end"><strong>{{ "%.2f"|format(item.amount_ils) }}</strong></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                            <tfoot>
-                                <tr class="table-light">
-                                    <td colspan="5" class="text-end"><strong>الإجمالي:</strong></td>
-                                    <td class="text-end"><strong class="text-danger">{{ "%.2f"|format(balance_data.obligations.sales_to_partner.total_ils) }}</strong></td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            {% endif %}
             
             <!-- رسوم صيانة -->
             {% if balance_data.obligations.service_fees.get('items', [])|length > 0 %}
@@ -872,8 +1203,8 @@
                         </table>
                     </div>
                 </div>
-                    </div>
-                    {% endif %}
+            </div>
+            {% endif %}
                     
             <!-- أزرار الإجراءات -->
             <div class="card settlement-detail-card no-print">
@@ -1004,8 +1335,156 @@
     printWindow.print();
   }
   
-  // DataTables لجداول طويلة (إن وجدت مستقبلاً)
-  // حالياً لا توجد جداول بحاجة لـ DataTables
+  function updateSettlementLayout() {
+    const body = document.body;
+    const containerFluid = document.querySelector('section.content .container-fluid');
+    const contentWrapper = document.querySelector('.content-wrapper');
+    const contentSection = document.querySelector('section.content');
+    
+    if (!containerFluid) return;
+    
+    const sidebarPosition = body.getAttribute('data-sidebar-position') || 'left';
+    const isMobile = window.innerWidth <= 992;
+    const paddingValue = isMobile ? '10px' : '15px';
+    
+    if (contentWrapper) {
+      contentWrapper.style.setProperty('margin-left', '0', 'important');
+      contentWrapper.style.setProperty('margin-right', '0', 'important');
+      if (sidebarPosition === 'right') {
+        contentWrapper.style.setProperty('width', '100%', 'important');
+        contentWrapper.style.setProperty('max-width', '100%', 'important');
+        contentWrapper.style.setProperty('box-sizing', 'border-box', 'important');
+        contentWrapper.style.setProperty('overflow-x', 'hidden', 'important');
+      }
+    }
+    
+    if (contentSection) {
+      contentSection.style.setProperty('margin-left', '0', 'important');
+      contentSection.style.setProperty('margin-right', '0', 'important');
+      contentSection.style.setProperty('padding-left', '0', 'important');
+      contentSection.style.setProperty('padding-right', '0', 'important');
+      if (sidebarPosition === 'right') {
+        contentSection.style.setProperty('width', '100%', 'important');
+        contentSection.style.setProperty('max-width', '100%', 'important');
+        contentSection.style.setProperty('box-sizing', 'border-box', 'important');
+        contentSection.style.setProperty('overflow-x', 'hidden', 'important');
+      }
+    }
+    
+    if (sidebarPosition === 'right') {
+      containerFluid.style.setProperty('width', '100%', 'important');
+      containerFluid.style.setProperty('max-width', '100%', 'important');
+      containerFluid.style.setProperty('box-sizing', 'border-box', 'important');
+      containerFluid.style.setProperty('overflow-x', 'hidden', 'important');
+    }
+    
+    containerFluid.style.setProperty('padding-left', '0', 'important');
+    
+    if (sidebarPosition === 'right') {
+      containerFluid.style.setProperty('padding-right', '0', 'important');
+    } else {
+      containerFluid.style.setProperty('padding-right', paddingValue, 'important');
+    }
+    
+    const cards = containerFluid.querySelectorAll('.settlement-detail-card, .card, .alert');
+    cards.forEach(card => {
+      card.style.setProperty('margin-left', '0', 'important');
+      card.style.setProperty('margin-right', '0', 'important');
+      card.style.setProperty('width', '100%', 'important');
+      if (sidebarPosition === 'right') {
+        card.style.setProperty('max-width', '100%', 'important');
+        card.style.setProperty('box-sizing', 'border-box', 'important');
+        card.style.setProperty('overflow', 'hidden', 'important');
+      }
+    });
+    
+    const tableResponsives = containerFluid.querySelectorAll('.table-responsive');
+    tableResponsives.forEach(tableResp => {
+      tableResp.style.setProperty('margin-left', '0', 'important');
+      tableResp.style.setProperty('margin-right', '0', 'important');
+      tableResp.style.setProperty('width', '100%', 'important');
+      if (sidebarPosition === 'right') {
+        tableResp.style.setProperty('max-width', '100%', 'important');
+        tableResp.style.setProperty('box-sizing', 'border-box', 'important');
+      }
+    });
+    
+    const tables = containerFluid.querySelectorAll('table, .table');
+    tables.forEach(table => {
+      table.style.setProperty('margin-left', '0', 'important');
+      table.style.setProperty('margin-right', '0', 'important');
+      if (table.tagName === 'TABLE' || table.classList.contains('table')) {
+        table.style.setProperty('width', '100%', 'important');
+        if (sidebarPosition === 'right') {
+          table.style.setProperty('max-width', '100%', 'important');
+          table.style.setProperty('box-sizing', 'border-box', 'important');
+        }
+      }
+    });
+    
+    const rows = containerFluid.querySelectorAll('.row');
+    rows.forEach(row => {
+      row.style.setProperty('margin-left', '0', 'important');
+      row.style.setProperty('margin-right', '0', 'important');
+    });
+  }
+  
+  updateSettlementLayout();
+  
+  setTimeout(updateSettlementLayout, 50);
+  setTimeout(updateSettlementLayout, 200);
+  setTimeout(updateSettlementLayout, 500);
+  
+  const observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(mutation) {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'data-sidebar-position') {
+        updateSettlementLayout();
+        setTimeout(updateSettlementLayout, 50);
+        setTimeout(updateSettlementLayout, 200);
+      }
+    });
+  });
+  
+  if (document.body) {
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-sidebar-position']
+    });
+  }
+  
+  const styleObserver = new MutationObserver(function() {
+    updateSettlementLayout();
+  });
+  
+  const contentWrapper = document.querySelector('.content-wrapper');
+  if (contentWrapper) {
+    styleObserver.observe(contentWrapper, {
+      attributes: true,
+      attributeFilter: ['style']
+    });
+  }
+  
+  window.addEventListener('resize', function() {
+    updateSettlementLayout();
+    setTimeout(updateSettlementLayout, 100);
+  });
+  
+  if (typeof applySidebarPosition === 'function') {
+    const originalApplySidebarPosition = applySidebarPosition;
+    window.applySidebarPosition = function(position) {
+      originalApplySidebarPosition(position);
+      setTimeout(updateSettlementLayout, 50);
+      setTimeout(updateSettlementLayout, 200);
+      setTimeout(updateSettlementLayout, 500);
+    };
+  }
+  
+  setInterval(function() {
+    const contentWrapper = document.querySelector('.content-wrapper');
+    if (contentWrapper && contentWrapper.style.marginLeft && contentWrapper.style.marginLeft !== '0px') {
+      updateSettlementLayout();
+    }
+  }, 300);
 })();
 </script>
 {% endblock %}

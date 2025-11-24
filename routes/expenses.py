@@ -552,10 +552,14 @@ class LegacyEntityResolver:
         return count
 
 def _base_query_with_filters(include_relations=True):
-    q = Expense.query.filter(Expense.is_archived == False)
+    show_archived = request.args.get("show_archived", "").strip().lower() in ("1", "true", "yes")
+    q = Expense.query
+    if not show_archived:
+        q = q.filter(Expense.is_archived == False)
     if include_relations:
         q = q.options(
             selectinload(Expense.type),
+            selectinload(Expense.branch),
             selectinload(Expense.employee),
             selectinload(Expense.customer),
             selectinload(Expense.partner),
@@ -564,8 +568,11 @@ def _base_query_with_filters(include_relations=True):
             selectinload(Expense.shipment),
             selectinload(Expense.payments),
         )
+    from models import Branch, ExpenseType
     q = (
-        q.outerjoin(Employee, Expense.employee_id == Employee.id)
+        q.outerjoin(ExpenseType, Expense.type_id == ExpenseType.id)
+        .outerjoin(Branch, Expense.branch_id == Branch.id)
+        .outerjoin(Employee, Expense.employee_id == Employee.id)
         .outerjoin(Shipment, Expense.shipment_id == Shipment.id)
         .outerjoin(UtilityAccount, Expense.utility_account_id == UtilityAccount.id)
     )
@@ -631,6 +638,7 @@ def _base_query_with_filters(include_relations=True):
         "utility_account_id": utility_id,
         "stock_adjustment_id": stock_adj_id,
         "payee_type": payee_type or None,
+        "show_archived": show_archived,
     }
 
 def _csv_safe(v):
@@ -1607,6 +1615,7 @@ def index():
         utility_account_id=filt["utility_account_id"],
         stock_adjustment_id=filt["stock_adjustment_id"],
         payee_type=filt["payee_type"],
+        show_archived=filt["show_archived"],
         summary=summary,
         pagination=pagination,
         pagination_data=pagination_data,
@@ -1659,28 +1668,78 @@ def detail(exp_id):
     method_labels = []
     for p in exp.payments or []:
         payment_method = _method_label(p.method)
+        # ✅ إذا كانت الدفعة لديها splits، نعرض كل split كدفعة منفصلة
         if p.splits:
-            for split in p.splits:
+            for split in sorted(p.splits, key=lambda s: getattr(s, "id", 0)):
                 details = split.details or {}
+                if isinstance(details, str):
+                    try:
+                        import json
+                        details = json.loads(details)
+                    except:
+                        details = {}
                 check_number = details.get("check_number") or p.check_number
                 check_bank = details.get("check_bank") or p.check_bank
                 check_due = details.get("check_due_date") or p.check_due_date
                 method_label = _method_label(split.method)
                 method_labels.append(method_label)
+                
+                # ✅ جلب معلومات الشيك المرتبط بـ split (إن وجد)
+                split_check = None
+                split_check_status = None
+                if 'check' in (str(split.method) or '').lower() or 'cheque' in (str(split.method) or '').lower():
+                    from models import Check
+                    from sqlalchemy import or_
+                    split_checks = Check.query.filter(
+                        or_(
+                            Check.reference_number == f"PMT-SPLIT-{split.id}",
+                            Check.reference_number.like(f"PMT-SPLIT-{split.id}-%")
+                        )
+                    ).all()
+                    if split_checks:
+                        split_check = split_checks[0]
+                        split_check_status = str(getattr(split_check, 'status', 'PENDING') or 'PENDING')
+                        # استخدام معلومات الشيك من Check record إذا كانت متوفرة
+                        if not check_number:
+                            check_number = split_check.check_number
+                        if not check_bank:
+                            check_bank = split_check.check_bank
+                        if not check_due:
+                            check_due = split_check.check_due_date
+                
+                # ✅ حساب المبلغ المحول للـ ILS
+                split_amount = split.amount or 0
+                split_converted_amount = split.converted_amount or 0
+                split_currency = split.currency or p.currency or "ILS"
+                converted_currency = split.converted_currency or p.currency or "ILS"
+                
+                # استخدام المبلغ المحول إذا كان موجوداً
+                if split_converted_amount > 0 and converted_currency == "ILS":
+                    amount_to_display = split_converted_amount
+                else:
+                    amount_to_display = split_amount
+                
                 payment_rows.append(
                     {
                         "date": p.payment_date,
-                        "amount": split.amount,
-                        "currency": split.currency or p.currency,
-                        "status": p.status,
-                        "number": p.payment_number or p.id,
+                        "amount": amount_to_display,
+                        "currency": split_currency,
+                        "converted_amount": split_converted_amount if converted_currency == "ILS" else None,
+                        "converted_currency": converted_currency,
+                        "status": split_check_status if split_check_status else p.status,
+                        "number": f"SPLIT-{split.id}-PMT-{p.payment_number or p.id}",  # ✅ رقم يميز كل split
+                        "payment_id": p.id,
+                        "split_id": split.id,  # ✅ إضافة split_id لتمييز كل split
                         "method": method_label,
                         "check_number": check_number,
                         "check_bank": check_bank,
                         "check_due_date": _coerce_datetime(check_due),
+                        "is_split": True,  # ✅ علامة أن هذا split
+                        "check_status": split_check_status,  # ✅ حالة الشيك المرتبط
                     }
                 )
         else:
+            # ✅ الدفعة بدون splits - نعرضها كالمعتاد
             method_labels.append(payment_method)
             payment_rows.append(
                 {
@@ -1689,10 +1748,13 @@ def detail(exp_id):
                     "currency": p.currency,
                     "status": p.status,
                     "number": p.payment_number or p.id,
+                    "payment_id": p.id,
+                    "split_id": None,  # ✅ بدون split
                     "method": payment_method,
                     "check_number": p.check_number,
                     "check_bank": p.check_bank,
                     "check_due_date": _coerce_datetime(p.check_due_date),
+                    "is_split": False,  # ✅ علامة أن هذا ليس split
                 }
             )
 
@@ -1940,12 +2002,14 @@ def add():
                             check_due_date=check_due,
                             currency=exp.currency or 'ILS',
                             direction='OUT',
+                            customer_id=getattr(exp, 'customer_id', None),
                             supplier_id=getattr(exp, 'supplier_id', None),
                             partner_id=getattr(exp, 'partner_id', None),
                             reference_number=f"EXP-{exp.id}",
                             notes=f"شيك من مصروف رقم {exp.id} - {exp.description[:50] if exp.description else 'مصروف'}",
                             payee_name=exp.payee_name or exp.paid_to or exp.beneficiary_name,
-                            created_by_id=current_user.id if current_user.is_authenticated else None
+                            created_by_id=current_user.id if current_user.is_authenticated else None,
+                            status='PENDING'
                         )
                         if created:
                             db.session.commit()

@@ -49,11 +49,14 @@
             <i class="fas fa-arrow-right"></i> العودة للقائمة
           </a>
           
-          {% if sale_return.status == 'DRAFT' %}
+          {% if sale_return.status != 'CANCELLED' %}
           <a href="{{ url_for('returns.edit_return', return_id=sale_return.id) }}" 
              class="btn btn-warning">
             <i class="fas fa-edit"></i> تعديل
           </a>
+          {% endif %}
+          
+          {% if sale_return.status == 'DRAFT' %}
           
           <form method="POST" action="{{ url_for('returns.confirm_return', return_id=sale_return.id) }}" 
                 style="display: inline;">

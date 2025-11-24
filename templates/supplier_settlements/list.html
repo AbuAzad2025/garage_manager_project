@@ -114,7 +114,7 @@
                                                 </td>
                                                 <td class="text-end">
                                                     {% set balance = settlement.closing_balance or settlement.total_due or 0 %}
-                                                    <strong class="{% if balance > 0 %}text-success{% elif balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
+                                                    <strong class="{% if balance > 0 %}text-danger{% elif balance < 0 %}text-success{% else %}text-secondary{% endif %}">
                                                         {{ "%.2f"|format(balance) }}
                                                     </strong>
                                                 </td>

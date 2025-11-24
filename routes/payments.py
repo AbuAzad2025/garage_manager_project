@@ -35,7 +35,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import joinedload, load_only
-from weasyprint import HTML, CSS
 
 from extensions import db
 from forms import PaymentForm
@@ -376,6 +375,7 @@ def ensure_currency(cur):
     return (cur or "ILS").strip().upper()
 
 def _render_payment_receipt_pdf(payment: Payment) -> bytes:
+    from weasyprint import HTML, CSS
     html = render_template("payments/receipt.html", payment=payment, now=datetime.utcnow())
     css_inline = "@page { size: A4; margin: 14mm; } html, body { direction: rtl; font-family: 'Cairo','Noto Naskh Arabic',Arial,sans-serif; font-size: 12px; } h1,h2,h3 { margin: 0 0 8px 0; } table { width: 100%; border-collapse: collapse; } th, td { padding: 6px 8px; border-bottom: 1px solid #ddd; } .muted { color: #666; }"
     try:
@@ -548,6 +548,7 @@ def index():
         .options(
             joinedload(Payment.service).joinedload(ServiceRequest.customer),
             joinedload(Payment.service).joinedload(ServiceRequest.vehicle_type),
+            joinedload(Payment.splits),
         )
     )
     
@@ -702,7 +703,74 @@ def index():
         mock_payment = MockPayment(check)
         manual_checks_for_display.append(mock_payment)
     
-    payments_render = list(payments_list) + manual_checks_for_display
+    # ✅ إذا كانت الدفعة لديها splits، نستبدل الدفعة الرئيسية بكل splits كدفعات منفصلة
+    expanded_payments = []
+    for payment in payments_list:
+        splits = list(getattr(payment, 'splits', []) or [])
+        if splits and len(splits) > 0:
+            for split in sorted(splits, key=lambda s: getattr(s, "id", 0)):
+                class SplitPaymentWrapper:
+                    def __init__(self, parent_payment, split_obj):
+                        self.parent_payment = parent_payment
+                        self.split_obj = split_obj
+                        self.id = f"{parent_payment.id}_split_{split_obj.id}"
+                        self.payment_id = parent_payment.id
+                        self.split_id = split_obj.id
+                        self.payment_date = parent_payment.payment_date
+                        self.total_amount = split_obj.amount or split_obj.converted_amount or Decimal(0)
+                        self.currency = split_obj.currency or parent_payment.currency or "ILS"
+                        self.fx_rate_used = split_obj.fx_rate_used or parent_payment.fx_rate_used
+                        self.fx_rate_source = split_obj.fx_rate_source or parent_payment.fx_rate_source
+                        self.method = getattr(getattr(split_obj, "method", None), "value", getattr(split_obj, "method", "")) or ""
+                        self.direction = getattr(getattr(parent_payment, "direction", None), "value", getattr(parent_payment, "direction", "")) or ""
+                        self.status = getattr(getattr(parent_payment, "status", None), "value", getattr(parent_payment, "status", "")) or ""
+                        self.entity_type = parent_payment.entity_type
+                        self.deliverer_name = parent_payment.deliverer_name
+                        self.receiver_name = parent_payment.receiver_name
+                        self.payment_number = parent_payment.payment_number
+                        self.receipt_number = parent_payment.receipt_number
+                        self.reference = parent_payment.reference
+                        self.notes = parent_payment.notes
+                        self.customer_id = parent_payment.customer_id
+                        self.supplier_id = parent_payment.supplier_id
+                        self.partner_id = parent_payment.partner_id
+                        self.sale_id = parent_payment.sale_id
+                        self.invoice_id = parent_payment.invoice_id
+                        self.service_id = parent_payment.service_id
+                        self.expense_id = parent_payment.expense_id
+                        self.preorder_id = parent_payment.preorder_id
+                        self.shipment_id = parent_payment.shipment_id
+                        self.loan_settlement_id = parent_payment.loan_settlement_id
+                        self.splits = []
+                        self.is_manual_check = False
+                        self.check_id = None
+                        self.check_number = None
+                        
+                        if self.method in ['cheque', 'check']:
+                            check_obj = db.session.query(Check).filter(Check.payment_id == parent_payment.id).filter(
+                                or_(
+                                    Check.check_number == getattr(split_obj, 'check_number', None),
+                                    Check.id == getattr(split_obj, 'check_id', None)
+                                )
+                            ).first()
+                            if check_obj:
+                                self.check_id = check_obj.id
+                                self.check_number = check_obj.check_number
+                                self.status = getattr(getattr(check_obj, "status", None), "value", getattr(check_obj, "status", "")) or self.status
+                    
+                    def entity_label(self):
+                        return self.parent_payment.entity_label() if hasattr(self.parent_payment, 'entity_label') else (self.entity_type or "")
+                    
+                    @property
+                    def service(self):
+                        return getattr(self.parent_payment, 'service', None)
+                
+                split_wrapper = SplitPaymentWrapper(payment, split)
+                expanded_payments.append(split_wrapper)
+        else:
+            expanded_payments.append(payment)
+    
+    payments_render = expanded_payments + manual_checks_for_display
     
     def sort_key(x):
         payment_date = datetime.min
@@ -724,6 +792,16 @@ def index():
                     item_id = int(item_id.replace('check_', ''))
                 except:
                     item_id = 0
+            elif '_split_' in item_id:
+                try:
+                    parent_id = int(item_id.split('_split_')[0])
+                    split_id = int(item_id.split('_split_')[1])
+                    item_id = parent_id * 1000000 + split_id
+                except:
+                    try:
+                        item_id = int(item_id.replace('_split_', ''))
+                    except:
+                        item_id = 0
             else:
                 try:
                     item_id = int(item_id)
@@ -819,9 +897,57 @@ def index():
         }
     page_payments = payments_list if not print_mode else payments_for_summary
     if _wants_json():
+        expanded_page_payments = []
+        for payment in page_payments:
+            splits = list(getattr(payment, 'splits', []) or [])
+            if splits and len(splits) > 0:
+                for split in sorted(splits, key=lambda s: getattr(s, "id", 0)):
+                    class SplitPaymentWrapper:
+                        def __init__(self, parent_payment, split_obj):
+                            self.parent_payment = parent_payment
+                            self.split_obj = split_obj
+                            self.id = f"{parent_payment.id}_split_{split_obj.id}"
+                            self.payment_id = parent_payment.id
+                            self.split_id = split_obj.id
+                            self.payment_date = parent_payment.payment_date
+                            self.total_amount = split_obj.amount or split_obj.converted_amount or Decimal(0)
+                            self.currency = split_obj.currency or parent_payment.currency or "ILS"
+                            self.fx_rate_used = split_obj.fx_rate_used or parent_payment.fx_rate_used
+                            self.fx_rate_source = split_obj.fx_rate_source or parent_payment.fx_rate_source
+                            self.method = getattr(getattr(split_obj, "method", None), "value", getattr(split_obj, "method", "")) or ""
+                            self.direction = getattr(getattr(parent_payment, "direction", None), "value", getattr(parent_payment, "direction", "")) or ""
+                            self.status = getattr(getattr(parent_payment, "status", None), "value", getattr(parent_payment, "status", "")) or ""
+                            self.entity_type = parent_payment.entity_type
+                            self.deliverer_name = parent_payment.deliverer_name
+                            self.receiver_name = parent_payment.receiver_name
+                            self.payment_number = parent_payment.payment_number
+                            self.receipt_number = parent_payment.receipt_number
+                            self.reference = parent_payment.reference
+                            self.notes = parent_payment.notes
+                            self.customer_id = parent_payment.customer_id
+                            self.supplier_id = parent_payment.supplier_id
+                            self.partner_id = parent_payment.partner_id
+                            self.sale_id = parent_payment.sale_id
+                            self.invoice_id = parent_payment.invoice_id
+                            self.service_id = parent_payment.service_id
+                            self.expense_id = parent_payment.expense_id
+                            self.preorder_id = parent_payment.preorder_id
+                            self.shipment_id = parent_payment.shipment_id
+                            self.loan_settlement_id = parent_payment.loan_settlement_id
+                            self.splits = []
+                            self.is_manual_check = False
+                            
+                        def entity_label(self):
+                            return self.parent_payment.entity_label() if hasattr(self.parent_payment, 'entity_label') else (self.entity_type or "")
+                    
+                    split_wrapper = SplitPaymentWrapper(payment, split)
+                    expanded_page_payments.append(split_wrapper)
+            else:
+                expanded_page_payments.append(payment)
+        
         page_sum = 0.0
         page_sum_ils = 0.0
-        for p in page_payments:
+        for p in expanded_page_payments:
             page_sum += float(p.total_amount or 0)
             if p.currency == 'ILS':
                 page_sum_ils += float(p.total_amount or 0)
@@ -834,7 +960,7 @@ def index():
                     pass
         
         return jsonify({
-            "payments": [_serialize_payment(p, full=False) for p in page_payments],
+            "payments": [_serialize_payment(p, full=False) for p in expanded_page_payments],
             "total_pages": total_pages if total_pages else 1,
             "current_page": page,
             "total_items": total_filtered,
@@ -1399,7 +1525,8 @@ def create_payment():
                         db.session.add(inv)
                 if payment.status == PaymentStatus.COMPLETED.value:
                     if related_customer_id:
-                        utils.update_entity_balance("customer", related_customer_id)
+                        from utils.customer_balance_updater import update_customer_balance_components
+                        update_customer_balance_components(related_customer_id, db.session)
                     if related_supplier_id:
                         utils.update_entity_balance("supplier", related_supplier_id)
                     if payment.partner_id:
@@ -1519,9 +1646,8 @@ def create_payment():
 def create_expense_payment(exp_id):
     exp = utils._get_or_404(Expense, exp_id)
     form = PaymentForm()
-    # السماح بجميع الاتجاهات لجميع الجهات عدا المصاريف
     form._incoming_entities = set()
-    form._outgoing_entities = {"EXPENSE"}  # المصاريف فقط صادرة
+    form._outgoing_entities = {"EXPENSE"}
     form.entity_type.data = "EXPENSE"
     if hasattr(form, "_entity_field_map") and "EXPENSE" in form._entity_field_map:
         getattr(form, form._entity_field_map["EXPENSE"]).data = exp.id
@@ -1927,30 +2053,14 @@ def _parse_split_forms(split_entries, target_currency: str):
 
 
 def _get_partner_balance_details(partner: Partner | None) -> dict | None:
-    """احسب رصيد الشريك الحالي (ذكي إن أمكن) لتوحيد العرض في الواجهات."""
+    """احسب رصيد الشريك الحالي من current_balance"""
     if not partner:
         return None
-    smart_balance = None
-    try:
-        from utils import get_partner_balance_unified
-        from extensions import cache
-        cache_key = f'partner_balance_unified_{partner.id}'
-        try:
-            cache.delete(cache_key)
-        except:
-            pass
-        smart_balance = float(get_partner_balance_unified(partner.id))
-        current_app.logger.debug(f"✅ رصيد الشريك #{partner.id}: {smart_balance}")
-    except Exception as e:
-        current_app.logger.warning(f"⚠️ خطأ في حساب رصيد الشريك #{partner.id}: {e}")
-        smart_balance = None
-    stored_balance = float(partner.balance_in_ils or 0)
-    balance = smart_balance if smart_balance is not None else stored_balance
+    balance = float(partner.balance or 0)
     return {
         "id": partner.id,
         "name": partner.name,
         "balance": balance,
-        "balance_source": "smart" if smart_balance is not None else "stored",
         "currency": partner.currency or "ILS",
     }
 
@@ -2578,8 +2688,8 @@ def shop_process_payment():
         # تحديث رصيد العميل إذا كان موجود
         if payment.customer_id:
             try:
-                from utils import update_entity_balance
-                utils.update_entity_balance("customer", payment.customer_id)
+                from utils.customer_balance_updater import update_customer_balance_components
+                update_customer_balance_components(payment.customer_id, db.session)
             except ImportError:
                 pass
         
@@ -2657,8 +2767,8 @@ def shop_refund():
         # تحديث رصيد العميل
         if original_payment.customer_id:
             try:
-                from utils import update_entity_balance
-                utils.update_entity_balance("customer", original_payment.customer_id)
+                from utils.customer_balance_updater import update_customer_balance_components
+                update_customer_balance_components(original_payment.customer_id, db.session)
             except ImportError:
                 pass
         
@@ -2883,6 +2993,45 @@ def _collect_partner_rights(partner: Partner, date_from: datetime, date_to: date
             )
         )
 
+    from models import Expense, ExpenseType
+    from sqlalchemy import or_, and_, func
+    service_expenses = db.session.query(Expense).join(ExpenseType).filter(
+        or_(
+            Expense.partner_id == partner.id,
+            and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id),
+        ),
+        Expense.date >= date_from,
+        Expense.date <= date_to,
+        func.upper(ExpenseType.code) == "PARTNER_EXPENSE"
+    ).all()
+    for expense in service_expenses:
+        amount = float(expense.amount or 0)
+        if not amount:
+            continue
+        amount_ils = amount
+        currency = expense.currency or "ILS"
+        try:
+            amount_ils = float(_convert_to_ils(Decimal(str(amount)), currency, expense.date or datetime.utcnow()))
+        except Exception:
+            amount_ils = amount
+        exp_type_name = getattr(getattr(expense, 'type', None), 'name', 'توريد خدمة')
+        entries.append(
+            LedgerEntry.create(
+                date=expense.date or datetime.utcnow(),
+                label=f"توريد خدمة: {exp_type_name}" + (f" - {expense.description}" if expense.description else ""),
+                amount=amount_ils,
+                direction="credit",
+                category="rights_service_supply",
+                reference=f"EXP-{expense.id}",
+                details={
+                    "expense_id": expense.id,
+                    "description": expense.description,
+                    "currency": currency,
+                    "original_amount": amount,
+                },
+            )
+        )
+
     return entries
 
 
@@ -2918,17 +3067,22 @@ def _collect_partner_obligations(partner: Partner, date_from: datetime, date_to:
 
     service_fees = _get_partner_service_fees(partner.id, partner, date_from, date_to)
     for item in service_fees.get("items", []):
-        amount = float(item.get("amount_ils") or item.get("amount") or 0)
-        if not amount:
+        amount_ils = float(item.get("amount_ils") or item.get("amount") or 0)
+        if not amount_ils:
             continue
+        
+        service_number = item.get("service_number") or f"SRV-{item.get('service_id', '')}"
+        
+        label = f"صيانة #{service_number} - الإجمالي: {amount_ils:.2f} ₪"
+        
         entries.append(
             LedgerEntry.create(
                 date=datetime.strptime(item.get("date") or date_from.strftime("%Y-%m-%d"), "%Y-%m-%d"),
-                label="رسوم صيانة على الشريك",
-                amount=amount,
+                label=label,
+                amount=amount_ils,
                 direction="debit",
                 category="obligations_service",
-                reference=item.get("reference"),
+                reference=item.get("service_number") or item.get("reference"),
                 details=item,
             )
         )
@@ -2950,13 +3104,16 @@ def _collect_partner_obligations(partner: Partner, date_from: datetime, date_to:
             )
         )
 
-    expenses_q = db.session.query(Expense).filter(
+    from models import ExpenseType
+    from sqlalchemy import func
+    expenses_q = db.session.query(Expense).join(ExpenseType).filter(
         or_(
             Expense.partner_id == partner.id,
             and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id),
         ),
         Expense.date >= date_from,
         Expense.date <= date_to,
+        func.upper(ExpenseType.code) != "PARTNER_EXPENSE"
     ).all()
     for expense in expenses_q:
         amount = float(expense.amount or 0)
@@ -3065,9 +3222,30 @@ def _build_partner_ledger(
         entry["running_balance"] = running
         entry["balance_after"] = running
 
+    total_rights = sum(e.get("credit", 0.0) for e in entries)
+    total_obligations = sum(e.get("debit", 0.0) for e in entries)
+    net_flow = total_rights - total_obligations
+
+    def _direction_meta(amount: float):
+        if amount > 0:
+            return "له رصيد عندنا", "text-success"
+        if amount < 0:
+            return "عليه يدفع لنا", "text-danger"
+        return "متوازن", "text-secondary"
+
+    closing_direction_text, closing_direction_class = _direction_meta(running)
+
     return {
         "entries": entries,
         "closing_balance": running,
         "date_from": df,
         "date_to": dt,
+        "totals": {
+            "rights": total_rights,
+            "obligations": total_obligations,
+            "net": net_flow,
+            "opening": opening_amount,
+        },
+        "closing_direction_text": closing_direction_text,
+        "closing_direction_class": closing_direction_class,
     }

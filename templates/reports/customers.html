@@ -76,10 +76,10 @@
       </div>
     </div>
     <div class="col-md-3">
-      <div class="card shadow-sm border-{{ 'danger' if sum_balance > 0 else 'success' }}">
+      <div class="card shadow-sm border-{{ 'success' if sum_balance > 0 else 'danger' if sum_balance < 0 else 'secondary' }}">
         <div class="card-body text-center">
-          <div class="text-{{ 'danger' if sum_balance > 0 else 'success' }} mb-2"><i class="fas fa-balance-scale fa-2x"></i></div>
-          <h5 class="text-{{ 'danger' if sum_balance > 0 else 'success' }} mb-0">{{ "{:,.2f}".format(sum_balance or 0) }}</h5>
+          <div class="text-{{ 'success' if sum_balance > 0 else 'danger' if sum_balance < 0 else 'secondary' }} mb-2"><i class="fas fa-balance-scale fa-2x"></i></div>
+          <h5 class="text-{{ 'success' if sum_balance > 0 else 'danger' if sum_balance < 0 else 'secondary' }} mb-0">{{ "{:,.2f}".format(sum_balance or 0) }}</h5>
           <small class="text-muted">{{ FIELD_LABELS.get("balance", "إجمالي الرصيد") }}</small>
         </div>
       </div>
@@ -137,7 +137,7 @@
               </td>
               <td class="text-end fw-semibold">{{ "{:,.2f}".format(invoiced) }}</td>
               <td class="text-end">{{ "{:,.2f}".format(paid) }}</td>
-              <td class="text-end {{ 'positive' if bal < 0 else 'negative' if bal > 0 else 'zero' }}">
+              <td class="text-end fw-bold {% if bal > 0 %}text-success{% elif bal < 0 %}text-danger{% else %}text-secondary{% endif %}">
                 {{ "{:,.2f}".format(bal) }}
               </td>
               <td class="text-center">
@@ -165,7 +165,7 @@
             <td class="text-end">الإجمالي:</td>
             <td class="text-end">{{ "{:,.2f}".format(sum_invoiced or 0) }}</td>
             <td class="text-end">{{ "{:,.2f}".format(sum_paid or 0) }}</td>
-            <td class="text-end {{ 'positive' if sum_balance < 0 else 'negative' if sum_balance > 0 else 'zero' }}">
+            <td class="text-end fw-bold {% if sum_balance > 0 %}text-success{% elif sum_balance < 0 %}text-danger{% else %}text-secondary{% endif %}">
               {{ "{:,.2f}".format(sum_balance or 0) }}
             </td>
             <td colspan="3"></td>

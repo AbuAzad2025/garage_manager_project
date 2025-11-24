@@ -469,7 +469,13 @@
               </div>
             </div>
             <div class="col-lg-6 col-md-5 text-md-left text-sm-right mt-3 mt-md-0">
-              <span class="text-muted d-inline-block" id="expenses-search-summary">إجمالي النتائج: {{ pagination.total if pagination else (summary.expenses_count if summary else expenses|length) }}</span>
+              <div class="d-flex align-items-center justify-content-end gap-2">
+                <label class="form-check-label d-flex align-items-center" for="show-archived-expenses">
+                  <input type="checkbox" class="form-check-input me-2" id="show-archived-expenses" {% if show_archived %}checked{% endif %} onchange="toggleArchivedExpenses()">
+                  <span>عرض المصروفات المؤرشفة</span>
+                </label>
+                <span class="text-muted d-inline-block" id="expenses-search-summary">إجمالي النتائج: {{ pagination.total if pagination else (summary.expenses_count if summary else expenses|length) }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -499,7 +505,7 @@
         </thead>
         <tbody>
           {% for e in expenses %}
-          <tr>
+          <tr {% if e.is_archived %}class="table-warning opacity-75" title="مصروف مؤرشف{% if e.archive_reason %}: {{ e.archive_reason }}{% endif %}"{% endif %}>
             {% set payee = namespace(label='الجهة', name='', chip='other', guessed=False) %}
             {% set pt = (e.payee_type or '')|upper %}
             {% if e.supplier %}
@@ -543,9 +549,17 @@
               {% set payee.chip = guess.chip %}
               {% set payee.guessed = True %}
             {% endif %}
-            <td class="text-nowrap" data-sort-value="{{ e.date.isoformat() if e.date else '' }}">{{ e.date|format_date }}</td>
+            <td class="text-nowrap" data-sort-value="{{ e.date.isoformat() if e.date else '' }}">{{ e.date|format_date if e.date else '—' }}</td>
             <td>
-              <div class="fw-semibold">{{ e.type.name if e.type else '—' }}</div>
+              <div class="fw-semibold">{{ e.type.name if e.type else 'نوع غير محدد' }}</div>
+              {% if e.type and not e.type.is_active %}
+              <span class="badge bg-warning text-dark small">نوع غير نشط</span>
+              {% endif %}
+              {% if e.branch %}
+              <div class="text-muted small"><i class="fas fa-building ml-1"></i>{{ e.branch.name or e.branch.code or 'فرع #' ~ e.branch.id }}</div>
+              {% elif e.branch_id %}
+              <div class="text-muted small text-danger"><i class="fas fa-exclamation-triangle ml-1"></i>الفرع غير موجود</div>
+              {% endif %}
               {% if e.disbursed_by %}
               <div class="text-muted small"><i class="fas fa-user ml-1"></i>سلم المال: {{ e.disbursed_by }}</div>
               {% endif %}
@@ -647,7 +661,18 @@
 {{ super() }}
 <script src="{{ url_for('static', filename='js/expenses.js') }}"></script>
 <script>
-  // وظائف الأرشفة متوفرة الآن في archive.js
+  function toggleArchivedExpenses() {
+    const checkbox = document.getElementById('show-archived-expenses');
+    const url = new URL(window.location.href);
+    
+    if (checkbox.checked) {
+      url.searchParams.set('show_archived', '1');
+    } else {
+      url.searchParams.delete('show_archived');
+    }
+    
+    window.location.href = url.toString();
+  }
 
 </script>
 {% endblock %}

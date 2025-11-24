@@ -20,6 +20,9 @@ from models import (
     OnlinePreOrder, OnlinePayment, OnlineCart, Sale, SaleStatus, ServiceRequest, ServiceStatus, InvoiceStatus, Invoice, Payment,
     Shipment, PaymentDirection, PaymentStatus, PaymentSplit, PreOrder, ServicePart, ServiceTask, Employee, User, convert_amount
 )
+from utils.supplier_balance_updater import build_supplier_balance_view
+from utils.partner_balance_updater import build_partner_balance_view
+from utils.balance_calculator import build_customer_balance_view
 reports_bp = Blueprint('reports_bp', __name__, url_prefix='/reports')
 
 from reports import (
@@ -483,26 +486,43 @@ def dynamic_report():
 @login_required
 def below_min_stock_report():
     try:
+        from models import Warehouse
+        
         q = (
-            db.session.query(
-                Product,
-                func.coalesce(func.sum(StockLevel.quantity), 0).label("on_hand")
-            )
-            .join(StockLevel, StockLevel.product_id == Product.id)
+            db.session.query(StockLevel)
+            .join(Product, StockLevel.product_id == Product.id)
+            .join(Warehouse, StockLevel.warehouse_id == Warehouse.id)
             .filter(Product.is_active.is_(True))
-            .filter(Product.min_qty.isnot(None))
-            .group_by(Product.id)
+            .filter(StockLevel.min_stock.isnot(None))
+            .filter(StockLevel.quantity < StockLevel.min_stock)
+            .order_by(Product.name.asc(), Warehouse.name.asc())
         )
         rows = q.all()
+        
         data = []
-        for p, on_hand in rows:
-            if p.min_qty and on_hand < p.min_qty:
+        seen_products = set()
+        for sl in rows:
+            pid = sl.product_id
+            if pid not in seen_products:
+                seen_products.add(pid)
+                product_stocks = [
+                    {
+                        "warehouse_id": s.warehouse_id,
+                        "warehouse_name": s.warehouse.name if s.warehouse else "غير محدد",
+                        "quantity": int(s.quantity or 0),
+                        "min_stock": int(s.min_stock or 0),
+                        "available": int(s.quantity or 0) - int(s.reserved_quantity or 0),
+                    }
+                    for s in rows if s.product_id == pid
+                ]
                 data.append({
-                    "id": p.id,
-                    "name": p.name,
-                    "on_hand": int(on_hand),
-                    "min_qty": p.min_qty,
+                    "id": sl.product.id,
+                    "name": sl.product.name,
+                    "sku": sl.product.sku or "",
+                    "total_on_hand": sum(s["quantity"] for s in product_stocks),
+                    "stocks": product_stocks,
                 })
+        
         return render_template(
             "reports/below_min_stock.html",
             data=data,
@@ -516,7 +536,6 @@ def below_min_stock_report():
 
 @reports_bp.route("/shipments", methods=["GET"], endpoint="shipments")
 @login_required
-# @permission_required("view_inventory")  # Commented out - function not available
 def shipments_report():
     start_str = request.args.get("start")
     end_str = request.args.get("end")
@@ -983,7 +1002,6 @@ def payments_summary_old():
     end = _parse_date(request.args.get("end"))
     rpt = payment_summary_report_ils(start, end)
     
-    # استخراج البيانات من التقرير
     methods = rpt.get("methods", [])
     totals = [float(t) for t in rpt.get("totals_by_method", [])]
     grand_total = sum(totals)
@@ -1010,7 +1028,6 @@ def ar_aging():
 
 @reports_bp.route("/inventory", methods=["GET"], endpoint="inventory")
 @login_required
-# @permission_required("view_inventory")  # Commented out - function not available
 def inventory_report():
     from models import Warehouse, StockLevel, Product
     from sqlalchemy.orm import joinedload
@@ -1067,6 +1084,7 @@ def inventory_report():
 
     rows = q.all()
     pivot = {}
+    stock_levels_by_product = {}
     for sl in rows:
         pid = sl.product_id
         p = sl.product
@@ -1077,18 +1095,23 @@ def inventory_report():
                 "total": 0,
                 "reserved_total": 0,
             }
+            stock_levels_by_product[pid] = []
         on = int(sl.quantity or 0)
         res = int(getattr(sl, "reserved_quantity", 0) or 0)
         pivot[pid]["by"][sl.warehouse_id] = {"on": on, "res": res}
         pivot[pid]["total"] += on
         pivot[pid]["reserved_total"] += res
+        stock_levels_by_product[pid].append(sl)
 
     rows_data = sorted(pivot.values(), key=lambda d: (d["product"].name or "").lower())
     if low_only:
         rows_data = [
             row
             for row in rows_data
-            if row["product"].min_qty and row["total"] < row["product"].min_qty
+            if any(
+                sl.min_stock is not None and sl.quantity < sl.min_stock
+                for sl in stock_levels_by_product.get(row["product"].id, [])
+            )
         ]
 
     stats = {
@@ -1097,7 +1120,11 @@ def inventory_report():
         "reserved": sum(row["reserved_total"] for row in rows_data),
         "available": sum((row["total"] - row["reserved_total"]) for row in rows_data),
         "low_count": sum(
-            1 for row in rows_data if row["product"].min_qty and row["total"] < row["product"].min_qty
+            1 for row in rows_data
+            if any(
+                sl.min_stock is not None and sl.quantity < sl.min_stock
+                for sl in stock_levels_by_product.get(row["product"].id, [])
+            )
         ),
     }
 
@@ -1208,7 +1235,8 @@ def suppliers_report():
     data = []
     total_balance = 0.0
     for supplier in suppliers:
-        balance = float(supplier.balance_in_ils or 0)
+        db.session.refresh(supplier)
+        balance = float(supplier.balance or 0)
         if balance_filter == "positive" and balance <= 0:
             continue
         if balance_filter == "negative" and balance >= 0:
@@ -1273,24 +1301,9 @@ def partners_report():
     partners = q.all()
     data = []
     total_balance = 0.0
-    smart_start = datetime(datetime.utcnow().year, 1, 1)
-    smart_end = datetime.utcnow()
-
-    try:
-        from routes.partner_settlements import _calculate_smart_partner_balance
-    except Exception:
-        _calculate_smart_partner_balance = None
 
     for partner in partners:
-        smart_balance = None
-        if _calculate_smart_partner_balance:
-            try:
-                smart_data = _calculate_smart_partner_balance(partner.id, smart_start, smart_end)
-                if smart_data.get("success"):
-                    smart_balance = float(smart_data.get("balance", {}).get("amount", 0) or 0)
-            except Exception:
-                smart_balance = None
-        balance = smart_balance if smart_balance is not None else float(partner.balance_in_ils or 0)
+        balance = float(partner.balance or 0)
 
         if balance_filter == "positive" and balance <= 0:
             continue
@@ -1421,7 +1434,8 @@ def customers_advanced_report():
             if not last_transaction or (p.payment_date and p.payment_date > last_transaction):
                 last_transaction = p.payment_date
         
-        balance = invoiced_ils - paid_ils
+        db.session.refresh(cust)
+        balance = Decimal(str(cust.current_balance or 0))
         
         if balance_status == 'debit' and balance <= 0:
             continue
@@ -1430,7 +1444,7 @@ def customers_advanced_report():
         elif balance_status == 'zero' and balance != 0:
             continue
         
-        if invoiced_ils != 0 or paid_ils != 0:
+        if invoiced_ils != 0 or paid_ils != 0 or balance != 0:
             total_invoiced_sum += invoiced_ils
             total_paid_sum += paid_ils
             total_invoices_count += invoice_count
@@ -1443,18 +1457,23 @@ def customers_advanced_report():
                 'stats': {
                     'total_invoiced': float(invoiced_ils),
                     'total_paid': float(paid_ils),
+                    'balance': float(balance),
                     'invoice_count': invoice_count,
                     'last_transaction': last_transaction
                 }
             })
     
-    customers_data.sort(key=lambda x: x['stats']['total_invoiced'] - x['stats']['total_paid'], reverse=True)
+    total_balance_sum = Decimal('0.00')
+    for c in customers_data:
+        total_balance_sum += Decimal(str(c['stats']['balance']))
+    
+    customers_data.sort(key=lambda x: abs(x['stats']['balance']), reverse=True)
     
     summary = {
         'total_customers': len(customers_data),
         'total_invoiced': float(total_invoiced_sum),
         'total_paid': float(total_paid_sum),
-        'total_balance': float(total_invoiced_sum - total_paid_sum),
+        'total_balance': float(total_balance_sum),
         'avg_invoice': float(total_invoiced_sum / len(customers_data)) if len(customers_data) > 0 else 0,
         'payment_ratio': float(total_paid_sum / total_invoiced_sum * 100) if total_invoiced_sum > 0 else 0,
         'total_invoices': total_invoices_count
@@ -1471,7 +1490,7 @@ def customers_advanced_report():
             'email': c['email'],
             'total_invoiced': c['stats']['total_invoiced'],
             'total_paid': c['stats']['total_paid'],
-            'balance': c['stats']['total_invoiced'] - c['stats']['total_paid'],
+            'balance': c['stats']['balance'],
         })
     
     return render_template(
@@ -1682,7 +1701,6 @@ def expenses_report():
     partners = Partner.query.order_by(Partner.name).all()
     expense_types = ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()
     
-    # تبويب المقبوضات حسب الجامع (المستخدم)
     receipts_rows = []
     receipts_total = 0.0
     if tab == "receipts":
@@ -1701,7 +1719,6 @@ def expenses_report():
             pq = pq.filter(Payment.payment_date <= end)
         pq = pq.group_by(Payment.created_by)
         agg = pq.all()
-        # جلب أسماء المستخدمين دفعة واحدة
         uid_to_name = {}
         if agg:
             uids = [r.uid for r in agg if r.uid]
@@ -1719,7 +1736,6 @@ def expenses_report():
         ]
         receipts_total = sum(x["total_amount"] for x in receipts_rows)
 
-    # تصدير CSV عند الطلب
     if (request.args.get("export") or "").lower() == "csv":
         if tab == "receipts":
             csv_text = _csv_from_rows([
@@ -1732,7 +1748,6 @@ def expenses_report():
                 for row in receipts_rows
             ])
             return Response(csv_text, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=receipts_by_user.csv"})
-        # بناء صفوف مشابهة لجدول العرض
         csv_rows = []
         for e in rows:
             amount_ils = getattr(e, "amount_ils", float(_to_ils(e.amount, e.currency, getattr(e, "date", None))))
@@ -1954,19 +1969,18 @@ def export_ap_aging_csv():
     csv_text = _csv_from_rows(rows)
     return Response(csv_text, mimetype="text/csv; charset=utf-8", headers={"Content-Disposition": "attachment; filename=ap_aging.csv"})
 
-# كشف مفصل للعميل
 @reports_bp.route("/customer-detail/<int:customer_id>", methods=["GET"])
 @login_required
-# @permission_required("view_customers")  # Commented out - function not available
 def customer_detail_report(customer_id):
-    """كشف مفصل للعميل يظهر جميع المعاملات"""
     customer = Customer.query.get_or_404(customer_id)
+    balance_data = None
+    try:
+        balance_data = build_customer_balance_view(customer_id, db.session)
+    except Exception as exc:
+        current_app.logger.warning("customer_balance_breakdown_failed: %s", exc)
 
-    # تاريخ البداية والنهاية
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
-
-    # جميع المبيعات - ⚡ محسّن بـ eager loading
     sales_query = Sale.query.filter(Sale.customer_id == customer_id).options(
         joinedload(Sale.lines).joinedload(SaleLine.product),
         joinedload(Sale.lines).joinedload(SaleLine.warehouse),
@@ -1978,7 +1992,6 @@ def customer_detail_report(customer_id):
         sales_query = sales_query.filter(Sale.sale_date <= end_date)
     sales = sales_query.order_by(Sale.sale_date.desc()).all()
 
-    # جميع الفواتير
     invoices_query = Invoice.query.filter(Invoice.customer_id == customer_id)
     if start_date:
         invoices_query = invoices_query.filter(Invoice.invoice_date >= start_date)
@@ -1986,7 +1999,6 @@ def customer_detail_report(customer_id):
         invoices_query = invoices_query.filter(Invoice.invoice_date <= end_date)
     invoices = invoices_query.order_by(Invoice.invoice_date.desc()).all()
 
-    # جميع طلبات الصيانة - ⚡ محسّن بـ eager loading
     services_query = ServiceRequest.query.filter(ServiceRequest.customer_id == customer_id).options(
         joinedload(ServiceRequest.parts).joinedload(ServicePart.part),
         joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse),
@@ -1999,11 +2011,10 @@ def customer_detail_report(customer_id):
         services_query = services_query.filter(ServiceRequest.received_at <= end_date)
     services = services_query.order_by(ServiceRequest.received_at.desc()).all()
 
-    # جميع المدفوعات (نشطة + مؤرشفة للرصيد المحاسبي الحقيقي)
     payments_query = Payment.query.filter(
         Payment.customer_id == customer_id,
         Payment.direction == PaymentDirection.IN.value,
-        Payment.status == PaymentStatus.COMPLETED.value  # ✅ فلترة الدفعات المكتملة فقط
+        Payment.status == PaymentStatus.COMPLETED.value
     )
     if start_date:
         payments_query = payments_query.filter(Payment.payment_date >= start_date)
@@ -2011,7 +2022,6 @@ def customer_detail_report(customer_id):
         payments_query = payments_query.filter(Payment.payment_date <= end_date)
     payments = payments_query.order_by(Payment.payment_date.desc()).all()
 
-    # جميع الطلبات المسبقة
     preorders_query = OnlinePreOrder.query.filter(OnlinePreOrder.customer_id == customer_id)
     if start_date:
         preorders_query = preorders_query.filter(OnlinePreOrder.created_at >= start_date)
@@ -2019,7 +2029,6 @@ def customer_detail_report(customer_id):
         preorders_query = preorders_query.filter(OnlinePreOrder.created_at <= end_date)
     preorders = preorders_query.order_by(OnlinePreOrder.created_at.desc()).all()
 
-    # حساب الإجماليات
     total_sales = Decimal('0.00')
     for s in sales:
         amt = Decimal(str(s.total_amount or 0))
@@ -2070,8 +2079,9 @@ def customer_detail_report(customer_id):
                 pass
         total_preorders += amt
 
-    # الرصيد الحالي
     current_balance = float(customer.balance or 0)
+    if balance_data and balance_data.get("success"):
+        current_balance = float(balance_data.get("balance", {}).get("amount", current_balance))
 
     return render_template(
         "reports/customer_detail.html",
@@ -2087,25 +2097,21 @@ def customer_detail_report(customer_id):
         total_payments=total_payments,
         total_preorders=total_preorders,
         current_balance=current_balance,
+        balance_data=balance_data,
         start_date=request.args.get("start", ""),
         end_date=request.args.get("end", ""),
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
     )
 
-# كشف مفصل للمورد
 @reports_bp.route("/supplier-detail/<int:supplier_id>", methods=["GET"])
 @login_required
-# @permission_required("view_suppliers")  # Commented out - function not available
 def supplier_detail_report(supplier_id):
-    """كشف مفصل للمورد يظهر جميع المعاملات"""
     supplier = Supplier.query.get_or_404(supplier_id)
+    db.session.refresh(supplier)
 
-    # تاريخ البداية والنهاية
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
-
-    # جميع الدفعات (OUT و IN)
     payments_out_query = Payment.query.options(
         joinedload(Payment.sale)
     ).filter(
@@ -2132,7 +2138,6 @@ def supplier_detail_report(supplier_id):
         payments_in_query = payments_in_query.filter(Payment.payment_date <= end_date)
     payments_in = payments_in_query.order_by(Payment.payment_date.desc()).all()
 
-    # حركات التوريد (ExchangeTransaction)
     from models import ExchangeTransaction
     exchange_query = ExchangeTransaction.query.options(
         joinedload(ExchangeTransaction.product)
@@ -2145,7 +2150,6 @@ def supplier_detail_report(supplier_id):
         exchange_query = exchange_query.filter(ExchangeTransaction.created_at <= end_date)
     exchange_transactions = exchange_query.order_by(ExchangeTransaction.created_at.desc()).all()
 
-    # المبيعات للمورد (كعميل)
     sales = []
     if supplier.customer_id:
         from models import Sale, SaleStatus, SaleLine
@@ -2161,7 +2165,6 @@ def supplier_detail_report(supplier_id):
             sales_query = sales_query.filter(Sale.sale_date <= end_date)
         sales = sales_query.order_by(Sale.sale_date.desc()).all()
 
-    # الصيانة للمورد (كعميل)
     services = []
     if supplier.customer_id:
         from models import ServiceRequest, ServiceTask
@@ -2178,7 +2181,6 @@ def supplier_detail_report(supplier_id):
             services_query = services_query.filter(ServiceRequest.received_at <= end_date)
         services = services_query.order_by(ServiceRequest.received_at.desc()).all()
 
-    # الحجوزات المسبقة للمورد (كعميل)
     preorders = []
     if supplier.customer_id:
         preorders_query = PreOrder.query.options(
@@ -2193,7 +2195,6 @@ def supplier_detail_report(supplier_id):
             preorders_query = preorders_query.filter(PreOrder.preorder_date <= end_date)
         preorders = preorders_query.order_by(PreOrder.preorder_date.desc()).all()
 
-    # جميع المصاريف المتعلقة بالمورد
     expenses_query = Expense.query.filter(
         or_(
             Expense.supplier_id == supplier_id,
@@ -2206,9 +2207,9 @@ def supplier_detail_report(supplier_id):
         expenses_query = expenses_query.filter(Expense.date <= end_date)
     expenses = expenses_query.order_by(Expense.date.desc()).all()
 
-    # استخدام التسوية الذكية
     from routes.supplier_settlements import _calculate_smart_supplier_balance
     from datetime import datetime
+    from decimal import Decimal
     
     date_from = start_date if start_date else datetime(2024, 1, 1)
     date_to = end_date if end_date else datetime.now()
@@ -2218,11 +2219,7 @@ def supplier_detail_report(supplier_id):
     except Exception as e:
         balance_data = {"success": False, "error": str(e)}
     
-    # حساب الإجماليات - استخدام التسوية الذكية ALWAYS
-    from decimal import Decimal
-    
     if balance_data and balance_data.get("success"):
-        # ✅ استخدام بيانات التسوية الذكية (مع تحويل العملات)
         total_exchange_in = Decimal(str(balance_data.get("rights", {}).get("exchange_items", {}).get("total_value_ils", 0)))
         total_payments_out = Decimal(str(balance_data.get("payments", {}).get("total_paid", 0)))
         total_payments_in = Decimal(str(balance_data.get("payments", {}).get("total_received", 0)))
@@ -2233,28 +2230,92 @@ def supplier_detail_report(supplier_id):
         total_expenses = Decimal(str(balance_data.get("expenses", {}).get("total_ils", 0)))
         total_exchange_out = Decimal(str(balance_data.get("payments", {}).get("total_returns", 0)))
     else:
-        # ⚠️ Fallback: حساب يدوي بدون تحويل عملات (غير دقيق)
-        total_payments_out = sum(Decimal(str(p.total_amount or 0)) for p in payments_out)
-        total_payments_in = sum(Decimal(str(p.total_amount or 0)) for p in payments_in)
-        total_exchange_in = sum(Decimal(str((tx.quantity or 0) * (tx.unit_cost or 0))) for tx in exchange_transactions if tx.direction in ['IN', 'PURCHASE', 'CONSIGN_IN'])
-        total_exchange_out = sum(Decimal(str((tx.quantity or 0) * (tx.unit_cost or 0))) for tx in exchange_transactions if tx.direction in ['OUT', 'RETURN', 'CONSIGN_OUT'])
-        total_sales = sum(Decimal(str(s.total_amount or 0)) for s in sales)
-        total_services = sum(Decimal(str(s.total_amount or 0)) for s in services)
-        total_preorders = sum(Decimal(str(p.total_amount or 0)) for p in preorders)
-        total_obligations = Decimal('0.00')
+        from models import convert_amount
+        total_payments_out = Decimal('0.00')
+        total_payments_in = Decimal('0.00')
+        for p in payments_out:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency and p.currency != "ILS" and amt > 0:
+                try:
+                    amt = convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except Exception:
+                    pass
+            total_payments_out += amt
+        
+        for p in payments_in:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency and p.currency != "ILS" and amt > 0:
+                try:
+                    amt = convert_amount(amt, p.currency, "ILS", p.payment_date)
+                except Exception:
+                    pass
+            total_payments_in += amt
+        
+        total_exchange_in = Decimal('0.00')
+        total_exchange_out = Decimal('0.00')
+        for tx in exchange_transactions:
+            amt = Decimal(str((tx.quantity or 0) * (tx.unit_cost or 0)))
+            if tx.currency and tx.currency != "ILS" and amt > 0:
+                try:
+                    amt = convert_amount(amt, tx.currency, "ILS", tx.created_at)
+                except Exception:
+                    pass
+            if tx.direction in ['IN', 'PURCHASE', 'CONSIGN_IN']:
+                total_exchange_in += amt
+            elif tx.direction in ['OUT', 'RETURN', 'CONSIGN_OUT']:
+                total_exchange_out += amt
+        
+        total_sales = Decimal('0.00')
+        for s in sales:
+            amt = Decimal(str(s.total_amount or 0))
+            if s.currency and s.currency != "ILS" and amt > 0:
+                try:
+                    amt = convert_amount(amt, s.currency, "ILS", s.sale_date)
+                except Exception:
+                    pass
+            total_sales += amt
+        
+        total_services = Decimal('0.00')
+        for s in services:
+            amt = Decimal(str(s.total_amount or 0))
+            if s.currency and s.currency != "ILS" and amt > 0:
+                try:
+                    amt = convert_amount(amt, s.currency, "ILS", s.received_at)
+                except Exception:
+                    pass
+            total_services += amt
+        
+        total_preorders = Decimal('0.00')
+        for p in preorders:
+            amt = Decimal(str(p.total_amount or 0))
+            if p.currency and p.currency != "ILS" and amt > 0:
+                try:
+                    amt = convert_amount(amt, p.currency, "ILS", p.preorder_date)
+                except Exception:
+                    pass
+            total_preorders += amt
+        
+        total_obligations = total_sales + total_services + total_preorders
         
         total_expenses = Decimal('0.00')
         for e in expenses:
             amt = Decimal(str(e.amount or 0))
-            if e.currency and e.currency != "ILS":
+            if e.currency and e.currency != "ILS" and amt > 0:
                 try:
                     amt = convert_amount(amt, e.currency, "ILS", e.date)
                 except Exception:
                     pass
             total_expenses += amt
 
-    # الرصيد الحالي - موحد من التسويات الذكية
-    current_balance = balance_data.get('balance', {}).get('amount', 0) if balance_data.get('success') else float(supplier.balance_in_ils)
+    current_balance = balance_data.get('balance', {}).get('amount', 0) if balance_data.get('success') else float(supplier.balance or 0)
+
+    supplier_breakdown = None
+    try:
+        supplier_breakdown = build_supplier_balance_view(supplier_id, db.session)
+    except Exception as exc:
+        current_app.logger.warning("supplier_balance_breakdown_report_failed: %s", exc)
+    if supplier_breakdown and supplier_breakdown.get("success"):
+        current_balance = float(supplier_breakdown.get("balance", {}).get("amount", current_balance))
 
     return render_template(
         "reports/supplier_detail.html",
@@ -2277,25 +2338,20 @@ def supplier_detail_report(supplier_id):
         total_expenses=float(total_expenses),
         total_obligations=float(total_obligations),
         current_balance=current_balance,
+        supplier_breakdown=supplier_breakdown,
         start_date=request.args.get("start", ""),
         end_date=request.args.get("end", ""),
         FIELD_LABELS=FIELD_LABELS,
         MODEL_LABELS=MODEL_LABELS,
     )
 
-# كشف مفصل للشريك
 @reports_bp.route("/partner-detail/<int:partner_id>", methods=["GET"])
 @login_required
-# @permission_required("view_partners")  # Commented out - function not available
 def partner_detail_report(partner_id):
-    """كشف مفصل للشريك يظهر جميع المعاملات"""
     partner = Partner.query.get_or_404(partner_id)
 
-    # تاريخ البداية والنهاية
     start_date = _parse_date(request.args.get("start"))
     end_date = _parse_date(request.args.get("end"))
-
-    # جميع الدفعات (OUT و IN)
     payments_out_query = Payment.query.options(
         joinedload(Payment.sale)
     ).filter(
@@ -2322,7 +2378,6 @@ def partner_detail_report(partner_id):
         payments_in_query = payments_in_query.filter(Payment.payment_date <= end_date)
     payments_in = payments_in_query.order_by(Payment.payment_date.desc()).all()
 
-    # المبيعات للشريك (كعميل)
     sales = []
     if partner.customer_id:
         from models import Sale, SaleStatus, SaleLine
@@ -2338,7 +2393,6 @@ def partner_detail_report(partner_id):
             sales_query = sales_query.filter(Sale.sale_date <= end_date)
         sales = sales_query.order_by(Sale.sale_date.desc()).all()
 
-    # الصيانة للشريك (كعميل)
     services = []
     if partner.customer_id:
         from models import ServiceRequest, ServiceTask
@@ -2355,7 +2409,6 @@ def partner_detail_report(partner_id):
             services_query = services_query.filter(ServiceRequest.received_at <= end_date)
         services = services_query.order_by(ServiceRequest.received_at.desc()).all()
 
-    # الحجوزات المسبقة التي شارك فيها الشريك
     preorders_query = PreOrder.query.options(
         joinedload(PreOrder.product)
     ).filter(PreOrder.partner_id == partner_id)
@@ -2365,7 +2418,6 @@ def partner_detail_report(partner_id):
         preorders_query = preorders_query.filter(PreOrder.created_at <= end_date)
     preorders = preorders_query.order_by(PreOrder.created_at.desc()).all()
 
-    # قطع الغيار في طلبات الصيانة التي شارك فيها الشريك
     service_parts_query = ServicePart.query.options(
         joinedload(ServicePart.part),
         joinedload(ServicePart.request)
@@ -2376,7 +2428,6 @@ def partner_detail_report(partner_id):
         service_parts_query = service_parts_query.filter(ServicePart.created_at <= end_date)
     service_parts = service_parts_query.order_by(ServicePart.created_at.desc()).all()
 
-    # جميع المصاريف المتعلقة بالشريك
     expenses_query = Expense.query.filter(
         or_(
             Expense.partner_id == partner_id,
@@ -2389,36 +2440,19 @@ def partner_detail_report(partner_id):
         expenses_query = expenses_query.filter(Expense.date <= end_date)
     expenses = expenses_query.order_by(Expense.date.desc()).all()
     
-    # ✅ استخدام التسوية الذكية للحصول على بيانات دقيقة
-    from routes.partner_settlements import _calculate_smart_partner_balance
-    from datetime import datetime
-    
-    date_from = start_date if start_date else datetime(2024, 1, 1)
-    date_to = end_date if end_date else datetime.now()
-    
-    try:
-        balance_data = _calculate_smart_partner_balance(partner_id, date_from, date_to)
-    except Exception as e:
-        balance_data = {"success": False, "error": str(e)}
-
-    # حساب الإجماليات من البيانات الذكية
     from decimal import Decimal
     
-    if balance_data and balance_data.get("success"):
-        total_inventory = Decimal(str(balance_data.get("rights", {}).get("inventory", {}).get("total_ils", 0)))
-        total_sales_share = Decimal(str(balance_data.get("rights", {}).get("sales", {}).get("total_ils", 0)))
-        total_payments_out = Decimal(str(balance_data.get("payments", {}).get("total_paid", 0)))
-        total_payments_in = Decimal(str(balance_data.get("payments", {}).get("total_received", 0)))
-        total_obligations = Decimal(str(balance_data.get("obligations", {}).get("total", 0)))
-        inventory = balance_data.get("rights", {}).get("inventory", {}).get("items", [])
-    else:
-        # fallback للطريقة القديمة
-        total_payments_out = sum(Decimal(str(p.total_amount or 0)) for p in payments_out)
-        total_payments_in = sum(Decimal(str(p.total_amount or 0)) for p in payments_in)
-        total_inventory = Decimal('0.00')
-        total_sales_share = Decimal('0.00')
-        total_obligations = Decimal('0.00')
-        inventory = []
+    total_payments_out = sum(Decimal(str(p.total_amount or 0)) for p in payments_out)
+    total_payments_in = sum(Decimal(str(p.total_amount or 0)) for p in payments_in)
+    total_inventory = Decimal(str(partner.inventory_balance or 0))
+    total_sales_share = Decimal(str(partner.sales_share_balance or 0))
+    total_obligations = (
+        Decimal(str(partner.sales_to_partner_balance or 0)) +
+        Decimal(str(partner.service_fees_balance or 0)) +
+        Decimal(str(partner.preorders_to_partner_balance or 0)) +
+        Decimal(str(partner.damaged_items_balance or 0))
+    )
+    inventory = []
     
     total_sales = sum(Decimal(str(s.total_amount or 0)) for s in sales)
     total_services = sum(Decimal(str(s.total_amount or 0)) for s in services)
@@ -2435,10 +2469,15 @@ def partner_detail_report(partner_id):
                 pass
         total_expenses += amt
 
-    # الرصيد الحالي - موحد من التسويات الذكية
-    current_balance = balance_data.get('balance', {}).get('amount', 0) if balance_data.get('success') else float(partner.balance_in_ils)
+    partner_breakdown = None
+    try:
+        partner_breakdown = build_partner_balance_view(partner_id, db.session)
+    except Exception as exc:
+        current_app.logger.warning("partner_balance_breakdown_report_failed: %s", exc)
+    current_balance = float(partner.balance or 0)
+    if partner_breakdown and partner_breakdown.get("success"):
+        current_balance = float(partner_breakdown.get("balance", {}).get("amount", current_balance))
 
-    # حساب حصة الشريك
     partner_share = (float(partner.share_percentage or 0) / 100) * (float(total_preorders) + float(total_service_parts)) if partner.share_percentage else 0
 
     return render_template(
@@ -2453,6 +2492,7 @@ def partner_detail_report(partner_id):
         expenses=expenses,
         inventory=inventory,
         balance_data=balance_data,
+        partner_breakdown=partner_breakdown,
         total_payments_out=float(total_payments_out),
         total_payments_in=float(total_payments_in),
         total_sales=float(total_sales),

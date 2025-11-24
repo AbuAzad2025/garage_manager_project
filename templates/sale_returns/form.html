@@ -116,7 +116,7 @@
           <li>اضغط زر <strong>"تحميل من البيع"</strong> لجلب جميع المنتجات تلقائياً</li>
           <li>عدّل الكميات حسب ما تم إرجاعه فعلياً</li>
           <li>اكتب سبب الإرجاع</li>
-          <li>احفظ المرتجع</li>
+          <li>احفظ المرتجع <strong class="text-success">وسيتم تأكيده تلقائياً</strong></li>
         </ol>
         <div class="row mt-3">
           <div class="col-md-4">
@@ -293,10 +293,13 @@
       <!-- Actions -->
       <div class="card form-card mt-4">
         <div class="card-body text-center">
-          <button type="submit" class="btn btn-success btn-lg">
-            <i class="fas fa-save"></i> حفظ المرتجع
+          <a href="{{ url_for('sales_bp.list_sales') }}" class="btn btn-info btn-lg">
+            <i class="fas fa-receipt"></i> عرض الفاتورة الأصلية
+          </a>
+          <button type="submit" class="btn btn-success btn-lg ml-2">
+            <i class="fas fa-save"></i> حفظ المرتجع (يتم تأكيده فوراً)
           </button>
-          <a href="{{ url_for('returns.list_returns') }}" class="btn btn-secondary btn-lg">
+          <a href="{{ url_for('returns.list_returns') }}" class="btn btn-secondary btn-lg ml-2">
             <i class="fas fa-times"></i> إلغاء
           </a>
         </div>
@@ -530,7 +533,10 @@ document.getElementById('sale_id').addEventListener('change', function() {
         
         // تحديث الحقول
         document.getElementById('customer_id').value = data.customer_id;
-        document.querySelector('select[name="warehouse_id"]').value = data.warehouse_id || '';
+                const whSelect = document.querySelector('select[name="warehouse_id"]');
+                if (whSelect) {
+                  whSelect.value = data.warehouse_id || '';
+                }
         document.querySelector('select[name="currency"]').value = data.currency;
         document.getElementById('total-currency').textContent = data.currency;
         
@@ -575,6 +581,15 @@ document.querySelector('select[name="currency"]').addEventListener('change', fun
   document.getElementById('total-currency').textContent = this.value;
 });
 
+// لو فتحنا الصفحة برابط مباشر فيه sale_id جاهز، حفّز التحميل تلقائياً
+document.addEventListener('DOMContentLoaded', function() {
+  const saleSelect = document.getElementById('sale_id');
+  if (saleSelect && saleSelect.value && saleSelect.value !== '0') {
+    saleSelect.dispatchEvent(new Event('change'));
+    document.getElementById('loadFromSaleBtn').style.display = 'inline-block';
+  }
+});
+
 // عند تغيير العميل: تصفية قائمة الفواتير لهذا العميل
 document.getElementById('customer_id').addEventListener('change', function() {
   const customerId = this.value;
@@ -599,7 +614,11 @@ document.getElementById('customer_id').addEventListener('change', function() {
         opt.textContent = `بيع #${s.id} - ${s.date || ''}`;
         saleSelect.appendChild(opt);
       });
-      // لا نخمن الفاتورة تلقائياً؛ نترك للمستخدم الاختيار
+      // أعد اختيار القيمة السابقة إن وُجدت
+      if (prev && Array.from(saleSelect.options).some(opt => opt.value === prev)) {
+        saleSelect.value = prev;
+        saleSelect.dispatchEvent(new Event('change'));
+      }
     })
     .catch(console.error);
 });

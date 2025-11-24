@@ -1,6 +1,7 @@
 import os
 import uuid
 import logging
+import inspect
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from datetime import datetime, timezone
 from flask import Flask, url_for, request, current_app, render_template, g, redirect
@@ -139,10 +140,17 @@ def create_app(config_object=Config) -> Flask:
     app.config.from_object(config_object)
     app.config.setdefault("JSON_AS_ASCII", False)
     app.config.setdefault("NUMBER_DECIMALS", 2)
-    app.config["TEMPLATES_AUTO_RELOAD"] = True
-    app.jinja_env.auto_reload = True
     
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+    is_production = not app.config.get("DEBUG", False) and app.config.get("APP_ENV", "production").lower() not in {"dev", "development", "local"}
+    
+    if is_production:
+        app.config["TEMPLATES_AUTO_RELOAD"] = False
+        app.jinja_env.auto_reload = False
+        app.jinja_env.cache_size = 400
+    else:
+        app.config["TEMPLATES_AUTO_RELOAD"] = True
+        app.jinja_env.auto_reload = True
+        app.jinja_env.cache_size = 50
 
 
     ensure_runtime_dirs(config_object)
@@ -158,6 +166,7 @@ def create_app(config_object=Config) -> Flask:
     app.config.setdefault("SUPER_USER_IDS", os.getenv("SUPER_USER_IDS", ""))
     app.config.setdefault("ADMIN_USER_EMAILS", os.getenv("ADMIN_USER_EMAILS", ""))
     app.config.setdefault("ADMIN_USER_IDS", os.getenv("ADMIN_USER_IDS", ""))
+    app.config.setdefault("SKIP_SYSTEM_INTEGRITY", bool(int(os.getenv("SKIP_SYSTEM_INTEGRITY", "0"))))
     app.config.setdefault("PERMISSIONS_REQUIRE_ALL", False)
     app.config.setdefault("AI_SYSTEMS_ENABLED", True)
     app.config.setdefault("ENABLE_AUTOMATED_BACKUPS", True)
@@ -244,6 +253,16 @@ def create_app(config_object=Config) -> Flask:
         pass
 
     os.environ.setdefault("PERMISSIONS_DEBUG", "0")
+    os.environ.setdefault("G_MESSAGES_DEBUG", "")
+    
+    try:
+        import warnings
+        warnings.filterwarnings("ignore", category=RuntimeWarning, module="gi")
+        warnings.filterwarnings("ignore", message=".*GLib-GIO.*")
+        warnings.filterwarnings("ignore", message=".*Clipchamp.*")
+    except Exception:
+        pass
+    
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
     logging.getLogger("sqlalchemy.orm").setLevel(logging.WARNING)
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
@@ -252,6 +271,17 @@ def create_app(config_object=Config) -> Flask:
     logging.getLogger("weasyprint").setLevel(logging.WARNING)
     logging.getLogger("fontTools").setLevel(logging.WARNING)
     logging.getLogger("PIL").setLevel(logging.WARNING)
+    
+    class GLibWarningFilter(logging.Filter):
+        def filter(self, record):
+            msg = str(record.getMessage())
+            if "GLib-GIO" in msg or "Clipchamp" in msg or "UWP app" in msg:
+                return False
+            return True
+    
+    glib_filter = GLibWarningFilter()
+    logging.getLogger().addFilter(glib_filter)
+    
     app.logger.setLevel(logging.INFO)
 
     if app.config.get("SERVER_NAME"):
@@ -272,6 +302,8 @@ def create_app(config_object=Config) -> Flask:
         [FileSystemLoader(p) for p in extra_template_paths]
         + ([app.jinja_loader] if app.jinja_loader else [])
     )
+    
+    app.jinja_env.autoescape = True
 
     def _two_dec(v, digits=None, grouping=True):
         try:
@@ -537,6 +569,90 @@ def create_app(config_object=Config) -> Flask:
     for bp in BLUEPRINTS:
         app.register_blueprint(bp)
 
+    def _collect_model_classes():
+        collected = []
+        seen = set()
+        stack = [db.Model]
+        while stack:
+            cls = stack.pop()
+            for sub in cls.__subclasses__():
+                if sub in seen:
+                    continue
+                seen.add(sub)
+                collected.append(sub)
+                stack.append(sub)
+        return [cls for cls in collected if hasattr(cls, "__tablename__")]
+
+    def validate_system_integrity():
+        allowed_route_duplicates = {
+            ('/sales', ('GET',)),
+            ('/reports', ('GET',)),
+            ('/shipments', ('GET',)),
+            ('/api/barcode/validate', ('GET',)),
+            ('/barcode/check-product', ('GET',)),
+        }
+        errors = []
+        rule_index = {}
+        for rule in app.url_map.iter_rules():
+            if rule.endpoint.startswith("static"):
+                continue
+            normalized_path = rule.rule.rstrip("/") or "/"
+            methods = tuple(sorted(m for m in (rule.methods or set()) if m not in {"HEAD", "OPTIONS"}))
+            key = (normalized_path, methods)
+            if key in rule_index:
+                if key not in allowed_route_duplicates:
+                    errors.append(f"Route conflict {normalized_path} {methods}: {rule.endpoint} duplicates {rule_index[key]}")
+            else:
+                rule_index[key] = rule.endpoint
+
+        models = _collect_model_classes()
+        table_map = {}
+        for model_cls in models:
+            table_name = getattr(model_cls, "__tablename__", None)
+            if not table_name:
+                continue
+            if table_name in table_map and table_map[table_name] is not model_cls:
+                errors.append(f"Duplicate model table name '{table_name}' between {model_cls.__name__} and {table_map[table_name].__name__}")
+            else:
+                table_map[table_name] = model_cls
+
+        try:
+            import forms as forms_module
+            from flask_wtf import FlaskForm
+            form_classes = []
+            for attr in dir(forms_module):
+                obj = getattr(forms_module, attr)
+                if inspect.isclass(obj) and issubclass(obj, FlaskForm) and obj is not FlaskForm:
+                    form_classes.append(obj)
+            form_names = {}
+            for form_cls in form_classes:
+                name = form_cls.__name__
+                if name in form_names and form_names[name] is not form_cls:
+                    errors.append(f"Duplicate form class '{name}' detected")
+                else:
+                    form_names[name] = form_cls
+                meta = getattr(form_cls, "Meta", None)
+                bound_model = getattr(meta, "model", None) if meta else None
+                if bound_model is not None:
+                    if inspect.isclass(bound_model) and issubclass(bound_model, db.Model):
+                        continue
+                    errors.append(f"Form {name} references invalid model '{bound_model}'")
+        except Exception as exc:
+            errors.append(f"Forms integrity check failed: {exc}")
+
+        if errors:
+            for msg in errors:
+                app.logger.error("SYSTEM_INTEGRITY: %s", msg)
+            raise RuntimeError("System integrity validation failed. Review logs for details.")
+
+        app.logger.info("System integrity check passed: %s routes, %s models, %s forms",
+                        len(rule_index), len(table_map), len(form_names if 'form_names' in locals() else []))
+
+    if not app.config.get("SKIP_SYSTEM_INTEGRITY"):
+        validate_system_integrity()
+    else:
+        app.logger.warning("System integrity check skipped by configuration.")
+
     CORS(
         app,
         resources={
@@ -654,12 +770,15 @@ def create_app(config_object=Config) -> Flask:
     @app.after_request
     def _access_log(resp):
         try:
+            path = request.path
+            if path.startswith('/static/') or path == '/favicon.ico' or path.startswith('/_'):
+                return resp
             app.logger.info(
                 "access",
                 extra={
                     "event": "http.access",
                     "method": request.method,
-                    "path": request.path,
+                    "path": path,
                     "status": resp.status_code,
                     "remote_ip": request.headers.get("X-Forwarded-For", request.remote_addr),
                 },
@@ -698,8 +817,20 @@ def create_app(config_object=Config) -> Flask:
         except Exception:
             return ("429 Too Many Requests", 429)
 
+    @app.errorhandler(MemoryError)
+    def _memory_error(e):
+        app.logger.error("MemoryError: %s - %s", request.path, str(e))
+        if request.path.startswith("/api/") or request.accept_mimetypes.best == "application/json":
+            return {"error": "Memory Error", "message": "حجم البيانات كبير جداً. الرجاء تقليل حجم الطلب أو تقسيم البيانات."}, 413
+        try:
+            return render_template("errors/413.html", path=request.path, error="حجم البيانات كبير جداً"), 413
+        except Exception:
+            return ("413 Payload Too Large - حجم البيانات كبير جداً", 413)
+
     @app.errorhandler(500)
     def _err_500(e):
+        if isinstance(e, MemoryError):
+            return _memory_error(e)
         app.logger.exception("unhandled", extra={"event": "app.error", "path": request.path})
         try:
             return render_template("errors/500.html"), 500
@@ -925,6 +1056,9 @@ def bootstrap_database():
 
 
 if __name__ == '__main__':
+    import atexit
+    import signal
+    
     app = create_app()
     
     # Bootstrap على أول تشغيل
@@ -934,7 +1068,7 @@ if __name__ == '__main__':
     # 🤖 تفعيل AI Systems
     try:
         # 1. Auto-Learning Scheduler
-        from AI.scheduler import start_scheduler
+        from AI.scheduler import start_scheduler, stop_scheduler
         start_scheduler()
         print("[OK] AI Auto-Learning Scheduler started")
         
@@ -943,9 +1077,62 @@ if __name__ == '__main__':
         register_ai_listeners(app)
         print("[OK] AI Real-time Monitor activated")
         
+        def cleanup_on_exit():
+            try:
+                stop_scheduler()
+            except Exception:
+                pass
+            try:
+                from extensions import socketio, scheduler
+                if socketio.server:
+                    socketio.stop()
+                if scheduler.running:
+                    scheduler.shutdown(wait=False)
+            except Exception:
+                pass
+        
+        atexit.register(cleanup_on_exit)
+        
+        def signal_handler(signum, frame):
+            try:
+                stop_scheduler()
+            except Exception:
+                pass
+            try:
+                from extensions import socketio, scheduler
+                if socketio.server:
+                    socketio.stop()
+                if scheduler.running:
+                    scheduler.shutdown(wait=False)
+            except Exception:
+                pass
+            exit(0)
+        
+        if hasattr(signal, 'SIGINT'):
+            signal.signal(signal.SIGINT, signal_handler)
+        if hasattr(signal, 'SIGTERM'):
+            signal.signal(signal.SIGTERM, signal_handler)
+        
     except Exception as e:
         print(f"[WARN] AI Systems not started: {e}")
     
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    try:
+        app.run(debug=True, host='0.0.0.0', port=5000)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        try:
+            from AI.scheduler import stop_scheduler
+            stop_scheduler()
+        except Exception:
+            pass
+        try:
+            from extensions import socketio, scheduler
+            if socketio.server:
+                socketio.stop()
+            if scheduler.running:
+                scheduler.shutdown(wait=False)
+        except Exception:
+            pass
 else:
     app = create_app()

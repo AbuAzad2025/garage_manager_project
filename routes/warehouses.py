@@ -1433,6 +1433,7 @@ def preview_inventory(warehouse_id: int):
             ).filter(ExchangeTransaction.supplier_id.isnot(None)).order_by(ExchangeTransaction.created_at.desc()).first()
             
             if last_exchange and last_exchange.supplier:
+                db.session.refresh(last_exchange.supplier)
                 product_suppliers[row.product_id] = {
                     'name': last_exchange.supplier.name,
                     'phone': last_exchange.supplier.phone,
@@ -1943,6 +1944,10 @@ def import_commit(id):
     try:
         rows_json = request.form.get("rows_json")
         if rows_json:
+            max_json_size = 5 * 1024 * 1024
+            if len(rows_json.encode('utf-8')) > max_json_size:
+                flash(f"حجم البيانات كبير جداً (الحد الأقصى: {max_json_size // (1024*1024)}MB). الرجاء تقسيم البيانات أو استخدام ملف أصغر.", "danger")
+                return redirect(url_for("warehouse_bp.import_preview", id=w.id, token=token))
             try:
                 obj = json.loads(rows_json)
                 raw_rows = [
@@ -2346,7 +2351,19 @@ def ajax_update_stock(warehouse_id):
         sl = StockLevel(warehouse_id=warehouse_id, product_id=pid, quantity=0, reserved_quantity=0)
         db.session.add(sl)
 
-    sl.quantity = max(0, quantity if quantity is not None else int(sl.quantity or 0))
+    new_quantity = max(0, quantity if quantity is not None else int(sl.quantity or 0))
+    current_reserved = int(sl.reserved_quantity or 0)
+    
+    if new_quantity < current_reserved:
+        return jsonify({
+            "success": False,
+            "code": "INVALID_QUANTITY",
+            "errors": {
+                "quantity": f"الكمية ({new_quantity}) لا يمكن أن تكون أقل من الكمية المحجوزة ({current_reserved})"
+            }
+        }), 400
+    
+    sl.quantity = new_quantity
     if min_stock is not None:
         sl.min_stock = max(0, min_stock)
     if max_stock is not None:
@@ -2481,17 +2498,29 @@ def ajax_transfer(warehouse_id):
             if not src:
                 src = StockLevel(warehouse_id=sid, product_id=pid, quantity=0, reserved_quantity=0)
                 db.session.add(src); db.session.flush()
-            available = int((src.quantity or 0) - (src.reserved_quantity or 0))
+            src_qty = int(src.quantity or 0)
+            src_reserved = int(src.reserved_quantity or 0)
+            available = src_qty - src_reserved
+            
             if available < qty:
-                raise ValueError("insufficient_stock")
-            src.quantity = int(src.quantity or 0) - qty
+                raise ValueError(f"insufficient_stock: المتاح {available}، المطلوب {qty}")
+            
+            new_src_qty = src_qty - qty
+            if new_src_qty < 0:
+                raise ValueError(f"insufficient_stock: الكمية ستكون سالبة")
+            
+            src.quantity = new_src_qty
+            
             dst = (StockLevel.query.filter_by(warehouse_id=did, product_id=pid).with_for_update(nowait=False).first())
             if not dst:
                 dst = StockLevel(warehouse_id=did, product_id=pid, quantity=0, reserved_quantity=0)
-                db.session.add(dst); db.session.flush()
+                db.session.add(dst)
+                db.session.flush()
+            
             dst.quantity = int(dst.quantity or 0) + qty
             t = Transfer(transfer_date=tdate, product_id=pid, source_id=sid, destination_id=did,
                          quantity=qty, direction="OUT", notes=notes, user_id=getattr(current_user, "id", None))
+            setattr(t, "_skip_stock_apply", True)
             db.session.add(t)
         return jsonify({"success": True, "transfer_id": t.id,
                         "direction": "OUT",
@@ -2531,23 +2560,34 @@ def ajax_exchange(warehouse_id):
         return jsonify({"success": False, "errors": {"form": "invalid"}}), 400
     try:
         with db.session.begin():
-            ex = ExchangeTransaction(product_id=pid, warehouse_id=warehouse_id, partner_id=partner_id,
-                                     quantity=qty, direction=direction, unit_cost=unit_cost,
-                                     is_priced=bool(unit_cost is not None), notes=notes)
-            db.session.add(ex)
             sl = (StockLevel.query.filter_by(warehouse_id=warehouse_id, product_id=pid)
                   .with_for_update(nowait=False).first())
             if not sl:
                 sl = StockLevel(warehouse_id=warehouse_id, product_id=pid, quantity=0, reserved_quantity=0)
                 db.session.add(sl); db.session.flush()
+            current_qty = int(sl.quantity or 0)
+            current_reserved = int(sl.reserved_quantity or 0)
+            
             if direction == "OUT":
-                available = int((sl.quantity or 0) - (sl.reserved_quantity or 0))
-                if available < qty: raise ValueError("insufficient_stock")
-                sl.quantity = int(sl.quantity or 0) - qty
+                available = current_qty - current_reserved
+                if available < qty:
+                    raise ValueError(f"insufficient_stock: المتاح {available}، المطلوب {qty}")
+            
+            ex = ExchangeTransaction(product_id=pid, warehouse_id=warehouse_id, partner_id=partner_id,
+                                     quantity=qty, direction=direction, unit_cost=unit_cost,
+                                     is_priced=bool(unit_cost is not None), notes=notes)
+            setattr(ex, "_skip_stock_apply", True)
+            db.session.add(ex)
+            
+            if direction == "OUT":
+                new_qty = current_qty - qty
+                if new_qty < 0:
+                    raise ValueError(f"insufficient_stock: الكمية ستكون سالبة")
+                sl.quantity = new_qty
             elif direction == "IN":
-                sl.quantity = int(sl.quantity or 0) + qty
+                sl.quantity = current_qty + qty
             elif direction == "ADJUSTMENT":
-                sl.quantity = max(0, int(sl.quantity or 0) + qty)
+                sl.quantity = max(0, current_qty + qty)
         return jsonify({"success": True, "new_quantity": int(sl.quantity or 0)}), 200
     except ValueError as ve:
         db.session.rollback()
@@ -2842,28 +2882,44 @@ def preorder_create():
             return render_template("parts/preorder_form.html", form=form), 200
 
         if prepaid > 0:
-            pay = Payment(
-                entity_type=(PaymentEntityType.PREORDER.value if hasattr(PaymentEntityType, "PREORDER") else "PREORDER"),
-                preorder_id=preorder.id,
-                customer_id=preorder.customer_id,
-                direction=PaymentDirection.IN.value,
-                status=PaymentStatus.COMPLETED.value,
-                payment_date=datetime.utcnow(),
-                total_amount=prepaid,
-                currency="ILS",
-                method=form.payment_method.data or "cash",
-                reference=f"Preorder {preorder.reference}",
-                notes=f"دفعة عربون لحجز {preorder.product.name if preorder.product else ''} (كود: {preorder.reference})",
-                check_number=form.check_number.data if hasattr(form, 'check_number') and form.check_number.data else None,
-                check_bank=form.check_bank.data if hasattr(form, 'check_bank') and form.check_bank.data else None,
-                check_due_date=form.check_due_date.data if hasattr(form, 'check_due_date') and form.check_due_date.data else None,
-                bank_transfer_ref=form.bank_transfer_ref.data if hasattr(form, 'bank_transfer_ref') and form.bank_transfer_ref.data else None,
-                card_number=form.card_number.data if hasattr(form, 'card_number') and form.card_number.data else None,
-                card_holder=form.card_holder.data if hasattr(form, 'card_holder') and form.card_holder.data else None,
-                card_expiry=form.card_expiry.data if hasattr(form, 'card_expiry') and form.card_expiry.data else None,
-                online_gateway=form.online_gateway.data if hasattr(form, 'online_gateway') and form.online_gateway.data else None,
-                online_ref=form.online_ref.data if hasattr(form, 'online_ref') and form.online_ref.data else None,
-            )
+            payment_method = form.payment_method.data or "cash"
+            card_last4 = None
+            if hasattr(form, 'card_number') and form.card_number.data:
+                card_number_str = str(form.card_number.data).strip()
+                digits = ''.join(ch for ch in card_number_str if ch.isdigit())
+                if digits:
+                    card_last4 = digits[-4:] if len(digits) >= 4 else digits
+            
+            payment_data = {
+                'entity_type': (PaymentEntityType.PREORDER.value if hasattr(PaymentEntityType, "PREORDER") else "PREORDER"),
+                'preorder_id': preorder.id,
+                'customer_id': preorder.customer_id,
+                'direction': PaymentDirection.IN.value,
+                'status': PaymentStatus.COMPLETED.value,
+                'payment_date': datetime.utcnow(),
+                'total_amount': prepaid,
+                'currency': "ILS",
+                'method': payment_method,
+                'reference': f"Preorder {preorder.reference}",
+                'notes': f"دفعة عربون لحجز {preorder.product.name if preorder.product else ''} (كود: {preorder.reference})",
+            }
+            
+            if hasattr(form, 'check_number') and form.check_number.data:
+                payment_data['check_number'] = form.check_number.data
+            if hasattr(form, 'check_bank') and form.check_bank.data:
+                payment_data['check_bank'] = form.check_bank.data
+            if hasattr(form, 'check_due_date') and form.check_due_date.data:
+                payment_data['check_due_date'] = form.check_due_date.data
+            if hasattr(form, 'bank_transfer_ref') and form.bank_transfer_ref.data:
+                payment_data['bank_transfer_ref'] = form.bank_transfer_ref.data
+            if hasattr(form, 'card_holder') and form.card_holder.data:
+                payment_data['card_holder'] = form.card_holder.data
+            if hasattr(form, 'card_expiry') and form.card_expiry.data:
+                payment_data['card_expiry'] = form.card_expiry.data
+            if card_last4:
+                payment_data['card_last4'] = card_last4
+            
+            pay = Payment(**payment_data)
             db.session.add(pay)
             try:
                 db.session.commit()
@@ -2977,8 +3033,29 @@ def preorder_convert_to_sale(preorder_id):
         db.session.add(sale_line)
         db.session.flush()  # لحساب total_amount من SaleLine
         
-        # الآن نحدث total_paid بالعربون
-        sale.total_paid = prepaid
+        # ربط Payment المرتبط بـ PreOrder بالـ Sale أيضاً
+        prepaid_payment = Payment.query.filter(
+            Payment.preorder_id == preorder.id,
+            Payment.direction == PaymentDirection.IN.value,
+            Payment.status == PaymentStatus.COMPLETED.value
+        ).first()
+        
+        if prepaid_payment:
+            prepaid_payment.sale_id = sale.id
+            if not prepaid_payment.customer_id:
+                prepaid_payment.customer_id = sale.customer_id
+            db.session.add(prepaid_payment)
+        
+        db.session.flush()
+        db.session.refresh(sale)
+        
+        sale.total_paid = Decimal(str(prepaid))
+        db.session.add(sale)
+        db.session.flush()
+        
+        db.session.refresh(sale)
+        sale.balance_due = Decimal(str(sale.total_amount or 0)) - Decimal(str(sale.total_paid or 0))
+        db.session.add(sale)
         
         # تحديث StockLevel
         sl = StockLevel.query.filter_by(

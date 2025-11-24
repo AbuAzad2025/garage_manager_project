@@ -77,7 +77,10 @@ def index():
     
     total_supplier_balance = cache.get(cache_key_supp)
     if total_supplier_balance is None:
-        total_supplier_balance = sum([s.balance for s in Supplier.query.limit(10000).all()])
+        suppliers = Supplier.query.limit(10000).all()
+        for supplier in suppliers:
+            db.session.refresh(supplier)
+        total_supplier_balance = sum([s.balance for s in suppliers])
         cache.set(cache_key_supp, total_supplier_balance, timeout=300)
     
     total_partner_balance = cache.get(cache_key_part)
@@ -857,6 +860,7 @@ def recalculate_all_balances():
     """إعادة حساب جميع الأرصدة من الصفر"""
     try:
         from models import Customer, Partner, Supplier
+        from utils.supplier_balance_updater import update_supplier_balance_components
         
         recalculated = {
             'customers': 0,
@@ -864,23 +868,31 @@ def recalculate_all_balances():
             'suppliers': 0
         }
         
-        # إعادة حساب أرصدة العملاء
         customers = Customer.query.limit(10000).all()
         for customer in customers:
-            balance = customer.balance  # hybrid_property
-            recalculated['customers'] += 1
+            try:
+                from utils.customer_balance_updater import update_customer_balance_components
+                update_customer_balance_components(customer.id, db.session)
+                recalculated['customers'] += 1
+            except Exception:
+                pass
         
-        # إعادة حساب أرصدة الشركاء
         partners = Partner.query.limit(10000).all()
         for partner in partners:
-            balance = partner.balance
-            recalculated['partners'] += 1
+            try:
+                from models import update_partner_balance
+                update_partner_balance(partner.id)
+                recalculated['partners'] += 1
+            except Exception:
+                pass
         
-        # إعادة حساب أرصدة الموردين
         suppliers = Supplier.query.limit(10000).all()
         for supplier in suppliers:
-            balance = supplier.balance
-            recalculated['suppliers'] += 1
+            try:
+                update_supplier_balance_components(supplier.id)
+                recalculated['suppliers'] += 1
+            except Exception:
+                pass
         
         db.session.commit()
         
@@ -893,6 +905,117 @@ def recalculate_all_balances():
         })
     except Exception as e:
         current_app.logger.error(f"❌ خطأ في إعادة حساب الأرصدة: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/fix-cashed-checks-balance', methods=['POST'])
+@owner_only
+def fix_cashed_checks_balance():
+    """تصحيح أرصدة العملاء المتأثرين بالشيكات المسوية والمرتدة"""
+    try:
+        from decimal import Decimal
+        from models import Customer, Payment, Check, PaymentSplit, CheckStatus
+        
+        print("🔍 البحث عن الشيكات المرتبطة بدفعات...")
+        
+        # البحث عن جميع الشيكات المرتبطة بدفعات
+        all_checks = db.session.query(Check).filter(
+            Check.payment_id.isnot(None)
+        ).all()
+        
+        affected_customers = set()
+        issues_found = []
+        
+        for check in all_checks:
+            payment = db.session.get(Payment, check.payment_id)
+            if not payment:
+                continue
+            
+            # التحقق من وجود PaymentSplit
+            splits = db.session.query(PaymentSplit).filter(
+                PaymentSplit.payment_id == payment.id
+            ).all()
+            
+            if splits:
+                # إذا كانت الدفعة تحتوي على splits، تحقق من المبلغ
+                check_amount = Decimal(str(check.amount or 0))
+                payment_total = Decimal(str(payment.total_amount or 0))
+                
+                if check_amount != payment_total:
+                    customer_id = check.customer_id or payment.customer_id
+                    
+                    issue = {
+                        'check_id': check.id,
+                        'check_number': check.check_number,
+                        'check_status': check.status,
+                        'check_amount': float(check_amount),
+                        'payment_id': payment.id,
+                        'payment_number': payment.payment_number,
+                        'payment_total': float(payment_total),
+                        'customer_id': customer_id,
+                        'difference': float(payment_total - check_amount),
+                        'splits_count': len(splits)
+                    }
+                    issues_found.append(issue)
+                    
+                    if customer_id:
+                        affected_customers.add(customer_id)
+        
+        if issues_found:
+            from utils.customer_balance_updater import update_customer_balance_components
+            
+            fixed_count = 0
+            fixed_customers = []
+            
+            for customer_id in affected_customers:
+                try:
+                    customer = db.session.get(Customer, customer_id)
+                    if not customer:
+                        continue
+                    
+                    old_balance = float(customer.current_balance or 0)
+                    
+                    update_customer_balance_components(customer_id, db.session)
+                    db.session.flush()
+                    
+                    db.session.refresh(customer)
+                    new_balance = float(customer.current_balance or 0)
+                    
+                    db.session.commit()
+                    
+                    fixed_customers.append({
+                        'customer_id': customer_id,
+                        'customer_name': customer.name,
+                        'old_balance': old_balance,
+                        'new_balance': new_balance,
+                        'difference': new_balance - old_balance
+                    })
+                    fixed_count += 1
+                except Exception as e:
+                    current_app.logger.error(f"❌ خطأ في تحديث رصيد العميل #{customer_id}: {e}")
+                    db.session.rollback()
+            
+            return jsonify({
+                'success': True,
+                'message': f'تم تصحيح أرصدة {fixed_count} عميل',
+                'total_checks': len(all_checks),
+                'issues_found': len(issues_found),
+                'affected_customers': len(affected_customers),
+                'fixed_customers': fixed_customers,
+                'issues': issues_found
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'لا توجد مشاكل في الشيكات',
+                'total_checks': len(all_checks),
+                'issues_found': 0
+            })
+            
+    except Exception as e:
+        current_app.logger.error(f"❌ خطأ في تصحيح أرصدة الشيكات: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -1626,4 +1749,99 @@ def search_entities():
         })
         
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@ledger_control_bp.route('/verify-customer-balances', methods=['POST'])
+@owner_only
+def verify_customer_balances():
+    """التحقق من أرصدة العملاء القدامى وتحديثها حسب النظام الجديد"""
+    try:
+        from decimal import Decimal
+        from models import Customer
+        from utils.customer_balance_updater import update_customer_balance_components
+        from utils.balance_calculator import calculate_customer_balance_components
+        
+        customers = Customer.query.limit(10000).all()
+        total = len(customers)
+        
+        verified = 0
+        updated = 0
+        issues = []
+        
+        for customer in customers:
+            try:
+                db.session.refresh(customer)
+                
+                old_balance = Decimal(str(customer.current_balance or 0))
+                
+                components = calculate_customer_balance_components(customer.id, db.session)
+                if not components:
+                    continue
+                
+                opening_balance = Decimal(str(customer.opening_balance or 0))
+                if customer.currency and customer.currency != "ILS":
+                    try:
+                        from models import convert_amount
+                        opening_balance = convert_amount(opening_balance, customer.currency, "ILS")
+                    except Exception:
+                        pass
+                
+                expected_balance = (
+                    opening_balance +
+                    Decimal(str(components.get('payments_in_balance', 0) or 0)) -
+                    (Decimal(str(components.get('sales_balance', 0) or 0)) +
+                     Decimal(str(components.get('invoices_balance', 0) or 0)) +
+                     Decimal(str(components.get('services_balance', 0) or 0)) +
+                     Decimal(str(components.get('preorders_balance', 0) or 0)) +
+                     Decimal(str(components.get('online_orders_balance', 0) or 0))) +
+                    Decimal(str(components.get('returns_balance', 0) or 0)) -
+                    Decimal(str(components.get('payments_out_balance', 0) or 0)) -
+                    Decimal(str(components.get('returned_checks_in_balance', 0) or 0)) +
+                    Decimal(str(components.get('returned_checks_out_balance', 0) or 0)) -
+                    Decimal(str(components.get('expenses_balance', 0) or 0)) +
+                    Decimal(str(components.get('service_expenses_balance', 0) or 0))
+                )
+                
+                difference = abs(expected_balance - old_balance)
+                
+                if difference > Decimal('0.01'):
+                    update_customer_balance_components(customer.id, db.session)
+                    db.session.flush()
+                    db.session.refresh(customer)
+                    new_balance = Decimal(str(customer.current_balance or 0))
+                    
+                    issues.append({
+                        'customer_id': customer.id,
+                        'customer_name': customer.name,
+                        'old_balance': float(old_balance),
+                        'expected_balance': float(expected_balance),
+                        'new_balance': float(new_balance),
+                        'difference': float(difference)
+                    })
+                    updated += 1
+                else:
+                    verified += 1
+                    
+            except Exception as e:
+                current_app.logger.error(f"❌ خطأ في التحقق من رصيد العميل #{customer.id}: {e}")
+                issues.append({
+                    'customer_id': customer.id,
+                    'customer_name': getattr(customer, 'name', 'Unknown'),
+                    'error': str(e)
+                })
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'total_customers': total,
+            'verified': verified,
+            'updated': updated,
+            'issues': issues,
+            'message': f'تم التحقق من {total} عميل: {verified} صحيح، {updated} تم تحديثه'
+        })
+    except Exception as e:
+        current_app.logger.error(f"❌ خطأ في التحقق من أرصدة العملاء: {str(e)}")
+        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

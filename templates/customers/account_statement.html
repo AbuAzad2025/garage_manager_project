@@ -119,12 +119,18 @@
     }
     
     /* الجدول الرئيسي - مضغوط */
-    .table,
+    .table {
+      font-size: 5pt !important;
+      width: 100% !important;
+      border-collapse: collapse !important;
+      margin: 0 !important;
+    }
     #statementTable {
       font-size: 5pt !important;
       width: 100% !important;
       border-collapse: collapse !important;
       margin: 0 !important;
+      table-layout: auto !important;
     }
     
     .table th,
@@ -230,12 +236,12 @@
         <div style="margin-bottom: 3px;">
           <strong>الفترة:</strong> من {{ start_date|format_date }} إلى {{ end_date|format_date }}
         </div>
-        <div class="balance-box" style="margin-bottom: 3px; font-size: 7pt; padding: 3px; background-color: {% if balance > 0 %}#ffe0e0{% elif balance < 0 %}#e0ffe0{% else %}#f0f0f0{% endif %}; border: 1px solid #000; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div class="balance-box" style="margin-bottom: 3px; font-size: 7pt; padding: 3px; background-color: {% if balance > 0 %}#e0ffe0{% elif balance < 0 %}#ffe0e0{% else %}#f0f0f0{% endif %}; border: 1px solid #000; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
           <strong>الرصيد الحالي:</strong> {{ balance|format_currency }}
           {% if balance > 0 %}
-            <strong style="color: #dc3545;">(عليه لنا)</strong>
-          {% elif balance < 0 %}
             <strong style="color: #28a745;">(له علينا)</strong>
+          {% elif balance < 0 %}
+            <strong style="color: #dc3545;">(عليه لنا)</strong>
           {% else %}
             (متوازن)
           {% endif %}
@@ -287,15 +293,15 @@
         <div class="col-md-4 text-center">
           <div class="p-3 rounded border" style="background: #f8f9fa;">
             <h6 class="mb-1 text-muted">الرصيد الحالي</h6>
-            <h2 class="mb-0 fw-bold">
+            <h2 class="mb-0 fw-bold" data-balance-customer="{{ customer.id }}">
               {% if balance > 0 %}
-                <span class="text-warning">{{ balance|format_currency }}</span>
-                <br><small style="font-size: 0.6em;">عليه لنا</small>
-              {% elif balance < 0 %}
-                <span class="text-info">{{ balance|abs|format_currency }}</span>
+                <span class="text-success">{{ balance|format_currency }}</span>
                 <br><small style="font-size: 0.6em;">له علينا</small>
+              {% elif balance < 0 %}
+                <span class="text-danger">{{ balance|abs|format_currency }}</span>
+                <br><small style="font-size: 0.6em;">عليه لنا</small>
               {% else %}
-                <span class="text-white">{{ balance|format_currency }}</span>
+                <span class="text-secondary">{{ balance|format_currency }}</span>
                 <br><small style="font-size: 0.6em;">متوازن</small>
               {% endif %}
             </h2>
@@ -310,7 +316,7 @@
     {% set stats = [
       ('إجمالي مدين', total_debit, 'text-danger', 'fa-arrow-down'),
       ('إجمالي دائن', total_credit, 'text-success', 'fa-arrow-up'),
-      ('الرصيد', balance, balance < 0 and 'text-danger' or 'text-success', 'fa-balance-scale')
+      ('الرصيد', balance, balance > 0 and 'text-success' or (balance < 0 and 'text-danger' or ''), 'fa-balance-scale')
     ] %}
     {% for label, value, color_class, icon in stats %}
     <div class="col-12 col-md-4">
@@ -334,6 +340,7 @@
     {% set categories = [
       ('فواتير', total_invoices),
       ('مبيعات', total_sales),
+      ('مرتجعات مبيعات', total_sale_returns),
       ('الصيانة', total_services),
       ('حجوزات مسبقة', total_preorders),
       ('حجوزات أونلاين', total_online_preorders),
@@ -354,27 +361,41 @@
   {% set type_labels = {
     'INVOICE': 'فاتورة',
     'SALE': 'بيع',
+    'SALE_RETURN': 'مرتجع بيع',
     'SERVICE': 'صيانة',
     'PREORDER': 'حجز مسبق',
     'ONLINE_PREORDER': 'حجز أونلاين',
     'PAYMENT': 'دفعة',
     'CHECK_PENDING': 'شيك معلق',
     'CHECK_BOUNCED': 'شيك مرتد',
-    'OPENING_BALANCE': 'رصيد افتتاحي'
+    'CHECK_CASHED': 'شيك مسحوب',
+    'CHECK_RESUBMITTED': 'شيك أعيد للبنك',
+    'CHECK_CANCELLED': 'شيك ملغي',
+    'CHECK_LEGAL': 'شيك دائرة قانونية',
+    'CHECK_SETTLED': 'شيك مسوّى',
+    'OPENING_BALANCE': 'رصيد افتتاحي',
+    'ONLINE_PREORDER': 'طلب أونلاين',
+    'ONLINE_PREPAID': 'دفعة مقدمة أونلاين'
   } %}
   {% set type_badges = {
     'INVOICE': 'bg-secondary',
     'SALE': 'bg-info',
+    'SALE_RETURN': 'bg-secondary',
     'SERVICE': 'bg-warning text-dark',
     'PREORDER': 'bg-dark',
     'ONLINE_PREORDER': 'bg-primary',
     'PAYMENT': 'bg-success',
     'CHECK_PENDING': 'bg-warning text-dark',
     'CHECK_BOUNCED': 'bg-danger',
+    'CHECK_CASHED': 'bg-success',
+    'CHECK_RESUBMITTED': 'bg-info',
+    'CHECK_CANCELLED': 'bg-secondary',
+    'CHECK_LEGAL': 'bg-dark text-white',
+    'CHECK_SETTLED': 'bg-success text-white',
     'OPENING_BALANCE': 'bg-purple text-white'
   } %}
 
-  <div class="card shadow-sm rounded">
+  <div class="card shadow-sm rounded" style="overflow-x:auto;">
     <div class="card-header bg-primary text-white">
       <h5 class="card-title m-0">
         <i class="fas fa-file-invoice ms-2"></i> كشف حساب: {{ customer.name }}
@@ -408,13 +429,22 @@
               {# البيان الديناميكي #}
               <td style="border: 1px solid #dee2e6; padding: 8px; text-align: start;">
                 {# للدفعات - دفعة (طريقة) سند قبض - ليج (المستلم) #}
-                {% if (e.type == 'PAYMENT' or e.type == 'CHECK_BOUNCED' or e.type == 'CHECK_PENDING') and e.get('payment_details') %}
+                {% if (e.type in ['PAYMENT', 'CHECK_BOUNCED', 'CHECK_PENDING', 'CHECK_CASHED', 'CHECK_RESUBMITTED', 'CHECK_CANCELLED', 'CHECK_LEGAL', 'CHECK_SETTLED']) and e.get('payment_details') %}
                   {% set pd = e.payment_details %}
                   
-                  {# إذا كان شيك مرتد #}
-                  {% if e.type == 'CHECK_BOUNCED' %}
+                  {# حالات الشيك المختلفة #}
+                  {% if e.type == 'CHECK_LEGAL' %}
+                    <span class="badge bg-dark text-white"><i class="fas fa-gavel"></i> شيك محوّل للدائرة القانونية</span>
+                  {% elif e.type == 'CHECK_SETTLED' %}
+                    <span class="badge bg-success text-white"><i class="fas fa-handshake"></i> شيك مسوّى</span>
+                  {% elif e.type == 'CHECK_BOUNCED' %}
                     <span class="badge bg-danger"><i class="fas fa-ban"></i> شيك مرفوض</span>
-                  {# إذا كان شيك معلق #}
+                  {% elif e.type == 'CHECK_RESUBMITTED' %}
+                    <span class="badge bg-info"><i class="fas fa-sync"></i> شيك أعيد للبنك</span>
+                  {% elif e.type == 'CHECK_CASHED' %}
+                    <span class="badge bg-success"><i class="fas fa-check-circle"></i> شيك مسحوب</span>
+                  {% elif e.type == 'CHECK_CANCELLED' %}
+                    <span class="badge bg-secondary"><i class="fas fa-times-circle"></i> شيك ملغي</span>
                   {% elif e.type == 'CHECK_PENDING' %}
                     <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> شيك معلق</span>
                   {% else %}
@@ -454,12 +484,42 @@
                     - لـيـد ({{ pd.receiver_name }})
                   {% endif %}
                   
-                  {# إذا مرتد، إضافة تنبيه #}
-                  {% if e.type == 'CHECK_BOUNCED' %}
+                  {# تفاصيل حالة الشيك #}
+                  {% if e.type == 'CHECK_LEGAL' %}
+                    <br><span class="text-dark"><strong>⚖️ تم تحويل الشيك للدائرة القانونية</strong></span>
+                  {% elif e.type == 'CHECK_SETTLED' %}
+                    <br><span class="text-success"><strong>✅ تم تسوية الشيك مالياً</strong></span>
+                  {% elif e.type == 'CHECK_BOUNCED' %}
                     <br><span class="text-danger"><strong>⚠️ تم إلغاء الدفعة وإرجاع المبلغ للرصيد</strong></span>
-                  {# إذا معلق، إضافة ملاحظة #}
+                  {% elif e.type == 'CHECK_RESUBMITTED' %}
+                    <br><span class="text-info"><strong>🔄 تم إعادة تقديم الشيك للبنك</strong></span>
+                  {% elif e.type == 'CHECK_CASHED' %}
+                    <br><span class="text-success"><strong>✅ تم صرف الشيك من البنك</strong></span>
+                  {% elif e.type == 'CHECK_CANCELLED' %}
+                    <br><span class="text-secondary"><strong>🚫 تم إلغاء الشيك</strong></span>
                   {% elif e.type == 'CHECK_PENDING' %}
                     <br><span class="text-warning"><strong>⏳ في انتظار الصرف من البنك</strong></span>
+                  {% endif %}
+                  
+                  {# عرض تفاصيل جميع الشيكات المرتبطة بالدفعة #}
+                  {% if pd.all_checks and pd.all_checks|length > 1 %}
+                    <br><div class="mt-2 p-2" style="background-color: #f8f9fa; border-left: 3px solid #007bff; font-size: 0.9em;">
+                      <strong>تفاصيل الشيكات المرتبطة:</strong>
+                      <ul class="mb-0 mt-1" style="padding-right: 20px;">
+                        {% for chk in pd.all_checks %}
+                        <li>
+                          <strong>شيك #{{ chk.check_number or '—' }}</strong>
+                          {% if chk.check_bank %} - {{ chk.check_bank }}{% endif %}
+                          {% if chk.check_due_date %} - استحقاق: {{ chk.check_due_date|format_date }}{% endif %}
+                          <span class="badge badge-{{ 'danger' if chk.status in ['RETURNED','BOUNCED'] else 'warning' if chk.status == 'PENDING' else 'success' if chk.status == 'CASHED' else 'info' if chk.status == 'RESUBMITTED' else 'secondary' }}">
+                            {{ chk.status }}
+                          </span>
+                          {% if chk.is_legal %}<span class="badge badge-dark">دائرة قانونية</span>{% endif %}
+                          {% if chk.is_settled %}<span class="badge badge-success">مسوّى</span>{% endif %}
+                        </li>
+                        {% endfor %}
+                      </ul>
+                    </div>
                   {% endif %}
                 
                 {# للمبيعات #}
@@ -467,6 +527,12 @@
                   بيع - عملية بيع
                   {% if e.get('items') and e.get('items')|length > 0 %}
                     {{ e.get('items')|length }} صنف
+                  {% endif %}
+                
+                {% elif e.type == 'SALE_RETURN' %}
+                  مرتجع بيع
+                  {% if e.ref %}
+                    - {{ e.ref }}
                   {% endif %}
                 
                 {# للفواتير #}
@@ -483,6 +549,24 @@
                 {# للحجوزات #}
                 {% elif e.type == 'PREORDER' %}
                   حجز مسبق
+                  {% if e.ref %}
+                    - {{ e.ref }}
+                  {% endif %}
+                
+                {# للعربونات #}
+                {% elif e.type == 'PREPAID' %}
+                  {{ e.statement }}
+                
+                {# للحجوزات الأونلاين #}
+                {% elif e.type == 'ONLINE_PREORDER' %}
+                  طلب أونلاين
+                  {% if e.ref %}
+                    - {{ e.ref }}
+                  {% endif %}
+                
+                {# للدفعات المقدمة الأونلاين #}
+                {% elif e.type == 'ONLINE_PREPAID' %}
+                  دفعة مقدمة - طلب أونلاين
                   {% if e.ref %}
                     - {{ e.ref }}
                   {% endif %}
@@ -513,7 +597,7 @@
               <td style="border: 1px solid #dee2e6; padding: 8px; text-align: end; font-weight: 500;">{{ e.credit|format_currency }}</td>
               
               {# الرصيد #}
-              <td style="border: 1px solid #dee2e6; padding: 8px; text-align: end; font-weight: bold; {% if e.balance > 0 %}color: #dc3545;{% elif e.balance < 0 %}color: #28a745;{% endif %}">
+              <td style="border: 1px solid #dee2e6; padding: 8px; text-align: end; font-weight: bold; {% if e.balance > 0 %}color: #28a745;{% elif e.balance < 0 %}color: #dc3545;{% endif %}">
                 {{ e.balance|format_currency }}
               </td>
             </tr>
@@ -602,7 +686,7 @@
               <th colspan="3" style="border: 1px solid #dee2e6; padding: 12px; text-align: center; font-weight: bold;">الإجمالي</th>
               <th style="border: 1px solid #dee2e6; padding: 12px; text-align: end; font-weight: bold;">{{ total_debit|format_currency }}</th>
               <th style="border: 1px solid #dee2e6; padding: 12px; text-align: end; font-weight: bold;">{{ total_credit|format_currency }}</th>
-              <th style="border: 1px solid #dee2e6; padding: 12px; text-align: end; font-weight: bold; {% if balance > 0 %}color: #dc3545;{% elif balance < 0 %}color: #28a745;{% endif %}">
+              <th style="border: 1px solid #dee2e6; padding: 12px; text-align: end; font-weight: bold; {% if balance > 0 %}color: #28a745;{% elif balance < 0 %}color: #dc3545;{% endif %}">
                 {{ balance|format_currency }}
               </th>
             </tr>
@@ -647,7 +731,7 @@
       periodStart: {{ (start_date|format_date if start_date else '')|tojson }},
       periodEnd: {{ (end_date|format_date if end_date else '')|tojson }},
       balanceText: {{ balance|format_currency|tojson }},
-      balanceState: {% if balance > 0 %}'owed'{% elif balance < 0 %}'due'{% else %}'balanced'{% endif %},
+      balanceState: {% if balance > 0 %}'due'{% elif balance < 0 %}'owed'{% else %}'balanced'{% endif %},
       printedDate: {{ now()|format_date|tojson }}
     };
 

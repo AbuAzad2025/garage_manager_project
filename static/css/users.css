@@ -90,10 +90,6 @@
   border-radius: 0.5rem;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.form-control:focus, .custom-select:focus {
-  border-color: #86b7fe;
-  box-shadow: 0 0 0 0.15rem rgba(13,110,253,.25);
-}
 
 .form-check-input {
   cursor: pointer;

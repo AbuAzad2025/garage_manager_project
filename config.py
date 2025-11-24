@@ -113,8 +113,8 @@ class Config:
     
     SQLALCHEMY_ECHO = False
     
-    # Template auto-reload
-    TEMPLATES_AUTO_RELOAD = True
+    # Template auto-reload (will be set based on DEBUG in app.py)
+    TEMPLATES_AUTO_RELOAD = _bool(os.environ.get("TEMPLATES_AUTO_RELOAD"), True)
 
     JSON_AS_ASCII = False
     JSON_SORT_KEYS = False
@@ -127,8 +127,8 @@ class Config:
     PERMANENT_SESSION_LIFETIME = timedelta(hours=_int("SESSION_HOURS", 12))
     SESSION_COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "gm_session")
 
-    # SECURITY: حد أقصى لحجم الملفات المرفوعة (16 MB)
-    MAX_CONTENT_LENGTH = _int("MAX_CONTENT_LENGTH_MB", 16) * 1024 * 1024
+    # SECURITY: حد أقصى لحجم الملفات المرفوعة (8 MB)
+    MAX_CONTENT_LENGTH = _int("MAX_CONTENT_LENGTH_MB", 8) * 1024 * 1024
     
     # SECURITY: أنواع الملفات المسموح برفعها
     ALLOWED_UPLOAD_EXTENSIONS = {

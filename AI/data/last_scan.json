@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-18T03:00:00.297847",
+  "timestamp": "2025-11-24T03:00:00.305505",
   "snapshot": {
     "tables": {},
     "routes": [
@@ -1135,6 +1135,13 @@
         "file": "routes\\checks.py"
       },
       {
+        "path": "/api/get-details/<check_token>",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\checks.py"
+      },
+      {
         "path": "/api/update-details/<check_token>",
         "methods": [
           "POST"
@@ -1871,6 +1878,13 @@
         "file": "routes\\financial_reports.py"
       },
       {
+        "path": "/receivables-payables",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\financial_reports.py"
+      },
+      {
         "path": "/revenue-by-source",
         "methods": [
           "GET"
@@ -2061,6 +2075,13 @@
         "file": "routes\\ledger_blueprint.py"
       },
       {
+        "path": "/cogs-audit\", methods=[\"GET\"], endpoint=\"cogs_audit_report",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\ledger_blueprint.py"
+      },
+      {
         "path": "/accounts-summary\", methods=[\"GET\"], endpoint=\"get_accounts_summary",
         "methods": [
           "GET"
@@ -2243,6 +2264,13 @@
         "file": "routes\\ledger_control.py"
       },
       {
+        "path": "/fix-cashed-checks-balance",
+        "methods": [
+          "POST"
+        ],
+        "file": "routes\\ledger_control.py"
+      },
+      {
         "path": "/sync-checks",
         "methods": [
           "POST"
@@ -2330,6 +2358,13 @@
         "path": "/operations/entities/search",
         "methods": [
           "GET"
+        ],
+        "file": "routes\\ledger_control.py"
+      },
+      {
+        "path": "/verify-customer-balances",
+        "methods": [
+          "POST"
         ],
         "file": "routes\\ledger_control.py"
       },
