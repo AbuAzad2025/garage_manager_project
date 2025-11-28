@@ -266,7 +266,25 @@
         </div>
       `;
       
-      document.querySelector('.container-fluid')?.insertBefore(bar, document.querySelector('table'));
+      try {
+        const table = document.querySelector('table');
+        if (table && table.parentNode) {
+          table.parentNode.insertBefore(bar, table);
+        } else {
+          const container = document.querySelector('.content-wrapper .container-fluid')
+            || document.querySelector('.container-fluid')
+            || document.body;
+          if (container && container.firstChild && container.insertBefore) {
+            container.insertBefore(bar, container.firstChild);
+          } else if (container && container.prepend) {
+            container.prepend(bar);
+          } else {
+            document.body.appendChild(bar);
+          }
+        }
+      } catch (e) {
+        document.body.appendChild(bar);
+      }
     }
     
     // مراقبة التحديد

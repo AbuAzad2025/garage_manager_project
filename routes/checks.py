@@ -101,10 +101,6 @@ class PaymentStatusSyncService:
             new_payment_status = PaymentStatusSyncService._calculate_status_without_splits(check_status)
         
         if new_payment_status and new_payment_status != payment_status:
-            connection.execute(
-                sa_text("UPDATE payments SET status = :new_status WHERE id = :payment_id"),
-                {"new_status": new_payment_status, "payment_id": payment_id}
-            )
             from flask import current_app
             current_app.logger.info(f"✅ تمت مزامنة حالة الدفعة #{payment_id} مع الشيك #{getattr(check, 'id', '?')} - {check_status} → {new_payment_status}")
             return new_payment_status
@@ -234,11 +230,17 @@ class PaymentStatusSyncService:
                         return None
                 except (ValueError, IndexError):
                     return None
-            else:
-                if len(non_cheque_splits) > 0:
-                    return PaymentStatus.COMPLETED.value
                 else:
-                    return PaymentStatus.PENDING.value
+                    if len(non_cheque_splits) > 0:
+                        return PaymentStatus.COMPLETED.value
+                    else:
+                        return PaymentStatus.PENDING.value
+
+        elif check_status == 'PENDING':
+            if len(non_cheque_splits) > 0:
+                return PaymentStatus.COMPLETED.value
+            else:
+                return PaymentStatus.PENDING.value
         
         elif check_status == 'CASHED':
             if len(non_cheque_splits) == 0:
@@ -430,6 +432,28 @@ def _check_gl_batch_reverse(mapper, connection, target):
                 rate = fx_rate(target.currency, 'ILS', target.check_date or datetime.utcnow(), raise_on_missing=False)
                 if rate and rate > 0:
                     amount_ils = float(amount * float(rate))
+            except Exception:
+                pass
+            try:
+                connection = db.engine.connect()
+                try:
+                    new_payment_status = PaymentStatusSyncService.sync_payment_status_from_check(check, connection)
+                    if new_payment_status:
+                        old_status_val = getattr(ctx.payment, 'status', None)
+                        old = getattr(old_status_val, 'value', old_status_val) if old_status_val else 'PENDING'
+                        old_upper = str(old).upper()
+                        new_upper = new_payment_status.upper()
+                        if old_upper != new_upper:
+                            allowed = _ALLOWED_TRANSITIONS.get(old_upper, set())
+                            if new_upper in allowed:
+                                ctx.payment.status = new_payment_status
+                            else:
+                                ctx.payment.notes = (ctx.payment.notes or '') + f"\n[SKIP_STATUS_SYNC] {old_upper} → {new_upper}"
+                finally:
+                    try:
+                        connection.close()
+                    except Exception:
+                        pass
             except Exception:
                 pass
         
@@ -1528,7 +1552,7 @@ GL_ACCOUNTS_CHECKS = {
 
 CHECK_LIFECYCLE = {
     'PENDING': ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED'],
-    'RETURNED': ['RESUBMITTED', 'CANCELLED'],
+    'RETURNED': ['RESUBMITTED', 'CANCELLED', 'PENDING'],
     'BOUNCED': ['RESUBMITTED', 'CANCELLED'],
     'RESUBMITTED': ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED'],
     'OVERDUE': ['CASHED', 'RETURNED', 'BOUNCED', 'CANCELLED'],
@@ -1606,10 +1630,40 @@ class CheckActionService:
             previous = self._current_status(ctx)
             
             if previous == status:
-                raise CheckStateError(
-                    f'الحالة الحالية ({previous}) مطابقة بالفعل للحالة المطلوبة ({status})',
-                    code='SAME_STATUS'
-                )
+                try:
+                    if ctx.kind == 'payment_split' and ctx.split:
+                        details = self._load_split_details(ctx.split)
+                        history = details.get('check_history') or []
+                        history.append(self._history_entry(status))
+                        details['check_history'] = history
+                        details['check_status'] = status
+                        if note_text:
+                            details['check_note'] = note_text
+                        ctx.split.details = details
+                        chk = Check.query.filter(Check.reference_number == f"PMT-SPLIT-{ctx.split.id}").first()
+                        if chk:
+                            chk.status = status
+                            if note_text:
+                                chk.notes = (chk.notes or '') + self._compose_note(status, note_text, f"Split #{ctx.split.id}")
+                            self._link_check_to_entity(chk, ctx)
+                    elif ctx.kind == 'payment' and ctx.payment:
+                        chk = Check.query.filter(Check.payment_id == ctx.payment.id).first()
+                        if chk and str(getattr(chk, 'status', '')).upper() != status:
+                            chk.status = status
+                            if note_text:
+                                chk.notes = (chk.notes or '') + self._compose_note(status, note_text, None)
+                            self._link_check_to_entity(chk, ctx)
+                except Exception:
+                    pass
+                return {
+                    'token': ctx.token,
+                    'kind': ctx.kind,
+                    'new_status': status,
+                    'new_status_ar': CHECK_STATUS.get(status, {}).get('ar', status),
+                    'previous_status': previous,
+                    'balance': None,
+                    'gl_batch_id': None,
+                }
             
             if previous and CHECK_LIFECYCLE.get(previous):
                 allowed = CHECK_LIFECYCLE[previous]
@@ -1816,6 +1870,51 @@ class CheckActionService:
             if note_text:
                 check.notes = (check.notes or '') + self._compose_note(status, note_text, None)
             self._link_check_to_entity(check, ctx)
+            try:
+                notes_upper = ((note_text or '') + (ctx.payment.notes or '')).upper()
+                is_bank_reason = '[RETURN_REASON=BANK]' in notes_upper
+                if is_bank_reason:
+                    if status == 'RETURNED':
+                        self._auto_refund_payment(ctx.payment)
+                    elif status == 'RESUBMITTED':
+                        self._auto_unrefund_payment(ctx.payment)
+                        # إعادة تقديم للبنك يجب أن يعيد الحالة إلى "معلق"
+                        check.status = 'PENDING'
+                        ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note('PENDING', None, None)
+                elif status == 'RESUBMITTED':
+                    # حتى بدون وسم السبب البنكي، إعادة التقديم تُعيد الشيك إلى "معلق" وتلغي أي استرجاعات
+                    try:
+                        self._auto_unrefund_payment(ctx.payment)
+                    except Exception:
+                        pass
+                    check.status = 'PENDING'
+                    ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note('PENDING', None, None)
+                else:
+                    previous_check_status = self._guess_status_from_notes(ctx.payment.notes) or 'PENDING'
+                    if status in ['RETURNED', 'BOUNCED', 'CASHED', 'CANCELLED']:
+                        connection = db.engine.connect()
+                        try:
+                            create_gl_entry_for_check(
+                                check_id=check.id,
+                                check_type='payment',
+                                amount=float(Decimal(str(check.amount or ctx.amount or 0))),
+                                currency=check.currency or ctx.currency or 'ILS',
+                                direction=ctx.direction,
+                                new_status=status,
+                                old_status=str(previous_check_status).upper(),
+                                entity_name=ctx.entity_name or '',
+                                notes=note_text or '',
+                                entity_type=ctx.entity_type,
+                                entity_id=ctx.entity_id,
+                                connection=connection
+                            )
+                        finally:
+                            try:
+                                connection.close()
+                            except Exception:
+                                pass
+            except Exception:
+                pass
 
     def _apply_split(self, ctx, status, note_text):
         split = ctx.split
@@ -1842,7 +1941,9 @@ class CheckActionService:
             
             connection = db.engine.connect()
             try:
-                if status in ['RETURNED', 'BOUNCED', 'CASHED', 'CANCELLED']:
+                notes_upper = ((note_text or '') + (ctx.payment.notes or '')).upper()
+                is_bank_reason = '[RETURN_REASON=BANK]' in notes_upper
+                if status in ['RETURNED', 'BOUNCED', 'CASHED', 'CANCELLED'] and not is_bank_reason:
                     check_amount = Decimal(str(check.amount or split.amount or 0))
                     check_currency = check.currency or split.currency or ctx.currency or 'ILS'
                     
@@ -1860,13 +1961,54 @@ class CheckActionService:
                         entity_id=ctx.entity_id,
                         connection=connection
                     )
-                
+                if status == 'RETURNED' and is_bank_reason:
+                    try:
+                        self._auto_refund_split(ctx.payment, split)
+                    except Exception:
+                        pass
+                elif status == 'RESUBMITTED' and is_bank_reason:
+                    try:
+                        self._auto_unrefund_split(ctx.payment, split)
+                    except Exception:
+                        pass
+                    # إعادة تقديم للبنك يعيد الحالة إلى "معلق" على مستوى split والشيك
+                    try:
+                        details = self._load_split_details(split)
+                        details['check_status'] = 'PENDING'
+                        split.details = details
+                    except Exception:
+                        pass
+                    check.status = 'PENDING'
+                    ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note('PENDING', None, f"Split #{split.id}")
+                elif status == 'RESUBMITTED':
+                    # إعادة تقديم بدون وسم السبب البنكي: أعد للحالة "معلق" وألغِ أي استرجاع سابق
+                    try:
+                        self._auto_unrefund_split(ctx.payment, split)
+                    except Exception:
+                        pass
+                    try:
+                        details = self._load_split_details(split)
+                        details['check_status'] = 'PENDING'
+                        split.details = details
+                    except Exception:
+                        pass
+                    check.status = 'PENDING'
+                    ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note('PENDING', None, f"Split #{split.id}")
+
                 new_payment_status = PaymentStatusSyncService.sync_payment_status_from_check(check, connection)
                 if new_payment_status:
                     old_status_val = getattr(ctx.payment, 'status', None)
                     old = getattr(old_status_val, 'value', old_status_val) if old_status_val else 'PENDING'
-                    if str(old).upper() != new_payment_status.upper():
-                        ctx.payment.status = new_payment_status
+                    old_upper = str(old).upper()
+                    new_upper = new_payment_status.upper()
+                    if old_upper != new_upper:
+                        allowed = _ALLOWED_TRANSITIONS.get(old_upper, set())
+                        if new_upper in allowed:
+                            ctx.payment.status = new_payment_status
+                            ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note(status, note_text, f"Split #{split.id}")
+                        else:
+                            ctx.payment.notes = (ctx.payment.notes or '') + f"\n[SKIP_STATUS_SYNC] {old_upper} → {new_upper} غير مسموح"
+                    else:
                         ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note(status, note_text, f"Split #{split.id}")
                 else:
                     ctx.payment.notes = (ctx.payment.notes or '') + self._compose_note(status, note_text, f"Split #{split.id}")
@@ -1899,6 +2041,30 @@ class CheckActionService:
             if note_text:
                 check.notes = (check.notes or '') + self._compose_note(status, note_text, None)
             self._link_check_to_entity(check, ctx, expense=exp)
+            try:
+                connection = db.engine.connect()
+                try:
+                    new_payment_status = PaymentStatusSyncService.sync_payment_status_from_check(check, connection)
+                    if new_payment_status:
+                        payment_obj = Payment.query.get(getattr(check, 'payment_id', None))
+                        if payment_obj:
+                            old_status_val = getattr(payment_obj, 'status', None)
+                            old = getattr(old_status_val, 'value', old_status_val) if old_status_val else 'PENDING'
+                            old_upper = str(old).upper()
+                            new_upper = new_payment_status.upper()
+                            if old_upper != new_upper:
+                                allowed = _ALLOWED_TRANSITIONS.get(old_upper, set())
+                                if new_upper in allowed:
+                                    payment_obj.status = new_payment_status
+                                else:
+                                    payment_obj.notes = (payment_obj.notes or '') + f"\n[SKIP_STATUS_SYNC] {old_upper} → {new_upper}"
+                finally:
+                    try:
+                        connection.close()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
     def _apply_manual(self, ctx, status, note_text):
         manual = ctx.manual
@@ -1982,6 +2148,308 @@ class CheckActionService:
                 entity_id=ctx.entity_id
             )
         return None
+
+    def _auto_refund_payment(self, payment):
+        try:
+            existing = Payment.query.filter(
+                Payment.refund_of_id == payment.id,
+                Payment.notes.ilike('%[AUTO_REFUND_FROM_BANK=true]%'),
+                Payment.status != PaymentStatus.CANCELLED.value
+            ).first()
+            if existing:
+                return
+            splits = list(getattr(payment, 'splits', []) or [])
+            cheque_splits = [s for s in splits if getattr(s.method, 'value', s.method) == PaymentMethod.CHEQUE.value]
+            if cheque_splits:
+                total_amount = sum(Decimal(str(getattr(s, 'amount', 0) or 0)) for s in cheque_splits)
+            else:
+                method_val = getattr(payment.method, 'value', payment.method)
+                if str(method_val).upper() == PaymentMethod.CHEQUE.value:
+                    total_amount = Decimal(str(payment.total_amount or 0))
+                else:
+                    return
+            direction = PaymentDirection.OUT.value if payment.direction == PaymentDirection.IN.value else PaymentDirection.IN.value
+            entity_name = None
+            try:
+                entity_name = (
+                    getattr(getattr(payment, 'customer', None), 'name', None) or
+                    getattr(getattr(payment, 'supplier', None), 'name', None) or
+                    getattr(getattr(payment, 'partner', None), 'name', None)
+                )
+            except Exception:
+                entity_name = None
+            # تفاصيل الشيك لإضافتها للملاحظات
+            check_num = getattr(payment, 'check_number', None)
+            check_bank = getattr(payment, 'check_bank', None)
+            if not check_num or not check_bank:
+                try:
+                    first = cheque_splits[0] if cheque_splits else None
+                    det = getattr(first, 'details', {}) or {}
+                    if isinstance(det, str):
+                        import json as _json
+                        try:
+                            det = _json.loads(det)
+                        except Exception:
+                            det = {}
+                    check_num = check_num or (det.get('check_number') or None)
+                    check_bank = check_bank or (det.get('check_bank') or None)
+                except Exception:
+                    pass
+            # إعداد ملاحظات العكس
+            reverse_note = f"\nعكس قيد لل{('عميل' if payment.customer_id else ('مورد' if payment.supplier_id else ('شريك' if payment.partner_id else 'جهة')))} {entity_name or ''} بسبب ارجاع الشيك".strip()
+            if check_num or check_bank:
+                reverse_note += f" (رقم {check_num or '—'} بنك {check_bank or '—'} من البنك)"
+            refund = Payment(
+                entity_type=payment.entity_type,
+                customer_id=payment.customer_id,
+                supplier_id=payment.supplier_id,
+                partner_id=payment.partner_id,
+                sale_id=payment.sale_id,
+                invoice_id=payment.invoice_id,
+                service_id=payment.service_id,
+                expense_id=payment.expense_id,
+                preorder_id=payment.preorder_id,
+                shipment_id=payment.shipment_id,
+                loan_settlement_id=payment.loan_settlement_id,
+                direction=direction,
+                status=PaymentStatus.COMPLETED.value,
+                payment_date=datetime.utcnow(),
+                total_amount=float(total_amount),
+                currency=(payment.currency or 'ILS'),
+                method=(getattr(payment.method, 'value', payment.method) or PaymentMethod.CHEQUE.value),
+                reference=(
+                    f"قيد عكسي بسبب ارجاع شيك رقم {check_num or '—'} بنك {check_bank or '—'} من البنك"
+                    if (check_num or check_bank) else f"عكس تلقائي لدفعة #{payment.id} بسبب مرتجع بنك"
+                ),
+                notes=((payment.notes or '') + "\n[AUTO_REFUND_FROM_BANK=true]" + reverse_note),
+                refund_of_id=payment.id,
+                receiver_name=getattr(payment, 'receiver_name', None),
+                deliverer_name=getattr(payment, 'deliverer_name', None),
+            )
+            # تعيين حقول سعر الصرف للدفعة المسترجعة اعتماداً على دفعة الأصل
+            try:
+                if payment.currency and payment.currency != 'ILS':
+                    refund.fx_rate_used = payment.fx_rate_used
+                    refund.fx_rate_source = getattr(payment, 'fx_rate_source', None) or 'original'
+                    refund.fx_rate_timestamp = datetime.utcnow()
+                    refund.fx_base_currency = payment.fx_base_currency or payment.currency
+                    refund.fx_quote_currency = 'ILS'
+            except Exception:
+                pass
+            from routes.payments import _ensure_payment_number
+            _ensure_payment_number(refund)
+            db.session.add(refund)
+            if cheque_splits:
+                for sp in cheque_splits:
+                    try:
+                        det = getattr(sp, 'details', {}) or {}
+                        if isinstance(det, str):
+                            import json as _json
+                            try:
+                                det = _json.loads(det)
+                            except Exception:
+                                det = {}
+                        det.update({'auto_refund': True, 'reverse_entry': True})
+                        db.session.add(PaymentSplit(
+                            payment=refund,
+                            method=sp.method,
+                            amount=sp.amount,
+                            currency=sp.currency,
+                            converted_amount=(sp.converted_amount or Decimal(str(getattr(sp, 'amount', 0) or 0))),
+                            converted_currency=(sp.converted_currency or 'ILS'),
+                            fx_rate_used=getattr(sp, 'fx_rate_used', None),
+                            fx_rate_source=getattr(sp, 'fx_rate_source', None),
+                            fx_rate_timestamp=getattr(sp, 'fx_rate_timestamp', None),
+                            fx_base_currency=getattr(sp, 'fx_base_currency', None),
+                            fx_quote_currency=getattr(sp, 'fx_quote_currency', None),
+                            details=det
+                        ))
+                    except Exception:
+                        db.session.add(PaymentSplit(
+                            payment=refund,
+                            method=sp.method,
+                            amount=sp.amount,
+                            currency=sp.currency,
+                            converted_amount=Decimal(str(getattr(sp, 'converted_amount', 0) or getattr(sp, 'amount', 0) or 0)),
+                            converted_currency=(getattr(sp, 'converted_currency', None) or 'ILS'),
+                            details={'auto_refund': True, 'reverse_entry': True}
+                        ))
+            else:
+                # في حال كانت الدفعة شيك بدون splits، إنشاء split واحد للاسترجاع
+                try:
+                    base = (payment.currency or 'ILS')
+                    rate_used = Decimal(str(getattr(payment, 'fx_rate_used', 0) or 0))
+                    converted_amt = Decimal(str(total_amount or 0))
+                    if base != 'ILS' and rate_used and rate_used > 0:
+                        converted_amt = (converted_amt * rate_used)
+                    db.session.add(PaymentSplit(
+                        payment=refund,
+                        method=(getattr(payment.method, 'value', payment.method) or PaymentMethod.CHEQUE.value),
+                        amount=Decimal(str(total_amount or 0)),
+                        currency=base,
+                        converted_amount=converted_amt,
+                        converted_currency='ILS',
+                        fx_rate_used=(rate_used if rate_used and rate_used > 0 else None),
+                        fx_rate_source=getattr(payment, 'fx_rate_source', None),
+                        fx_rate_timestamp=getattr(payment, 'fx_rate_timestamp', None),
+                        fx_base_currency=(getattr(payment, 'fx_base_currency', None) or (base if base != 'ILS' else None)),
+                        fx_quote_currency=(getattr(payment, 'fx_quote_currency', None) or ('ILS' if base != 'ILS' else None)),
+                        details={'auto_refund': True, 'reverse_entry': True}
+                    ))
+                except Exception:
+                    db.session.add(PaymentSplit(
+                        payment=refund,
+                        method=(getattr(payment.method, 'value', payment.method) or PaymentMethod.CHEQUE.value),
+                        amount=Decimal(str(total_amount or 0)),
+                        currency=(payment.currency or 'ILS'),
+                        converted_amount=Decimal(str(total_amount or 0)),
+                        converted_currency='ILS',
+                        details={'auto_refund': True, 'reverse_entry': True}
+                    ))
+        except Exception:
+            pass
+
+    def _auto_unrefund_payment(self, payment):
+        try:
+            refunds = Payment.query.filter(
+                Payment.refund_of_id == payment.id,
+                Payment.notes.ilike('%[AUTO_REFUND_FROM_BANK=true]%'),
+                Payment.status == PaymentStatus.COMPLETED.value
+            ).all()
+            for r in refunds:
+                r.status = PaymentStatus.CANCELLED.value
+                r.notes = (r.notes or '') + "\n[REVERSAL_ON_RESUBMIT=true]"
+                db.session.add(r)
+        except Exception:
+            pass
+
+    def _auto_refund_split(self, payment, split):
+        try:
+            existing = Payment.query.filter(
+                Payment.refund_of_id == payment.id,
+                Payment.notes.ilike('%[AUTO_REFUND_FROM_BANK=true]%'),
+                Payment.status != PaymentStatus.CANCELLED.value
+            ).first()
+            if existing:
+                return
+            direction = PaymentDirection.OUT.value if payment.direction == PaymentDirection.IN.value else PaymentDirection.IN.value
+            entity_name = None
+            try:
+                entity_name = (
+                    getattr(getattr(payment, 'customer', None), 'name', None) or
+                    getattr(getattr(payment, 'supplier', None), 'name', None) or
+                    getattr(getattr(payment, 'partner', None), 'name', None)
+                )
+            except Exception:
+                entity_name = None
+            # تفاصيل الشيك لإضافتها للملاحظات
+            check_num = getattr(payment, 'check_number', None)
+            check_bank = getattr(payment, 'check_bank', None)
+            try:
+                det = getattr(split, 'details', {}) or {}
+                if isinstance(det, str):
+                    import json as _json
+                    try:
+                        det = _json.loads(det)
+                    except Exception:
+                        det = {}
+                check_num = check_num or (det.get('check_number') or None)
+                check_bank = check_bank or (det.get('check_bank') or None)
+            except Exception:
+                pass
+            reverse_note = f"\nعكس قيد لل{('عميل' if payment.customer_id else ('مورد' if payment.supplier_id else ('شريك' if payment.partner_id else 'جهة')))} {entity_name or ''} بسبب ارجاع الشيك".strip()
+            if check_num or check_bank:
+                reverse_note += f" (رقم {check_num or '—'} بنك {check_bank or '—'} من البنك)"
+            refund = Payment(
+                entity_type=payment.entity_type,
+                customer_id=payment.customer_id,
+                supplier_id=payment.supplier_id,
+                partner_id=payment.partner_id,
+                sale_id=payment.sale_id,
+                invoice_id=payment.invoice_id,
+                service_id=payment.service_id,
+                expense_id=payment.expense_id,
+                preorder_id=payment.preorder_id,
+                shipment_id=payment.shipment_id,
+                loan_settlement_id=payment.loan_settlement_id,
+                direction=direction,
+                status=PaymentStatus.COMPLETED.value,
+                payment_date=datetime.utcnow(),
+                total_amount=float(Decimal(str(getattr(split, 'amount', 0) or 0))),
+                currency=(payment.currency or 'ILS'),
+                method=(getattr(split.method, 'value', split.method) or PaymentMethod.CHEQUE.value),
+                reference=(
+                    f"قيد عكسي بسبب ارجاع شيك رقم {check_num or '—'} بنك {check_bank or '—'} من البنك"
+                    if (check_num or check_bank) else f"عكس تلقائي لجزء #{split.id} من الدفعة #{payment.id} بسبب مرتجع بنك"
+                ),
+                notes=((payment.notes or '') + "\n[AUTO_REFUND_FROM_BANK=true]" + reverse_note),
+                refund_of_id=payment.id,
+                receiver_name=getattr(payment, 'receiver_name', None),
+                deliverer_name=getattr(payment, 'deliverer_name', None),
+            )
+            try:
+                if payment.currency and payment.currency != 'ILS':
+                    refund.fx_rate_used = payment.fx_rate_used
+                    refund.fx_rate_source = getattr(payment, 'fx_rate_source', None) or 'original'
+                    refund.fx_rate_timestamp = datetime.utcnow()
+                    refund.fx_base_currency = payment.fx_base_currency or payment.currency
+                    refund.fx_quote_currency = 'ILS'
+            except Exception:
+                pass
+            from routes.payments import _ensure_payment_number
+            _ensure_payment_number(refund)
+            db.session.add(refund)
+            try:
+                det = getattr(split, 'details', {}) or {}
+                if isinstance(det, str):
+                    import json as _json
+                    try:
+                        det = _json.loads(det)
+                    except Exception:
+                        det = {}
+                det.update({'auto_refund': True, 'reverse_entry': True})
+                db.session.add(PaymentSplit(
+                    payment=refund,
+                    method=split.method,
+                    amount=split.amount,
+                    currency=split.currency,
+                    converted_amount=(split.converted_amount or Decimal(str(getattr(split, 'amount', 0) or 0))),
+                    converted_currency=(split.converted_currency or 'ILS'),
+                    fx_rate_used=getattr(split, 'fx_rate_used', None),
+                    fx_rate_source=getattr(split, 'fx_rate_source', None),
+                    fx_rate_timestamp=getattr(split, 'fx_rate_timestamp', None),
+                    fx_base_currency=getattr(split, 'fx_base_currency', None),
+                    fx_quote_currency=getattr(split, 'fx_quote_currency', None),
+                    details=det
+                ))
+            except Exception:
+                db.session.add(PaymentSplit(
+                    payment=refund,
+                    method=split.method,
+                    amount=split.amount,
+                    currency=split.currency,
+                    converted_amount=Decimal(str(getattr(split, 'converted_amount', 0) or getattr(split, 'amount', 0) or 0)),
+                    converted_currency=(getattr(split, 'converted_currency', None) or 'ILS'),
+                    details={'auto_refund': True, 'reverse_entry': True}
+                ))
+        except Exception:
+            pass
+
+    def _auto_unrefund_split(self, payment, split):
+        try:
+            refunds = Payment.query.filter(
+                Payment.refund_of_id == payment.id,
+                Payment.notes.ilike('%[AUTO_REFUND_FROM_BANK=true]%'),
+                Payment.status == PaymentStatus.COMPLETED.value
+            ).all()
+            for r in refunds:
+                r.status = PaymentStatus.CANCELLED.value
+                r.notes = (r.notes or '') + "\n[REVERSAL_ON_RESUBMIT=true]"
+                db.session.add(r)
+        except Exception:
+            pass
+
+    # تم إزالة منطق إنشاء دفعات عكس تلقائية؛ سيتم إنشاء قيود دفتر الأستاذ مباشرة عند تغيير حالة الشيك
 
     def _ledger_source_id(self, ctx):
         if ctx.manual:
@@ -2643,6 +3111,11 @@ def get_checks():
 
             processed_split_count = 0
             for payment in payments:
+                notes_upper_all = (payment.notes or '').upper()
+                if getattr(payment, 'refund_of_id', None):
+                    continue
+                if '[AUTO_REFUND_FROM_BANK=true]' in notes_upper_all:
+                    continue
                 entity_name, entity_type, entity_link, entity_type_code, entity_id = _resolve_entity(payment)
                 status_value = payment.status.value if hasattr(payment.status, 'value') else str(payment.status or '')
                 direction_value = payment.direction.value if hasattr(payment.direction, 'value') else str(payment.direction or '')
@@ -2726,6 +3199,8 @@ def get_checks():
                             'reference': payment.receipt_number or ''
                         })
 
+                # دمج الشيكات المكررة حسب رقم الشيك داخل نفس الدفعة
+                split_agg_map = {}
                 for split in payment.splits or []:
                     split_method = getattr(split.method, 'value', split.method)
                     if split_method != PaymentMethod.CHEQUE.value:
@@ -2804,6 +3279,28 @@ def get_checks():
                         continue
                     check_ids.add(split_key)
 
+                    # إذا كان نفس رقم الشيك ظهر سابقاً في نفس الدفعة، نجمع القيم بدلاً من إضافة صف جديد
+                    existing_index = split_agg_map.get(check_number) if check_number else None
+                    if existing_index is not None:
+                        try:
+                            prev = checks[existing_index]
+                            prev_amt = float(prev.get('amount') or 0)
+                            prev_conv = float(prev.get('converted_amount') or 0)
+                            prev['amount'] = round(prev_amt + (amount or 0), 2)
+                            if converted_amount is not None:
+                                prev['converted_amount'] = round(prev_conv + (converted_amount or 0), 2)
+                            # اختيار أقرب تاريخ استحقاق
+                            prev_days = prev.get('days_until_due')
+                            if days_until_due is not None and (prev_days is None or days_until_due < prev_days):
+                                prev['days_until_due'] = days_until_due
+                                prev['due_date_formatted'] = due_date.strftime('%d/%m/%Y') if due_date else ''
+                        except Exception:
+                            pass
+                        processed_split_count += 1
+                        continue
+                    entry_index = len(checks)
+                    if check_number:
+                        split_agg_map[check_number] = entry_index
                     checks.append({
                         'token': f"split-{getattr(split, 'id', 0)}",
                         'id': getattr(split, 'id', 0),
@@ -3079,6 +3576,47 @@ def get_checks():
                     'receipt_number': check.reference_number or ''
                 })
         
+        # إزالة التكرارات حسب رقم الشيك + الجهة + تاريخ الاستحقاق (تجميع الأجزاء لنفس الشيك)
+        try:
+            unique_map = {}
+            aggregated = []
+            for chk in checks:
+                cn = (chk.get('check_number') or '').strip()
+                en = (chk.get('entity_name') or '').strip()
+                dd = (chk.get('due_date_formatted') or '').strip()
+                key = f"{cn}|{en}|{dd}"
+                if not cn:
+                    aggregated.append(chk)
+                    continue
+                idx = unique_map.get(key)
+                if idx is None:
+                    unique_map[key] = len(aggregated)
+                    aggregated.append(chk)
+                else:
+                    try:
+                        prev = aggregated[idx]
+                        # جمع المبالغ الأساسية
+                        prev_amt = float(prev.get('amount') or 0)
+                        cur_amt = float(chk.get('amount') or 0)
+                        prev['amount'] = round(prev_amt + cur_amt, 2)
+                        # جمع المبالغ المحوّلة إن وجدت
+                        prev_conv = float(prev.get('converted_amount') or 0)
+                        cur_conv = float(chk.get('converted_amount') or 0)
+                        if (chk.get('converted_amount') is not None) or (prev.get('converted_amount') is not None):
+                            prev['converted_amount'] = round(prev_conv + cur_conv, 2)
+                        # اختيار الاتجاه: إذا وُجد أي وارد، يبقى وارد
+                        prev_in = bool(prev.get('is_incoming'))
+                        cur_in = bool(chk.get('is_incoming'))
+                        merged_in = prev_in or cur_in
+                        prev['is_incoming'] = merged_in
+                        prev['direction'] = 'وارد' if merged_in else 'صادر'
+                        prev['direction_en'] = 'in' if merged_in else 'out'
+                    except Exception:
+                        pass
+            checks = aggregated
+        except Exception:
+            pass
+
         checks.sort(key=lambda x: x['check_due_date'])
         
         return jsonify({
@@ -3435,11 +3973,77 @@ def update_check_status(check_id):
         if not new_status:
             return jsonify({'success': False, 'message': 'بيانات ناقصة'}), 400
         notes = (data.get('notes') or '').strip()
+        return_reason = (data.get('return_reason') or data.get('refund_reason') or data.get('reason') or '').strip().upper()
         
         try:
             service = CheckActionService(current_user)
-            result = service.run(check_id, new_status, notes)
+            if new_status == 'RETURNED' and return_reason == 'PAYMENT_REFUND':
+                base_note = 'تم ارجاعه للزبون بسبب ارجاع الدفعة'
+                ctx = service._resolve(check_id)
+                prev = service._current_status(ctx)
+                composed_note = base_note if not notes else f"{base_note} - {notes}"
+                composed_note = composed_note + ' [RETURN_REASON=PAYMENT_REFUND]'
+                target = 'RETURNED'
+                if prev == 'RETURNED':
+                    target = 'PENDING'
+                    composed_note = notes
+                result = service.run(check_id, target, composed_note or '')
+            elif new_status == 'RETURNED' and return_reason and return_reason != 'PAYMENT_REFUND':
+                marked_notes = (notes + ' [RETURN_REASON=BANK]').strip()
+                result = service.run(check_id, new_status, marked_notes)
+            elif new_status == 'RESUBMITTED' and return_reason and return_reason != 'PAYMENT_REFUND':
+                marked_notes = (notes + ' [RETURN_REASON=BANK]').strip()
+                result = service.run(check_id, new_status, marked_notes)
+            else:
+                result = service.run(check_id, new_status, notes)
             db.session.commit()
+            next_list = 'pending'
+            if result['new_status'] in ['RETURNED','BOUNCED']:
+                next_list = 'returned'
+            elif result['new_status'] == 'CASHED':
+                next_list = 'cashed'
+            elif result['new_status'] == 'CANCELLED':
+                next_list = 'cancelled'
+            ctx = service._resolve(check_id)
+            amount = None
+            currency = None
+            direction = None
+            method = None
+            payment_id = None
+            check_id_res = None
+            entity_type = None
+            entity_id = None
+            try:
+                if ctx.kind == 'payment' and ctx.payment:
+                    amount = float(getattr(ctx.payment, 'total_amount', 0) or 0)
+                    currency = getattr(ctx.payment, 'currency', None)
+                    direction = getattr(getattr(ctx.payment, 'direction', None), 'value', getattr(ctx.payment, 'direction', None))
+                    method = getattr(getattr(ctx.payment, 'method', None), 'value', getattr(ctx.payment, 'method', None))
+                    payment_id = ctx.payment.id
+                    entity_type = getattr(getattr(ctx.payment, 'entity_type', None), 'value', getattr(ctx.payment, 'entity_type', None))
+                    entity_id = getattr(ctx.payment, 'customer_id', None) or getattr(ctx.payment, 'supplier_id', None) or getattr(ctx.payment, 'partner_id', None)
+                    chk = Check.query.filter(Check.payment_id == payment_id).first()
+                    check_id_res = chk.id if chk else None
+                elif ctx.kind == 'payment_split' and ctx.split:
+                    amount = float(getattr(ctx.split, 'amount', 0) or 0)
+                    currency = getattr(ctx.split, 'currency', None)
+                    direction = getattr(getattr(ctx.payment, 'direction', None), 'value', getattr(ctx.payment, 'direction', None)) if ctx.payment else None
+                    method = getattr(getattr(ctx.split, 'method', None), 'value', getattr(ctx.split, 'method', None))
+                    payment_id = ctx.split.payment_id
+                    entity_type = getattr(getattr(ctx.payment, 'entity_type', None), 'value', getattr(ctx.payment, 'entity_type', None)) if ctx.payment else None
+                    entity_id = getattr(ctx.payment, 'customer_id', None) or getattr(ctx.payment, 'supplier_id', None) or getattr(ctx.payment, 'partner_id', None) if ctx.payment else None
+                    chk = Check.query.filter(Check.reference_number == f"PMT-SPLIT-{ctx.split.id}").first()
+                    check_id_res = chk.id if chk else None
+                elif ctx.kind == 'manual' and ctx.manual:
+                    amount = float(getattr(ctx.manual, 'amount', 0) or 0)
+                    currency = getattr(ctx.manual, 'currency', None)
+                    direction = getattr(ctx.manual, 'direction', None)
+                    payment_id = getattr(ctx.manual, 'payment_id', None)
+                    check_id_res = ctx.manual.id
+                    entity_type = getattr(ctx.manual, 'entity_type', None)
+                    entity_id = getattr(ctx.manual, 'customer_id', None) or getattr(ctx.manual, 'supplier_id', None) or getattr(ctx.manual, 'partner_id', None)
+            except Exception:
+                pass
             return jsonify({
                 'success': True,
                 'message': f"تم تحديث حالة الشيك إلى: {result['new_status_ar']}",
@@ -3450,6 +4054,15 @@ def update_check_status(check_id):
                 'gl_batch_id': result.get('gl_batch_id'),
                 'token': result['token'],
                 'kind': result['kind'],
+                'amount': amount,
+                'currency': currency,
+                'direction': direction,
+                'method': method,
+                'payment_id': payment_id,
+                'check_id': check_id_res,
+                'entity_type': entity_type,
+                'entity_id': entity_id,
+                'next_list': next_list,
             })
         except (CheckValidationError, CheckStateError) as err:
             db.session.rollback()
@@ -4500,4 +5113,3 @@ def _update_check_details(ctx: CheckActionContext, payload: dict, service: Check
         ctx.currency = currency_val
     else:
         raise CheckValidationError("نوع الشيك غير مدعوم للتعديل", code='UNSUPPORTED_EDIT_TYPE')
-

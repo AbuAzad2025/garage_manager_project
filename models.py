@@ -4779,7 +4779,7 @@ def _preorder_gl_batch_upsert(mapper, connection, target: "PreOrder"):
                     except Exception:
                         pass
                 
-                ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+                ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
                 advance_account = GL_ACCOUNTS.get("ADVANCE", "2300_ADVANCE_PAYMENTS")
                 
                 entries = [
@@ -4839,7 +4839,7 @@ def _preorder_gl_batch_upsert(mapper, connection, target: "PreOrder"):
                 if current_app:
                     current_app.logger.warning(f"⚠️ خطأ في تحويل العملة للحجز #{target.id}: {e}")
         
-        ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+        ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
         advance_account = GL_ACCOUNTS.get("ADVANCE", "2300_ADVANCE_PAYMENTS")
         
         entries = [
@@ -4975,12 +4975,12 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
 
     @hybrid_property
     def tax_amount(self):
-        base = D(self.subtotal) - D(self.discount_total or 0)
+        base = D(self.subtotal) - D(self.discount_total or 0) + D(self.shipping_cost or 0)
         return base * D(self.tax_rate or 0) / Decimal("100.0")
 
     @hybrid_property
     def total(self):
-        return D(self.subtotal) + D(self.tax_amount) + D(self.shipping_cost or 0) - D(self.discount_total or 0)
+        return (D(self.subtotal) - D(self.discount_total or 0) + D(self.shipping_cost or 0)) + D(self.tax_amount)
 
     @hybrid_property
     def refundable_amount(self):
@@ -5035,6 +5035,7 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
         from sqlalchemy import func
         from decimal import Decimal as D
         
+        sale_currency = (self.currency or "ILS").upper()
         payments = db.session.query(Payment).options(
             joinedload(Payment.splits)
         ).filter(
@@ -5085,32 +5086,32 @@ class Sale(db.Model, TimestampMixin, AuditMixin):
                             split_amt = D('0.00')
                     
                     if split_amt > 0:
-                        if split.currency == "ILS":
+                        if (split.currency or sale_currency).upper() == sale_currency:
                             total_paid += split_amt
                         else:
                             try:
                                 from models import convert_amount
-                                total_paid += D(str(convert_amount(split_amt, split.currency, "ILS", payment.payment_date)))
+                                total_paid += D(str(convert_amount(split_amt, split.currency, sale_currency, payment.payment_date)))
                             except:
                                 pass
             else:
                 amt = D(str(payment.total_amount or 0))
-                if payment.currency == "ILS":
+                if (payment.currency or sale_currency).upper() == sale_currency:
                     total_paid += amt
                 else:
                     try:
                         from models import convert_amount
-                        total_paid += D(str(convert_amount(amt, payment.currency, "ILS", payment.payment_date)))
+                        total_paid += D(str(convert_amount(amt, payment.currency, sale_currency, payment.payment_date)))
                     except:
                         pass
         
-        self.total_paid = float(total_paid)
-        total = float(self.total or 0)
-        
-        self.balance_due = float(total) - float(self.total_paid)
+        # كمّي رصيد المدفوع والمتبقي وفق عملة الفاتورة
+        self.total_paid = float(q(total_paid))
+        total_amount = float(q(self.total_amount or self.total or 0))
+        self.balance_due = float(q(total_amount) - q(self.total_paid))
         
         self.payment_status = (
-            PaymentProgress.PAID.value if self.total_paid >= total
+            PaymentProgress.PAID.value if q(self.total_paid) >= q(total_amount)
             else PaymentProgress.PARTIAL.value if self.total_paid > 0
             else PaymentProgress.PENDING.value
         )
@@ -5174,11 +5175,11 @@ def _compute_total_amount(mapper, connection, target: "Sale"):
     discount = q(target.discount_total)
     tax_rate = q(target.tax_rate)
     shipping = q(target.shipping_cost)
-    base = subtotal - discount
+    base = subtotal - discount + shipping
     if base < 0:
         base = Decimal("0.00")
     tax = q(base * tax_rate / Decimal("100"))
-    total = base + tax + shipping
+    total = base + tax
     if total < 0:
         total = Decimal("0.00")
     target.total_amount = q(total)
@@ -5243,12 +5244,13 @@ def _sale_create_tax_entry(mapper, connection, target: "Sale"):
         return
     
     try:
-        from sqlalchemy import select as sa_select, delete as sa_delete
+        from sqlalchemy import select as sa_select, delete as sa_delete, insert as sa_insert
         
         sale_date = target.sale_date or datetime.now(timezone.utc)
         subtotal = sum(float(l.net_amount or 0) for l in (target.lines or []))
         discount = float(target.discount_total or 0)
-        base_amount = max(subtotal - discount, 0)
+        shipping = float(target.shipping_cost or 0)
+        base_amount = max(subtotal - discount + shipping, 0)
         tax_amount = base_amount * (tax_rate / 100.0)
         total_amount = base_amount + tax_amount
         
@@ -5533,7 +5535,7 @@ def _sale_gl_batch_reverse(mapper, connection, target: "Sale"):
             except Exception:
                 pass
         
-        ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+        ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
         revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
         
         entries = [
@@ -5630,8 +5632,8 @@ def _recompute_sale_total_amount(connection, sale_id: int):
     base = subtotal - discount
     if base < Decimal("0"):
         base = Decimal("0")
-    tax = (base * tax_rate / Decimal("100"))
-    total = base + tax + shipping
+    tax = ((base + shipping) * tax_rate / Decimal("100"))
+    total = (base + shipping) + tax
     if total < Decimal("0"):
         total = Decimal("0")
     connection.execute(
@@ -6313,7 +6315,7 @@ def _invoice_gl_batch_upsert(mapper, connection, target: "Invoice"):
                 entity_id = target.customer_id or target.supplier_id or target.partner_id
                 
                 if entity_type == "CUSTOMER":
-                    ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+                    ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
                     revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
                     entries = [
                         (revenue_account, amount_ils, 0),  # مدين: Sales Revenue (إيراد نقص - الإيرادات تنقص بالمدين)
@@ -6996,7 +6998,7 @@ def _payment_gl_batch_upsert(mapper, connection, target: "Payment"):
                 
                 if direction == PaymentDirection.IN.value:
                     if entity_type == 'CUSTOMER':
-                        ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+                        ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
                         entries = [(ar_account, amount_ils, 0), (cash_account, 0, amount_ils)]
                     else:
                         entries = [(cash_account, 0, amount_ils), (ar_account, amount_ils, 0)]
@@ -9285,7 +9287,7 @@ def _service_gl_batch_reverse(mapper, connection, target: "ServiceRequest"):
             except Exception:
                 pass
         
-        ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+        ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
         revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
         
         entries = [
@@ -9879,7 +9881,7 @@ def _online_preorder_gl_batch_upsert(mapper, connection, target: "OnlinePreOrder
                     except Exception:
                         pass
                 
-                ar_account = GL_ACCOUNTS.get("AR", "1200_AR")
+                ar_account = GL_ACCOUNTS.get("AR", "1100_AR")
                 revenue_account = GL_ACCOUNTS.get("SALES", "4000_SALES")
                 
                 entries = [(revenue_account, amount_ils, 0), (ar_account, 0, amount_ils)]
@@ -15078,9 +15080,17 @@ def _process_pending_balance_updates(session):
         from utils.customer_balance_updater import update_customer_balance_components
         from utils.supplier_balance_updater import get_supplier_from_customer
         from sqlalchemy import text as sa_text
+        from flask import current_app
+        import time
     except Exception:
         return
+    start_ts = time.perf_counter()
+    try:
+        current_app.logger.info(f"🔄 بدء معالجة رصيد الكيانات بعد الالتزام: pending={len(pending)}")
+    except Exception:
+        pass
     processed = set()
+    processed_count = 0
     while pending:
         entity_type, entity_id = pending.pop()
         key = (entity_type, entity_id)
@@ -15090,6 +15100,11 @@ def _process_pending_balance_updates(session):
         try:
             if entity_type == "CUSTOMER":
                 update_customer_balance_components(entity_id, session)
+                processed_count += 1
+                try:
+                    current_app.logger.info(f"✅ تحديث رصيد عميل #{entity_id}")
+                except Exception:
+                    pass
                 try:
                     supplier_id = get_supplier_from_customer(entity_id, session)
                     if supplier_id:
@@ -15107,6 +15122,11 @@ def _process_pending_balance_updates(session):
                     pass
             else:
                 utils.update_entity_balance(entity_type, entity_id)
+                processed_count += 1
+                try:
+                    current_app.logger.info(f"✅ تحديث رصيد {entity_type} #{entity_id}")
+                except Exception:
+                    pass
         except Exception as exc:
             try:
                 current_app.logger.warning(
@@ -15114,6 +15134,11 @@ def _process_pending_balance_updates(session):
                 )
             except Exception:
                 pass
+    end_ts = time.perf_counter()
+    try:
+        current_app.logger.info(f"✔️ اكتملت معالجة الأرصدة: processed={processed_count}, duration_ms={(end_ts - start_ts) * 1000:.2f}")
+    except Exception:
+        pass
 
 
 @event.listens_for(_SA_Session, "after_rollback")
@@ -15399,4 +15424,3 @@ def _check_update_customer_balance(mapper, connection, target):
                 _queue_partner_balance(session, getattr(payment, "partner_id", None))
     except Exception:
         pass
-

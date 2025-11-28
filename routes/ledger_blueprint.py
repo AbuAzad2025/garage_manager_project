@@ -1,7 +1,7 @@
 
 from datetime import datetime, timedelta
-from flask import Blueprint, request, jsonify, render_template, current_app
-from flask_login import login_required
+from flask import Blueprint, request, jsonify, render_template, current_app, abort
+from flask_login import login_required, current_user
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy import func, and_, or_, desc
 from extensions import db
@@ -22,6 +22,12 @@ csrf = CSRFProtect()
 
 ledger_bp = Blueprint("ledger", __name__, url_prefix="/ledger")
 
+
+@ledger_bp.before_request
+def _restrict_super_admin():
+    rname = (getattr(getattr(current_user, "role", None), "name", "") or "").strip().lower()
+    if rname in {"super_admin", "super"}:
+        abort(403)
 
 def extract_entity_from_batch(batch: GLBatch):
     return SmartEntityExtractor.extract_from_batch(batch)

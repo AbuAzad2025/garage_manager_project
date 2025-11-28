@@ -443,13 +443,20 @@
   // ═══════════════════════════════════════════════════════════════════
   
   function enhanceDataTables() {
+    const path = (window.location && window.location.pathname) ? window.location.pathname : '';
+    const isCustomerStatement = /\/customers\/\d+\/account_statement/.test(path);
+    if (isCustomerStatement) {
+      document.querySelectorAll('.table-export-btn').forEach(btn => btn.remove());
+    }
+    
     document.querySelectorAll('table.table').forEach(table => {
-      // إضافة export سريع
-      if (!table.querySelector('.table-export-btn')) {
+      const attrNoExport = (table.getAttribute('data-no-export') === 'true');
+      const classNoExport = table.classList.contains('no-export');
+      const skipExport = attrNoExport || classNoExport || isCustomerStatement;
+      if (!skipExport && !table.querySelector('.table-export-btn')) {
         addTableExportButton(table);
       }
       
-      // إضافة column visibility
       if (!table.querySelector('.column-visibility')) {
         addColumnVisibility(table);
       }
@@ -459,6 +466,8 @@
   function addTableExportButton(table) {
     const wrapper = table.parentElement;
     if (!wrapper) return;
+    const skipExport = (table.getAttribute('data-no-export') === 'true') || table.classList.contains('no-export');
+    if (skipExport) return;
     
     const btn = document.createElement('button');
     btn.className = 'btn btn-sm btn-outline-success table-export-btn mb-2';

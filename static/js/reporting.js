@@ -566,10 +566,10 @@
   }
 
   async function refreshForModel(model) {
-    const { columns, date_fields, all_fields } = await fetchModelFields(model);
+    const { columns, date_fields } = await fetchModelFields(model);
     const sel = $('#selected_fields');
     const keep = new Set(filterList(Array.from(sel?.selectedOptions || []).map(o => o.value)));
-    fillSelectOptions(sel, (all_fields && all_fields.length ? all_fields : columns), true);
+    fillSelectOptions(sel, columns, true);
     if (keep.size) {
       $$('#selected_fields option').forEach(o => { if (keep.has(o.value)) o.selected = true; });
     }

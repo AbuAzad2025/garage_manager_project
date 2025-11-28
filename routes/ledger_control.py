@@ -121,7 +121,12 @@ def index():
         }
     }
     
-    return render_template('security/ledger_control.html', stats=stats)
+    from flask import make_response
+    resp = make_response(render_template('security/ledger_control.html', stats=stats))
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 
 @ledger_control_bp.route('/accounts')
@@ -175,8 +180,7 @@ def create_account():
             code=data['code'],
             name=data['name'],
             type=data['type'],
-            is_active=data.get('is_active', True),
-            description=data.get('description', '')
+            is_active=data.get('is_active', True)
         )
         
         db.session.add(new_account)
@@ -217,8 +221,7 @@ def update_account(account_id):
             account.type = data['type']
         if 'is_active' in data:
             account.is_active = data['is_active']
-        if 'description' in data:
-            account.description = data['description']
+        # تجاهل أي حقول غير معرّفة في نموذج Account مثل description
         
         db.session.commit()
         

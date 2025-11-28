@@ -749,29 +749,34 @@ def profit_loss_report():
     
     query_sales = Sale.query.filter(Sale.status == 'CONFIRMED')
     query_services = ServiceRequest.query.filter(ServiceRequest.status == 'COMPLETED')
+    query_returns = SaleReturn.query.filter(SaleReturn.status == 'CONFIRMED')
     query_expenses = Expense.query
     
     if sd:
         start_dt = datetime.combine(sd, datetime.min.time())
         query_sales = query_sales.filter(Sale.sale_date >= start_dt)
         query_services = query_services.filter(ServiceRequest.created_at >= start_dt)
+        query_returns = query_returns.filter(SaleReturn.created_at >= start_dt)
         query_expenses = query_expenses.filter(Expense.created_at >= start_dt)
     
     if ed:
         end_dt = datetime.combine(ed, datetime.max.time())
         query_sales = query_sales.filter(Sale.sale_date <= end_dt)
         query_services = query_services.filter(ServiceRequest.created_at <= end_dt)
+        query_returns = query_returns.filter(SaleReturn.created_at <= end_dt)
         query_expenses = query_expenses.filter(Expense.created_at <= end_dt)
     
     sales = query_sales.all()
     services = query_services.all()
+    returns = query_returns.all()
     expenses = query_expenses.all()
     
     sales_revenue = sum(Decimal(str(s.total_amount or 0)) for s in sales)
     service_revenue = sum(Decimal(str(s.total_amount or 0)) for s in services)
     other_revenue = Decimal('0')
     
-    total_revenue = sales_revenue + service_revenue + other_revenue
+    returns_total = sum(Decimal(str(r.total_amount or 0)) for r in returns)
+    total_revenue = sales_revenue + service_revenue + other_revenue - returns_total
     
     operational_expenses = Decimal('0')
     salary_expenses = Decimal('0')
@@ -837,19 +842,16 @@ def cash_flow_report():
     
     if sd:
         start_dt = datetime.combine(sd, datetime.min.time())
-        query_pay_in = query_pay_in.filter(Payment.created_at >= start_dt)
-        query_pay_out = query_pay_out.filter(Payment.created_at >= start_dt)
-        query_expenses = query_expenses.filter(Expense.created_at >= start_dt)
+        query_pay_in = query_pay_in.filter(Payment.payment_date >= start_dt)
+        query_pay_out = query_pay_out.filter(Payment.payment_date >= start_dt)
     
     if ed:
         end_dt = datetime.combine(ed, datetime.max.time())
-        query_pay_in = query_pay_in.filter(Payment.created_at <= end_dt)
-        query_pay_out = query_pay_out.filter(Payment.created_at <= end_dt)
-        query_expenses = query_expenses.filter(Expense.created_at <= end_dt)
+        query_pay_in = query_pay_in.filter(Payment.payment_date <= end_dt)
+        query_pay_out = query_pay_out.filter(Payment.payment_date <= end_dt)
     
     payments_in = query_pay_in.all()
     payments_out = query_pay_out.all()
-    expenses = query_expenses.all()
     
     customer_payments = sum(Decimal(str(p.total_amount or 0)) for p in payments_in)
     cash_sales = Decimal('0')
@@ -857,22 +859,26 @@ def cash_flow_report():
     
     total_inflow = customer_payments + cash_sales + other_inflow
     
-    supplier_payments = sum(Decimal(str(p.total_amount or 0)) for p in payments_out)
-    
+    supplier_payments = Decimal('0')
     salaries_paid = Decimal('0')
     expenses_paid = Decimal('0')
     other_outflow = Decimal('0')
-    
-    for exp in expenses:
-        exp_amount = Decimal(str(exp.amount or 0))
-        if hasattr(exp, 'expense_type') and exp.expense_type:
-            type_name = getattr(exp.expense_type, 'name', '')
-            if 'رواتب' in type_name or 'راتب' in type_name:
-                salaries_paid += exp_amount
+
+    for p in payments_out:
+        amt = Decimal(str(p.total_amount or 0))
+        et = getattr(p, 'entity_type', None)
+        if str(getattr(et, 'value', et)).upper() == 'SUPPLIER':
+            supplier_payments += amt
+            continue
+        exp = getattr(p, 'expense', None)
+        if exp is not None:
+            type_name = getattr(getattr(exp, 'expense_type', None), 'name', '') or getattr(getattr(exp, 'type', None), 'name', '')
+            if type_name and ('رواتب' in type_name or 'راتب' in type_name):
+                salaries_paid += amt
             else:
-                expenses_paid += exp_amount
+                expenses_paid += amt
         else:
-            other_outflow += exp_amount
+            other_outflow += amt
     
     total_outflow = supplier_payments + salaries_paid + expenses_paid + other_outflow
     net_cash_flow = total_inflow - total_outflow
@@ -931,7 +937,11 @@ def payments_advanced_report():
         query = query.filter(Payment.direction == direction_filter)
     
     if method_filter:
-        query = query.filter(Payment.method == method_filter)
+        try:
+            from models import PaymentMethod as _PM
+            query = query.filter(Payment.method == _PM(method_filter))
+        except Exception:
+            query = query.filter(Payment.method == method_filter)
     
     if status_filter:
         query = query.filter(Payment.status == status_filter)
@@ -963,15 +973,16 @@ def payments_advanced_report():
         method_stats_dict[method_key] += amount_ils
     
     method_labels = {
-        'CASH': 'نقدي',
-        'BANK_TRANSFER': 'تحويل بنكي',
-        'CHECK': 'شيك',
-        'CREDIT_CARD': 'بطاقة ائتمان',
-        'OTHER': 'أخرى'
+        'cash': 'نقدي',
+        'bank': 'تحويل بنكي',
+        'cheque': 'شيك',
+        'card': 'بطاقة',
+        'online': 'أونلاين',
+        'other': 'أخرى'
     }
     
     method_stats = [
-        {'method': k, 'label': method_labels.get(k, k), 'total': float(v)}
+        {'method': k, 'label': method_labels.get(str(k).lower(), str(k)), 'total': float(v)}
         for k, v in sorted(method_stats_dict.items(), key=lambda x: x[1], reverse=True)
     ]
     
@@ -1401,27 +1412,6 @@ def customers_advanced_report():
             invoiced_ils += amt
             if not last_transaction or (inv.invoice_date and inv.invoice_date > last_transaction):
                 last_transaction = inv.invoice_date
-        
-        sales = db.session.query(Sale).filter(
-            Sale.customer_id == cust.id,
-            Sale.status == SaleStatus.CONFIRMED
-        ).limit(10000).all()
-        invoice_count += len(sales)
-        for s in sales:
-            amt = Decimal(str(s.total_amount or 0))
-            invoiced_ils += amt
-            if not last_transaction or (s.sale_date and s.sale_date > last_transaction):
-                last_transaction = s.sale_date
-        
-        services = db.session.query(ServiceRequest).filter(
-            ServiceRequest.customer_id == cust.id
-        ).limit(10000).all()
-        invoice_count += len(services)
-        for srv in services:
-            amt = Decimal(str(srv.total_amount or 0))
-            invoiced_ils += amt
-            if not last_transaction or (srv.received_at and srv.received_at > last_transaction):
-                last_transaction = srv.received_at
         
         payments = db.session.query(Payment).filter(
             Payment.customer_id == cust.id,

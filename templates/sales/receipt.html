@@ -60,6 +60,17 @@
     thead{display:table-header-group}
     tfoot{display:table-footer-group}
   }
+  .totals-box{background:#f9fbff;border:1px solid #e0e6ef;border-radius:10px;padding:8px;margin-top:8px}
+  .totals-title{font-size:12px;font-weight:800;color:#394b6a;margin-bottom:6px}
+  .totals-list{width:100%;border-collapse:collapse}
+  .totals-list th{width:60%;text-align:end;border:none;color:#555;background:transparent;font-weight:700}
+  .totals-list td{width:40%;text-align:end;border:none;vertical-align:middle}
+  .totals-list tr{border-bottom:1px dashed #d0d6e0}
+  .totals-list tr:last-child{border-bottom:none}
+  .totals-total td{font-weight:800;color:#0d6efd}
+  .totals-words{margin-top:6px;font-size:11px;color:#394b6a}
+  .totals-list .row-no-label td{width:100%;}
+  .words-cell{text-align:start}
 </style>
 {% endblock %}
 
@@ -122,9 +133,29 @@
           </tr>
         {% endfor %}
       </tbody>
-      <tfoot>
-        <tr><td colspan="6" style="text-align:end"><strong>الإجمالي النهائي:</strong></td><td class="num"><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td></tr>
-      </tfoot>
+    <tfoot>
+      <tr><td colspan="6" class="text-right"><strong>الإجمالي النهائي:</strong></td><td class="num"><strong>{{ money_fmt(grand_total) }} {{ sale.currency }}</strong></td></tr>
+    </tfoot>
+    </table>
+  </div>
+
+  <div class="totals-box">
+    <div class="totals-title">ملخص الإجماليات</div>
+    <table class="totals-list">
+      <tr><th>مجموع البنود بعد الخصم</th><td class="num">{{ money_fmt(subtotal) }} {{ sale.currency }}</td></tr>
+      {% if sale_shipping and sale_shipping != 0 %}
+      <tr><th>تكلفة الشحن</th><td class="num">{{ money_fmt(sale_shipping) }} {{ sale.currency }}</td></tr>
+      {% endif %}
+      <tr><th>الخصم الإجمالي</th><td class="num">{{ money_fmt(sale_discount_total) }} {{ sale.currency }}</td></tr>
+      <tr><th>المجموع الإجمالي (قبل الضريبة)</th><td class="num">{{ money_fmt(subtotal_after_discount + sale_shipping) }} {{ sale.currency }}</td></tr>
+      {% if invoice_tax_amount and invoice_tax_amount != 0 %}
+      <tr><th>نسبة الضريبة</th><td class="num">{{ "%.2f"|format(sale_tax_rate) }}%</td></tr>
+      <tr><th>قيمة الضريبة</th><td class="num">{{ money_fmt(invoice_tax_amount) }} {{ sale.currency }}</td></tr>
+      {% endif %}
+      <tr class="totals-total"><th>الإجمالي النهائي</th><td class="num">{{ money_fmt(grand_total) }} {{ sale.currency }}</td></tr>
+    </table>
+    <table class="totals-list" style="margin-top:6px">
+      <tr><th>المبلغ بالحروف</th><td class="words-cell"><strong>{{ grand_total|amount_in_words(sale.currency) }}</strong> <span class="text-muted">({{ currency_name_ar(sale.currency) }} فقط لا غير)</span></td></tr>
     </table>
   </div>
 

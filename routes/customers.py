@@ -1046,6 +1046,7 @@ def account_statement(customer_id):
             "credit": D(0),
             "items": items,  # إضافة البنود المباعة
             "notes": getattr(s, 'notes', '') or '',
+            "currency": getattr(s, 'currency', None) or (getattr(c, 'currency', None) or 'ILS'),
         })
 
     sale_returns = SaleReturn.query.filter_by(customer_id=customer_id).filter(SaleReturn.status == 'CONFIRMED').order_by(SaleReturn.created_at, SaleReturn.id).all()
@@ -1058,6 +1059,7 @@ def account_statement(customer_id):
             "debit": D(0),
             "credit": D(ret.total_amount or 0),
             "notes": ret.reason or ret.notes or '',
+            "currency": getattr(ret, 'currency', None) or (getattr(c, 'currency', None) or 'ILS'),
         })
 
     services = ServiceRequest.query.filter_by(customer_id=customer_id).order_by(ServiceRequest.completed_at, ServiceRequest.id).all()
@@ -1073,6 +1075,7 @@ def account_statement(customer_id):
             "debit": service_total,
             "credit": D(0),
             "notes": getattr(srv, 'notes', '') or '',
+            "currency": getattr(srv, 'currency', None) or (getattr(c, 'currency', None) or 'ILS'),
         })
 
     preorders = PreOrder.query.filter(
@@ -2053,11 +2056,12 @@ def account_statement(customer_id):
         })
 
     opening_balance = D(getattr(c, 'opening_balance', 0) or 0)
-    if opening_balance != 0 and c.currency != "ILS":
+    # تحويل الرصيد الافتتاحي إلى الشيكل إذا كانت عملة العميل ليست الشيكل
+    if getattr(c, 'currency', None) and c.currency != "ILS":
         try:
             from models import convert_amount
-            ref_date = start_date or c.created_at
-            opening_balance = convert_amount(opening_balance, c.currency, "ILS", ref_date)
+            ref_date = start_date or getattr(c, 'created_at', None)
+            opening_balance = D(convert_amount(opening_balance, c.currency, "ILS", ref_date))
         except Exception:
             pass
     
@@ -2076,6 +2080,7 @@ def account_statement(customer_id):
             "debit": abs(opening_balance) if opening_balance < 0 else D(0),  # السالب (عليه) = مدين
             "credit": abs(opening_balance) if opening_balance > 0 else D(0),  # الموجب (له) = دائن
             "notes": "الرصيد السابق قبل بدء النظام",
+            "currency": "ILS"
         }
         entries.insert(0, opening_entry)
     
@@ -2180,7 +2185,33 @@ def account_statement(customer_id):
 
     entries.sort(key=sort_key)
 
-    running = opening_balance
+    # تحويل جميع القيود إلى الشيكل إذا كانت عملتها ليست الشيكل (ILS)
+    try:
+        from models import convert_amount
+        for e in entries:
+            curr = e.get('currency') or 'ILS'
+            if curr and curr != 'ILS':
+                ref_date = e.get('date')
+                e['debit'] = D(convert_amount(D(e.get('debit', 0) or 0), curr, 'ILS', ref_date))
+                e['credit'] = D(convert_amount(D(e.get('credit', 0) or 0), curr, 'ILS', ref_date))
+                # تحويل بنود البيع إن وجدت
+                if e.get('items'):
+                    for item in e['items']:
+                        item_curr_val = D(item.get('unit_price', 0) or 0)
+                        item_total_val = D(item.get('total', 0) or 0)
+                        item['unit_price'] = D(convert_amount(item_curr_val, curr, 'ILS', ref_date))
+                        item['total'] = D(convert_amount(item_total_val, curr, 'ILS', ref_date))
+                e['currency'] = 'ILS'
+    except Exception:
+        pass
+
+    # ابدأ الرصيد الجاري من قيمة الرصيد الافتتاحي بعد التحويل
+    opening_entry_val = None
+    for e in entries:
+        if e.get("type") == "OPENING_BALANCE":
+            opening_entry_val = D(e.get("credit", 0) or 0) - D(e.get("debit", 0) or 0)
+            break
+    running = opening_entry_val if opening_entry_val is not None else D(0)
     for e in entries:
         if e.get("type") == "OPENING_BALANCE":
             e["balance"] = running
@@ -2308,6 +2339,7 @@ def account_statement(customer_id):
                 pass
         total_payments_calc += amt
     
+    from utils import money_fmt
     context = {
         "customer": c,
         "ledger_entries": entries,
@@ -2323,18 +2355,8 @@ def account_statement(customer_id):
         "balance": balance,
         "start_date": start_date,
         "end_date": end_date,
+        "money_fmt": money_fmt,
     }
-    if request.args.get("format") == "pdf":
-        try:
-            from weasyprint import HTML
-            html_output = render_template("customers/account_statement.html", pdf_export=True, **context)
-            pdf_bytes = HTML(string=html_output, base_url=request.url_root).write_pdf()
-            filename = f"account_statement_{c.id}.pdf"
-            headers = {"Content-Disposition": f'attachment; filename="{filename}"'}
-            return Response(pdf_bytes, mimetype="application/pdf", headers=headers)
-        except Exception as exc:
-            current_app.logger.error("account_statement_pdf_error: %s", exc)
-            flash("تعذر إنشاء ملف PDF، حاول لاحقاً.", "danger")
     return render_template("customers/account_statement.html", pdf_export=False, **context)
 
 @customers_bp.route("/advanced_filter", methods=["GET"], endpoint="advanced_filter")

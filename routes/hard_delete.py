@@ -261,38 +261,9 @@ def api_delete_customer(customer_id):
     return jsonify(result)
 
 
-@hard_delete_bp.route("/api/delete-sale/<int:sale_id>", methods=["POST"])
-@login_required
-# @permission_required("manage_sales")  # Commented out
-def api_delete_sale(sale_id):
-    """API لحذف البيع"""
-    data = request.get_json(silent=True) or {}
-    reason = data.get("reason", "").strip()
-    
-    if not reason:
-        return jsonify({"success": False, "error": "يجب إدخال سبب الحذف"}), 400
-    
-    hard_delete_service = HardDeleteService()
-    result = hard_delete_service.delete_sale(sale_id, current_user.id, reason)
-    
-    return jsonify(result)
+ 
 
 
-@hard_delete_bp.route("/api/delete-payment/<int:payment_id>", methods=["POST"])
-@login_required
-# @permission_required("manage_payments")  # Commented out
-def api_delete_payment(payment_id):
-    """API لحذف الدفعة"""
-    data = request.get_json(silent=True) or {}
-    reason = data.get("reason", "").strip()
-    
-    if not reason:
-        return jsonify({"success": False, "error": "يجب إدخال سبب الحذف"}), 400
-    
-    hard_delete_service = HardDeleteService()
-    result = hard_delete_service.delete_payment(payment_id, current_user.id, reason)
-    
-    return jsonify(result)
 
 
 @hard_delete_bp.route("/supplier/<int:supplier_id>", methods=["GET", "POST"])
@@ -414,109 +385,9 @@ def delete_partner(partner_id):
             )
 
 
-@hard_delete_bp.route("/sale/<int:sale_id>", methods=["GET", "POST"])
-@login_required
-# @permission_required("manage_sales")  # Commented out
-def delete_sale(sale_id):
-    """حذف قوي للبيع مع التأكيد"""
-    if request.method == "GET":
-        # عرض صفحة التأكيد
-        from models import Sale
-        sale = db.session.get(Sale, sale_id)
-        if not sale:
-            flash("البيع غير موجود", "error")
-            return redirect(url_for("sales_bp.list_sales"))
-        
-        # جمع المعلومات المرتبطة
-        from models import Payment
-        payments_count = db.session.query(Payment).filter_by(sale_id=sale_id).count()
-        
-        return render_template(
-            "hard_delete/confirm_sale.html",
-            sale=sale,
-            payments_count=payments_count,
-        )
-    
-    elif request.method == "POST":
-        # تنفيذ الحذف
-        reason = request.form.get("reason", "").strip()
-        if not reason:
-            flash("يجب إدخال سبب الحذف", "error")
-            from models import Sale, Payment
-            sale = db.session.get(Sale, sale_id)
-            return render_template(
-                "hard_delete/confirm_sale.html",
-                sale=sale,
-                payments_count=db.session.query(Payment).filter_by(sale_id=sale_id).count(),
-                error="يجب إدخال سبب الحذف"
-            )
-        
-        # تنفيذ الحذف مباشرة
-        hard_delete_service = HardDeleteService()
-        result = hard_delete_service.delete_sale(sale_id, current_user.id, reason)
-        
-        if result.get("success"):
-            flash("تم حذف البيع بنجاح", "success")
-            return redirect(url_for("sales_bp.list_sales"))
-        else:
-            flash(f"فشل في حذف البيع: {result.get('error', 'خطأ غير معروف')}", "error")
-            from models import Sale, Payment
-            sale = db.session.get(Sale, sale_id)
-            return render_template(
-                "hard_delete/confirm_sale.html",
-                sale=sale,
-                payments_count=db.session.query(Payment).filter_by(sale_id=sale_id).count(),
-                error=result.get('error')
-            )
+ 
 
 
-@hard_delete_bp.route("/payment/<int:payment_id>", methods=["GET", "POST"])
-@login_required
-# @permission_required("manage_payments")  # Commented out
-def delete_payment(payment_id):
-    """حذف قوي للدفعة مع التأكيد"""
-    if request.method == "GET":
-        # عرض صفحة التأكيد
-        from models import Payment
-        payment = db.session.get(Payment, payment_id)
-        if not payment:
-            flash("الدفعة غير موجودة", "error")
-            return redirect(url_for("payments.index"))
-        
-        return render_template(
-            "hard_delete/confirm_payment.html",
-            payment=payment
-        )
-    
-    elif request.method == "POST":
-        # تنفيذ الحذف
-        reason = request.form.get("reason", "").strip()
-        if not reason:
-            flash("يجب إدخال سبب الحذف", "error")
-            from models import Payment
-            payment = db.session.get(Payment, payment_id)
-            return render_template(
-                "hard_delete/confirm_payment.html",
-                payment=payment,
-                error="يجب إدخال سبب الحذف"
-            )
-        
-        # تنفيذ الحذف مباشرة
-        hard_delete_service = HardDeleteService()
-        result = hard_delete_service.delete_payment(payment_id, current_user.id, reason)
-        
-        if result.get("success"):
-            flash("تم حذف الدفعة بنجاح", "success")
-            return redirect(url_for("payments.index"))
-        else:
-            flash(f"فشل في حذف الدفعة: {result.get('error', 'خطأ غير معروف')}", "error")
-            from models import Payment
-            payment = db.session.get(Payment, payment_id)
-            return render_template(
-                "hard_delete/confirm_payment.html",
-                payment=payment,
-                error=result.get('error')
-            )
 
 
 @hard_delete_bp.route("/expense/<int:expense_id>", methods=["GET", "POST"])

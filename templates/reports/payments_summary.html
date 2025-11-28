@@ -99,10 +99,11 @@
   <label class="form-label"><i class="fas fa-wallet"></i> طريقة الدفع</label>
   <select name="method" class="form-select">
     <option value="">الكل</option>
-    <option value="CASH" {% if request.args.get('method') == 'CASH' %}selected{% endif %}>نقدي</option>
-    <option value="BANK_TRANSFER" {% if request.args.get('method') == 'BANK_TRANSFER' %}selected{% endif %}>تحويل بنكي</option>
-    <option value="CHECK" {% if request.args.get('method') == 'CHECK' %}selected{% endif %}>شيك</option>
-    <option value="CREDIT_CARD" {% if request.args.get('method') == 'CREDIT_CARD' %}selected{% endif %}>بطاقة ائتمان</option>
+    <option value="cash" {% if request.args.get('method') == 'cash' %}selected{% endif %}>نقدي</option>
+    <option value="bank" {% if request.args.get('method') == 'bank' %}selected{% endif %}>تحويل بنكي</option>
+    <option value="cheque" {% if request.args.get('method') == 'cheque' %}selected{% endif %}>شيك</option>
+    <option value="card" {% if request.args.get('method') == 'card' %}selected{% endif %}>بطاقة</option>
+    <option value="online" {% if request.args.get('method') == 'online' %}selected{% endif %}>أونلاين</option>
   </select>
 </div>
 <div class="col-md-2">
@@ -182,16 +183,19 @@
     {% endif %}
   </td>
   <td>
-    {% if payment.method.value == 'CASH' %}
+    {% set m = payment.method.value if payment.method else '' %}
+    {% if m == 'cash' %}
     <span class="badge bg-success">نقدي</span>
-    {% elif payment.method.value == 'BANK_TRANSFER' %}
+    {% elif m == 'bank' %}
     <span class="badge bg-primary">تحويل بنكي</span>
-    {% elif payment.method.value == 'CHECK' %}
+    {% elif m == 'cheque' %}
     <span class="badge bg-info">شيك</span>
-    {% elif payment.method.value == 'CREDIT_CARD' %}
-    <span class="badge bg-warning">بطاقة ائتمان</span>
+    {% elif m == 'card' %}
+    <span class="badge bg-warning">بطاقة</span>
+    {% elif m == 'online' %}
+    <span class="badge bg-secondary">أونلاين</span>
     {% else %}
-    {{ payment.method.value }}
+    {{ payment.method.label if payment.method and payment.method.label else m }}
     {% endif %}
   </td>
   <td class="text-center">
@@ -309,4 +313,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-

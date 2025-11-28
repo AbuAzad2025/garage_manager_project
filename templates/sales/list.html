@@ -99,12 +99,13 @@ html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",san
     <div class="print-table-wrapper">
       <table class="print-table">
         <colgroup>
-          <col style="width:6%">
-          <col style="width:12%">
-          <col style="width:28%">
-          <col style="width:18%">
-          <col style="width:12%">
-          <col style="width:24%">
+          <col style="width:6%"><!-- رقم -->
+          <col style="width:12%"><!-- التاريخ -->
+          <col style="width:28%"><!-- العميل -->
+          <col style="width:18%"><!-- الإجمالي -->
+          <col style="width:12%"><!-- مدفوع -->
+          <col style="width:18%"><!-- متبقي -->
+          <col style="width:6%"><!-- العملة -->
         </colgroup>
         <thead>
           <tr>
@@ -417,19 +418,7 @@ html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",san
                                      notes='دفع مبيعة: ' ~ (sale.sale_number or sale.id) ~ ' - العميل: ' ~ (sale.customer.name if sale.customer else 'غير محدد'),
                                      customer_id=sale.customer_id) }}" class="btn btn-sm btn-success" title="إضافة دفعة"><i class="fas fa-money-bill-wave"></i></a>
                   {% endif %}
-                  {% if current_user.has_permission('manage_sales') %}
-                    <form method="post" action="{{ url_for('sales_bp.delete_sale', id=sale.id) }}" class="d-inline">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" class="btn btn-sm btn-danger" title="حذف عادي" onclick="return confirm('حذف الفاتورة؟');">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </form>
-                    <a href="{{ url_for('hard_delete_bp.delete_sale', sale_id=sale.id) }}"
-                       class="btn btn-sm btn-outline-danger" title="حذف قوي"
-                       onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
-                      <i class="fas fa-bomb"></i>
-                    </a>
-                  {% endif %}
+                  
                 </div>
               </td>
             </tr>
@@ -568,13 +557,11 @@ html, body { background:#fff; direction:rtl; font-family:"Segoe UI","Tahoma",san
         const btn = e.currentTarget;
         const sort = btn.dataset.sort;
         const order = btn.dataset.order;
-        console.log('Sort clicked:', sort, order);
         const url = new URL(window.location.href);
         url.searchParams.set('sort', sort);
         url.searchParams.set('order', order);
         url.searchParams.delete('page');
         url.searchParams.set('page', '1');
-        console.log('URL:', url.toString());
         
         const salesTableWrapper = document.getElementById('sales-table-wrapper');
         const paginationWrapper = document.getElementById('sales-pagination-wrapper');

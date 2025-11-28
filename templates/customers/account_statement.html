@@ -16,7 +16,6 @@
     /* إخفاء عناصر غير ضرورية */
     .no-print,
     .btn,
-    .table-export-btn,
     .breadcrumb,
     nav,
     .main-sidebar,
@@ -267,9 +266,7 @@
       <i class="fas fa-arrow-right ms-1"></i> رجوع
     </a>
     {% if not pdf_export %}
-    <a class="btn btn-outline-primary" href="{{ url_for('customers_bp.account_statement', customer_id=customer.id, format='pdf') }}" target="_blank">
-      <i class="fas fa-file-pdf ms-1"></i> تصدير PDF
-    </a>
+    
     {% endif %}
   </div>
 
@@ -409,7 +406,7 @@
         </button>
       </div>
       <div class="table-responsive">
-        <table class="table table-bordered table-sm align-middle" id="statementTable" style="border: 2px solid #dee2e6; border-collapse: collapse;">
+        <table class="table table-bordered table-sm align-middle" id="statementTable" data-no-export="true" style="border: 2px solid #dee2e6; border-collapse: collapse;">
           <thead class="table-light" style="background-color: #f8f9fa;">
             <tr>
               <th style="width: 100px; border: 1px solid #dee2e6; padding: 12px; font-weight: bold; text-align: center;">التاريخ</th>
@@ -606,7 +603,7 @@
             <tr class="payment-splits-row">
               <td colspan="6" class="p-0">
                 <div class="payment-split-details" style="background-color:#f9fbff; padding:10px; margin:5px;">
-                  <table class="table table-sm table-bordered mb-0" style="font-size:0.85em; border:1px solid #dee2e6;">
+                  <table class="table table-sm table-bordered mb-0" data-no-export="true" style="font-size:0.85em; border:1px solid #dee2e6;">
                     <thead style="background-color:#e9ecef;">
                       <tr>
                         <th style="width:25%; text-align:start;">الطريقة</th>
@@ -646,7 +643,7 @@
             <tr class="sale-items-row">
               <td colspan="6" class="p-0">
                 <div class="sale-items-details" style="background-color: #f8f9fa; padding: 10px; margin: 5px;">
-                  <table class="table table-sm table-bordered mb-0" style="font-size: 0.85em; border: 1px solid #dee2e6;">
+                  <table class="table table-sm table-bordered mb-0" data-no-export="true" style="font-size: 0.85em; border: 1px solid #dee2e6;">
                     <thead style="background-color: #e9ecef;">
                       <tr>
                         <th style="width: 35%; border: 1px solid #dee2e6; padding: 8px; text-align: center;">البند</th>
@@ -739,7 +736,7 @@
     printWindow.document.write('<html><head><title>كشف حساب - ' + printData.customerName + '</title>');
     printWindow.document.write('<meta charset="UTF-8">');
     printWindow.document.write('<style>');
-    printWindow.document.write('.no-print, .table-export-btn{display:none !important;}');
+    printWindow.document.write('.no-print{display:none !important;}');
     printWindow.document.write('* { margin: 0; padding: 0; box-sizing: border-box; }');
     printWindow.document.write('body { font-family: Arial, sans-serif; direction: rtl; padding: 10px; font-size: 8pt; line-height: 1.2; }');
     printWindow.document.write('h2 { text-align: center; color: #333; margin-bottom: 6px; border-bottom: 2px solid #000; padding-bottom: 4px; font-size: 11pt; }');

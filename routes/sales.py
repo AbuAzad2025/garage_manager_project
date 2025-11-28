@@ -1109,15 +1109,50 @@ def sale_detail(id: int):
         ln.product_name = ln.product.name if ln.product else "-"
         ln.warehouse_name = ln.warehouse.name if ln.warehouse else "-"
         base_total = line_total_decimal(ln.quantity, ln.unit_price, ln.discount_rate)
-        tr = D(getattr(ln, "tax_rate", 0))
-        tax_amount = (base_total * tr / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
-        line_with_tax = (base_total + tax_amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
-        ln.line_total_fmt = money_fmt(line_with_tax)
+        ln.line_total_value = float(base_total)
+        ln.line_total_fmt = money_fmt(base_total)
     for p in sale.payments:
         p.date_formatted = p.payment_date.strftime("%Y-%m-%d") if getattr(p, "payment_date", None) else "-"
         lbl, cls = PAYMENT_STATUS_MAP.get(p.status, (p.status, ""))
         p.status_label, p.status_class = lbl, cls
         p.method_label = PAYMENT_METHOD_MAP.get(getattr(p, "method", ""), getattr(p, "method", ""))
+    try:
+        subtotal = sum(D(getattr(ln, "line_total_value", 0) or 0) for ln in sale.lines)
+        sale_tax_rate = D(getattr(sale, "tax_rate", 0))
+        sale_shipping = D(getattr(sale, "shipping_cost", 0))
+        sale_discount_total = D(getattr(sale, "discount_total", 0))
+        base_for_tax = (subtotal - sale_discount_total + sale_shipping).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        invoice_tax_amount = (base_for_tax * sale_tax_rate / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        grand_total = (base_for_tax + invoice_tax_amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        sale.total_amount = float(grand_total)
+        sale.balance_due = float((grand_total - D(getattr(sale, "total_paid", 0))).quantize(TWOPLACES, rounding=ROUND_HALF_UP))
+        # حساب عرض بالشيكل عند الحاجة
+        try:
+            from models import convert_amount, PaymentStatus
+            paid_ils = Decimal('0.00')
+            for p in (sale.payments or []):
+                if getattr(p, 'status', None) == PaymentStatus.COMPLETED.value:
+                    amt = Decimal(str(getattr(p, 'total_amount', 0) or 0))
+                    cur = (getattr(p, 'currency', None) or 'ILS').upper()
+                    if cur == 'ILS':
+                        paid_ils += amt
+                    else:
+                        try:
+                            paid_ils += Decimal(str(convert_amount(amt, cur, 'ILS', getattr(p, 'payment_date', None))))
+                        except Exception:
+                            pass
+            if (sale.currency or 'ILS').upper() == 'ILS':
+                grand_total_ils = grand_total
+            else:
+                try:
+                    grand_total_ils = Decimal(str(convert_amount(grand_total, (sale.currency or 'ILS'), 'ILS', getattr(sale, 'sale_date', None))))
+                except Exception:
+                    grand_total_ils = grand_total
+            balance_due_ils = (grand_total_ils - paid_ils).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        except Exception:
+            paid_ils = Decimal('0.00'); grand_total_ils = grand_total; balance_due_ils = (grand_total - paid_ils)
+    except Exception:
+        pass
     invoice = Invoice.query.filter_by(sale_id=id).first()
     return render_template(
         "sales/detail.html",
@@ -1126,6 +1161,10 @@ def sale_detail(id: int):
         status_map=STATUS_MAP,
         payment_method_map=PAYMENT_METHOD_MAP,
         payment_status_map=PAYMENT_STATUS_MAP,
+        paid_ils=float(paid_ils.quantize(TWOPLACES, rounding=ROUND_HALF_UP)) if 'paid_ils' in locals() else 0.0,
+        grand_total_ils=float(grand_total_ils.quantize(TWOPLACES, rounding=ROUND_HALF_UP)) if 'grand_total_ils' in locals() else float(grand_total),
+        balance_due_ils=float(balance_due_ils.quantize(TWOPLACES, rounding=ROUND_HALF_UP)) if 'balance_due_ils' in locals() else float((grand_total - paid_ils).quantize(TWOPLACES, rounding=ROUND_HALF_UP)),
+        show_ils_display=((sale.currency or 'ILS').upper() != 'ILS')
     )
 
 @sales_bp.route("/<int:id>/payments", methods=["GET"], endpoint="sale_payments")
@@ -1154,7 +1193,8 @@ def sale_payments(id: int):
         pagination=pagination,
         entity_type="SALE",
         entity_id=id,
-        total_paid=total_paid
+        total_paid=total_paid,
+        query_args={"entity_type": "SALE", "entity_id": id}
     )
 
 @sales_bp.route("/<int:id>/edit", methods=["GET", "POST"], endpoint="edit_sale")
@@ -1309,24 +1349,7 @@ def quick_sell():
         flash(f"❌ فشل البيع السريع: {e}", "danger")
         return redirect(url_for("sales_bp.list_sales"))
 
-@sales_bp.route("/<int:id>/delete", methods=["POST"], endpoint="delete_sale")
-@login_required
-# @permission_required("manage_sales")  # Commented out - function not available
-def delete_sale(id: int):
-    sale = _get_or_404(Sale, id)
-    if getattr(sale, "total_paid", 0) > 0:
-        flash("❌ لا يمكن حذف فاتورة عليها دفعات.", "danger")
-        return redirect(url_for("sales_bp.sale_detail", id=sale.id))
-    try:
-        _release_stock(sale)
-        _log(sale, "DELETE", sale_to_dict(sale), None)
-        db.session.delete(sale)
-        db.session.commit()
-        flash("✅ تم حذف الفاتورة.", "warning")
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        flash(f"❌ خطأ أثناء الحذف: {e}", "danger")
-    return redirect(url_for("sales_bp.list_sales"))
+ 
 
 @sales_bp.route("/<int:id>/status/<status>", methods=["POST"], endpoint="change_status")
 @login_required
@@ -1396,7 +1419,7 @@ def generate_invoice(id: int):
         base_total = line_total_decimal(ln.quantity, ln.unit_price, ln.discount_rate)
         tr = D(getattr(ln, "tax_rate", 0))
         tax_amount = (base_total * tr / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
-        line_total = (base_total + tax_amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+        line_total = base_total
         lines.append({
             "obj": ln,
             "gross_total": gross_total,
@@ -1412,8 +1435,45 @@ def generate_invoice(id: int):
     sale_shipping = D(getattr(sale, "shipping_cost", 0))
     sale_discount_total = D(getattr(sale, "discount_total", 0))
     subtotal_after_discount = (subtotal - sale_discount_total).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
-    invoice_tax_amount = (subtotal_after_discount * sale_tax_rate / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
-    grand_total = (subtotal_after_discount + invoice_tax_amount + sale_shipping).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+    base_for_tax = (subtotal_after_discount + sale_shipping).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+    invoice_tax_amount = (base_for_tax * sale_tax_rate / Decimal("100")).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+    grand_total = (base_for_tax + invoice_tax_amount).quantize(TWOPLACES, rounding=ROUND_HALF_UP)
+    try:
+        sale.total_amount = float(grand_total)
+        paid = D(getattr(sale, "total_paid", 0) or 0)
+        # إعادة حساب المتبقي بدقة مع تحويل عملات الدفعات إلى عملة البيع عند العرض
+        paid_display = D(0)
+        sale_curr = (getattr(sale, "currency", None) or "ILS").upper()
+        from models import convert_amount as _convert_amount
+        for p in getattr(sale, "payments", []) or []:
+            if getattr(p, "status", None) == "COMPLETED":
+                splits = getattr(p, "splits", None) or []
+                if splits:
+                    for s in splits:
+                        amt = D(str(getattr(s, "converted_amount", 0) or 0))
+                        cur = (getattr(s, "converted_currency", None) or getattr(s, "currency", None) or getattr(p, "currency", None) or sale_curr).upper()
+                        if amt <= 0:
+                            amt = D(str(getattr(s, "amount", 0) or 0))
+                            cur = (getattr(s, "currency", None) or getattr(p, "currency", None) or sale_curr).upper()
+                        if cur != sale_curr:
+                            try:
+                                amt = D(str(_convert_amount(amt, cur, sale_curr, getattr(p, "payment_date", None))))
+                            except Exception:
+                                pass
+                        paid_display += amt
+                else:
+                    amt = D(str(getattr(p, "total_amount", 0) or 0))
+                    cur = (getattr(p, "currency", None) or sale_curr).upper()
+                    if cur != sale_curr:
+                        try:
+                            amt = D(str(_convert_amount(amt, cur, sale_curr, getattr(p, "payment_date", None))))
+                        except Exception:
+                            pass
+                    paid_display += amt
+        sale.total_paid = float(paid_display.quantize(TWOPLACES, rounding=ROUND_HALF_UP))
+        sale.balance_due = float((grand_total - paid_display).quantize(TWOPLACES, rounding=ROUND_HALF_UP))
+    except Exception:
+        pass
     
     # التحقق من نوع القالب (بسيط أو ملون)
     use_simple = request.args.get('simple', '').strip().lower() in ('1', 'true', 'yes')

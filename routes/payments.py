@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import re
 import uuid
@@ -64,7 +64,7 @@ from models import (
 )
 import utils
 from routes.partner_settlements import _calculate_smart_partner_balance
-from routes.checks import create_check_record
+from routes.checks import create_check_record, CheckActionService
 from utils import D, q0, archive_record, restore_record, permission_required
 try:
     from acl import super_only
@@ -285,6 +285,27 @@ def _serialize_payment_min(p, *, full=False):
         "splits": [_serialize_split(s) for s in (list(getattr(p, "splits", []) or []))],
         "is_manual_check": is_manual_check,
     }
+    try:
+        if not d["entity_display"] or d["entity_display"].strip() in ("", "غير مرتبط"):
+            name_fallback = _resolve_counterparty_name(
+                person_name=getattr(p, "deliverer_name", None),
+                customer_id=getattr(p, "customer_id", None),
+                supplier_id=getattr(p, "supplier_id", None),
+                partner_id=getattr(p, "partner_id", None),
+                fallback=getattr(p, "reference", None),
+            )
+            if name_fallback:
+                d["entity_display"] = name_fallback
+    except Exception:
+        pass
+    if hasattr(p, 'payment_id') and hasattr(p, 'split_id'):
+        try:
+            d["payment_id"] = int(getattr(p, 'payment_id'))
+            d["split_id"] = int(getattr(p, 'split_id'))
+        except Exception:
+            pass
+    if hasattr(p, 'is_refunded_split'):
+        d["is_refunded_split"] = bool(getattr(p, 'is_refunded_split'))
     if is_manual_check:
         d["check_id"] = getattr(p, "check_id", None)
         d["check_number"] = getattr(p, "check_number", None)
@@ -745,6 +766,18 @@ def index():
                         self.is_manual_check = False
                         self.check_id = None
                         self.check_number = None
+
+                        try:
+                            details = getattr(split_obj, 'details', None) or {}
+                            if isinstance(details, str):
+                                import json as _json
+                                try:
+                                    details = _json.loads(details)
+                                except Exception:
+                                    details = {}
+                            self.is_refunded_split = bool(details.get('refunded'))
+                        except Exception:
+                            self.is_refunded_split = False
                         
                         if self.method in ['cheque', 'check']:
                             check_obj = db.session.query(Check).filter(Check.payment_id == parent_payment.id).filter(
@@ -936,6 +969,18 @@ def index():
                             self.loan_settlement_id = parent_payment.loan_settlement_id
                             self.splits = []
                             self.is_manual_check = False
+
+                            try:
+                                details = getattr(split_obj, 'details', None) or {}
+                                if isinstance(details, str):
+                                    import json as _json
+                                    try:
+                                        details = _json.loads(details)
+                                    except Exception:
+                                        details = {}
+                                self.is_refunded_split = bool(details.get('refunded'))
+                            except Exception:
+                                self.is_refunded_split = False
                             
                         def entity_label(self):
                             return self.parent_payment.entity_label() if hasattr(self.parent_payment, 'entity_label') else (self.entity_type or "")
@@ -1817,28 +1862,6 @@ def update_payment_status(payment_id: int):
         db.session.rollback()
         return jsonify(error="update_failed", message=str(e)), 500
 
-@payments_bp.route("/<int:payment_id>", methods=["DELETE"], endpoint="delete_payment")
-@login_required
-@super_only
-def delete_payment(payment_id: int):
-    payment = _safe_get_payment(payment_id, all_rels=True)
-    if not payment:
-        return _ok_not_found("السند غير موجود (لا حاجة لإجراء)")
-    try:
-        if hasattr(payment, "splits") and payment.splits:
-            for sp in list(payment.splits):
-                db.session.delete(sp)
-        db.session.delete(payment)
-        db.session.commit()
-        if _wants_json():
-            return jsonify(status="ok", deleted_id=payment_id), 200
-        return redirect(url_for(".index"))
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception("payment.delete_error", extra={"payment_id": payment_id})
-        if _wants_json():
-            return jsonify(ok=False, error="delete_failed", message=str(e)), 500
-        return make_response("<!doctype html><meta charset='utf-8'><div style='padding:24px;font-family:system-ui,Arial,sans-serif'>تعذّر حذف السند</div>", 500)
 
 @payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="payment_receipt")
 @login_required
@@ -3249,3 +3272,247 @@ def _build_partner_ledger(
         "closing_direction_text": closing_direction_text,
         "closing_direction_class": closing_direction_class,
     }
+@payments_bp.route("/<int:payment_id>/split/<int:split_id>", methods=["GET"], endpoint="view_payment_split")
+@login_required
+def view_payment_split(payment_id: int, split_id: int):
+    payment = _safe_get_payment(payment_id, all_rels=True)
+    if not payment:
+        if _wants_json():
+            return jsonify(error="not_found", message="السند غير موجود"), 404
+        flash("السند غير موجود", "error")
+        return redirect(url_for("payments_bp.index"))
+    try:
+        split = next((s for s in list(getattr(payment, "splits", []) or []) if getattr(s, "id", None) == split_id), None)
+    except Exception:
+        split = None
+    if not split:
+        if _wants_json():
+            return jsonify(error="not_found", message="جزء الدفعة غير موجود"), 404
+        flash("جزء الدفعة غير موجود", "error")
+        return redirect(url_for("payments_bp.view_payment", payment_id=payment_id))
+    return render_template("payments/view.html", payment=payment, active_split=split)
+
+@payments_bp.route("/<int:payment_id>_split_<int:split_id>", methods=["GET"], endpoint="view_payment_split_legacy")
+@login_required
+def view_payment_split_legacy(payment_id: int, split_id: int):
+    return view_payment_split(payment_id, split_id)
+
+@payments_bp.route("/split/<int:split_id>/refund", methods=["POST"], endpoint="refund_split")
+@login_required
+@permission_required("manage_payments")
+def refund_split(split_id: int):
+    split = db.session.get(PaymentSplit, split_id)
+    if not split:
+        return jsonify(error="not_found", message="جزء الدفعة غير موجود"), 404
+    parent = db.session.get(Payment, split.payment_id)
+    if not parent:
+        return jsonify(error="not_found", message="السند غير موجود"), 404
+    try:
+        refund_direction = PaymentDirection.OUT.value if parent.direction == PaymentDirection.IN.value else PaymentDirection.IN.value
+        amt = q0(getattr(split, "amount", 0) or 0)
+        conv_amt = q0(getattr(split, "converted_amount", 0) or 0)
+        parent_ccy = (parent.currency or "ILS").upper()
+        split_conv_ccy = (getattr(split, "converted_currency", None) or getattr(split, "currency", None) or parent.currency or "ILS").upper()
+        total_amount = conv_amt if (conv_amt > 0 and split_conv_ccy == parent_ccy) else amt
+        refund = Payment(
+            entity_type=parent.entity_type,
+            customer_id=parent.customer_id,
+            supplier_id=parent.supplier_id,
+            partner_id=parent.partner_id,
+            sale_id=parent.sale_id,
+            invoice_id=parent.invoice_id,
+            service_id=parent.service_id,
+            expense_id=parent.expense_id,
+            preorder_id=parent.preorder_id,
+            shipment_id=parent.shipment_id,
+            loan_settlement_id=parent.loan_settlement_id,
+            direction=refund_direction,
+            status=PaymentStatus.COMPLETED.value,
+            payment_date=datetime.utcnow(),
+            total_amount=total_amount,
+            currency=(split.currency or parent.currency or "ILS"),
+            method=getattr(split.method, "value", split.method),
+            reference=f"إرجاع جزء #{split.id} من الدفعة #{parent.id}",
+            notes=parent.notes,
+            refund_of_id=parent.id,
+        )
+        _ensure_payment_number(refund)
+        db.session.add(refund)
+        new_split = PaymentSplit(
+            payment=refund,
+            method=split.method,
+            amount=split.amount,
+            currency=split.currency,
+            converted_amount=split.converted_amount,
+            converted_currency=split.converted_currency,
+            fx_rate_used=split.fx_rate_used,
+            fx_rate_source=split.fx_rate_source,
+            fx_rate_timestamp=split.fx_rate_timestamp,
+            fx_base_currency=split.fx_base_currency,
+            fx_quote_currency=split.fx_quote_currency,
+            details=split.details,
+        )
+        db.session.add(new_split)
+        try:
+            details = split.details or {}
+            if isinstance(details, str):
+                import json as _json
+                try:
+                    details = _json.loads(details)
+                except Exception:
+                    details = {}
+            details["refunded"] = True
+            split.details = details
+            db.session.add(split)
+        except Exception:
+            pass
+        try:
+            siblings = list(getattr(parent, "splits", []) or [])
+            all_refunded = True
+            for s in siblings:
+                sd = getattr(s, "details", {}) or {}
+                if isinstance(sd, str):
+                    import json as _json
+                    try:
+                        sd = _json.loads(sd)
+                    except Exception:
+                        sd = {}
+                if not sd.get("refunded"):
+                    all_refunded = False
+                    break
+            if all_refunded:
+                parent.status = PaymentStatus.REFUNDED.value
+                db.session.add(parent)
+        except Exception:
+            pass
+        try:
+            split_method_val = getattr(split.method, 'value', split.method)
+            if str(split_method_val).upper() == PaymentMethod.CHEQUE.value:
+                service = CheckActionService(current_user)
+                try:
+                    ctx = service._resolve(split.id)
+                    prev = service._current_status(ctx)
+                    base_note = 'تم ارجاعه للزبون بسبب ارجاع الدفعة'
+                    if prev == 'RETURNED':
+                        service.run(split.id, 'PENDING', '')
+                    else:
+                        service.run(split.id, 'RETURNED', base_note + ' [RETURN_REASON=PAYMENT_REFUND]')
+                except Exception:
+                    pass
+        finally:
+            db.session.commit()
+        return jsonify(success=True, refund_id=refund.id)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error="refund_failed", message=str(e)), 500
+
+
+@payments_bp.route("/refund/<int:payment_id>", methods=["POST"], endpoint="refund_payment")
+@login_required
+@permission_required("manage_payments")
+def refund_payment(payment_id: int):
+    original = db.session.get(Payment, payment_id)
+    if not original:
+        return jsonify(error="not_found", message="السند غير موجود"), 404
+    try:
+        splits = list(getattr(original, "splits", []) or [])
+        refund_direction = PaymentDirection.OUT.value if original.direction == PaymentDirection.IN.value else PaymentDirection.IN.value
+        amount_total = _sum_splits_decimal(splits) if splits else q0(getattr(original, "total_amount", 0) or 0)
+        refund = Payment(
+            entity_type=original.entity_type,
+            customer_id=original.customer_id,
+            supplier_id=original.supplier_id,
+            partner_id=original.partner_id,
+            sale_id=original.sale_id,
+            invoice_id=original.invoice_id,
+            service_id=original.service_id,
+            expense_id=original.expense_id,
+            preorder_id=original.preorder_id,
+            shipment_id=original.shipment_id,
+            loan_settlement_id=original.loan_settlement_id,
+            direction=refund_direction,
+            status=PaymentStatus.COMPLETED.value,
+            payment_date=datetime.utcnow(),
+            total_amount=amount_total,
+            currency=(original.currency or "ILS"),
+            method=(original.method or PaymentMethod.CASH.value),
+            reference=f"إرجاع كامل الدفعة #{original.id}",
+            notes=original.notes,
+        )
+        _ensure_payment_number(refund)
+        db.session.add(refund)
+        if splits:
+            for sp in splits:
+                db.session.add(PaymentSplit(
+                    payment=refund,
+                    method=sp.method,
+                    amount=sp.amount,
+                    currency=sp.currency,
+                    converted_amount=sp.converted_amount,
+                    converted_currency=sp.converted_currency,
+                    fx_rate_used=sp.fx_rate_used,
+                    fx_rate_source=sp.fx_rate_source,
+                    fx_rate_timestamp=sp.fx_rate_timestamp,
+                    fx_base_currency=sp.fx_base_currency,
+                    fx_quote_currency=sp.fx_quote_currency,
+                    details=sp.details,
+                ))
+                try:
+                    details = sp.details or {}
+                    if isinstance(details, str):
+                        import json as _json
+                        try:
+                            details = _json.loads(details)
+                        except Exception:
+                            details = {}
+                    details["refunded"] = True
+                    sp.details = details
+                    db.session.add(sp)
+                except Exception:
+                    pass
+        else:
+            db.session.add(PaymentSplit(
+                payment=refund,
+                method=(original.method or PaymentMethod.CASH.value),
+                amount=original.total_amount,
+                currency=original.currency,
+                converted_amount=0,
+                converted_currency=(original.currency or "ILS"),
+                details={"refunded": True},
+            ))
+        original.status = PaymentStatus.REFUNDED.value
+        db.session.add(original)
+        try:
+            service = CheckActionService(current_user)
+            cheque_splits = [sp for sp in splits if getattr(sp.method, 'value', sp.method) == PaymentMethod.CHEQUE.value]
+            if cheque_splits:
+                for sp in cheque_splits:
+                    try:
+                        ctx = service._resolve(sp.id)
+                        prev = service._current_status(ctx)
+                        base_note = 'تم ارجاعه للزبون بسبب ارجاع الدفعة'
+                        if prev == 'RETURNED':
+                            service.run(sp.id, 'PENDING', '')
+                        else:
+                            service.run(sp.id, 'RETURNED', base_note + ' [RETURN_REASON=PAYMENT_REFUND]')
+                    except Exception:
+                        continue
+            else:
+                method_val = getattr(original.method, 'value', original.method)
+                if str(method_val).upper() == PaymentMethod.CHEQUE.value:
+                    try:
+                        ctx = service._resolve(original.id)
+                        prev = service._current_status(ctx)
+                        base_note = 'تم ارجاعه للزبون بسبب ارجاع الدفعة'
+                        if prev == 'RETURNED':
+                            service.run(original.id, 'PENDING', '')
+                        else:
+                            service.run(original.id, 'RETURNED', base_note + ' [RETURN_REASON=PAYMENT_REFUND]')
+                    except Exception:
+                        pass
+        finally:
+            db.session.commit()
+        return jsonify(success=True, refund_id=refund.id)
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error="refund_failed", message=str(e)), 500

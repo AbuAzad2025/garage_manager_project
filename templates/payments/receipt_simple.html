@@ -24,15 +24,15 @@
   .info-row div{flex:1}
 
   .kv { width: 100%; border-collapse: collapse; margin-bottom:10px; }
-  .kv th, .kv td { padding: 6px 8px; vertical-align: top; border:1px solid #999; font-size:11px; }
-  .kv th { width: 30%; white-space: nowrap; background:#f5f5f5; color: #333; font-weight:700; }
+  .kv th, .kv td { padding: 7px 9px; vertical-align: top; border:1.2px solid #666; font-size:11.5px; line-height:1.6; }
+  .kv th { width: 30%; white-space: nowrap; background:#f5f5f5; color: #222; font-weight:700; }
   .kv td { width: 70%; }
   .num { text-align: end; white-space: nowrap; }
   .wrap { word-break: break-word; }
 
   table { width: 100%; border-collapse: collapse; margin-bottom:10px; }
-  thead th { background: #f0f0f0; border:1px solid #777; font-size:11px; }
-  td, th { padding: 5px 6px; border: 1px solid #999; font-size:11px; }
+  thead th { background: #f5f7fa; border:1.2px solid #666; font-size:12px; font-weight:700; }
+  td, th { padding: 7px 9px; border: 1.2px solid #777; font-size:11.5px; line-height:1.6; }
 
   .sign-row { display:flex; gap:14px; margin-top:18px; }
   .sign { flex:1; border-top: 1px solid #888; padding-top: 10px; text-align: center; min-height:35px; font-size:11px; }
@@ -52,6 +52,14 @@
 {% set _method = (payment.method.value   if payment.method   and payment.method.value   else payment.method) %}
 {% set _status = (payment.status.value   if payment.status   and payment.status.value   else payment.status) %}
 {% set _curr   = payment.currency or '' %}
+{% set payment_method_labels = {
+  'cash':'نقدًا','bank':'تحويل بنكي','transfer':'تحويل بنكي','bank_transfer':'تحويل بنكي',
+  'cheque':'شيك','check':'شيك','card':'بطاقة','credit_card':'بطاقة ائتمان','debit_card':'بطاقة خصم',
+  'online':'دفع إلكتروني','mobile':'دفع إلكتروني','mixed':'طرق متعددة','other':'أخرى'
+} %}
+{% set method_label = payment_method_labels.get(((_method or '')|lower), _method or '—') %}
+{% set status_label_ar = (_status or '—')|status_label %}
+{% set amt_words = (payment.total_amount or 0)|amount_in_words(_curr) %}
 
 <div id="receipt">
   <div class="simple-header">
@@ -67,9 +75,10 @@
 
   <table class="kv">
     <tr><th>المبلغ الكلي</th><td class="num"><strong>{{ '%.0f'|format(payment.total_amount or 0) }} {{ _curr }}</strong></td></tr>
-    <tr><th>طريقة الدفع</th><td>{{ _method or '—' }}</td></tr>
+    <tr><th>طريقة الدفع</th><td>{{ method_label }}</td></tr>
     <tr><th>الاتجاه</th><td>{{ 'وارد' if _dir in ['IN','INCOMING'] else 'صادر' }}</td></tr>
-    <tr><th>الحالة</th><td>{{ _status or '—' }}</td></tr>
+    <tr><th>الحالة</th><td>{{ status_label_ar }}</td></tr>
+    <tr><th>المبلغ بالحروف</th><td>{{ amt_words }} — {{ method_label }}</td></tr>
     <tr><th>الجهة</th><td>{{ payment.entity_label() or payment.entity_type or '—' }}</td></tr>
     <tr><th>المرجع</th><td>{{ payment.reference or '—' }}</td></tr>
     {% if payment.deliverer_name %}
@@ -98,13 +107,14 @@
   {% if payment.splits %}
   <table>
     <colgroup>
-      <col style="width:50px"><col style="width:160px"><col style="width:120px"><col>
+      <col style="width:50px"><col style="width:160px"><col style="width:120px"><col style="width:140px"><col>
     </colgroup>
     <thead>
       <tr>
         <th>#</th>
         <th class="text-end">المبلغ</th>
         <th>الطريقة</th>
+        <th>سعر الصرف</th>
         <th>تفاصيل</th>
       </tr>
     </thead>
@@ -115,36 +125,47 @@
         {% set split_curr = (s.currency or _curr) %}
         <tr>
           <td class="text-center">{{ loop.index }}</td>
-          <td class="num">
-            {{ '%.0f'|format(s.amount or 0) }} {{ split_curr }}
+        <td class="num">
+          {{ '%.0f'|format(s.amount or 0) }} {{ split_curr }}
+          {% if split_curr and _curr and split_curr.upper() != _curr.upper() %}
+            <div class="text-muted small">≈ {{ '%.0f'|format(s.converted_amount or 0) }} {{ _curr }}</div>
+          {% endif %}
+        </td>
+          <td class="text-center">{{ payment_method_labels.get(m, m or '—') }}</td>
+          <td class="text-center">
             {% if split_curr and _curr and split_curr.upper() != _curr.upper() %}
-              <div class="text-muted small">≈ {{ '%.0f'|format(s.converted_amount or 0) }} {{ _curr }}</div>
+              {% set rate_val = s.fx_rate_used if s.fx_rate_used is not none else ((s.converted_amount or 0) / (s.amount or 1)) %}
+              1 {{ split_curr }} = {{ '%.4f'|format(rate_val or 0) }} {{ _curr }}
             {% endif %}
           </td>
-          <td class="text-center">{{ (m or '—')|upper }}</td>
           <td class="wrap">
             {% if m in ['cheque','check'] %}
-              شيك: {{ d.get('check_number','—') }}، بنك: {{ d.get('check_bank','—') }}، استحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
+              رقم: {{ d.get('check_number','—') }}، بنك: {{ d.get('check_bank','—') }}، استحقاق: {{ d.get('check_due_date') or d.get('due_date') or '—' }}
             {% elif m in ['bank','transfer','bank_transfer'] %}
-              تحويل: {{ d.get('bank_transfer_ref', d.get('reference','—')) }}
+              مرجع التحويل: {{ d.get('bank_transfer_ref', d.get('reference','—')) }}
             {% elif m in ['card','credit'] %}
-              بطاقة: ****{{ d.get('card_last4') or (d.get('card_number','')|string)[-4:] }}، حامل: {{ d.get('card_holder','—') }}، انتهاء: {{ d.get('card_expiry','—') }}
+              ****{{ d.get('card_last4') or (d.get('card_number','')|string)[-4:] }}، حامل: {{ d.get('card_holder','—') }}، انتهاء: {{ d.get('card_expiry','—') }}
             {% elif m in ['online','mobile'] %}
               بوابة: {{ d.get('online_gateway', d.get('gateway','—')) }}، مرجع: {{ d.get('online_ref', d.get('reference','—')) }}
             {% elif m == 'cash' %}
-              نقداً
+              
             {% else %}
-              —
+              
             {% endif %}
+            <div class="text-muted small">{{ (s.amount or 0)|amount_in_words(split_curr) }} {{ payment_method_labels.get(m, m or '—') }} فقط لا غير</div>
           </td>
         </tr>
       {% endfor %}
     </tbody>
     <tfoot>
       <tr>
-        <th colspan="1" class="text-end">المجموع</th>
+        <th colspan="3" class="text-end">المجموع</th>
         <th class="num">{{ '%.0f'|format((payment.splits | map(attribute='converted_amount') | sum) or payment.total_amount or 0) }} {{ _curr }}</th>
-        <th colspan="2"></th>
+        <th></th>
+      </tr>
+      {% set total_converted = ((payment.splits | map(attribute='converted_amount') | sum) or payment.total_amount or 0) %}
+      <tr>
+        <td colspan="5" class="wrap">{{ total_converted|amount_in_words(_curr) }} فقط لا غير</td>
       </tr>
     </tfoot>
   </table>

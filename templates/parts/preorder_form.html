@@ -706,6 +706,25 @@
       flatpickr("#preorder_date", opts);
       flatpickr("#expected_date", opts);
     }
+
+    $('#preorderForm').on('submit', function(e){
+      var form = this;
+      var btn = $(form).find('button[type="submit"]')[0];
+      if (!form.checkValidity()) {
+        e.preventDefault();
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-check ml-2"></i>' + ({{ edit_mode|tojson }} ? 'تحديث الحجز' : 'تأكيد الحجز');
+        }
+        var firstInvalid = form.querySelector(':invalid');
+        if (firstInvalid) { firstInvalid.focus(); }
+        return;
+      }
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-1"></i> جاري التأكيد...';
+      }
+    });
   });
 })();
 </script>

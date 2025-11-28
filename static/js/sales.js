@@ -436,10 +436,10 @@
       const shipping = toNum(qs('#shippingCost')?.value);
       const globalDiscount = toNum(qs('#discountTotal')?.value);
       // نفس منطق الباكند: base = subtotal - discount
-      let base = sub - globalDiscount;
-      if(base < 0) base = 0;
-      const taxAmt = base*(globalTax/100);
-      const total = base + taxAmt + shipping;
+      let baseForTax = sub + shipping - globalDiscount;
+      if(baseForTax < 0) baseForTax = 0;
+      const taxAmt = baseForTax*(globalTax/100);
+      const total = baseForTax + taxAmt;
       const set=(sel,val)=>{
         const el=qs(sel); if(!el) return;
         const curr = (qs('select[name="currency"]')?.value) || '';
@@ -448,8 +448,9 @@
       set('#subtotal', sub);
       set('#taxAmount', taxAmt);
       set('#shippingCostDisplay', shipping);
-      set('#totalAmount', total);
       set('#discountTotalDisplay', toNum(qs('#discountTotal')?.value));
+      set('#baseForTax', baseForTax);
+      set('#totalAmount', total);
       const td = qs('#totalDiscount'); if(td){ td.textContent = totalDiscount.toFixed(2); }
     }
     const recalcDebounced = debounce(recalc,150);

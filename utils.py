@@ -1468,27 +1468,63 @@ def _install_accounting_listeners():
         sale = sess.get(Sale, sale_id)
         if not sale:
             return
-        total = Decimal("0.00")
+        subtotal = Decimal("0.00")
         for ln in sale.lines or []:
             qv = _q2_local(ln.quantity)
             pv = _q2_local(ln.unit_price)
             dr = _q2_local(ln.discount_rate)
-            tr = _q2_local(ln.tax_rate)
             base = (qv * pv * (Decimal("1") - dr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
-            line = (base * (Decimal("1") + tr / Decimal("100"))).quantize(Q, rounding=ROUND_HALF_UP)
-            total += line
+            subtotal += base
+        discount = _q2_local(getattr(sale, "discount_total", 0) or 0)
+        shipping = _q2_local(getattr(sale, "shipping_cost", 0) or 0)
+        tax_rate = _q2_local(getattr(sale, "tax_rate", 0) or 0)
+        base_for_tax = (subtotal - discount + shipping)
+        if base_for_tax < Decimal("0"):
+            base_for_tax = Decimal("0")
+        tax_amount = (base_for_tax * tax_rate / Decimal("100")).quantize(Q, rounding=ROUND_HALF_UP)
+        total = (base_for_tax + tax_amount).quantize(Q, rounding=ROUND_HALF_UP)
         set_committed_value(sale, "total_amount", float(total))
+        # تحديث المتبقي فوراً لضمان الاتساق في الواجهة
+        current_paid = _q2_local(getattr(sale, "total_paid", 0) or 0)
+        balance_due = float((total - current_paid).quantize(Q, rounding=ROUND_HALF_UP))
+        set_committed_value(sale, "balance_due", balance_due)
 
     def _recompute_sale_payments(sess, sale_id: int):
         sale = sess.get(Sale, sale_id)
         if not sale:
             return
         paid = Decimal("0.00")
+        sale_curr = (getattr(sale, "currency", None) or "ILS").upper()
+        from models import convert_amount as _convert_amount
         for p in sale.payments or []:
             if getattr(p, "status", None) == PaymentStatus.COMPLETED.value:
-                paid += _q2_local(p.total_amount)
-        total_paid = float(paid)
-        balance_due = float(_q2_local(sale.total_amount) - _q2_local(total_paid))
+                splits = getattr(p, "splits", None) or []
+                if splits:
+                    split_sum = Decimal("0.00")
+                    for s in splits:
+                        amt = _q2_local(getattr(s, "converted_amount", None) or 0)
+                        cur = (getattr(s, "converted_currency", None) or getattr(s, "currency", None) or getattr(p, "currency", None) or sale_curr).upper()
+                        if amt <= 0:
+                            amt = _q2_local(getattr(s, "amount", 0) or 0)
+                            cur = (getattr(s, "currency", None) or getattr(p, "currency", None) or sale_curr).upper()
+                        if cur != sale_curr:
+                            try:
+                                amt = _q2_local(_convert_amount(amt, cur, sale_curr, getattr(p, "payment_date", None)))
+                            except Exception:
+                                pass
+                        split_sum += amt
+                    paid += split_sum
+                else:
+                    amt = _q2_local(getattr(p, "total_amount", 0) or 0)
+                    cur = (getattr(p, "currency", None) or sale_curr).upper()
+                    if cur != sale_curr:
+                        try:
+                            amt = _q2_local(_convert_amount(amt, cur, sale_curr, getattr(p, "payment_date", None)))
+                        except Exception:
+                            pass
+                    paid += amt
+        total_paid = float(paid.quantize(Q, rounding=ROUND_HALF_UP))
+        balance_due = float((_q2_local(sale.total_amount) - paid).quantize(Q, rounding=ROUND_HALF_UP))
         set_committed_value(sale, "total_paid", total_paid)
         set_committed_value(sale, "balance_due", balance_due)
         if hasattr(sale, "update_payment_status"):

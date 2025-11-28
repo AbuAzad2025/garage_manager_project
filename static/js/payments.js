@@ -21,6 +21,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const path = location.pathname.replace(/\/+$/, '');
     const m = path.match(/^\/vendors\/(suppliers|partners)\/(\d+)\/payments$/i);
     if (m) return { entity_type: m[1].toLowerCase()==='suppliers' ? 'SUPPLIER' : 'PARTNER', entity_id: m[2] };
+    const msale = path.match(/^\/sales\/(\d+)\/payments$/i);
+    if (msale) return { entity_type: 'SALE', entity_id: msale[1] };
     const qs = new URLSearchParams(location.search);
     const et = (qs.get('entity_type') || '').toLowerCase();
     const ei = qs.get('entity_id') || '';
@@ -249,13 +251,53 @@ document.addEventListener('DOMContentLoaded', function() {
         return '<span class="badge bg-secondary me-1 text-light">' + text + '</span>';
       }).join(' ');
       const dateOnly = (p.payment_date || '').split('T')[0] || '';
-      const actions =
-        '<div class="btn-group btn-group-sm" role="group">' +
-          '<a href="/payments/' + p.id + '" class="btn btn-info">عرض</a>' +
-          '<button type="button" class="btn btn-warning btn-archive" data-id="' + p.id + '" title="أرشفة الدفعة">أرشفة</button>' +
-          '<button type="button" class="btn btn-danger btn-del" data-id="' + p.id + '">حذف عادي</button>' +
-          '<a href="/hard-delete/payment/' + p.id + '" class="btn btn-outline-danger" title="حذف قوي" onclick="return confirm(\'حذف قوي - سيتم حذف جميع البيانات المرتبطة!\')">حذف قوي</a>' +
-        '</div>';
+      var viewLink = '/payments/' + p.id;
+      if (p && typeof p.payment_id === 'number' && typeof p.split_id === 'number') {
+        viewLink = '/payments/' + p.payment_id + '/split/' + p.split_id;
+      } else if (p && typeof p.id === 'string' && p.id.indexOf('check_') === 0) {
+        var cid = p.id.replace('check_', '');
+        if (cid && String(cid).trim()) {
+          viewLink = '/checks/detail/' + cid;
+        }
+      }
+      var actionsHtml = '<div class="btn-group btn-group-sm" role="group">' +
+        '<a href="' + viewLink + '" class="btn btn-info">عرض</a>' +
+        '<button type="button" class="btn btn-warning btn-archive" data-id="' + p.id + '" title="أرشفة الدفعة">أرشفة</button>';
+
+      var st = String(p.status || '').toUpperCase();
+      var isSplit = false;
+      var splitId = null;
+      var paymentId = null;
+      if (p && typeof p.payment_id === 'number' && typeof p.split_id === 'number') {
+        isSplit = true;
+        splitId = p.split_id;
+        paymentId = p.payment_id;
+      } else if (typeof p.id === 'string' && p.id.indexOf('_split_') > -1) {
+        isSplit = true;
+        var parts = p.id.split('_split_');
+        paymentId = parseInt(parts[0], 10);
+        splitId = parseInt(parts[1], 10);
+      }
+      var isManualCheck = typeof p.id === 'string' && p.id.indexOf('check_') === 0;
+
+      if (!isManualCheck) {
+        var receiptPaymentId = isSplit ? paymentId : (typeof p.id === 'number' ? p.id : null);
+        if (receiptPaymentId) {
+          actionsHtml += '<a href="/payments/' + receiptPaymentId + '/receipt" target="_blank" class="btn btn-secondary" title="طباعة إيصال"><i class="fas fa-receipt"></i> إيصال</a>';
+        }
+        if (isSplit) {
+          var refundedFlag = (typeof p.is_refunded_split === 'boolean') ? p.is_refunded_split : false;
+          if (!refundedFlag && (st === 'COMPLETED' || st === 'CASHED')) {
+            actionsHtml += '<button type="button" class="btn btn-warning btn-refund" data-split-id="' + splitId + '" data-split-refunded="false" title="إرجاع الجزء"><i class="fas fa-undo"></i> إرجاع</button>';
+          }
+        } else {
+          if (st === 'COMPLETED') {
+            actionsHtml += '<button type="button" class="btn btn-warning btn-refund" data-payment-id="' + (p.id || '') + '" data-status="COMPLETED" title="إرجاع الدفعة"><i class="fas fa-undo"></i> إرجاع</button>';
+          }
+        }
+      }
+
+      actionsHtml += '</div>';
       const tr = document.createElement('tr');
       let amountInILS = p.amount_in_ils || p.total_amount; // fallback للبيانات القديمة
       let fxRateDisplay = '-';
@@ -300,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
         '<td>' + delivererText + '</td>' +
         '<td>' + receiverText + '</td>' +
         '<td>' + entityDetails + notesHtml + '</td>' +
-        '<td>' + actions + '</td>';
+        '<td>' + actionsHtml + '</td>';
       tbody.appendChild(tr);
     });
     const totalsSource = _currentPageSum || { sum: sumAmount, sumILS: sumAmountIls };
@@ -310,32 +352,7 @@ document.addEventListener('DOMContentLoaded', function() {
     totalRow.innerHTML = '<td></td><td class="text-end fw-bold">' + totalsLabel + '</td><td class="fw-bold">' + fmtAmount(totalsSource.sum) + '</td><td></td><td></td><td class="fw-bold" style="color: #0056b3;">' + fmtAmount(totalsSource.sumILS) + ' ₪</td><td colspan="7"></td>';
     tbody.appendChild(totalRow);
   }
-  document.addEventListener('click', async function (e) {
-    const btn = e.target.closest('.btn-del');
-    if (!btn) return;
-    const id = btn.dataset.id;
-    if (!id) return;
-    if (!confirm('هل أنت متأكد من حذف سند الدفع #' + id + '؟')) return;
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.getElementById('csrf_token')?.value || '';
-    try {
-      const r = await fetch('/payments/' + id, {
-        method: 'DELETE',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-        },
-        body: new URLSearchParams({ csrf_token: csrf }).toString()
-      });
-      const j = await r.json().catch(() => ({}));
-      if (r.ok && (j.status === 'success' || j.ok)) {
-        loadPayments();
-      } else {
-        alert('تعذر الحذف: ' + (j.message || 'خطأ غير معروف'));
-      }
-    } catch (err) {
-      alert('خطأ في الاتصال بالخادم.');
-    }
-  });
+  
 
   document.addEventListener('click', async function (e) {
     const btn = e.target.closest('.btn-archive');
@@ -372,6 +389,43 @@ document.addEventListener('DOMContentLoaded', function() {
       alert('خطأ في الاتصال بالخادم.');
     }
   });
+
+  document.addEventListener('click', async function (e) {
+    const btn = e.target.closest('.btn-refund');
+    if (!btn) return;
+    var sid = btn.getAttribute('data-split-id');
+    var pid = btn.getAttribute('data-payment-id');
+    if (!(sid || pid)) return;
+    var isSplitRefunded = btn.getAttribute('data-split-refunded');
+    var payStatus = btn.getAttribute('data-status');
+    if (sid && isSplitRefunded === 'true') { alert('لا يمكن إرجاع جزء مُرجع بالفعل.'); return; }
+    if (pid && payStatus && payStatus !== 'COMPLETED') { alert('لا يمكن إرجاع إلا الدفعات المكتملة محاسبياً.'); return; }
+    if (!confirm('سيتم إنشاء سند عكسي بنفس المبلغ وبالاتجاه المعاكس مع تحديث دفتر الأستاذ ووضع الدفعة/الجزء كمُرجع. هل أنت متأكد من الإرجاع؟')) return;
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.getElementById('csrf_token')?.value || '';
+    try {
+      var url = sid ? ('/payments/split/' + sid + '/refund') : ('/payments/refund/' + pid);
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+          'X-CSRFToken': csrf
+        },
+        body: new URLSearchParams({ csrf_token: csrf }).toString()
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && (j.success || j.ok)) {
+        alert('تم تنفيذ الإرجاع بنجاح: تم إنشاء سند عكسي وتحديث دفتر الأستاذ');
+        loadPayments(1);
+      } else {
+        alert('تعذر الإرجاع محاسبياً: ' + (j.message || 'العملية غير منطقية أو غير متاحة'));
+      }
+    } catch (err) {
+      alert('خطأ في الاتصال بالخادم.');
+    }
+  });
+
+  
   function renderPagination(totalPages, currentPage) {
     const ul = document.querySelector('#pagination');
     if (!ul) return;

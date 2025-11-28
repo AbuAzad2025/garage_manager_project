@@ -4,41 +4,44 @@
 {% block security_icon %}<i class="fas fa-book"></i>{% endblock %}
 {% block security_description %}إدارة متقدمة لدفتر الأستاذ والحسابات والقيود{% endblock %}
 {% block security_breadcrumb %}<li class="breadcrumb-item active">Ledger Control</li>{% endblock %}
+{% block head_extra %}{% endblock %}
 {% block security_content %}
+<script></script>
     <div class="card shadow-lg border-0">
         <div class="card-body p-0">
+            
         
         <div class="card-body p-0">
             <ul class="nav nav-pills nav-fill border-bottom" id="controlTabs" role="tablist" style="background: #f8f9fa;">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="accounts-tab" data-bs-toggle="pill" data-bs-target="#tab-accounts" type="button" role="tab" aria-controls="tab-accounts" aria-selected="true">
+                            <a class="nav-link active" id="accounts-tab" data-toggle="pill" href="#tab-accounts" role="tab" aria-controls="tab-accounts" aria-selected="true">
                                 <i class="fas fa-list ml-1"></i>الحسابات
-                            </button>
+                            </a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="entries-tab" data-bs-toggle="pill" data-bs-target="#tab-entries" type="button" role="tab" aria-controls="tab-entries" aria-selected="false">
+                            <a class="nav-link" id="entries-tab" data-toggle="pill" href="#tab-entries" role="tab" aria-controls="tab-entries" aria-selected="false">
                                 <i class="fas fa-file ml-1"></i>القيود
-                            </button>
+                            </a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="batches-tab" data-bs-toggle="pill" data-bs-target="#tab-batches" type="button" role="tab" aria-controls="tab-batches" aria-selected="false">
+                            <a class="nav-link" id="batches-tab" data-toggle="pill" href="#tab-batches" role="tab" aria-controls="tab-batches" aria-selected="false">
                                 <i class="fas fa-edit ml-1"></i>تحرير القيود
-                            </button>
+                            </a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="operations-tab" data-bs-toggle="pill" data-bs-target="#tab-operations" type="button" role="tab" aria-controls="tab-operations" aria-selected="false">
+                            <a class="nav-link" id="operations-tab" data-toggle="pill" href="#tab-operations" role="tab" aria-controls="tab-operations" aria-selected="false">
                                 <i class="fas fa-cogs ml-1"></i>مركز التحكم
-                            </button>
+                            </a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="editor-tab" data-bs-toggle="pill" data-bs-target="#tab-editor" type="button" role="tab" aria-controls="tab-editor" aria-selected="false">
+                            <a class="nav-link" id="editor-tab" data-toggle="pill" href="#tab-editor" role="tab" aria-controls="tab-editor" aria-selected="false">
                                 <i class="fas fa-edit ml-1"></i>محرر القيود
-                            </button>
+                            </a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="tools-tab" data-bs-toggle="pill" data-bs-target="#tab-tools" type="button" role="tab" aria-controls="tab-tools" aria-selected="false">
+                            <a class="nav-link" id="tools-tab" data-toggle="pill" href="#tab-tools" role="tab" aria-controls="tab-tools" aria-selected="false">
                                 <i class="fas fa-tools ml-1"></i>الأدوات
-                            </button>
+                            </a>
                         </li>
             </ul>
             
@@ -118,24 +121,24 @@
                             <!-- الأقسام الفرعية -->
                             <ul class="nav nav-tabs mb-3" id="operationsSubTabs" role="tablist">
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="ops-periods-tab" data-bs-toggle="tab" data-bs-target="#ops-periods" type="button" role="tab" aria-controls="ops-periods" aria-selected="true">
+                                    <a class="nav-link active" id="ops-periods-tab" data-toggle="tab" href="#ops-periods" role="tab" aria-controls="ops-periods" aria-selected="true">
                                         <i class="fas fa-calendar-alt"></i> الفترات المحاسبية
-                                    </button>
+                                    </a>
                                 </li>
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="ops-closing-tab" data-bs-toggle="tab" data-bs-target="#ops-closing" type="button" role="tab" aria-controls="ops-closing" aria-selected="false">
+                                    <a class="nav-link" id="ops-closing-tab" data-toggle="tab" href="#ops-closing" role="tab" aria-controls="ops-closing" aria-selected="false">
                                         <i class="fas fa-lock"></i> قيود الإقفال
-                                    </button>
+                                    </a>
                                 </li>
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="ops-approval-tab" data-bs-toggle="tab" data-bs-target="#ops-approval" type="button" role="tab" aria-controls="ops-approval" aria-selected="false">
+                                    <a class="nav-link" id="ops-approval-tab" data-toggle="tab" href="#ops-approval" role="tab" aria-controls="ops-approval" aria-selected="false">
                                         <i class="fas fa-check-circle"></i> الموافقات
-                                    </button>
+                                    </a>
                                 </li>
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="ops-reverse-tab" data-bs-toggle="tab" data-bs-target="#ops-reverse" type="button" role="tab" aria-controls="ops-reverse" aria-selected="false">
+                                    <a class="nav-link" id="ops-reverse-tab" data-toggle="tab" href="#ops-reverse" role="tab" aria-controls="ops-reverse" aria-selected="false">
                                         <i class="fas fa-undo"></i> القيود العكسية
-                                    </button>
+                                    </a>
                                 </li>
                             </ul>
                             
@@ -161,8 +164,8 @@
                                         <div class="card-body">
                                             <div class="row">
                                                 <div class="col-md-6">
-                                                    <label>تاريخ نهاية الفترة:</label>
-                                                    <input type="date" id="closing-date" class="form-control">
+                                                    <label for="closing-date">تاريخ نهاية الفترة:</label>
+                                                    <input type="date" id="closing-date" class="form-control" autocomplete="off">
                                                 </div>
                                                 <div class="col-md-6">
                                                     <label>&nbsp;</label>
@@ -194,8 +197,9 @@
                                         <div class="card-body">
                                             <h6><i class="fas fa-undo"></i> إنشاء قيد عكسي</h6>
                                             <p>لتصحيح الأخطاء، أدخل رقم القيد المراد عكسه:</p>
-                                            <div class="input-group">
-                                                <input type="number" id="reverse-batch-id" class="form-control" placeholder="رقم القيد">
+                                                <div class="input-group">
+                                                <label class="sr-only" for="reverse-batch-id">رقم القيد</label>
+                                                <input type="number" id="reverse-batch-id" class="form-control" placeholder="رقم القيد" autocomplete="off">
                                                 <button class="btn btn-warning" onclick="reverseBatch()">
                                                     <i class="fas fa-undo"></i> إنشاء قيد عكسي
                                                 </button>
@@ -219,7 +223,8 @@
                                             <h6 class="mb-0">اختر قيداً للتحرير</h6>
                                         </div>
                                         <div class="card-body p-2" style="max-height: 600px; overflow-y: auto;">
-                                            <input type="text" id="batch-search" class="form-control mb-2" placeholder="بحث...">
+                                            <label class="sr-only" for="batch-search">بحث</label>
+                                            <input type="text" id="batch-search" class="form-control mb-2" placeholder="بحث..." autocomplete="off">
                                             <div id="batches-list-editor">
                                                 <div class="text-center py-3">
                                                     <div class="spinner-border spinner-border-sm"></div>
@@ -240,18 +245,18 @@
                                                 <!-- معلومات أساسية -->
                                                 <div class="row mb-3">
                                                     <div class="col-md-6">
-                                                        <label>الغرض:</label>
-                                                        <input type="text" id="edit-purpose" class="form-control">
+                                                        <label for="edit-purpose">الغرض:</label>
+                                                        <input type="text" id="edit-purpose" class="form-control" autocomplete="off">
                                                     </div>
                                                     <div class="col-md-6">
-                                                        <label>التاريخ:</label>
-                                                        <input type="datetime-local" id="edit-posted-at" class="form-control">
+                                                        <label for="edit-posted-at">التاريخ:</label>
+                                                        <input type="datetime-local" id="edit-posted-at" class="form-control" autocomplete="off">
                                                     </div>
                                                 </div>
                                                 
                                                 <div class="mb-3">
-                                                    <label>ملاحظات:</label>
-                                                    <textarea id="edit-memo" class="form-control" rows="2"></textarea>
+                                                    <label for="edit-memo">ملاحظات:</label>
+                                                    <textarea id="edit-memo" class="form-control" rows="2" autocomplete="off"></textarea>
                                                 </div>
                                                 
                                                 <!-- ربط الجهة -->
@@ -262,7 +267,7 @@
                                                     <div class="card-body">
                                                         <div class="row">
                                                             <div class="col-md-4">
-                                                                <label>نوع الجهة:</label>
+                                                                <label for="edit-entity-type">نوع الجهة:</label>
                                                                 <select id="edit-entity-type" class="form-control" onchange="loadEntityOptions()">
                                                                     <option value="">-- اختر --</option>
                                                                     <option value="CUSTOMER">عميل</option>
@@ -275,8 +280,8 @@
                                                                 </select>
                                                             </div>
                                                             <div class="col-md-6">
-                                                                <label>الجهة:</label>
-                                                                <input type="text" id="entity-search" class="form-control" placeholder="ابحث عن الجهة..." oninput="searchEntity()">
+                                                                <label for="entity-search">الجهة:</label>
+                                                                <input type="text" id="entity-search" class="form-control" placeholder="ابحث عن الجهة..." oninput="searchEntity()" autocomplete="off">
                                                                 <div id="entity-results" class="list-group mt-1" style="max-height: 200px; overflow-y: auto; display:none;"></div>
                                                             </div>
                                                             <div class="col-md-2">
@@ -423,21 +428,21 @@
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="fas fa-plus ml-2"></i>إضافة حساب جديد</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
-                <form id="addAccountForm">
+                <form id="addAccountForm" autocomplete="off">
                     <div class="mb-3">
-                        <label class="form-label">الكود <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="code" required>
+                        <label class="form-label" for="add_code">الكود <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="add_code" name="code" required autocomplete="off">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">الاسم <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="name" required>
+                        <label class="form-label" for="add_name">الاسم <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="add_name" name="name" required autocomplete="off">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">النوع <span class="text-danger">*</span></label>
-                        <select class="custom-select" name="type" required>
+                        <label class="form-label" for="add_type">النوع <span class="text-danger">*</span></label>
+                        <select class="custom-select" id="add_type" name="type" required>
                             <option value="">اختر النوع...</option>
                             <option value="ASSET">أصول (ASSET)</option>
                             <option value="LIABILITY">خصوم (LIABILITY)</option>
@@ -448,14 +453,14 @@
                     </div>
                     <div class="mb-3">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="is_active" checked>
-                            <label class="form-check-label">حساب نشط</label>
+                            <input class="form-check-input" type="checkbox" id="add_is_active" name="is_active" checked autocomplete="off">
+                            <label class="form-check-label" for="add_is_active">حساب نشط</label>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
                 <button type="button" class="btn btn-success" onclick="saveNewAccount()">
                     <i class="fas fa-save ml-1"></i>حفظ
                 </button>
@@ -470,22 +475,22 @@
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="fas fa-edit ml-2"></i>تعديل حساب</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
             <div class="modal-body">
                 <form id="editAccountForm">
                     <input type="hidden" name="account_id" id="edit_account_id">
                     <div class="mb-3">
-                        <label class="form-label">الكود</label>
-                        <input type="text" class="form-control" name="code" id="edit_code" readonly>
+                        <label class="form-label" for="edit_code">الكود</label>
+                        <input type="text" class="form-control" name="code" id="edit_code" readonly autocomplete="off">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">الاسم <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" name="name" id="edit_name" required>
+                        <label class="form-label" for="edit_name">الاسم <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" id="edit_name" required autocomplete="off">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">النوع</label>
-                        <select class="custom-select" name="type" id="edit_type" disabled>
+                        <label class="form-label" for="edit_type">النوع</label>
+                        <select class="custom-select" name="type" id="edit_type">
                             <option value="ASSET">أصول (ASSET)</option>
                             <option value="LIABILITY">خصوم (LIABILITY)</option>
                             <option value="EQUITY">حقوق الملكية (EQUITY)</option>
@@ -495,14 +500,14 @@
                     </div>
                     <div class="mb-3">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="is_active" id="edit_is_active">
-                            <label class="form-check-label">حساب نشط</label>
+                            <input class="form-check-input" type="checkbox" name="is_active" id="edit_is_active" autocomplete="off">
+                            <label class="form-check-label" for="edit_is_active">حساب نشط</label>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
                 <button type="button" class="btn btn-primary" onclick="saveEditAccount()">
                     <i class="fas fa-save ml-1"></i>حفظ التغييرات
                 </button>
@@ -513,6 +518,22 @@
 
 <script>
 // الدوال الأساسية
+if (typeof window.getOrCreateModal !== 'function') {
+  window.getOrCreateModal = function(el){
+    try {
+      if (window.$ && $.fn && $.fn.modal) {
+        var id = el && el.id ? ('#' + el.id) : null;
+        if (id) {
+          return {
+            show: function(){ try { $(id).modal('show'); } catch(e){} },
+            hide: function(){ try { $(id).modal('hide'); } catch(e){} }
+          };
+        }
+      }
+    } catch(e) {}
+    return null;
+  };
+}
 function loadAccounts() {
     console.log('🔄 Loading accounts...');
     var tbody = document.querySelector('#accountsTable tbody');
@@ -546,7 +567,7 @@ function loadAccounts() {
                     html += '<td>' + acc.type + '</td>';
                     html += '<td>' + status + '</td>';
                     html += '<td>';
-                    html += '<button class="btn btn-sm btn-primary ml-1" onclick="showEditAccountModal(' + acc.id + ', \'' + acc.code + '\', \'' + acc.name + '\', \'' + acc.type + '\', ' + isActiveVal + ')"><i class="fas fa-edit"></i> تعديل</button>';
+                    html += '<button class="btn btn-sm btn-primary ml-1" onclick="showEditAccountModal(' + acc.id + ', \'' + String(acc.code||'').replace(/'/g, "\\'") + '\', \'' + String(acc.name||'').replace(/'/g, "\\'") + '\', \'' + String(acc.type||'').replace(/'/g, "\\'") + '\', ' + isActiveVal + ')"><i class="fas fa-edit"></i> تعديل</button>';
                     html += '<button class="btn btn-sm btn-danger" onclick="deleteAcc(' + acc.id + ')"><i class="fas fa-trash"></i> حذف</button>';
                     html += '</td>';
                     html += '</tr>';
@@ -609,6 +630,8 @@ function loadEntries() {
             } else {
                 console.warn('⚠️ No entries found');
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">لا توجد قيود</td></tr>';
+                var cb = document.getElementById('entriesCount');
+                if (cb) cb.textContent = '0';
             }
         })
         .catch(function(e) { 
@@ -658,6 +681,8 @@ function loadBatches() {
             } else {
                 console.warn('⚠️ No batches found');
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">لا توجد قيود</td></tr>';
+                var cb2 = document.getElementById('batchesCount');
+                if (cb2) cb2.textContent = '0';
             }
         })
         .catch(function(e) { 
@@ -669,7 +694,7 @@ function loadBatches() {
 // الأدوات
 function doBackup() {
     if (!confirm('إنشاء نسخة احتياطية؟')) return;
-    fetch('/security/ledger-control/backup', { method: 'POST' })
+    fetch('/security/ledger-control/backup', { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token() }}' } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
@@ -678,7 +703,7 @@ function doBackup() {
                 alert('فشل: ' + data.error);
             }
         })
-        .catch(function(e) { alert('خطأ: ' + e.message); });
+        .catch(function(e) { alert('❌ ' + (e && e.message ? e.message : 'خطأ غير معروف')); });
 }
 
 function doValidate() {
@@ -691,9 +716,11 @@ function doValidate() {
                 } else {
                     alert('جميع القيود متوازنة');
                 }
+            } else {
+                alert('❌ فشل التحقق');
             }
         })
-        .catch(function(e) { alert('خطأ'); });
+        .catch(function(e) { alert('❌ ' + (e && e.message ? e.message : 'خطأ')); });
 }
 
 function openTrialBalance() {
@@ -702,21 +729,21 @@ function openTrialBalance() {
 
 function doCleanup() {
     if (!confirm('حذف القيود الملغاة؟')) return;
-    fetch('/security/ledger-control/cleanup', { method: 'POST' })
+    fetch('/security/ledger-control/cleanup', { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token() }}' } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
                 alert('تم حذف ' + data.deleted_count + ' قيد');
             } else {
-                alert('فشل');
+                alert('❌ فشل الحذف');
             }
         })
-        .catch(function(e) { alert('خطأ'); });
+        .catch(function(e) { alert('❌ ' + (e && e.message ? e.message : 'خطأ')); });
 }
 
 function deleteAcc(id) {
     if (!confirm('حذف الحساب؟')) return;
-    fetch('/security/ledger-control/accounts/' + id + '/delete', { method: 'POST' })
+    fetch('/security/ledger-control/accounts/' + id + '/delete', { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token() }}' } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
@@ -724,12 +751,13 @@ function deleteAcc(id) {
             } else {
                 alert(data.error || 'فشل الحذف');
             }
-        });
+        })
+        .catch(function(e) { alert('❌ ' + (e && e.message ? e.message : 'خطأ غير معروف')); });
 }
 
 function voidBatch(id) {
     if (!confirm('إلغاء القيد؟')) return;
-    fetch('/security/ledger-control/entries/' + id + '/void', { method: 'POST' })
+    fetch('/security/ledger-control/entries/' + id + '/void', { method: 'POST', headers: { 'X-CSRFToken': '{{ csrf_token() }}' } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
@@ -737,57 +765,55 @@ function voidBatch(id) {
             } else {
                 alert(data.error || 'فشل الإلغاء');
             }
-        });
+        })
+        .catch(function(e) { alert('❌ ' + (e && e.message ? e.message : 'خطأ غير معروف')); });
 }
 
 function openBatchEditor(id) {
     var editorTrigger = document.getElementById('editor-tab');
-    if (editorTrigger && window.bootstrap && bootstrap.Tab) {
-        var tabInstance = bootstrap.Tab.getOrCreateInstance(editorTrigger);
-        tabInstance.show();
-        setTimeout(function() { editBatch(id); }, 200);
-        return;
-    }
-    if (editorTrigger) {
+    if (editorTrigger && window.$ && $.fn && $.fn.tab) {
+        try { $(editorTrigger).tab('show'); } catch (e) {}
+    } else if (editorTrigger) {
         editorTrigger.click();
-        setTimeout(function() { editBatch(id); }, 200);
-        return;
     }
-    editBatch(id);
+    setTimeout(function() { editBatch(id); }, 200);
 }
 
 // إدارة الحسابات
 function showAddAccountModal() {
     var form = document.getElementById('addAccountForm');
     if (form) form.reset();
-    if (window.addAccountModalInstance) {
-        window.addAccountModalInstance.show();
-    }
+    try { if (window.$ && $.fn && $.fn.modal) { $('#addAccountModal').modal('show'); } } catch(e){}
 }
 
 function saveNewAccount() {
     var form = document.getElementById('addAccountForm');
     var formData = new FormData(form);
+    var code = String(formData.get('code')||'').trim();
+    var name = String(formData.get('name')||'').trim();
+    var type = String(formData.get('type')||'').trim();
+    if (!code || !name || !type) {
+        alert('يرجى تعبئة جميع الحقول');
+        return;
+    }
     
     var data = {
-        code: formData.get('code'),
-        name: formData.get('name'),
-        type: formData.get('type'),
+        code: code,
+        name: name,
+        type: type,
         is_active: formData.get('is_active') ? true : false
     };
     
     fetch('/security/ledger-control/accounts/create', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
         body: JSON.stringify(data)
     })
     .then(function(r) { return r.json(); })
     .then(function(result) {
         if (result.success) {
             alert('✅ تم إضافة الحساب بنجاح');
-            if (window.addAccountModalInstance) {
-                window.addAccountModalInstance.hide();
-            }
+            try { if (window.$ && $.fn && $.fn.modal) { $('#addAccountModal').modal('hide'); } } catch(e){}
             loadAccounts();
         } else {
             alert('❌ فشل: ' + result.error);
@@ -802,34 +828,37 @@ function showEditAccountModal(id, code, name, type, isActive) {
     document.getElementById('edit_name').value = name;
     document.getElementById('edit_type').value = type;
     document.getElementById('edit_is_active').checked = isActive;
-    
-    if (window.editAccountModalInstance) {
-        window.editAccountModalInstance.show();
-    }
+    try { if (window.$ && $.fn && $.fn.modal) { $('#editAccountModal').modal('show'); } } catch(e){}
 }
 
 function saveEditAccount() {
     var id = document.getElementById('edit_account_id').value;
     var name = document.getElementById('edit_name').value;
     var isActive = document.getElementById('edit_is_active').checked;
+    var typeVal = document.getElementById('edit_type').value;
+    name = String(name||'').trim();
+    typeVal = String(typeVal||'').trim();
+    if (!name || !typeVal) {
+        alert('يرجى تعبئة الاسم والنوع');
+        return;
+    }
     
     var data = {
         name: name,
+        type: typeVal,
         is_active: isActive
     };
     
     fetch('/security/ledger-control/accounts/' + id + '/update', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
         body: JSON.stringify(data)
     })
     .then(function(r) { return r.json(); })
     .then(function(result) {
         if (result.success) {
             alert('✅ تم تحديث الحساب بنجاح');
-            if (window.editAccountModalInstance) {
-                window.editAccountModalInstance.hide();
-            }
+            try { if (window.$ && $.fn && $.fn.modal) { $('#editAccountModal').modal('hide'); } } catch(e){}
             loadAccounts();
         } else {
             alert('❌ فشل: ' + result.error);
@@ -842,7 +871,7 @@ function saveEditAccount() {
 function recalculateBalances() {
     if (!confirm('إعادة حساب جميع الأرصدة؟\nهذه العملية قد تستغرق وقتاً...')) return;
     
-    fetch('/security/ledger-control/recalculate-balances', { method: 'POST' })
+    fetch('/security/ledger-control/recalculate-balances', { method: 'POST', headers: { 'X-CSRFToken': (window.SecurityLedger && window.SecurityLedger.tokens && window.SecurityLedger.tokens.csrf) || '' } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
@@ -857,7 +886,7 @@ function recalculateBalances() {
 function syncChecks() {
     if (!confirm('مزامنة الدفعات مع الشيكات؟')) return;
     
-    fetch('/security/ledger-control/sync-checks', { method: 'POST' })
+    fetch('/security/ledger-control/sync-checks', { method: 'POST', headers: { 'X-CSRFToken': (window.SecurityLedger && window.SecurityLedger.tokens && window.SecurityLedger.tokens.csrf) || '' } })
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
@@ -978,7 +1007,7 @@ async function generateClosingEntries() {
     try {
         const response = await fetch('/security/ledger-control/operations/closing-entries/generate', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
             body: JSON.stringify({period_end: date})
         });
         const data = await response.json();
@@ -1043,7 +1072,7 @@ async function postClosingEntries(date, entries) {
     try {
         const response = await fetch('/security/ledger-control/operations/closing-entries/post', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
             body: JSON.stringify({period_end: date, entries: entries})
         });
         const data = await response.json();
@@ -1113,7 +1142,8 @@ async function approveBatch(batchId) {
     
     try {
         const response = await fetch(`/security/ledger-control/operations/approve-batch/${batchId}`, {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
         });
         const data = await response.json();
         
@@ -1136,7 +1166,7 @@ async function rejectBatch(batchId) {
     try {
         const response = await fetch(`/security/ledger-control/operations/reject-batch/${batchId}`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
             body: JSON.stringify({reason: reason})
         });
         const data = await response.json();
@@ -1164,7 +1194,8 @@ async function reverseBatch() {
     
     try {
         const response = await fetch(`/security/ledger-control/operations/reverse-entry/${batchId}`, {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
         });
         const data = await response.json();
         
@@ -1359,7 +1390,7 @@ async function linkCurrentEntity() {
     try {
         const response = await fetch(`/security/ledger-control/operations/batch/${currentBatchId}/link-entity`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
             body: JSON.stringify({
                 entity_type: currentEntityType,
                 entity_id: currentEntityId
@@ -1387,7 +1418,7 @@ async function saveBatch() {
     try {
         const response = await fetch(`/security/ledger-control/operations/batch/${currentBatchId}/update-full`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token() }}'},
             body: JSON.stringify({
                 purpose: document.getElementById('edit-purpose').value,
                 memo: document.getElementById('edit-memo').value,
@@ -1422,61 +1453,119 @@ function cancelEdit() {
 document.addEventListener('DOMContentLoaded', function() {
     window.SecurityLedger = window.SecurityLedger || {};
     window.SecurityLedger.tokens = { csrf: '{{ csrf_token() }}' };
+    if (typeof window.getOrCreateModal !== 'function') {
+      window.getOrCreateModal = function(el){
+        try {
+          if (window.$ && $.fn && $.fn.modal) {
+            var id = el && el.id ? ('#' + el.id) : null;
+            if (id) {
+              return {
+                show: function(){ try { $(id).modal('show'); } catch(e){} },
+                hide: function(){ try { $(id).modal('hide'); } catch(e){} }
+              };
+            }
+          }
+        } catch(e) {}
+        return null;
+      };
+    }
     
-    if (window.bootstrap) {
-        var addModalEl = document.getElementById('addAccountModal');
-        var editModalEl = document.getElementById('editAccountModal');
-        if (addModalEl) window.addAccountModalInstance = bootstrap.Modal.getOrCreateInstance(addModalEl);
-        if (editModalEl) window.editAccountModalInstance = bootstrap.Modal.getOrCreateInstance(editModalEl);
+    var addModalEl = document.getElementById('addAccountModal');
+    var editModalEl = document.getElementById('editAccountModal');
+    if (addModalEl && window.$ && $.fn && $.fn.modal) {
+      var aid = '#' + addModalEl.id;
+      window.addAccountModalInstance = {
+        show: function(){ try { $(aid).modal('show'); } catch(e){} },
+        hide: function(){ try { $(aid).modal('hide'); } catch(e){} }
+      };
+    }
+    if (editModalEl && window.$ && $.fn && $.fn.modal) {
+      var eid = '#' + editModalEl.id;
+      window.editAccountModalInstance = {
+        show: function(){ try { $(eid).modal('show'); } catch(e){} },
+        hide: function(){ try { $(eid).modal('hide'); } catch(e){} }
+      };
     }
     
     setTimeout(function() { loadAccounts(); }, 150);
+
+    function ensureActiveLoader(){
+      try{
+        var active = document.querySelector('#controlTabs .nav-link.active');
+        var target = active ? (active.getAttribute('href') || active.getAttribute('data-bs-target')) : null;
+        if (!target) return;
+        if (target === '#tab-accounts') {
+          loadAccounts();
+        } else if (target === '#tab-entries') {
+          loadEntries();
+        } else if (target === '#tab-batches') {
+          loadBatches();
+        } else if (target === '#tab-operations') {
+          loadFiscalPeriods();
+        } else if (target === '#tab-editor') {
+          loadBatchesForEditor();
+        }
+      }catch(e){}
+    }
+    ensureActiveLoader();
     
-    var primaryTabs = document.querySelectorAll('#controlTabs button[data-bs-toggle]');
-    primaryTabs.forEach(function(btn) {
-        btn.addEventListener('shown.bs.tab', function(event) {
-            var target = event.target.getAttribute('data-bs-target');
-            if (target === '#tab-accounts') {
-                loadAccounts();
-            } else if (target === '#tab-entries') {
-                loadEntries();
-            } else if (target === '#tab-batches') {
-                loadBatches();
-            } else if (target === '#tab-operations') {
-                loadFiscalPeriods();
-            } else if (target === '#tab-editor') {
-                loadBatchesForEditor();
-            }
-        });
-        btn.addEventListener('click', function(event) {
-            if (!window.bootstrap) {
-                var target = event.currentTarget.getAttribute('data-bs-target');
-                if (target === '#tab-accounts') {
-                    loadAccounts();
-                } else if (target === '#tab-entries') {
-                    loadEntries();
-                } else if (target === '#tab-batches') {
-                    loadBatches();
-                } else if (target === '#tab-operations') {
-                    loadFiscalPeriods();
-                } else if (target === '#tab-editor') {
-                    loadBatchesForEditor();
-                }
-            }
-        });
-    });
+    var controlTabs = document.getElementById('controlTabs');
+    if (controlTabs) {
+      controlTabs.addEventListener('click', function(ev){
+        var link = ev.target.closest('.nav-link');
+        if (!link) return;
+        var target = link.getAttribute('href') || link.getAttribute('data-bs-target');
+        if (window.$ && $.fn && $.fn.tab) {
+          try { $(link).tab('show'); } catch(e) {}
+        } else {
+          ev.preventDefault();
+          document.querySelectorAll('#controlTabs .nav-link').forEach(function(b){ b.classList.remove('active'); });
+          link.classList.add('active');
+          document.querySelectorAll('#controlTabsContent .tab-pane').forEach(function(p){ p.classList.remove('show'); p.classList.remove('active'); });
+          var pane = target ? document.querySelector(target) : null;
+          if (pane) { pane.classList.add('show'); pane.classList.add('active'); }
+        }
+        if (target === '#tab-accounts') {
+          loadAccounts();
+        } else if (target === '#tab-entries') {
+          loadEntries();
+        } else if (target === '#tab-batches') {
+          loadBatches();
+        } else if (target === '#tab-operations') {
+          loadFiscalPeriods();
+        } else if (target === '#tab-editor') {
+          loadBatchesForEditor();
+        }
+      });
+    }
     
-    var opsTabs = document.querySelectorAll('#operationsSubTabs button[data-bs-toggle]');
-    opsTabs.forEach(function(btn) {
-        btn.addEventListener('shown.bs.tab', function(event) {
-            var target = event.target.getAttribute('data-bs-target');
-            if (target === '#ops-approval') {
-                loadPendingBatches();
-            }
-        });
-    });
+    var opsTabs = document.getElementById('operationsSubTabs');
+    if (opsTabs) {
+      opsTabs.addEventListener('click', function(ev){
+        var link = ev.target.closest('.nav-link');
+        if (!link) return;
+        var target = link.getAttribute('href') || link.getAttribute('data-bs-target');
+        if (window.$ && $.fn && $.fn.tab) {
+          try { $(link).tab('show'); } catch(e) {}
+        } else {
+          ev.preventDefault();
+          document.querySelectorAll('#operationsSubTabs .nav-link').forEach(function(b){ b.classList.remove('active'); });
+          link.classList.add('active');
+          var opsContainer = document.querySelector('#tab-operations .tab-content');
+          if (opsContainer) {
+            opsContainer.querySelectorAll('.tab-pane').forEach(function(p){ p.classList.remove('show'); p.classList.remove('active'); });
+          }
+          var pane = target ? document.querySelector(target) : null;
+          if (pane) { pane.classList.add('show'); pane.classList.add('active'); }
+        }
+        if (target === '#ops-approval') {
+          loadPendingBatches();
+        } else if (target === '#ops-periods') {
+          loadFiscalPeriods();
+        }
+      });
+    }
 });
 
 </script>
 {% endblock %}
-

@@ -230,7 +230,7 @@ def get_current_exchange_rates():
     محمي بـ Rate Limiting (20 طلب/دقيقة) والنتائج محفوظة مؤقتاً (5 دقائق)
     """
     try:
-        from models import get_fx_rate_with_fallback
+        from models import get_fx_rate_with_fallback, _fetch_external_fx_rate, SystemSettings
         from flask import current_app
         import time
         
@@ -244,16 +244,39 @@ def get_current_exchange_rates():
             return jsonify(cached_data)
         
         # جلب سعر الدولار مقابل الشيقل
-        usd_to_ils = get_fx_rate_with_fallback('USD', 'ILS')
-        
-        # جلب سعر الدينار مقابل الشيقل
-        jod_to_ils = get_fx_rate_with_fallback('JOD', 'ILS')
+        try:
+            online_enabled = SystemSettings.get_setting('online_fx_enabled', True)
+        except Exception:
+            online_enabled = True
+
+        if online_enabled:
+            usd_rate = None
+            jod_rate = None
+            try:
+                r = _fetch_external_fx_rate('USD', 'ILS', datetime.utcnow())
+                if r and r > 0:
+                    usd_rate = float(r)
+            except Exception:
+                usd_rate = None
+            try:
+                r = _fetch_external_fx_rate('JOD', 'ILS', datetime.utcnow())
+                if r and r > 0:
+                    jod_rate = float(r)
+            except Exception:
+                jod_rate = None
+            if usd_rate is None:
+                usd_rate = float(get_fx_rate_with_fallback('USD', 'ILS').get('rate', 3.65))
+            if jod_rate is None:
+                jod_rate = float(get_fx_rate_with_fallback('JOD', 'ILS').get('rate', 5.15))
+        else:
+            usd_rate = float(get_fx_rate_with_fallback('USD', 'ILS').get('rate', 3.65))
+            jod_rate = float(get_fx_rate_with_fallback('JOD', 'ILS').get('rate', 5.15))
         
         # تجهيز الاستجابة (بدون معلومات حساسة)
         response_data = {
             'success': True,
-            'USD': float(usd_to_ils.get('rate', 3.65)),
-            'JOD': float(jod_to_ils.get('rate', 5.15))
+            'USD': float(usd_rate),
+            'JOD': float(jod_rate)
         }
         
         # حفظ في Cache
@@ -2663,24 +2686,7 @@ def change_sale_status_api(id: int):
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)}), 400
 
-@bp.delete("/sales/<int:id>")
-@login_required
-@permission_required("manage_sales")
-@limiter.limit("30/minute")
-def delete_sale_api(id: int):
-    s = db.session.query(Sale).filter_by(id=id).first()
-    if not s:
-        return jsonify({"error": "Not Found"}), 404
-    try:
-        if float(getattr(s, "total_paid", 0) or 0) > 0:
-            return jsonify({"success": False, "error": "has_payments"}), 400
-        _release_stock(s)
-        db.session.delete(s)
-        db.session.commit()
-        return jsonify({"success": True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"success": False, "error": str(e)}), 400
+ 
 
 @bp.get("/sales/<int:id>/payments")
 @login_required

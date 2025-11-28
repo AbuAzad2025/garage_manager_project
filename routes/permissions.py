@@ -1,6 +1,6 @@
 
 # -*- coding: utf-8 -*-
-from flask import Blueprint, flash, redirect, render_template, url_for, abort, request
+from flask import Blueprint, flash, redirect, render_template, url_for, abort, request, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
@@ -267,3 +267,45 @@ def delete_permission(permission_id):
         db.session.rollback()
         flash(f"لا يمكن الحذف: {e}", "danger")
     return redirect(url_for("permissions.list"))
+
+@permissions_bp.route("/matrix", methods=["GET"], endpoint="matrix")
+@login_required
+@utils.permission_required("manage_permissions")
+def permissions_matrix():
+    from permissions_config.permissions import PermissionsRegistry
+    mapping = {
+        "shop": {"read": "view_shop", "write": "manage_shop", "public_read": True},
+        "users": {"read": "manage_users", "write": "manage_users"},
+        "customers": {"read": "manage_customers", "write": "manage_customers"},
+        "vendors": {"read": "manage_vendors", "write": "manage_vendors"},
+        "shipments": {"read": "manage_shipments", "write": "manage_shipments"},
+        "warehouse": {"read": "view_warehouses", "write": "manage_warehouses"},
+        "payments": {"read": "manage_payments", "write": "manage_payments"},
+        "expenses": {"read": "manage_expenses", "write": "manage_expenses"},
+        "sales": {"read": "manage_sales", "write": "manage_sales"},
+        "service": {"read": "manage_service", "write": "manage_service"},
+        "reports": {"read": "view_reports", "write": "manage_reports"},
+        "roles": {"read": "manage_roles", "write": "manage_roles"},
+        "permissions": {"read": "manage_permissions", "write": "manage_permissions"},
+        "parts": {"read": "view_parts", "write": "manage_inventory"},
+        "admin_reports": {"read": "view_reports", "write": "manage_reports"},
+        "api": {"read": "access_api", "write": "manage_api"},
+        "barcode": {"read": "view_parts"},
+        "barcode_scanner": {"read": "view_barcode", "write": "manage_barcode"},
+        "ledger": {"read": "manage_ledger", "write": "manage_ledger"},
+        "currencies": {"read": "manage_currencies", "write": "manage_currencies"},
+        "checks": {"read": "view_payments", "write": "manage_payments"},
+    }
+    roles = {}
+    for role_name in PermissionsRegistry.ROLES.keys():
+        perms = PermissionsRegistry.get_role_permissions(role_name)
+        modules = {}
+        for bp_name, req in mapping.items():
+            rp = req.get("read")
+            wp = req.get("write")
+            public_read = bool(req.get("public_read"))
+            read_allowed = public_read or (rp is None) or (rp in perms)
+            write_allowed = bool(wp and (wp in perms))
+            modules[bp_name] = {"read": bool(read_allowed), "write": bool(write_allowed)}
+        roles[role_name] = {"permissions": sorted(list(perms)), "modules": modules}
+    return jsonify({"roles": roles})

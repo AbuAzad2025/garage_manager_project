@@ -575,46 +575,28 @@
   // ===== الوظيفة الأصلية المحسّنة: معالج الإرسال =====
   if (form) {
     form.addEventListener('submit', function (e) {
-      // ✨ جديد: Loading state
-      if (btnSubmit) {
-        btnSubmit.disabled = true;
-        btnSubmit.querySelector('.btn-text').classList.add('d-none');
-        btnSubmit.querySelector('.btn-loading').classList.remove('d-none');
-      }
-      
-      // ✨ جديد: Validation visual
       form.classList.add('was-validated');
-      
-      // التحقق من الحقول المطلوبة
-      const nameInput = document.querySelector('#warehouse-form input[name="name"]');
-      if (nameInput && !nameInput.value.trim()) {
+      const valid = typeof form.checkValidity === 'function' ? form.checkValidity() : true;
+      if (!valid) {
         e.preventDefault();
-        nameInput.classList.add('shake');
-        nameInput.focus();
-        
+        const firstInvalid = form.querySelector(':invalid, [required]:invalid') || form.querySelector('[required]');
+        if (firstInvalid) {
+          firstInvalid.classList.add('shake');
+          firstInvalid.focus();
+          setTimeout(() => firstInvalid.classList.remove('shake'), 500);
+        }
         if (btnSubmit) {
           btnSubmit.disabled = false;
           btnSubmit.querySelector('.btn-text').classList.remove('d-none');
           btnSubmit.querySelector('.btn-loading').classList.add('d-none');
         }
-        
-        setTimeout(() => nameInput.classList.remove('shake'), 500);
-        
-        // رسالة خطأ
-        if (window.Swal) {
-          Swal.fire({
-            icon: 'error',
-            title: 'حقل مطلوب',
-            text: 'الرجاء إدخال اسم المستودع',
-            confirmButtonText: 'حسناً'
-          });
-        } else {
-          alert('الرجاء إدخال اسم المستودع');
-        }
         return false;
       }
-      
-      // الوظيفة الأصلية محفوظة
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.querySelector('.btn-text').classList.add('d-none');
+        btnSubmit.querySelector('.btn-loading').classList.remove('d-none');
+      }
       return true;
     });
   }

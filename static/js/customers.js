@@ -123,6 +123,17 @@
     const form = qs(sel);
     if (!form) return;
     form.addEventListener("submit", async (e) => {
+      const submitBtn = form.querySelector('button[type="submit"]');
+      if (!form.checkValidity()) {
+        e.preventDefault();
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-save ml-1"></i> حفظ';
+        }
+        const firstInvalid = form.querySelector(':invalid');
+        if (firstInvalid) firstInvalid.focus();
+        return;
+      }
       const email = form.querySelector('input[name="email"]');
       const pw1 = form.querySelector('input[name="password"]');
       const pw2 = form.querySelector('input[name="confirm"]');
@@ -155,11 +166,21 @@
       if (sel !== "#customer-create-form") return;
       const inModal = !!form.closest(".modal");
       const ajaxEnabled = inModal || form.dataset.ajax === "1";
-      if (!ajaxEnabled) return;
+      if (!ajaxEnabled) {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin ml-1"></i> جاري الحفظ...';
+        }
+        return;
+      }
       e.preventDefault();
       clearFieldErrors(form);
       const csrf = getCsrf(form);
       try {
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin ml-1"></i> جاري الحفظ...';
+        }
         const res = await fetch(form.action, {
           method: "POST",
           body: new FormData(form),
@@ -172,6 +193,10 @@
         const isJson = ct.includes("application/json");
         const data = isJson ? await res.json() : null;
         if (!res.ok || (isJson && data && data.ok === false)) {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save ml-1"></i> حفظ';
+          }
           const message = (isJson && data && data.message) ? data.message : "فشل إنشاء العميل";
           if (isJson && data && data.errors) applyFieldErrors(form, data.errors);
           return;
@@ -190,6 +215,10 @@
         const rt = form.querySelector('input[name="return_to"]')?.value || "";
         if (rt) window.location.href = rt;
       } catch (err) {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i class="fas fa-save ml-1"></i> حفظ';
+        }
       }
     });
   });

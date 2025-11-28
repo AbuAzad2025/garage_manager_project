@@ -941,7 +941,7 @@ function promptAddField(fieldKey) {
     showToast('اختر نوعاً أولاً', 'warning');
     return;
   }
-  const modal = new bootstrap.Modal(document.createElement('div'));
+  
   const target = expenseTypes.find((t) => t.id === selectedTypeId);
   if (!target) return;
   if (target.required.includes(fieldKey) || target.optional.includes(fieldKey)) {

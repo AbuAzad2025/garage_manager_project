@@ -1,4 +1,4 @@
-﻿<!-- File: templates/sales/detail.html -->
+<!-- File: templates/sales/detail.html -->
 {% extends 'base.html' %}
 {% block title %}تفاصيل فاتورة {{ sale.sale_number }}{% endblock %}
 
@@ -67,7 +67,7 @@
           </thead>
           <tbody>
             {% for line in sale.lines %}
-              {% set ns.lines_sum = ns.lines_sum + ((line.line_total or 0)|float) %}
+              {% set ns.lines_sum = ns.lines_sum + ((line.line_total_value or 0)|float) %}
               <tr>
                 <td>{{ loop.index }}</td>
                 <td>{{ line.product_name }}</td>
@@ -85,6 +85,15 @@
               <td colspan="7" class="text-right">مجموع البنود:</td>
               <td>{{ num(ns.lines_sum) }} {{ sale.currency }}</td>
             </tr>
+            <tr>
+              <td colspan="7" class="text-right">خصم الفاتورة:</td>
+              <td>{{ num(sale.discount_total) }} {{ sale.currency }}</td>
+            </tr>
+
+            <tr>
+              <td colspan="7" class="text-right">الشحن:</td>
+              <td>{{ num(sale.shipping_cost) }} {{ sale.currency }}</td>
+            </tr>
 
             {% if sale.tax_amount is defined %}
             <tr>
@@ -92,11 +101,6 @@
               <td>{{ num(sale.tax_amount) }} {{ sale.currency }}</td>
             </tr>
             {% endif %}
-
-            <tr>
-              <td colspan="7" class="text-right">الشحن:</td>
-              <td>{{ num(sale.shipping_cost) }} {{ sale.currency }}</td>
-            </tr>
 
             <tr class="table-success">
               <td colspan="7" class="text-right font-weight-bold">الإجمالي النهائي:</td>
@@ -131,7 +135,7 @@
                                                            reference='دفع مبيعة من ' ~ (sale.customer.name if sale.customer else 'عميل') ~ ' - ' ~ (sale.sale_number or sale.id),
                                                            notes='دفع مبيعة: ' ~ (sale.sale_number or sale.id) ~ ' - العميل: ' ~ (sale.customer.name if sale.customer else 'غير محدد'),
                                                            customer_id=sale.customer_id) }}">
-            <i class="fas fa-plus mr-1"></i> إضافة دفعة ({{ '%.2f'|format(sale.balance_due) }} ₪)
+            <i class="fas fa-plus mr-1"></i> إضافة دفعة ({{ '%.2f'|format(sale.balance_due) }} {{ sale.currency if sale.currency else 'ILS' }})
           </a>
           {% endif %}
         </div>
@@ -173,6 +177,12 @@
               <th class="text-right">المجموع المدفوع:</th>
               <td>{{ num(sale.total_paid) }} {{ sale.currency }}</td>
             </tr>
+            {% if show_ils_display %}
+            <tr>
+              <th class="text-right">المجموع المدفوع (بالشيكل):</th>
+              <td>{{ num(paid_ils) }} ILS</td>
+            </tr>
+            {% endif %}
             <tr>
               <th class="text-right">المتبقي:</th>
               <td>
@@ -181,6 +191,16 @@
                 </span>
               </td>
             </tr>
+            {% if show_ils_display %}
+            <tr>
+              <th class="text-right">المتبقي (بالشيكل):</th>
+              <td>
+                <span class="badge {{ 'badge-success' if (balance_due_ils or 0)|float == 0 else 'badge-danger' }}">
+                  {{ num(balance_due_ils) }} ILS
+                </span>
+              </td>
+            </tr>
+            {% endif %}
           </table>
         </div>
       </div>

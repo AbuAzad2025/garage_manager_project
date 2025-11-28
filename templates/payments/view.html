@@ -17,17 +17,19 @@
       <a href="{{ url_for('payments.payment_receipt', payment_id=payment.id) }}" class="btn btn-primary">
         <i class="fas fa-receipt ml-1"></i> عرض الإيصال
       </a>
-      {% if payment.status == 'PENDING' %}
-        <button id="completePayment" class="btn btn-success" data-payment-id="{{ payment.id }}">
-          <i class="fas fa-check ml-1"></i> تأكيد الدفعة
-        </button>
-        <button id="failPayment" class="btn btn-danger" data-payment-id="{{ payment.id }}">
-          <i class="fas fa-times ml-1"></i> رفض الدفعة
-        </button>
-      {% elif payment.status == 'COMPLETED' %}
-        <button id="refundPayment" class="btn btn-warning" data-payment-id="{{ payment.id }}">
-          <i class="fas fa-undo ml-1"></i> إرجاع الدفعة
-        </button>
+      <a href="{{ url_for('ledger.index') }}?q={{ 'PAY-' ~ payment.id }}" class="btn btn-outline-info">
+        <i class="fas fa-book ml-1"></i> دفتر الأستاذ
+      </a>
+      {% if not active_split %}
+        {% if payment.status == 'PENDING' %}
+          <button id="completePayment" class="btn btn-success" data-payment-id="{{ payment.id }}">
+            <i class="fas fa-check ml-1"></i> تأكيد الدفعة
+          </button>
+          <button id="failPayment" class="btn btn-danger" data-payment-id="{{ payment.id }}">
+            <i class="fas fa-times ml-1"></i> رفض الدفعة
+          </button>
+        {% endif %}
+        
       {% endif %}
     </div>
   </div>
@@ -148,11 +150,98 @@
                 {% endif %}
               </div>
             </div>
+          {% elif payment.invoice %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-file-invoice text-info ml-2"></i>
+              <div>
+                <strong>فاتورة:</strong> {{ payment.invoice.invoice_number or payment.invoice.id }}
+                {% if payment.invoice.customer %}
+                  <br><small class="text-muted">عميل: {{ payment.invoice.customer.name }}</small>
+                {% endif %}
+              </div>
+            </div>
+          {% elif payment.sale %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-shopping-cart text-info ml-2"></i>
+              <div>
+                <strong>فاتورة مبيعات:</strong> {{ payment.sale.sale_number or payment.sale.id }}
+                {% if payment.sale.customer %}
+                  <br><small class="text-muted">عميل: {{ payment.sale.customer.name }}</small>
+                {% endif %}
+              </div>
+            </div>
+          {% elif payment.service %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-tools text-secondary ml-2"></i>
+              <div>
+                <strong>طلب صيانة:</strong> {{ payment.service.service_number or payment.service.id }}
+                {% if payment.service.customer %}
+                  <br><small class="text-muted">عميل: {{ payment.service.customer.name }}</small>
+                {% endif %}
+              </div>
+            </div>
+          {% elif payment.shipment %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-dolly text-secondary ml-2"></i>
+              <div>
+                <strong>شحنة:</strong> {{ payment.shipment.shipment_number or payment.shipment.id }}
+              </div>
+            </div>
+          {% elif payment.expense %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-file-invoice-dollar text-secondary ml-2"></i>
+              <div>
+                <strong>مصروف:</strong> {{ payment.expense.description or ('#' ~ payment.expense.id) }}
+              </div>
+            </div>
+          {% elif payment.preorder %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-clipboard-list text-secondary ml-2"></i>
+              <div>
+                <strong>طلب مسبق:</strong> {{ payment.preorder.reference or payment.preorder.id }}
+              </div>
+            </div>
+          {% elif payment.loan_settlement %}
+            <div class="d-flex align-items-center">
+              <i class="fas fa-hand-holding-usd text-secondary ml-2"></i>
+              <div>
+                <strong>تسوية قرض:</strong> {{ payment.loan_settlement.id }}
+              </div>
+            </div>
           {% else %}
             <p class="text-muted">لا توجد جهة مرتبطة</p>
           {% endif %}
         </div>
       </div>
+
+      {% if active_split %}
+      <div class="card shadow-sm mt-3">
+        <div class="card-header bg-light">
+          <h5 class="mb-0"><i class="fas fa-credit-card ml-2"></i>جزء الدفعة المحدد #{{ active_split.id }}</h5>
+        </div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ active_split.method or 'غير محدد' }}</strong>
+              {% if active_split.reference %}
+                <br><small class="text-muted">{{ active_split.reference }}</small>
+              {% endif %}
+            </div>
+            <div class="text-end">
+              {% set base_currency = active_split.currency or payment.currency %}
+              {% set main_currency = payment.currency %}
+              <span class="fw-bold">{{ "%.2f"|format(active_split.amount or 0) }} {{ base_currency }}</span>
+              {% if base_currency and main_currency and base_currency.upper() != main_currency.upper() %}
+                <div class="text-muted small">≈ {{ "%.2f"|format(active_split.converted_amount or 0) }} {{ main_currency }}</div>
+              {% endif %}
+            </div>
+        </div>
+          <div class="mt-2 text-end">
+            <a href="{{ url_for('ledger.index') }}?q={{ 'SPLIT-' ~ active_split.id }}" class="btn btn-sm btn-outline-info"><i class="fas fa-book ml-1"></i> عرض القيد</a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
 
       {% if payment.splits %}
       <div class="card shadow-sm mt-3">
@@ -161,22 +250,22 @@
         </div>
         <div class="card-body">
           {% for split in payment.splits %}
-            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+            <a href="{{ url_for('payments.view_payment_split', payment_id=payment.id, split_id=split.id) }}" class="d-flex justify-content-between align-items-center border-bottom py-2 text-decoration-none {% if active_split and split.id == active_split.id %}bg-warning{% endif %}" style="border-radius: 6px;">
               <div>
-                <strong>{{ split.method or 'غير محدد' }}</strong>
+                <strong class="text-dark">{{ split.method or 'غير محدد' }}</strong>
                 {% if split.reference %}
                   <br><small class="text-muted">{{ split.reference }}</small>
                 {% endif %}
               </div>
               <div class="text-end">
-          {% set base_currency = split.currency or payment.currency %}
-          {% set main_currency = payment.currency %}
-          <span class="fw-bold">{{ "%.2f"|format(split.amount or 0) }} {{ base_currency }}</span>
-          {% if base_currency and main_currency and base_currency.upper() != main_currency.upper() %}
-            <div class="text-muted small">≈ {{ "%.2f"|format(split.converted_amount or 0) }} {{ main_currency }}</div>
-          {% endif %}
+                {% set base_currency = split.currency or payment.currency %}
+                {% set main_currency = payment.currency %}
+                <span class="fw-bold text-dark">{{ "%.2f"|format(split.amount or 0) }} {{ base_currency }}</span>
+                {% if base_currency and main_currency and base_currency.upper() != main_currency.upper() %}
+                  <div class="text-muted small">≈ {{ "%.2f"|format(split.converted_amount or 0) }} {{ main_currency }}</div>
+                {% endif %}
               </div>
-            </div>
+            </a>
           {% endfor %}
         </div>
       </div>
@@ -207,24 +296,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // إرجاع الدفعة
-  const refundBtn = document.getElementById('refundPayment');
-  if (refundBtn) {
-    refundBtn.addEventListener('click', function() {
-      if (confirm('هل أنت متأكد من إرجاع هذه الدفعة؟')) {
-        updatePaymentStatus(this.dataset.paymentId, 'REFUNDED');
-      }
-    });
-  }
+  
+
+  
 
   function updatePaymentStatus(paymentId, status) {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
     fetch(`/payments/${paymentId}/status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'X-CSRFToken': token
       },
-      body: JSON.stringify({ status: status })
+      body: JSON.stringify({ status: status, csrf_token: token })
     })
     .then(response => {
       if (!response.ok) {
@@ -245,6 +330,11 @@ document.addEventListener('DOMContentLoaded', function() {
       alert('خطأ في الاتصال بالخادم: ' + error.message);
     });
   }
+
+  const refundSplitBtn = document.getElementById('refundSplit');
+  
+
+  
 });
 </script>
 {% endblock %}

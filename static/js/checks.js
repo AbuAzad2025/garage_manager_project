@@ -40,6 +40,27 @@
         }
     };
 
+    function detectActualStatusFromNotes(notes) {
+        try {
+            const text = String(notes || '');
+            const lines = text.split(/\n+/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
+            for (let i = lines.length - 1; i >= 0; i--) {
+                const ln = lines[i];
+                const idx = ln.indexOf('حالة الشيك:');
+                if (idx === -1) continue;
+                const label = ln.substring(idx + 'حالة الشيك:'.length).trim();
+                if (label.indexOf('مسحوب') !== -1 || label.indexOf('تم الصرف') !== -1) return 'CASHED';
+                if (label.indexOf('مرتجع') !== -1) return 'RETURNED';
+                if (label.indexOf('ملغي') !== -1) return 'CANCELLED';
+                if (label.indexOf('أعيد') !== -1 || label.indexOf('معاد') !== -1) return 'RESUBMITTED';
+                if (label.indexOf('معلق') !== -1) return 'PENDING';
+                if (label.indexOf('مرفوض') !== -1) return 'BOUNCED';
+                if (label.indexOf('مؤرشف') !== -1) return 'CANCELLED';
+            }
+        } catch(e) {}
+        return null;
+    }
+
     if (typeof window.showNotification !== 'function') {
         window.showNotification = function(message, type = 'info') {
             const normalizedType = (type || 'info').toLowerCase();
@@ -69,6 +90,13 @@
             success: function(response) {
                     checksLoadErrorShown = false; // إعادة تعيين عند النجاح
                     const checks = response.checks;
+                    try { window.checksByToken = {}; } catch(e) {}
+                    if (Array.isArray(checks)) {
+                        checks.forEach(function(c){
+                            const t = c.token || c.id;
+                            if (t) { window.checksByToken[t] = c; }
+                        });
+                    }
                     
                     // تصنيف
                     const categorized = {
@@ -88,22 +116,17 @@
                         const daysUntilDue = check.days_until_due || 0;
                         const isOverdue = daysUntilDue < 0;
                         
-                        const notes = (check.notes || '').toLowerCase();
-                        const isSettled = check.is_settled || notes.indexOf('[settled=true]'.toLowerCase()) !== -1;
-                        const isLegal = check.is_legal || notes.indexOf('دائرة قانونية') !== -1;
-                        let actualStatus = status;
-                        
-                        if (notes.includes('حالة الشيك: مسحوب') || notes.includes('حالة الشيك: تم الصرف')) {
-                            actualStatus = 'CASHED';
-                        } else if (notes.includes('حالة الشيك: مرتجع')) {
-                            actualStatus = 'RETURNED';
-                        } else if (notes.includes('حالة الشيك: ملغي')) {
-                            actualStatus = 'CANCELLED';
-                        } else if (notes.includes('حالة الشيك: أعيد للبنك') || notes.includes('حالة الشيك: معلق')) {
-                            actualStatus = 'PENDING';
-                        } else if (notes.includes('حالة الشيك: مؤرشف')) {
-                            actualStatus = 'CANCELLED';
-                        }
+                    const notes = (check.notes || '');
+                    const isSettled = check.is_settled || notes.indexOf('[settled=true]'.toLowerCase()) !== -1;
+                    const isLegal = check.is_legal || notes.indexOf('دائرة قانونية') !== -1;
+                    let actualStatus = status;
+                    const detected = detectActualStatusFromNotes(notes);
+                    if (detected) {
+                        actualStatus = detected;
+                    }
+                    if (actualStatus === 'RESUBMITTED') {
+                        actualStatus = 'PENDING';
+                    }
                         
                         if (isLegal) {
                             categorized.legal.push(check);
@@ -223,7 +246,7 @@
             const currencyValue = check.currency || 'ILS';
             const dueDateValue = (check.check_due_date || '').split('T')[0] || '';
             const bankValue = check.check_bank || '';
-            const notes = (check.notes || '').toLowerCase();
+            const notes = (check.notes || '');
             const isSettled = notes.indexOf('[settled=true]'.toLowerCase()) !== -1;
             const canSettle = IS_OWNER && Boolean(entityTypeCode && entityId);
             // تحديد لون الصف
@@ -231,15 +254,26 @@
             if ((check.status || '').toUpperCase() === 'OVERDUE') rowClass = 'row-overdue';
             else if ((check.status || '').toUpperCase() === 'CASHED') rowClass = 'row-cashed';
             else if ((check.status || '').toUpperCase() === 'PENDING') rowClass = 'row-pending';
+            else if ((check.status || '').toUpperCase() === 'RESUBMITTED') rowClass = 'row-pending';
+            var nlow = (check.notes || '').toLowerCase();
+            if (nlow.indexOf('[return_reason=bank]') !== -1) {
+                rowClass = (rowClass ? rowClass + ' ' : '') + 'row-bank-return';
+            }
             
             // بناء الأزرار حسب حالة الشيك
             let actionButtons = '<button class="btn btn-sm btn-info" onclick="viewCheckDetails(\'' + (viewId || '') + '\')" title="عرض"><i class="fas fa-eye"></i></button> ';
             
             const status = (check.status || '').toUpperCase();
             let actualStatus = status;
+            const detectedForButtons = detectActualStatusFromNotes(notes);
+            if (detectedForButtons) {
+                actualStatus = detectedForButtons;
+            }
+            if (actualStatus === 'RESUBMITTED') {
+                actualStatus = 'PENDING';
+            }
             
-            // الكشف عن الحالة الفعلية من الملاحظات
-            if (!isSettled && (actualStatus === 'PENDING' || actualStatus === 'OVERDUE' || actualStatus === 'DUE_SOON' || actualStatus === 'RESUBMITTED')) {
+            if (!isSettled && (actualStatus === 'PENDING' || actualStatus === 'OVERDUE' || actualStatus === 'DUE_SOON')) {
                 // شيكات معلقة (بما فيها المُعادة للبنك): سحب | إرجاع | إلغاء
                 actionButtons += '<button class="btn btn-sm btn-success" onclick="markAsCashed(\'' + token + '\')" title="سحب"><i class="fas fa-check"></i></button> ';
                 actionButtons += '<button class="btn btn-sm btn-warning" onclick="markAsReturned(\'' + token + '\')" title="إرجاع"><i class="fas fa-undo"></i></button> ';
@@ -326,7 +360,16 @@
                 '<td>' + (check.entity_name || '-') + '</td>' +
                 '<td>' + (check.due_date_formatted || check.check_due_date || '-') + '</td>' +
                 '<td>' + (check.is_incoming ? '<span class="badge badge-success"><i class="fas fa-arrow-down"></i> وارد</span>' : '<span class="badge badge-danger"><i class="fas fa-arrow-up"></i> صادر</span>') + '</td>' +
-                '<td><span class="badge badge-' + (check.badge_color || 'info') + '">' + (check.status_ar || check.status || '-') + '</span></td>' +
+                (function(){
+                    var reasonBadge = '';
+                    var n = (check.notes || '').toLowerCase();
+                    if (n.indexOf('[return_reason=bank]') !== -1) {
+                        reasonBadge = ' <span class="badge badge-danger">مرتجع بنك</span>';
+                    } else if (n.indexOf('[return_reason=payment_refund]') !== -1) {
+                        reasonBadge = ' <span class="badge badge-info">إرجاع دفعة</span>';
+                    }
+                    return '<td><span class="badge badge-' + (check.badge_color || 'info') + '">' + (check.status_ar || check.status || '-') + '</span>' + reasonBadge + '</td>';
+                })() +
                 '<td><span class="badge badge-secondary">' + (check.source || '-') + '</span></td>' +
                 '<td>' + actionButtons + '</td>' +
                 '</tr>';
@@ -645,7 +688,7 @@
     
     // تحديث حالة الشيك إلى مرتجع
     window.markAsReturned = function(checkToken) {
-        updateCheckStatus(checkToken, 'RETURNED', 'تم إرجاع الشيك من البنك');
+        updateCheckStatus(checkToken, 'RETURNED', 'تم إرجاع الشيك من البنك', { return_reason: 'BANK' });
     };
     
     // تحديث حالة الشيك إلى ملغي
@@ -655,7 +698,7 @@
     
     // إعادة تقديم الشيك للبنك (للشيكات المرتجعة)
     window.resubmitCheck = function(checkToken) {
-        updateCheckStatus(checkToken, 'RESUBMITTED', 'تم إعادة تقديم الشيك للبنك');
+        updateCheckStatus(checkToken, 'RESUBMITTED', 'تم إعادة تقديم الشيك للبنك', { return_reason: 'BANK' });
     };
     
     // أرشفة الشيك
@@ -947,7 +990,7 @@
     };
     
     // دالة مشتركة لتحديث حالة الشيك
-    function updateCheckStatus(checkToken, newStatus, message) {
+    function updateCheckStatus(checkToken, newStatus, message, extra) {
         const statusInfo = {
             'CASHED': {
                 title: 'تأكيد السحب',
@@ -971,10 +1014,10 @@
                 successText: 'تم تحديث حالة الشيك إلى "ملغي".'
             },
             'RESUBMITTED': {
-                title: 'إعادة تقديم للكبنك',
+                title: 'إعادة تقديم للبنك',
                 text: 'سيتم وضع الشيك في حالة انتظار جديدة.',
                 icon: 'info',
-                confirmText: 'إعادة للبنك',
+                confirmText: 'تأكيد',
                 successText: 'تم إعادة تقديم الشيك للبنك.'
             },
             'PENDING': {
@@ -1004,10 +1047,10 @@
                     xhrFields: {
                         withCredentials: true
                     },
-                    data: JSON.stringify({
+                    data: JSON.stringify(Object.assign({
                         status: newStatus,
                         notes: message
-                    })
+                    }, extra || {}))
                 }).then(response => {
                     if (!response.success) {
                         throw new Error(response.message || 'فشل التحديث');
@@ -1021,15 +1064,49 @@
         }).then((result) => {
             if (result.isConfirmed) {
                 const response = result.value || {};
-                let successHtml = info.successText;
+                let msg = response.message || info.successText || '';
+                const local = (window.checksByToken && window.checksByToken[checkToken]) ? window.checksByToken[checkToken] : null;
+                const amt = (typeof response.amount !== 'undefined' && response.amount !== null) ? response.amount : (local ? (local.amount || 0) : null);
+                const cur = (response.currency || (local ? (local.currency || 'ILS') : 'ILS')) || 'ILS';
+                const dir = (response.direction || (local && local.is_incoming ? 'IN' : 'OUT')) || null;
+                const entName = local ? (local.entity_name || null) : null;
+                const entType = (response.entity_type || '').toString().toLowerCase();
+                const entId = response.entity_id || null;
+                let details = '';
+                if (amt !== null) {
+                    const isILS = String(cur || 'ILS').toUpperCase() === 'ILS';
+                    const currencyDisplay = isILS ? '₪' : String(cur).toUpperCase();
+                    details += `<br>المبلغ: <strong>${formatCurrency(parseFloat(amt) || 0)} ${currencyDisplay}</strong>`;
+                }
+                if (dir) {
+                    const dirAr = (String(dir).toUpperCase() === 'IN') ? 'وارد' : 'صادر';
+                    details += ` <span class="badge badge-${String(dir).toUpperCase() === 'IN' ? 'success' : 'danger'}">${dirAr}</span>`;
+                }
+                if (entName || entType || entId) {
+                    const typeAr = (function(t){
+                        if (t === 'customer') return 'عميل';
+                        if (t === 'supplier') return 'مورد';
+                        if (t === 'partner') return 'شريك';
+                        return '';
+                    })(entType);
+                    const entDisp = entName ? entName : (typeAr ? `${typeAr} #${entId || ''}` : (entId ? `#${entId}` : ''));
+                    if (entDisp) details += `<br>الجهة المرتبطة: <strong>${entDisp}</strong>`;
+                }
                 if (response.balance !== undefined && response.balance !== null) {
-                    successHtml += `<br>الرصيد بعد التحديث: ${formatCurrency(response.balance)} ₪`;
+                    details += `<br>الرصيد بعد التحديث: ${formatCurrency(response.balance)} ₪`;
                 }
                 Swal.fire({
                     title: 'تم!',
-                    html: successHtml,
+                    html: `${msg}${details}`,
                     icon: 'success',
-                    timer: 2000
+                    timer: 2200
+                }).then(() => {
+                    const nextList = (response.next_list || '').toString();
+                    if (nextList) {
+                        if (typeof window.switchToTab === 'function') {
+                            window.switchToTab(nextList);
+                        }
+                    }
                 });
                 setTimeout(() => loadAndCategorizeChecks(), 500);
             }
@@ -1044,6 +1121,16 @@
         $('#tab-overdue').addClass('active show');
         
         // scroll للأعلى
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.switchToTab = function(listKey) {
+        if (!listKey) return;
+        var key = String(listKey).toLowerCase();
+        var selector = '#tab-' + key;
+        $('.nav-link[data-toggle="pill"]').removeClass('active');
+        $('.nav-link[href="' + selector + '"]').addClass('active');
+        $('.tab-pane').removeClass('active show');
+        $(selector).addClass('active show');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
     

@@ -320,6 +320,15 @@
       </div>
   </div>
 
+  <div class="alert alert-info shadow-sm screen-only">
+    <div class="fw-bold mb-1">توضيح محاسبي حول "إرجاع" و"إعادة" الدفعة:</div>
+    <ul class="mb-0 small">
+      <li>إرجاع الدفعة/الجزء: إنشاء سند عكسي بنفس المبلغ وبالاتجاه المعاكس، وتحديث دفتر الأستاذ، ووضع الأصل كمُرجع.</li>
+      <li>إعادة الدفعة/الجزء: إعادة تطبيق عملية مُرجعة بإنشاء سند جديد، وإزالة علامة الإرجاع، وتحديث دفتر الأستاذ.</li>
+      <li>قيود المنطق المحاسبي: لا يُسمح بإرجاع إلا الدفعات المكتملة، ولا تُسمح إعادة إلا للدفعات المُرجعة. بالنسبة للأجزاء، لا يمكن إرجاع جزء مُرجع ولا إعادة جزء غير مُرجع.</li>
+    </ul>
+  </div>
+
   <section class="content">
       <div class="container-fluid">
           {% if selected_partner %}
@@ -523,6 +532,7 @@
       <form id="print-payments-form" method="get" action="{{ url_for('payments.index') }}" target="_blank">
         <div class="modal-body">
           <input type="hidden" name="print" value="1">
+          {% set query_args = query_args or {} %}
           {% for key, value in query_args.items() %}
           <input type="hidden" name="{{ key }}" value="{{ value }}">
           {% endfor %}

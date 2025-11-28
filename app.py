@@ -82,6 +82,7 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=10000")
     cursor.close()
 
 # تم تفعيل Foreign Keys + WAL mode
@@ -449,6 +450,106 @@ def create_app(config_object=Config) -> Flask:
     from translations.accounting_ar import get_all_translations
     app.jinja_env.globals["translations"] = get_all_translations()
 
+    def _three_digits_to_words_ar(n: int) -> str:
+        ones_words = ["","واحد","اثنان","ثلاثة","أربعة","خمسة","ستة","سبعة","ثمانية","تسعة"]
+        tens_words = ["","عشرة","عشرون","ثلاثون","أربعون","خمسون","ستون","سبعون","ثمانون","تسعون"]
+        teens_words = ["","أحد عشر","اثنا عشر","ثلاثة عشر","أربعة عشر","خمسة عشر","ستة عشر","سبعة عشر","ثمانية عشر","تسعة عشر"]
+        hundreds_words = ["","مائة","مائتان","ثلاثمائة","أربعمائة","خمسمائة","ستمائة","سبعمائة","ثمانمائة","تسعمائة"]
+        parts = []
+        h = n // 100
+        tu = n % 100
+        o = n % 10
+        t = (n // 10) % 10
+        if h:
+            parts.append(hundreds_words[h])
+        if tu:
+            if tu < 10:
+                parts.append(ones_words[o])
+            elif 10 <= tu < 20:
+                if tu == 10:
+                    parts.append("عشرة")
+                else:
+                    parts.append(teens_words[tu - 10])
+            else:
+                if o:
+                    parts.append(ones_words[o])
+                parts.append(tens_words[t])
+        return " و ".join([p for p in parts if p])
+
+    def amount_in_words(value, currency="ILS") -> str:
+        try:
+            amt = Decimal(str(value or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        except InvalidOperation:
+            amt = Decimal("0.00")
+        integer = int(amt)
+        fraction = int((amt - Decimal(integer)) * 100)
+        if integer == 0:
+            integer_words = "صفر"
+        else:
+            groups = []
+            scales = ["","ألف","مليون","مليار"]
+            plurals = {"ألف": "آلاف", "مليون": "ملايين", "مليار": "مليارات"}
+            i = 0
+            n = integer
+            while n > 0 and i < len(scales):
+                g = n % 1000
+                if g:
+                    w = _three_digits_to_words_ar(g)
+                    s = scales[i]
+                    if s:
+                        if g == 1 and i > 0:
+                            groups.append(s)
+                        elif g == 2 and i > 0:
+                            if s == "ألف":
+                                groups.append("ألفان")
+                            elif s == "مليون":
+                                groups.append("مليونان")
+                            elif s == "مليار":
+                                groups.append("ملياران")
+                        elif 3 <= g <= 10 and i > 0:
+                            groups.append(f"{w} {plurals.get(s, s)}")
+                        else:
+                            groups.append(f"{w} {s}")
+                    else:
+                        groups.append(w)
+                n //= 1000
+                i += 1
+            integer_words = " و ".join(reversed(groups)).strip()
+        if (currency or "ILS").upper() == "ILS":
+            main_unit = "شيكل"
+            sub_unit = "أغورة"
+        elif (currency or "USD").upper() == "USD":
+            main_unit = "دولار أمريكي"
+            sub_unit = "سنت"
+        elif (currency or "JOD").upper() == "JOD":
+            main_unit = "دينار أردني"
+            sub_unit = "قرش"
+        else:
+            main_unit = currency or "عملة"
+            sub_unit = "جزء"
+        result = f"{integer_words} {main_unit}"
+        if fraction:
+            frac_words = _three_digits_to_words_ar(fraction)
+            result = f"{result} و {frac_words} {sub_unit}"
+        return result
+
+    app.jinja_env.filters["amount_in_words"] = amount_in_words
+    app.jinja_env.filters["status_label"] = utils.status_label
+
+    def currency_name_ar(code: str) -> str:
+        code = (code or "").upper()
+        if code == "ILS":
+            return "شيكل"
+        if code == "USD":
+            return "دولار أمريكي"
+        if code == "EUR":
+            return "يورو"
+        if code == "JOD":
+            return "دينار أردني"
+        return code or "عملة"
+
+    app.jinja_env.globals["currency_name_ar"] = currency_name_ar
+
     from middleware.security_middleware import init_security_middleware
     init_security_middleware(app)
 
@@ -495,9 +596,9 @@ def create_app(config_object=Config) -> Flask:
     attach_acl(bp_barcode, read_perm="view_parts", write_perm=None)
     attach_acl(ledger_bp, read_perm="manage_ledger", write_perm="manage_ledger")
     attach_acl(currencies_bp, read_perm="manage_currencies", write_perm="manage_currencies")
-    attach_acl(barcode_scanner_bp, read_perm="scan_barcode", write_perm=None)
-    attach_acl(hard_delete_bp, read_perm="manage_system", write_perm="manage_system")
-    attach_acl(checks_bp, read_perm="view_payments", write_perm="manage_payments")
+    attach_acl(barcode_scanner_bp, read_perm="view_barcode", write_perm="manage_barcode")
+    attach_acl(hard_delete_bp, read_perm="hard_delete", write_perm="hard_delete")
+    attach_acl(checks_bp, read_perm="manage_payments", write_perm="manage_payments")
     
     def _init_ai_systems():
         if not app.config.get("AI_SYSTEMS_ENABLED", True):

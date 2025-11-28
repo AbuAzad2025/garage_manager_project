@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-24T03:00:00.305505",
+  "timestamp": "2025-11-27T03:00:00.124353",
   "snapshot": {
     "tables": {},
     "routes": [
@@ -124,6 +124,20 @@
       },
       {
         "path": "/preorders\", methods=[\"GET\"], endpoint=\"preorders",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\admin_reports.py"
+      },
+      {
+        "path": "/dashboard\", methods=[\"GET\"], endpoint=\"dashboard",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\admin_reports.py"
+      },
+      {
+        "path": "/api/stats\", methods=[\"GET\"], endpoint=\"api_stats",
         "methods": [
           "GET"
         ],
@@ -348,6 +362,28 @@
         "file": "routes\\advanced_control.py"
       },
       {
+        "path": "/performance-profiler",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
+        "path": "/database-optimizer",
+        "methods": [
+          "GET",
+          "POST"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
+        "path": "/api/performance/stats",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\advanced_control.py"
+      },
+      {
         "path": "/settings",
         "methods": [
           "GET",
@@ -513,6 +549,13 @@
       },
       {
         "path": "/training/status/<training_id>",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\ai_routes.py"
+      },
+      {
+        "path": "/models/status",
         "methods": [
           "GET"
         ],
@@ -1922,20 +1965,6 @@
         "file": "routes\\hard_delete.py"
       },
       {
-        "path": "/api/delete-sale/<int:sale_id>",
-        "methods": [
-          "POST"
-        ],
-        "file": "routes\\hard_delete.py"
-      },
-      {
-        "path": "/api/delete-payment/<int:payment_id>",
-        "methods": [
-          "POST"
-        ],
-        "file": "routes\\hard_delete.py"
-      },
-      {
         "path": "/supplier/<int:supplier_id>",
         "methods": [
           "GET",
@@ -1945,22 +1974,6 @@
       },
       {
         "path": "/partner/<int:partner_id>",
-        "methods": [
-          "GET",
-          "POST"
-        ],
-        "file": "routes\\hard_delete.py"
-      },
-      {
-        "path": "/sale/<int:sale_id>",
-        "methods": [
-          "GET",
-          "POST"
-        ],
-        "file": "routes\\hard_delete.py"
-      },
-      {
-        "path": "/payment/<int:payment_id>",
         "methods": [
           "GET",
           "POST"
@@ -2579,13 +2592,6 @@
         "file": "routes\\payments.py"
       },
       {
-        "path": "/<int:payment_id>\", methods=[\"DELETE\"], endpoint=\"delete_payment",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\payments.py"
-      },
-      {
         "path": "/<int:payment_id>/receipt\", methods=[\"GET\"], endpoint=\"payment_receipt",
         "methods": [
           "GET"
@@ -2684,6 +2690,34 @@
         "file": "routes\\payments.py"
       },
       {
+        "path": "/<int:payment_id>/split/<int:split_id>\", methods=[\"GET\"], endpoint=\"view_payment_split",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\payments.py"
+      },
+      {
+        "path": "/<int:payment_id>_split_<int:split_id>\", methods=[\"GET\"], endpoint=\"view_payment_split_legacy",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\payments.py"
+      },
+      {
+        "path": "/split/<int:split_id>/refund\", methods=[\"POST\"], endpoint=\"refund_split",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\payments.py"
+      },
+      {
+        "path": "/refund/<int:payment_id>\", methods=[\"POST\"], endpoint=\"refund_payment",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\payments.py"
+      },
+      {
         "path": "/\", methods=[\"GET\"], endpoint=\"list",
         "methods": [
           "GET"
@@ -2706,6 +2740,13 @@
       },
       {
         "path": "/<int:permission_id>/delete\", methods=[\"POST\"], endpoint=\"delete",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\permissions.py"
+      },
+      {
+        "path": "/matrix\", methods=[\"GET\"], endpoint=\"matrix",
         "methods": [
           "GET"
         ],
@@ -3224,13 +3265,6 @@
         "path": "/quick",
         "methods": [
           "POST"
-        ],
-        "file": "routes\\sales.py"
-      },
-      {
-        "path": "/<int:id>/delete\", methods=[\"POST\"], endpoint=\"delete_sale",
-        "methods": [
-          "GET"
         ],
         "file": "routes\\sales.py"
       },
@@ -4055,6 +4089,20 @@
       },
       {
         "path": "/audit-log/<int:log_id>",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\security.py"
+      },
+      {
+        "path": "/security-audit-report",
+        "methods": [
+          "GET"
+        ],
+        "file": "routes\\security.py"
+      },
+      {
+        "path": "/api/security-audit/stats",
         "methods": [
           "GET"
         ],
@@ -5743,6 +5791,7 @@
       "projects\\advanced\\tasks.html",
       "docs\\accounting\\index.html",
       "admin\\reports\\cards.html",
+      "admin\\reports\\dashboard.html",
       "admin\\reports\\index.html",
       "admin\\reports\\preorders.html"
     ],

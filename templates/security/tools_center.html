@@ -29,54 +29,42 @@
       
       <ul class="nav nav-tabs nav-fill" id="toolsTabs" role="tablist" data-initial-tab="{{ active_tab or 'integrations' }}">
         <li class="nav-item" role="presentation">
-          <button class="nav-link {% if active_tab == 'integrations' %}active{% endif %}"
-                  id="tab-trigger-integrations"
-                  data-bs-toggle="pill"
-                  data-bs-target="#tab-integrations"
-                  type="button"
-                  role="tab"
-                  aria-controls="tab-integrations"
-                  aria-selected="{% if active_tab == 'integrations' %}true{% else %}false{% endif %}"
-                  title="التكاملات الخارجية">
-            التكامل
-          </button>
+          <a class="nav-link {% if active_tab == 'integrations' %}active{% endif %}"
+             id="tab-trigger-integrations"
+             data-toggle="pill"
+             href="#tab-integrations"
+             role="tab"
+             aria-controls="tab-integrations"
+             aria-selected="{% if active_tab == 'integrations' %}true{% else %}false{% endif %}"
+             title="التكاملات الخارجية">التكامل</a>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link {% if active_tab == 'email' %}active{% endif %}"
-                  id="tab-trigger-email"
-                  data-bs-toggle="pill"
-                  data-bs-target="#tab-email"
-                  type="button"
-                  role="tab"
-                  aria-controls="tab-email"
-                  aria-selected="{% if active_tab == 'email' %}true{% else %}false{% endif %}"
-                  title="إدارة البريد الإلكتروني">
-            <i class="fas fa-envelope"></i> البريد
-          </button>
+          <a class="nav-link {% if active_tab == 'email' %}active{% endif %}"
+             id="tab-trigger-email"
+             data-toggle="pill"
+             href="#tab-email"
+             role="tab"
+             aria-controls="tab-email"
+             aria-selected="{% if active_tab == 'email' %}true{% else %}false{% endif %}"
+             title="إدارة البريد الإلكتروني"><i class="fas fa-envelope"></i> البريد</a>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link {% if active_tab == 'cards' %}active{% endif %}"
-                  id="tab-trigger-cards"
-                  data-bs-toggle="pill"
-                  data-bs-target="#tab-cards"
-                  type="button"
-                  role="tab"
-                  aria-controls="tab-cards"
-                  aria-selected="{% if active_tab == 'cards' %}true{% else %}false{% endif %}">
-            <i class="fas fa-credit-card"></i> الكروت
-          </button>
+          <a class="nav-link {% if active_tab == 'cards' %}active{% endif %}"
+             id="tab-trigger-cards"
+             data-toggle="pill"
+             href="#tab-cards"
+             role="tab"
+             aria-controls="tab-cards"
+             aria-selected="{% if active_tab == 'cards' %}true{% else %}false{% endif %}"><i class="fas fa-credit-card"></i> الكروت</a>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link {% if active_tab == 'export' %}active{% endif %}"
-                  id="tab-trigger-export"
-                  data-bs-toggle="pill"
-                  data-bs-target="#tab-export"
-                  type="button"
-                  role="tab"
-                  aria-controls="tab-export"
-                  aria-selected="{% if active_tab == 'export' %}true{% else %}false{% endif %}">
-            <i class="fas fa-download"></i> التصدير
-          </button>
+          <a class="nav-link {% if active_tab == 'export' %}active{% endif %}"
+             id="tab-trigger-export"
+             data-toggle="pill"
+             href="#tab-export"
+             role="tab"
+             aria-controls="tab-export"
+             aria-selected="{% if active_tab == 'export' %}true{% else %}false{% endif %}"><i class="fas fa-download"></i> التصدير</a>
         </li>
       </ul>
 
@@ -676,22 +664,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const initialTab = tabsRoot.getAttribute('data-initial-tab') || 'integrations';
     const selector = `#tab-${initialTab}`;
     const showFallbackTab = (target) => {
-      tabsRoot.querySelectorAll('button[data-bs-target]').forEach(btn => btn.classList.remove('active'));
-      const trigger = tabsRoot.querySelector(`button[data-bs-target="${target}"]`);
+      tabsRoot.querySelectorAll('a[data-toggle="pill"]').forEach(btn => btn.classList.remove('active'));
+      const trigger = tabsRoot.querySelector(`a[href="${target}"]`);
       if (trigger) trigger.classList.add('active');
       tabsContent.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active', 'show'));
       const pane = tabsContent.querySelector(target);
       if (pane) pane.classList.add('active', 'show');
     };
-    if (window.bootstrap && bootstrap.Tab) {
-      const trigger = tabsRoot.querySelector(`button[data-bs-target="${selector}"]`);
-      if (trigger) bootstrap.Tab.getOrCreateInstance(trigger).show();
+    if (window.$ && $.fn && $.fn.tab) {
+      const trigger = tabsRoot.querySelector(`a[href="${selector}"]`);
+      if (trigger) { try { $(trigger).tab('show'); } catch(e) {} }
     } else {
       showFallbackTab(selector);
-      tabsRoot.querySelectorAll('button[data-bs-target]').forEach(btn => {
+      tabsRoot.querySelectorAll('a[data-toggle="pill"]').forEach(btn => {
         btn.addEventListener('click', function(e) {
           e.preventDefault();
-          showFallbackTab(btn.getAttribute('data-bs-target'));
+          showFallbackTab(btn.getAttribute('href'));
         });
       });
     }

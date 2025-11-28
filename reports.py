@@ -286,8 +286,11 @@ def advanced_report(
         else:
             ed_dt = datetime.combine(ed, datetime.max.time())
             q = q.filter(fld <= ed_dt)
+    allowed = _allowed_columns(model)
     if filters:
         for k, v in filters.items():
+            if k not in allowed:
+                continue
             fld = getattr(model, k, None)
             if fld is not None:
                 if hasattr(v, "__iter__") and not isinstance(v, str):
@@ -296,16 +299,18 @@ def advanced_report(
                     q = q.filter(fld == v)
     if like_filters:
         for k, pat in like_filters.items():
+            if k not in allowed:
+                continue
             fld = getattr(model, k, None)
             if fld is not None and pat not in (None, ""):
                 q = q.filter(fld.ilike(f"%{pat}%"))
     if group_by:
-        gb = [getattr(model, f) for f in group_by if hasattr(model, f)]
+        gb_names = [f for f in group_by if f in allowed]
+        gb = [getattr(model, f) for f in gb_names]
         if gb:
             q = q.group_by(*gb)
-    allowed = _allowed_columns(model)
     if columns:
-        cols = [c for c in columns if hasattr(model, c)]
+        cols = [c for c in columns if c in allowed]
     else:
         cols = list(allowed)
     objs = q.all()
@@ -317,6 +322,8 @@ def advanced_report(
             if not agg_func:
                 continue
             for f in fields:
+                if f not in allowed:
+                    continue
                 fld = getattr(model, f, None)
                 if fld is None:
                     continue

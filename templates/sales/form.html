@@ -262,21 +262,26 @@
               <div class="col-md-6">
                 <table class="table table-bordered mb-0 totals-table">
                   <tr>
-                    <th class="text-right"><i class="fas fa-calculator mr-1"></i> المجموع الفرعي:</th>
+                    <th class="text-right"><i class="fas fa-list mr-1"></i> مجموع البنود بعد الخصم:</th>
                     <td id="subtotal" class="text-right">0.00 {{ form.currency.data }}</td>
+                  </tr>
+                  <tr>
+                    <th class="text-right"><i class="fas fa-shipping-fast mr-1"></i> تكلفة الشحن:</th>
+                    <td id="shippingCostDisplay" class="text-right">{{ "%.2f"|format(form.shipping_cost.data or 0) }} {{ form.currency.data }}</td>
                   </tr>
                   <tr>
                     <th class="text-right"><i class="fas fa-tags mr-1"></i> الخصم الإجمالي:</th>
                     <td id="discountTotalDisplay" class="text-right">{{ "%.2f"|format(form.discount_total.data or 0) }} {{ form.currency.data }}</td>
                   </tr>
                   <tr>
+                    <th class="text-right"><i class="fas fa-equals mr-1"></i> المجموع الإجمالي (قبل الضريبة):</th>
+                    <td id="baseForTax" class="text-right">0.00 {{ form.currency.data }}</td>
+                  </tr>
+                  <tr>
                     <th class="text-right"><i class="fas fa-receipt mr-1"></i> الضريبة ({{ form.tax_rate.data or 0 }}%):</th>
                     <td id="taxAmount" class="text-right">0.00 {{ form.currency.data }}</td>
                   </tr>
-                  <tr>
-                    <th class="text-right"><i class="fas fa-shipping-fast mr-1"></i> الشحن:</th>
-                    <td id="shippingCostDisplay" class="text-right">{{ "%.2f"|format(form.shipping_cost.data or 0) }} {{ form.currency.data }}</td>
-                  </tr>
+                  
                   <tr class="table-success">
                     <th class="text-right font-weight-bold"><i class="fas fa-equals mr-1"></i> الإجمالي النهائي:</th>
                     <td id="totalAmount" class="font-weight-bold text-right grand">0.00 {{ form.currency.data }}</td>

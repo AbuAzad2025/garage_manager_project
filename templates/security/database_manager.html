@@ -30,36 +30,52 @@
       <ul class="nav nav-tabs nav-fill" id="dbTabs" role="tablist">
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'browse' %}active{% endif %}" 
+             id="tab-trigger-browse"
              data-tab="browse"
+             data-toggle="tab"
              href="#browse"
              role="tab"
+             aria-controls="browse"
+             aria-selected="{% if active_tab == 'browse' %}true{% else %}false{% endif %}"
              title="تصفح جميع الجداول والبيانات">
             تصفح
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'edit' %}active{% endif %}" 
+             id="tab-trigger-edit"
              data-tab="edit"
+             data-toggle="tab"
              href="#edit"
              role="tab"
+             aria-controls="edit"
+             aria-selected="{% if active_tab == 'edit' %}true{% else %}false{% endif %}"
              title="تحرير البيانات مباشرة">
             تحرير
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'schema' %}active{% endif %}" 
+             id="tab-trigger-schema"
              data-tab="schema"
+             data-toggle="tab"
              href="#schema"
              role="tab"
+             aria-controls="schema"
+             aria-selected="{% if active_tab == 'schema' %}true{% else %}false{% endif %}"
              title="عرض هيكل قاعدة البيانات والعلاقات">
             هيكل
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'indexes' %}active{% endif %}" 
+             id="tab-trigger-indexes"
              data-tab="indexes"
+             data-toggle="tab"
              href="#indexes"
              role="tab"
+             aria-controls="indexes"
+             aria-selected="{% if active_tab == 'indexes' %}true{% else %}false{% endif %}"
              title="إدارة الفهارس لتسريع الأداء">
             فهارس
             {% if indexes_stats and indexes_stats.total_indexes %}
@@ -69,63 +85,91 @@
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'logs' %}active{% endif %}" 
+             id="tab-trigger-logs"
              data-tab="logs"
+             data-toggle="tab"
              href="#logs"
              role="tab"
+             aria-controls="logs"
+             aria-selected="{% if active_tab == 'logs' %}true{% else %}false{% endif %}"
              title="عرض سجلات النظام والأخطاء">
             سجلات
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'sql' %}active{% endif %}" 
+             id="tab-trigger-sql"
              data-tab="sql"
+             data-toggle="tab"
              href="#sql"
              role="tab"
+             aria-controls="sql"
+             aria-selected="{% if active_tab == 'sql' %}true{% else %}false{% endif %}"
              title="محرر SQL احترافي مع Autocomplete">
             SQL
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'python' %}active{% endif %}" 
+             id="tab-trigger-python"
              data-tab="python"
+             data-toggle="tab"
              href="#python"
              role="tab"
+             aria-controls="python"
+             aria-selected="{% if active_tab == 'python' %}true{% else %}false{% endif %}"
              title="تنفيذ أكواد Python مباشرة">
             Python
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'maintenance' %}active{% endif %}" 
+             id="tab-trigger-maintenance"
              data-tab="maintenance"
+             data-toggle="tab"
              href="#maintenance"
              role="tab"
+             aria-controls="maintenance"
+             aria-selected="{% if active_tab == 'maintenance' %}true{% else %}false{% endif %}"
              title="صيانة وتحسين قاعدة البيانات">
             صيانة
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'restore' %}active{% endif %}" 
+             id="tab-trigger-restore"
              data-tab="restore"
+             data-toggle="tab"
              href="#restore"
              role="tab"
+             aria-controls="restore"
+             aria-selected="{% if active_tab == 'restore' %}true{% else %}false{% endif %}"
              title="استعادة النسخ الاحتياطية">
             استعادة
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'tools' %}active{% endif %}" 
+             id="tab-trigger-tools"
              data-tab="tools"
+             data-toggle="tab"
              href="#tools"
              role="tab"
+             aria-controls="tools"
+             aria-selected="{% if active_tab == 'tools' %}true{% else %}false{% endif %}"
              title="أدوات إضافية متقدمة">
             أدوات
           </a>
         </li>
         <li class="nav-item">
           <a class="nav-link {% if active_tab == 'archive' %}active{% endif %}" 
+             id="tab-trigger-archive"
              data-tab="archive"
+             data-toggle="tab"
              href="#archive"
              role="tab"
+             aria-controls="archive"
+             aria-selected="{% if active_tab == 'archive' %}true{% else %}false{% endif %}"
              title="الجداول المؤرشفة المحذوفة">
             أرشيفات
           </a>
@@ -138,7 +182,7 @@
         <!-- تبويب 1: تصفح الجداول -->
         <div class="tab-pane fade {% if active_tab == 'browse' %}show active{% endif %}" 
              id="browse" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-browse">
           
           <div class="row">
             <div class="col-md-3">
@@ -206,7 +250,7 @@
         <!-- تبويب 2: تحرير البيانات -->
         <div class="tab-pane fade {% if active_tab == 'edit' %}show active{% endif %}" 
              id="edit" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-edit">
           
           <div class="row">
             <div class="col-md-3">
@@ -324,7 +368,7 @@
         <!-- تبويب 3: هيكل الجدول -->
         <div class="tab-pane fade {% if active_tab == 'schema' %}show active{% endif %}" 
              id="schema" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-schema">
           
           <div class="mb-3">
             <button class="btn btn-primary" onclick="showVisualSchema()">
@@ -417,7 +461,7 @@
         <!-- تبويب 4: الفهارس -->
         <div class="tab-pane fade {% if active_tab == 'indexes' %}show active{% endif %}" 
              id="indexes" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-indexes">
         <div class="container-fluid p-4">
           {% if indexes_stats %}
           <div class="row mb-4">
@@ -547,37 +591,46 @@
         <!-- تبويب 5: السجلات -->
         <div class="tab-pane fade {% if active_tab == 'logs' %}show active{% endif %}" 
              id="logs" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-logs">
         <div class="container-fluid p-4">
           <ul class="nav nav-pills mb-4" role="tablist">
             <li class="nav-item">
               <a class="nav-link log-type-tab {% if log_type == 'audit' or not log_type %}active{% endif %}" 
+                 id="log-type-trigger-audit"
                  data-log-type="audit"
+                 data-toggle="pill"
                  href="#log-audit"
-                 role="tab">
+                 role="tab" aria-controls="log-audit"
+                 aria-selected="{% if log_type == 'audit' or not log_type %}true{% else %}false{% endif %}">
                 <i class="fas fa-clipboard-check"></i> تدقيق
               </a>
             </li>
             <li class="nav-item">
               <a class="nav-link log-type-tab {% if log_type == 'system' %}active{% endif %}" 
+                 id="log-type-trigger-system"
                  data-log-type="system"
+                 data-toggle="pill"
                  href="#log-system"
-                 role="tab">
+                 role="tab" aria-controls="log-system"
+                 aria-selected="{% if log_type == 'system' %}true{% else %}false{% endif %}">
                 <i class="fas fa-server"></i> نظام
               </a>
             </li>
             <li class="nav-item">
               <a class="nav-link log-type-tab {% if log_type == 'errors' %}active{% endif %}" 
+                 id="log-type-trigger-errors"
                  data-log-type="errors"
+                 data-toggle="pill"
                  href="#log-errors"
-                 role="tab">
+                 role="tab" aria-controls="log-errors"
+                 aria-selected="{% if log_type == 'errors' %}true{% else %}false{% endif %}">
                 <i class="fas fa-exclamation-triangle"></i> أخطاء
               </a>
             </li>
           </ul>
           
           <div class="log-content">
-            <div class="log-pane fade {% if log_type == 'audit' or not log_type %}show active{% endif %}" id="log-audit">
+            <div class="log-pane fade {% if log_type == 'audit' or not log_type %}show active{% endif %}" id="log-audit" role="tabpanel" aria-labelledby="log-type-trigger-audit">
               {% if audit_logs and audit_logs|length > 0 %}
               <div class="table-responsive">
                 <table class="table table-striped table-hover">
@@ -616,7 +669,7 @@
               {% endif %}
             </div>
             
-            <div class="log-pane fade {% if log_type == 'system' %}show active{% endif %}" id="log-system">
+            <div class="log-pane fade {% if log_type == 'system' %}show active{% endif %}" id="log-system" role="tabpanel" aria-labelledby="log-type-trigger-system">
               <div class="card">
                 <div class="card-header bg-dark text-white">
                   <i class="fas fa-server"></i> سجلات النظام
@@ -627,7 +680,7 @@
               </div>
             </div>
             
-            <div class="log-pane fade {% if log_type == 'errors' %}show active{% endif %}" id="log-errors">
+            <div class="log-pane fade {% if log_type == 'errors' %}show active{% endif %}" id="log-errors" role="tabpanel" aria-labelledby="log-type-trigger-errors">
               {% if error_logs and error_logs|length > 0 %}
               <div class="row mb-3">
                 <div class="col-md-4">
@@ -692,7 +745,7 @@
         <!-- تبويب 6: SQL Console -->
         <div class="tab-pane fade {% if active_tab == 'sql' %}show active{% endif %}" 
              id="sql" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-sql">
         <form method="POST" action="{{ url_for('security.database_manager', tab='sql') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
@@ -748,7 +801,7 @@
         <!-- تبويب 7: Python Console -->
         <div class="tab-pane fade {% if active_tab == 'python' %}show active{% endif %}" 
              id="python" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-python">
         <form method="POST" action="{{ url_for('security.database_manager', tab='python') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
@@ -779,7 +832,7 @@
         <!-- تبويب 8: الصيانة -->
         <div class="tab-pane fade {% if active_tab == 'maintenance' %}show active{% endif %}" 
              id="maintenance" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-maintenance">
         <div class="row mb-4">
           <div class="col-md-4">
             <div class="card border-warning">
@@ -860,7 +913,7 @@
         <!-- تبويب 9: استعادة قاعدة البيانات -->
         <div class="tab-pane fade {% if active_tab == 'restore' %}show active{% endif %}" 
              id="restore" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-restore">
         <div class="container-fluid p-4">
           <div class="row g-3 mb-4">
             <div class="col-lg-3 col-md-6">
@@ -989,7 +1042,7 @@
         <!-- تبويب 10: الأدوات -->
         <div class="tab-pane fade {% if active_tab == 'tools' %}show active{% endif %}" 
              id="tools" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-tools">
         <div class="row">
           <div class="col-md-6">
             <div class="card">
@@ -1053,7 +1106,7 @@
         <!-- تبويب 11: الأرشيفات -->
         <div class="tab-pane fade {% if active_tab == 'archive' %}show active{% endif %}" 
              id="archive" 
-             role="tabpanel">
+             role="tabpanel" aria-labelledby="tab-trigger-archive">
         <div class="container-fluid p-4">
           <div class="card border-success">
             <div class="card-header bg-success text-white">

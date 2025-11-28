@@ -26,13 +26,11 @@
               class="btn btn-success btn-sm">
         <i class="fas fa-file-csv"></i> تصدير CSV
       </button>
-```
   <div class="ms-auto d-flex align-items-center gap-2">
     <span class="text-muted small d-none d-md-inline">نتائج:</span>
     <span id="result-count" class="badge bg-secondary">0</span>
   </div>
 </div>
-```
 
   </div>
 
@@ -41,7 +39,7 @@
     <ul class="mb-0">
       <li>اختر الجدول ثم الحقول التي تحتاجها، ويمكن ترك حقل التاريخ فارغاً لعرض كل السجلات.</li>
       <li>يمكنك إضافة فلاتر “يحتوي على” من القسم المتقدم لتضييق النتائج بسرعة.</li>
-      <li>الحد الأقصى للصفوف المعروضة 2000 صف في المرة الواحدة لضمان سرعة التحميل.</li>
+      <li>الحد الأقصى للصفوف المعروضة 10000 صف في المرة الواحدة لضمان سرعة التحميل.</li>
     </ul>
   </div>
 
@@ -115,7 +113,7 @@
     <div class="col-md-2">
       <label class="form-label fw-semibold">الحد</label>
       <input type="number" name="limit" min="1" max="10000" value="{{ limit or 1000 }}" class="form-control">
-      <div class="form-text">يتم تقليص القيم الأكبر من 2000 تلقائياً.</div>
+      <div class="form-text">القيمة الافتراضية 1000 والحد الأقصى 10000.</div>
     </div>
 
     <div class="col-12 d-flex gap-2 mt-2">
@@ -130,7 +128,6 @@
     </div>
   </form>
 </div>
-```
 
   </div>
 

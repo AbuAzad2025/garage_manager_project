@@ -135,7 +135,11 @@
   if (form) {
     passwordInput.addEventListener('keypress', function(e) {
       if (e.key === 'Enter') {
-        form.submit();
+        if (typeof form.requestSubmit === 'function') {
+          form.requestSubmit();
+        } else {
+          try { HTMLFormElement.prototype.submit.call(form); } catch (err) {}
+        }
       }
     });
   }

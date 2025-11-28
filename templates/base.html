@@ -17,6 +17,38 @@
   <meta name="keywords" content="نظام إدارة الكراج، إدارة المركبات، صيانة السيارات، {{ system_settings.company_name or 'شركة ازاد' }}">
   <meta name="author" content="{{ system_settings.company_name or 'شركة ازاد للأنظمة الذكية' }}">
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <script>
+  (function(){
+    try{
+      var g=window; var b=g.bootstrap||(g.bootstrap={});
+      b.Modal=b.Modal||function(el){ var id=el&&el.id?('#'+el.id):null; return {
+        show:function(){ if(id&&g.$&&$.fn&&$.fn.modal){ try{$(id).modal('show');}catch(e){} } },
+        hide:function(){ if(id&&g.$&&$.fn&&$.fn.modal){ try{$(id).modal('hide');}catch(e){} } }
+      }; };
+      b.Tab=b.Tab||function(el){ var id=el&&el.id?('#'+el.id):null; return {
+        show:function(){ if(id&&g.$&&$.fn&&$.fn.tab){ try{$(id).tab('show');}catch(e){} } }
+      }; };
+      b.Modal.getOrCreateInstance=function(el){ return b.Modal(el); };
+      b.Tab.getOrCreateInstance=function(el){ return b.Tab(el); };
+      if (typeof g.getOrCreateModal !== 'function') {
+        g.getOrCreateModal = function(el){
+          try {
+            if (g.$ && $.fn && $.fn.modal) {
+              var id = el && el.id ? ('#' + el.id) : null;
+              if (id) {
+                return {
+                  show: function(){ try { $(id).modal('show'); } catch(e){} },
+                  hide: function(){ try { $(id).modal('hide'); } catch(e){} }
+                };
+              }
+            }
+          } catch(e) {}
+          return null;
+        };
+      }
+    }catch(e){}
+  })();
+  </script>
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
@@ -100,8 +132,8 @@
     }
     
     .btn-primary:hover, .btn-primary:focus {
-      background-color: {{ system_settings.primary_color }}dd !important;
-      border-color: {{ system_settings.primary_color }}dd !important;
+      background-color: {{ system_settings.primary_color }} !important;
+      border-color: {{ system_settings.primary_color }} !important;
     }
     
     a, .nav-link.active, .sidebar .nav-link.active {
@@ -109,11 +141,11 @@
     }
     
     .content-header {
-      background: linear-gradient(135deg, {{ system_settings.primary_color }} 0%, {{ system_settings.primary_color }}cc 100%) !important;
+      background: linear-gradient(135deg, {{ system_settings.primary_color }} 0%, {{ system_settings.primary_color }} 100%) !important;
     }
     
     .main-sidebar {
-      background-color: {{ system_settings.primary_color }}22 !important;
+      background-color: {{ system_settings.primary_color }} !important;
     }
   </style>
   {% endif %}
@@ -581,6 +613,22 @@
     }
   </style>
   {% block extra_css %}{% endblock %}
+  <script>
+  (function(){
+    try{
+      var g=window; var b=g.bootstrap||(g.bootstrap={});
+      b.Modal=b.Modal||function(el){ var id=el&&el.id?('#'+el.id):null; return {
+        show:function(){ if(id&&g.$&&$.fn&&$.fn.modal){ try{$(id).modal('show');}catch(e){} } },
+        hide:function(){ if(id&&g.$&&$.fn&&$.fn.modal){ try{$(id).modal('hide');}catch(e){} } }
+      }; };
+      b.Tab=b.Tab||function(el){ var id=el&&el.id?('#'+el.id):null; return {
+        show:function(){ if(id&&g.$&&$.fn&&$.fn.tab){ try{$(id).tab('show');}catch(e){} } }
+      }; };
+      b.Modal.getOrCreateInstance=function(el){ return b.Modal(el); };
+      b.Tab.getOrCreateInstance=function(el){ return b.Tab(el); };
+    }catch(e){}
+  })();
+  </script>
 </head>
 <body class="hold-transition sidebar-mini layout-fixed text-sm layout-navbar-fixed sidebar-collapse-left {% block body_class %}{% endblock %}">
 <div class="wrapper">
@@ -629,6 +677,30 @@
 <script src="{{ url_for('static', filename='adminlte/plugins/select2/js/select2.full.min.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/datatables-arabic.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/archive.js') }}" defer></script>
+<script>
+(function(){
+  try{
+    var g=window; var b=g.bootstrap||(g.bootstrap={});
+    if (!b.Modal || typeof b.Modal !== 'function') {
+      b.Modal=function(el){ var id=el&&el.id?('#'+el.id):null; return {
+        show:function(){ if(id&&g.$&&$.fn&&$.fn.modal){ try{$(id).modal('show');}catch(e){} } },
+        hide:function(){ if(id&&g.$&&$.fn&&$.fn.modal){ try{$(id).modal('hide');}catch(e){} } }
+      }; };
+    }
+    if (typeof b.Modal.getOrCreateInstance !== 'function') {
+      b.Modal.getOrCreateInstance=function(el){ return b.Modal(el); };
+    }
+    if (!b.Tab || typeof b.Tab !== 'function') {
+      b.Tab=function(el){ var id=el&&el.id?('#'+el.id):null; return {
+        show:function(){ if(id&&g.$&&$.fn&&$.fn.tab){ try{$(id).tab('show');}catch(e){} } }
+      }; };
+    }
+    if (typeof b.Tab.getOrCreateInstance !== 'function') {
+      b.Tab.getOrCreateInstance=function(el){ return b.Tab(el); };
+    }
+  }catch(e){}
+})();
+</script>
 
 <script>
   (function () {
@@ -1023,6 +1095,16 @@ handleBreakpointChange(desktopQuery, 'desktop');
   // تحسين scrolling
   function smoothScroll() {
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      // تجاهل روابط التبويبات الخاصة بـ Bootstrap حتى لا نعطل عملها
+      const isBootstrapTab = (
+        anchor.getAttribute('data-toggle') === 'tab' ||
+        anchor.getAttribute('data-toggle') === 'pill' ||
+        anchor.getAttribute('role') === 'tab' ||
+        anchor.getAttribute('data-bs-toggle') === 'tab' ||
+        anchor.getAttribute('data-bs-toggle') === 'pill'
+      );
+      if (isBootstrapTab) return;
+
       anchor.addEventListener('click', function(e) {
         const href = this.getAttribute('href');
         if (!href || href === '#' || href.trim().length < 2) {
@@ -1106,38 +1188,62 @@ handleBreakpointChange(desktopQuery, 'desktop');
     }
   });
   
-  // تسجيل Service Worker - تحسين الأداء
+  // تسجيل Service Worker - موقّف على صفحات الأمن لتجنّب كاش قديم
   if ('serviceWorker' in navigator) {
-    if (navigator.serviceWorker.controller) {
-      console.log('✅ Service Worker already active');
-    } else {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/service-worker.js')
-        .then((registration) => {
-          console.log('✅ Service Worker registered:', registration.scope);
-          
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('🔄 تحديث جديد متاح');
-              }
+    const disableSW = /\/security\//.test(window.location.pathname);
+    if (!disableSW) {
+      if (navigator.serviceWorker.controller) {
+        console.log('✅ Service Worker already active');
+      } else {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/static/service-worker.js')
+          .then((registration) => {
+            console.log('✅ Service Worker registered:', registration.scope);
+            
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  console.log('🔄 تحديث جديد متاح');
+                }
+              });
             });
+          })
+          .catch((error) => {
+            console.error('❌ Service Worker registration failed:', error);
           });
-        })
-        .catch((error) => {
-          console.error('❌ Service Worker registration failed:', error);
         });
-      });
-    }
-    
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (!refreshing) {
-        refreshing = true;
-        window.location.reload();
       }
-    });
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    } else {
+      console.log('⛔ SW disabled on security pages');
+      try {
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+        }
+      } catch (e) {}
+      try {
+        const canUseSW = ('serviceWorker' in navigator) && (window.isSecureContext || location.hostname === '127.0.0.1' || location.hostname === 'localhost');
+        if (canUseSW) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.getRegistrations()
+              .then((regs) => { regs.forEach((r) => r.unregister()); })
+              .catch(() => {});
+          });
+        }
+      } catch (e) {}
+      try {
+        if (window.caches && typeof caches.keys === 'function') {
+          caches.keys().then((keys) => { keys.forEach((k) => caches.delete(k)); });
+        }
+      } catch (e) {}
+    }
   }
   
 })();
@@ -1145,5 +1251,41 @@ handleBreakpointChange(desktopQuery, 'desktop');
 
 
 {% block scripts %}{% endblock %}
+<script>
+(function(){
+  try{
+    var g=window; var b=g.bootstrap||(g.bootstrap={});
+    b.Modal=function(el){ var id=el&&el.id?('#'+el.id):null; return {
+      show:function(){ if(id&&g.$&&$.fn&&$.fn.modal){ try{$(id).modal('show');}catch(e){} } },
+      hide:function(){ if(id&&g.$&&$.fn&&$.fn.modal){ try{$(id).modal('hide');}catch(e){} } }
+    }; };
+    b.Tab=function(el){ var id=el&&el.id?('#'+el.id):null; return {
+      show:function(){ if(id&&g.$&&$.fn&&$.fn.tab){ try{$(id).tab('show');}catch(e){} } }
+    }; };
+    b.Modal.getOrCreateInstance=function(el){ return b.Modal(el); };
+    b.Tab.getOrCreateInstance=function(el){ return b.Tab(el); };
+  }catch(e){}
+})();
+</script>
 </body>
+<script>
+(function(){
+  if (typeof window.getOrCreateModal !== 'function') {
+    window.getOrCreateModal = function(el){
+      try {
+        if (window.$ && $.fn && $.fn.modal) {
+          var id = el && el.id ? ('#' + el.id) : null;
+          if (id) {
+            return {
+              show: function(){ try { $(id).modal('show'); } catch(e){} },
+              hide: function(){ try { $(id).modal('hide'); } catch(e){} }
+            };
+          }
+        }
+      } catch(e) {}
+      return null;
+    };
+  }
+})();
+</script>
 </html>

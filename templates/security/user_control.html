@@ -736,8 +736,7 @@ function managePermissions(userId, username, roleName) {
   document.getElementById('permsUsername').textContent = username;
   document.getElementById('permsRole').textContent = roleName || 'لا يوجد';
   
-  const modal = new bootstrap.Modal(document.getElementById('permissionsModal'));
-  modal.show();
+  try { $('#permissionsModal').modal('show'); } catch (e) {}
   
   document.getElementById('permissionsContent').innerHTML = `
     <div class="text-center py-5">
