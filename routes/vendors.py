@@ -224,13 +224,7 @@ def suppliers_list():
                 <span class="d-none d-lg-inline ms-1">حذف</span>
               </button>
             </form>
-            <a href="{{ url_for('hard_delete_bp.delete_supplier', supplier_id=s.id) }}"
-               class="btn btn-sm btn-outline-danger d-flex align-items-center"
-               title="حذف قوي"
-               onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
-              <i class="fas fa-bomb"></i>
-              <span class="d-none d-lg-inline ms-1">حذف قوي</span>
-            </a>
+            
           {% endif %}
         </div>
       </td>
@@ -280,7 +274,6 @@ def suppliers_list():
 
 @vendors_bp.route("/suppliers/new", methods=["GET", "POST"], endpoint="suppliers_create")
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def suppliers_create():
     form = SupplierForm()
     if form.validate_on_submit():
@@ -2075,12 +2068,7 @@ def partners_list():
                 <i class="fas fa-trash"></i><span class="d-none d-xl-inline">حذف</span>
               </button>
             </form>
-            <a href="{{ url_for('hard_delete_bp.delete_partner', partner_id=p.id) }}"
-               class="btn btn-sm btn-danger"
-               onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')"
-               title="حذف قوي - يحذف جميع البيانات المرتبطة">
-              <i class="fas fa-bomb"></i><span class="d-none d-xl-inline">حذف قوي</span>
-            </a>
+            
           {% endif %}
         </div>
       </td>
@@ -3309,7 +3297,7 @@ def partners_create():
             flash(f"❌ خطأ أثناء إضافة الشريك: {e}", "danger")
     else:
         if request.method == "POST":
-            print(f"[WARNING] Partner Form validation errors: {form.errors}")
+            current_app.logger.warning(f"[WARNING] Partner Form validation errors: {form.errors}")
             for field, errors in form.errors.items():
                 for error in errors:
                     flash(f"خطأ في {field}: {error}", "danger")
@@ -3388,7 +3376,6 @@ def supplier_smart_settlement(supplier_id):
 
 @vendors_bp.route("/partners/<int:partner_id>/smart-settlement", methods=["GET"], endpoint="partner_smart_settlement")
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def partner_smart_settlement(partner_id):
     """التسوية الذكية للشريك"""
     partner = _get_or_404(Partner, partner_id)
@@ -3656,7 +3643,6 @@ def _get_settlement_recommendation(balance: float, currency: str):
 
 @vendors_bp.route("/suppliers/archive/<int:supplier_id>", methods=["POST"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def archive_supplier(supplier_id):
     
     try:
@@ -3671,7 +3657,6 @@ def archive_supplier(supplier_id):
         return redirect(url_for('vendors_bp.suppliers_list'))
         
     except Exception as e:
-        import traceback
         
         db.session.rollback()
         flash(f'خطأ في أرشفة المورد: {str(e)}', 'error')
@@ -3679,7 +3664,6 @@ def archive_supplier(supplier_id):
 
 @vendors_bp.route("/partners/archive/<int:partner_id>", methods=["POST"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def archive_partner(partner_id):
     """أرشفة شريك"""
     
@@ -3693,11 +3677,9 @@ def archive_partner(partner_id):
         utils.archive_record(partner, reason, current_user.id)
         
         flash(f'تم أرشفة الشريك {partner.name} بنجاح', 'success')
-        print(f"🎉 [PARTNER ARCHIVE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('vendors_bp.partners_list'))
         
     except Exception as e:
-        import traceback
         
         db.session.rollback()
         flash(f'خطأ في أرشفة الشريك: {str(e)}', 'error')
@@ -3705,7 +3687,6 @@ def archive_partner(partner_id):
 
 @vendors_bp.route("/suppliers/restore/<int:supplier_id>", methods=["POST"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def restore_supplier(supplier_id):
     """استعادة مورد"""
     
@@ -3727,11 +3708,9 @@ def restore_supplier(supplier_id):
             utils.restore_record(archive.id)
         
         flash(f'تم استعادة المورد {supplier.name} بنجاح', 'success')
-        print(f"🎉 [SUPPLIER RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('vendors_bp.suppliers_list'))
         
     except Exception as e:
-        import traceback
         
         db.session.rollback()
         flash(f'خطأ في استعادة المورد: {str(e)}', 'error')
@@ -3739,7 +3718,6 @@ def restore_supplier(supplier_id):
 
 @vendors_bp.route("/partners/restore/<int:partner_id>", methods=["POST"])
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def restore_partner(partner_id):
     """استعادة شريك"""
     
@@ -3761,11 +3739,9 @@ def restore_partner(partner_id):
             utils.restore_record(archive.id)
         
         flash(f'تم استعادة الشريك {partner.name} بنجاح', 'success')
-        print(f"🎉 [PARTNER RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('vendors_bp.partners_list'))
         
     except Exception as e:
-        import traceback
         
         db.session.rollback()
         flash(f'خطأ في استعادة الشريك: {str(e)}', 'error')

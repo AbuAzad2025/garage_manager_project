@@ -51,7 +51,6 @@ from routes.ai_routes import ai_bp
 from routes.ai_admin import ai_admin_bp
 from routes.barcode_scanner import barcode_scanner_bp
 from routes.currencies import currencies_bp
-from routes.hard_delete import hard_delete_bp
 from routes.user_guide import user_guide_bp
 from routes.other_systems import other_systems_bp
 from routes.pricing import pricing_bp
@@ -597,7 +596,6 @@ def create_app(config_object=Config) -> Flask:
     attach_acl(ledger_bp, read_perm="manage_ledger", write_perm="manage_ledger")
     attach_acl(currencies_bp, read_perm="manage_currencies", write_perm="manage_currencies")
     attach_acl(barcode_scanner_bp, read_perm="view_barcode", write_perm="manage_barcode")
-    attach_acl(hard_delete_bp, read_perm="hard_delete", write_perm="hard_delete")
     attach_acl(checks_bp, read_perm="manage_payments", write_perm="manage_payments")
     
     def _init_ai_systems():
@@ -648,7 +646,6 @@ def create_app(config_object=Config) -> Flask:
         api_bp,
         ledger_bp,
         currencies_bp,
-        hard_delete_bp,
         barcode_scanner_bp,
         ledger_control_bp,
         ai_bp,

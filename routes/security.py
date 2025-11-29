@@ -949,7 +949,7 @@ def _log_training_event(event_type, user_id, details=None):
         with open(TRAINING_LOG_FILE, 'w', encoding='utf-8') as f:
             json.dump(logs, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        print(f"⚠️ فشل تسجيل حدث التدريب: {str(e)}")
+        current_app.logger.warning(f"⚠️ فشل تسجيل حدث التدريب: {str(e)}")
 
 
 def _load_training_logs():
@@ -5048,7 +5048,7 @@ def _cleanup_tables(tables):
                         {'super_id': first_super_id}
                     ).rowcount
                     db.session.commit()
-                    print(f"[INFO] Deleted {deleted_count} users, kept first Super Admin (ID: {first_super_id})")
+                    current_app.logger.info(f"[INFO] Deleted {deleted_count} users, kept first Super Admin (ID: {first_super_id})")
                     cleaned += 1
                 else:
                     # إذا لم يوجد Super Admin، لا نحذف شيء للحماية
@@ -5059,12 +5059,12 @@ def _cleanup_tables(tables):
                 try:
                     deleted_count = db.session.execute(text(f"DELETE FROM {table}")).rowcount
                     db.session.commit()
-                    print(f"[INFO] Cleaned table '{table}': {deleted_count} rows deleted")
+                    current_app.logger.info(f"[INFO] Cleaned table '{table}': {deleted_count} rows deleted")
                     cleaned += 1
                 except Exception as delete_error:
                     # قد لا يكون الجدول موجوداً
                     db.session.rollback()
-                    print(f"[WARNING] Table '{table}' not found or error: {str(delete_error)}")
+                    current_app.logger.warning(f"[WARNING] Table '{table}' not found or error: {str(delete_error)}")
                     continue
             
             # تسجيل في Audit (إذا لم يتم حذف audit_logs نفسه)
@@ -5084,7 +5084,7 @@ def _cleanup_tables(tables):
         except Exception as e:
             db.session.rollback()
             error_msg = f"Failed to clean table {table}: {str(e)}"
-            print(f"[ERROR] {error_msg}")
+            current_app.logger.error(f"[ERROR] {error_msg}")
             errors.append(error_msg)
             continue
     
@@ -5780,7 +5780,7 @@ def _log_integration_activity(integration_type, action, success):
         db.session.add(activity)
         db.session.commit()
     except Exception as e:
-        print(f"Error logging integration activity: {e}")
+        current_app.logger.error(f"Error logging integration activity: {e}")
 
 
 def _get_recent_errors(limit=100):
@@ -7391,5 +7391,4 @@ def api_security_audit_stats():
             'success': False,
             'error': str(e)
         }), 500
-
 

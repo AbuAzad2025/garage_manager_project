@@ -3502,7 +3502,7 @@ def _create_tenant_database(db_path):
             
             return True
     except Exception as e:
-        print(f"Error creating tenant database: {str(e)}")
+        current_app.logger.error(f"Error creating tenant database: {str(e)}")
         return False
 
 
@@ -3950,4 +3950,3 @@ def api_performance_stats():
             'success': False,
             'error': str(e)
         }), 500
-

@@ -351,7 +351,5 @@ def generate_now(template_id):
         
     except Exception as e:
         db.session.rollback()
-        import traceback
-        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 400
 

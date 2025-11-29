@@ -98,7 +98,6 @@ def change_password():
 
 @users_bp.route("/", methods=["GET"], endpoint="list_users")
 @login_required
-# @permission_required("manage_users")  # Commented out - function not available
 def list_users():
     # استثناء حسابات النظام المخفية
     q = User.query.filter(User.is_system_account == False).options(joinedload(User.role))
@@ -143,14 +142,12 @@ def list_users():
 
 @users_bp.route("/<int:user_id>", methods=["GET"], endpoint="user_detail")
 @login_required
-# @permission_required("manage_users")  # Commented out - function not available
 def user_detail(user_id):
     user = _get_or_404(User, user_id, options=[joinedload(User.role)])
     return render_template("users/detail.html", user=user)
 
 @users_bp.route("/api", methods=["GET"], endpoint="api_users")
 @login_required
-# @permission_required("manage_users")  # Commented out - function not available
 def api_users():
     q = User.query
     term = request.args.get("q", "")
@@ -166,7 +163,6 @@ def api_users():
 
 @users_bp.route("/create", methods=["GET", "POST"], endpoint="create_user")
 @login_required
-# @permission_required("manage_users")  # Commented out - function not available
 def create_user():
     form = UserForm()
     all_permissions = Permission.query.order_by(Permission.name).all()
@@ -231,7 +227,6 @@ def create_user():
 
 @users_bp.route("/<int:user_id>/edit", methods=["GET", "POST"], endpoint="edit_user")
 @login_required
-# @permission_required("manage_users")  # Commented out - function not available
 def edit_user(user_id):
     user = _get_or_404(User, user_id)
     if _is_super_admin_user(user):
@@ -298,7 +293,6 @@ def edit_user(user_id):
 
 @users_bp.route("/<int:user_id>/delete", methods=["POST"], endpoint="delete_user")
 @login_required
-# @permission_required("manage_users")  # Commented out - function not available
 def delete_user(user_id):
     user = _get_or_404(User, user_id)
     

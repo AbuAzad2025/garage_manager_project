@@ -1,7 +1,7 @@
 
 from datetime import datetime, date as _date, time as _time
 from decimal import Decimal, ROUND_HALF_UP
-from flask import Blueprint, request, jsonify, render_template, url_for, abort
+from flask import Blueprint, request, jsonify, render_template, url_for, abort, current_app
 from flask_login import login_required
 from sqlalchemy import and_, or_, func
 from sqlalchemy.exc import SQLAlchemyError
@@ -326,9 +326,7 @@ def show(settlement_id):
             partner=ps.partner
         )
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return jsonify({"error": str(e)}), 500
 
 
 
@@ -877,8 +875,7 @@ def _calculate_smart_partner_balance(partner_id: int, date_from: datetime, date_
             }
         return {"success": False, "error": f"خطأ في الحساب: {str(e)}"}
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        
         return {"success": False, "error": f"خطأ في حساب رصيد الشريك: {str(e)}"}
 
 
@@ -2903,8 +2900,7 @@ def approve_settlement(partner_id):
                 entity_id=partner_id
             )
     except Exception as e:
-        import sys
-        print(f"⚠️ تحذير: فشل إنشاء قيد GL للتسوية: {str(e)}", file=sys.stderr)
+        current_app.logger.warning(f"⚠️ تحذير: فشل إنشاء قيد GL للتسوية: {str(e)}")
     
     db.session.commit()
     

@@ -1610,14 +1610,29 @@ def sales_advanced_report():
 @reports_bp.route("/expenses", methods=["GET"], endpoint="expenses_report")
 def expenses_report():
     from decimal import Decimal
-    from models import Employee, Warehouse, Partner, ExpenseType, convert_amount
+    from models import Warehouse, Partner, ExpenseType, convert_amount
+    try:
+        from sqlalchemy import text as sa_text
+        idx_sql = [
+            "CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses (date)",
+            "CREATE INDEX IF NOT EXISTS idx_expenses_type ON expenses (type_id)",
+            "CREATE INDEX IF NOT EXISTS idx_expenses_partner_date ON expenses (partner_id, date)",
+            "CREATE INDEX IF NOT EXISTS idx_expenses_warehouse_date ON expenses (warehouse_id, date)",
+        ]
+        for sql in idx_sql:
+            try:
+                db.session.execute(sa_text(sql))
+            except Exception:
+                pass
+        db.session.commit()
+    except Exception:
+        pass
 
     start = _parse_date(request.args.get("start"))
     end = _parse_date(request.args.get("end"))
     tab = (request.args.get("tab") or "expenses").strip()
 
     expense_type = (request.args.get("type") or "").strip()
-    employee_id = request.args.get("employee_id")
     warehouse_id = request.args.get("warehouse_id")
     partner_id = request.args.get("partner_id")
     is_paid = request.args.get("is_paid")
@@ -1636,11 +1651,6 @@ def expenses_report():
             q = q.filter(Expense.type_id == et_id)
         except Exception:
             q = q.join(_ET, Expense.type_id == _ET.id).filter(_ET.name.ilike(f"%{expense_type}%"))
-    if employee_id:
-        try:
-            q = q.filter(Expense.employee_id == int(employee_id))
-        except Exception:
-            pass
     if warehouse_id:
         try:
             q = q.filter(Expense.warehouse_id == int(warehouse_id))
@@ -1686,7 +1696,6 @@ def expenses_report():
     emp_values = [float(v) for v in by_emp.values()]
     total_amount = float(total)
 
-    employees = Employee.query.order_by(Employee.name).all()
     warehouses = Warehouse.query.order_by(Warehouse.name).all()
     partners = Partner.query.order_by(Partner.name).all()
     expense_types = ExpenseType.query.filter_by(is_active=True).order_by(ExpenseType.name).all()
@@ -1764,11 +1773,9 @@ def expenses_report():
         end=request.args.get("end", ""),
         tab=tab,
         selected_type=expense_type or "",
-        selected_employee_id=int(employee_id) if employee_id else None,
         selected_warehouse_id=int(warehouse_id) if warehouse_id else None,
         selected_partner_id=int(partner_id) if partner_id else None,
         selected_is_paid=is_paid or "",
-        employees=employees,
         warehouses=warehouses,
         partners=partners,
         expense_types=expense_types,

@@ -919,7 +919,7 @@ def fix_cashed_checks_balance():
         from decimal import Decimal
         from models import Customer, Payment, Check, PaymentSplit, CheckStatus
         
-        print("🔍 البحث عن الشيكات المرتبطة بدفعات...")
+        current_app.logger.info("🔍 البحث عن الشيكات المرتبطة بدفعات...")
         
         # البحث عن جميع الشيكات المرتبطة بدفعات
         all_checks = db.session.query(Check).filter(
@@ -1017,8 +1017,7 @@ def fix_cashed_checks_balance():
             
     except Exception as e:
         current_app.logger.error(f"❌ خطأ في تصحيح أرصدة الشيكات: {str(e)}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
+        
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

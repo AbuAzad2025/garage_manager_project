@@ -213,15 +213,7 @@
           <input type="text" class="form-control" placeholder="بحث باسم أو كود..." id="typeSearchInput">
         </div>
         <div class="row g-2 mb-3">
-          <div class="col-12">
-            <label class="form-label small text-muted mb-1">وضع الدفع</label>
-            <select class="form-select form-select-sm" id="behaviorFilter">
-              <option value="">كل الأوضاع</option>
-              {% for behavior in payment_behaviors %}
-              <option value="{{ behavior }}">{{ behavior }}</option>
-              {% endfor %}
-            </select>
-          </div>
+          
           <div class="col-12">
             <label class="form-label small text-muted mb-1">حالة الحسابات</label>
             <select class="form-select form-select-sm" id="ledgerFilter">
@@ -591,7 +583,6 @@ let selectedTypeId = null;
 
 const typeListEl = document.getElementById('expenseTypeList');
 const typeSearchInput = document.getElementById('typeSearchInput');
-const behaviorFilter = document.getElementById('behaviorFilter');
 const ledgerFilter = document.getElementById('ledgerFilter');
 const requiredContainer = document.getElementById('requiredFieldsContainer');
 const optionalContainer = document.getElementById('optionalFieldsContainer');
@@ -834,14 +825,10 @@ function matchesLedgerFilter(item, filterValue) {
 
 function filterTypes(query) {
   const value = (query || '').toLowerCase().trim();
-  const behaviorValue = (behaviorFilter?.value || '').trim().toUpperCase();
   const ledgerValue = ledgerFilter?.value || '';
   return expenseTypes.filter((item) => {
     const matchesSearch = !value || item.name.toLowerCase().includes(value) || (item.code || '').toLowerCase().includes(value);
     if (!matchesSearch) return false;
-    if (behaviorValue && (item.payment_behavior || 'IMMEDIATE').toUpperCase() !== behaviorValue) {
-      return false;
-    }
     if (!matchesLedgerFilter(item, ledgerValue)) {
       return false;
     }
@@ -853,9 +840,6 @@ typeSearchInput.addEventListener('input', (e) => {
   renderTypeList(filterTypes(e.target.value));
 });
 
-if (behaviorFilter) {
-  behaviorFilter.addEventListener('change', () => renderTypeList(filterTypes(typeSearchInput.value)));
-}
 if (ledgerFilter) {
   ledgerFilter.addEventListener('change', () => renderTypeList(filterTypes(typeSearchInput.value)));
 }

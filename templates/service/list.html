@@ -270,9 +270,6 @@
                   </button>
                   {% endif %}
                   {% if current_user.has_permission('manage_service') %}
-                  <a href="{{ url_for('hard_delete_bp.hard_delete_service', service_id=s.id) }}" class="btn btn-danger" title="حذف قوي">
-                    <i class="fas fa-trash-alt"></i>
-                  </a>
                   {% endif %}
                 </div>
               </td>

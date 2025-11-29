@@ -56,7 +56,6 @@ def _coalesce_entity(form):
 
 @notes_bp.route('/', methods=['GET'], endpoint='list_notes')
 @login_required
-# @permission_required('view_notes')  # Commented out - function not available
 def list_notes():
     etype = request.args.get('entity_type')
     eid = request.args.get('entity_id', type=int)
@@ -116,7 +115,6 @@ def list_notes():
 
 @notes_bp.route('/new', methods=['GET', 'POST'], endpoint='create_note')
 @login_required
-# @permission_required('add_notes')  # Commented out - function not available
 def create_note():
     form = NoteForm()
     form.entity_type.choices = ENTITY_TYPES
@@ -185,14 +183,12 @@ def create_note():
 
 @notes_bp.route('/<int:note_id>', methods=['GET'], endpoint='note_detail')
 @login_required
-# @permission_required('view_notes')  # Commented out - function not available
 def note_detail(note_id):
     note = _get_or_404(Note, note_id, options=[joinedload(Note.author)])
     return render_template('notes/detail.html', note=note)
 
 @notes_bp.route('/<int:note_id>/edit', methods=['GET'], endpoint='edit_note')
 @login_required
-# @permission_required('edit_notes')  # Commented out - function not available
 def edit_note(note_id):
     note = _get_or_404(Note, note_id)
     form = NoteForm(obj=note)
@@ -202,7 +198,6 @@ def edit_note(note_id):
 
 @notes_bp.route('/<int:note_id>', methods=['POST', 'PATCH'], endpoint='update_note')
 @login_required
-# @permission_required('edit_notes')  # Commented out - function not available
 def update_note(note_id):
     note = _get_or_404(Note, note_id)
     form = NoteForm()
@@ -253,7 +248,6 @@ def update_note(note_id):
 
 @notes_bp.route('/<int:note_id>/delete', methods=['POST', 'DELETE'], endpoint='delete_note')
 @login_required
-# @permission_required('delete_notes')  # Commented out - function not available
 def delete_note(note_id):
     note = _get_or_404(Note, note_id)
     db.session.delete(note)
@@ -275,7 +269,6 @@ def delete_note(note_id):
 
 @notes_bp.route('/<int:note_id>/toggle-pin', methods=['POST'], endpoint='toggle_pin')
 @login_required
-# @permission_required('edit_notes')  # Commented out - function not available
 def toggle_pin(note_id):
     note = _get_or_404(Note, note_id)
     note.is_pinned = not bool(note.is_pinned)

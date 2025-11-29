@@ -603,11 +603,7 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-sm btn-danger" title="حذف عادي"><i class="fas fa-trash"></i></button>
                   </form>
-                  <a href="{{ url_for('hard_delete_bp.delete_expense', expense_id=e.id) }}"
-                     class="btn btn-sm btn-outline-danger" title="حذف قوي"
-                     onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
-                    <i class="fas fa-bomb"></i>
-                  </a>
+                  
                 {% endif %}
                 {% if current_user.has_permission('manage_payments') and not e.is_paid and e.balance and e.balance > 0 %}
                   <a href="{{ url_for('expenses_bp.pay', exp_id=e.id) }}" class="btn btn-sm btn-outline-success" title="دفع ({{ '%.2f'|format(e.balance) }} ₪)"><i class="fas fa-money-bill-wave"></i></a>

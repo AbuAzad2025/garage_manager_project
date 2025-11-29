@@ -4,7 +4,7 @@ import qrcode
 import io
 import base64
 import uuid
-from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for, abort
+from flask import Blueprint, render_template, request, jsonify, send_file, flash, redirect, url_for, abort, current_app
 from flask_login import login_required, current_user
 from sqlalchemy import or_, and_, func
 from extensions import db
@@ -53,20 +53,19 @@ def auto_assign_barcodes():
                 db.session.add(product)
                 assigned_count += 1
             except Exception as e:
-                print(f"Error assigning barcode to product {product.id}: {e}")
+                current_app.logger.error(f"Error assigning barcode to product {product.id}: {e}")
                 continue
         
         db.session.commit()
         return assigned_count
     except Exception as e:
         db.session.rollback()
-        print(f"Error in auto_assign_barcodes: {e}")
+        current_app.logger.error(f"Error in auto_assign_barcodes: {e}")
         return 0
 
 
 @barcode_scanner_bp.route("/", methods=["GET"], endpoint="index")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def scanner_index():
     """صفحة ماسح الباركود الرئيسية"""
     return render_template("barcode_scanner/index.html")
@@ -74,7 +73,6 @@ def scanner_index():
 
 @barcode_scanner_bp.route("/scan", methods=["POST"], endpoint="scan_barcode")
 @login_required
-# @permission_required("manage_products")  # Commented out
 def scan_barcode():
     """مسح الباركود والبحث عن المنتج"""
     try:
@@ -150,7 +148,6 @@ def scan_barcode():
 
 @barcode_scanner_bp.route("/generate", methods=["POST"], endpoint="generate_barcode")
 @login_required
-# @permission_required("manage_products")  # Commented out
 def generate_barcode_for_product():
     """توليد باركود لمنتج"""
     try:
@@ -256,7 +253,6 @@ def generate_barcode_for_product():
 
 @barcode_scanner_bp.route("/print/<int:product_id>", methods=["GET"], endpoint="print_barcode")
 @login_required
-# @permission_required("manage_products")  # Commented out
 def print_barcode(product_id):
     """طباعة باركود منتج"""
     try:
@@ -310,7 +306,6 @@ def print_barcode(product_id):
 
 @barcode_scanner_bp.route("/bulk-generate", methods=["POST"], endpoint="bulk_generate")
 @login_required
-# @permission_required("manage_products")  # Commented out
 def bulk_generate_barcodes():
     """توليد باركودات متعددة"""
     try:
@@ -385,7 +380,6 @@ def bulk_generate_barcodes():
 
 @barcode_scanner_bp.route("/inventory/update", methods=["POST"], endpoint="inventory_update")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def inventory_update_by_barcode():
     """تحديث المخزون باستخدام الباركود مع دعم الحقول الديناميكية"""
     import logging
@@ -522,7 +516,6 @@ def inventory_update_by_barcode():
 
 @barcode_scanner_bp.route("/warehouses", methods=["GET"], endpoint="get_warehouses")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def get_warehouses():
     """الحصول على جميع المستودعات"""
     try:
@@ -541,15 +534,12 @@ def get_warehouses():
             ]
         })
     except Exception as e:
-        import traceback
-        print(f"Error in get_warehouses: {str(e)}")
-        print(traceback.format_exc())
+        
         return jsonify({"error": str(e)}), 500
 
 
 @barcode_scanner_bp.route("/warehouse-fields", methods=["GET"], endpoint="get_warehouse_fields")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def get_warehouse_fields():
     """الحصول على الحقول المطلوبة حسب نوع المستودع"""
     try:
@@ -651,7 +641,6 @@ def get_warehouse_fields():
 
 @barcode_scanner_bp.route("/check-product", methods=["GET"], endpoint="check_product_exists")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def check_product_exists():
     """فحص وجود المنتج بالباركود وإرجاع بياناته"""
     try:
@@ -703,7 +692,6 @@ def check_product_exists():
 
 @barcode_scanner_bp.route("/search", methods=["GET"], endpoint="search_products")
 @login_required
-# @permission_required("manage_products")  # Commented out
 def search_products():
     """البحث عن المنتجات للباركود"""
     try:
@@ -770,7 +758,6 @@ def auto_assign_barcodes_route():
 
 @barcode_scanner_bp.route("/stats", methods=["GET"], endpoint="barcode_stats")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def barcode_stats():
     """إحصائيات الباركود"""
     try:
@@ -824,8 +811,7 @@ def barcode_stats():
         return render_template("barcode_scanner/stats.html", stats=stats)
         
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -1013,7 +999,6 @@ def bulk_import_products():
 
 @barcode_scanner_bp.route("/bulk-scan", methods=["GET"], endpoint="bulk_scan_page")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def bulk_scan_page():
     """صفحة المسح الجماعي"""
     warehouses = Warehouse.query.filter_by(is_active=True).all()

@@ -1902,11 +1902,7 @@ function buildLedgerActions(entry) {
                 </button>
             `);
         }
-        buttons.push(`
-            <button class="btn btn-danger btn-sm" onclick="deleteLedgerPayment(${entryId})" title="حذف الدفعة بشكل نهائي">
-                <i class="fas fa-trash-alt"></i>
-            </button>
-        `);
+        
     }
     return `<div class="btn-group btn-group-sm" role="group">${buttons.join('')}</div>`;
 }
@@ -1935,35 +1931,7 @@ async function restoreLedgerPayment(paymentId) {
     }
 }
 
-async function deleteLedgerPayment(paymentId) {
-    const reason = prompt('ادخل سبب الحذف القوي للدفعة #' + paymentId + ' (إلزامي):');
-    if (reason === null) return;
-    const trimmed = (reason || '').trim();
-    if (!trimmed) {
-        showAlert('سبب الحذف مطلوب لإتمام العملية.', 'error');
-        return;
-    }
-    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    try {
-        const response = await fetch(`/hard-delete/api/delete-payment/${paymentId}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRFToken': token
-            },
-            body: JSON.stringify({ reason: trimmed })
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || payload.success === false) {
-            throw new Error(payload.error || ('HTTP ' + response.status));
-        }
-        showAlert(`تم حذف الدفعة #${paymentId} بنجاح`, 'success');
-        loadLedgerData();
-    } catch (error) {
-        showAlert('تعذر حذف الدفعة: ' + (error.message || error), 'error');
-    }
-}
+ 
 
 // رسوم بيانية Chart.js
 let revenueExpenseChart = null;

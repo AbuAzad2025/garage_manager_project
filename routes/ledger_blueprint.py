@@ -34,7 +34,6 @@ def extract_entity_from_batch(batch: GLBatch):
 
 @ledger_bp.route("/", methods=["GET"], endpoint="index")
 @login_required
-# @permission_required("manage_ledger")  # Commented out
 def ledger_index():
     """صفحة الدفتر الرئيسية"""
     return render_template("ledger/index.html")
@@ -164,13 +163,11 @@ def create_manual_entry():
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"❌ خطأ في إنشاء قيد يدوي: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @ledger_bp.route("/data", methods=["GET"], endpoint="get_ledger_data")
 @login_required
-# @permission_required("manage_ledger")  # Commented out
 def get_ledger_data():
     """جلب بيانات دفتر الأستاذ من قاعدة البيانات الحقيقية"""
     try:
@@ -1365,9 +1362,7 @@ def get_ledger_data():
         })
         
     except Exception as e:
-        import traceback
         current_app.logger.error(f"Error in get_ledger_data: {str(e)}")
-        current_app.logger.error(traceback.format_exc())
         return jsonify({"error": str(e), "data": [], "statistics": {}}), 500
 
 @ledger_bp.route("/cogs-audit", methods=["GET"], endpoint="cogs_audit_report")
@@ -1516,9 +1511,7 @@ def cogs_audit_report():
         })
         
     except Exception as e:
-        import traceback
         current_app.logger.error(f"Error in cogs_audit_report: {str(e)}")
-        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @ledger_bp.route("/accounts-summary", methods=["GET"], endpoint="get_accounts_summary")
@@ -1650,15 +1643,12 @@ def get_accounts_summary():
         return jsonify({"accounts": accounts, "totals": accounts_totals})
 
     except Exception as e:
-        import traceback
         error_msg = f"Error in get_accounts_summary: {str(e)}"
         current_app.logger.error(error_msg)
-        current_app.logger.error(traceback.format_exc())
-        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+        return jsonify({"error": str(e)}), 500
 
 @ledger_bp.route("/receivables-detailed-summary", methods=["GET"], endpoint="get_receivables_detailed_summary")
 @login_required
-# @permission_required("manage_ledger")  # Commented out
 def get_receivables_detailed_summary():
     """جلب ملخص الذمم التفصيلي مع أعمار الديون"""
     try:
@@ -1929,14 +1919,11 @@ def get_receivables_detailed_summary():
         })
         
     except Exception as e:
-        import traceback
         current_app.logger.error(f"Error in get_receivables_detailed_summary: {str(e)}")
-        current_app.logger.error(traceback.format_exc())
         return jsonify([]), 500
 
 @ledger_bp.route("/receivables-summary", methods=["GET"], endpoint="get_receivables_summary")
 @login_required
-# @permission_required("manage_ledger")  # Commented out
 def get_receivables_summary():
     """جلب ملخص الذمم (العملاء، الموردين، الشركاء)"""
     try:
@@ -2156,14 +2143,11 @@ def get_receivables_summary():
         return jsonify(receivables)
         
     except Exception as e:
-        import traceback
-        print(f"Error in get_receivables_summary: {str(e)}")
-        print(traceback.format_exc())
+        current_app.logger.error(f"Error in get_receivables_summary: {str(e)}")
         return jsonify([]), 500
 
 @ledger_bp.route("/export", methods=["GET"], endpoint="export_ledger")
 @login_required
-# @permission_required("manage_ledger")  # Commented out
 def export_ledger():
     """تصدير دفتر الأستاذ"""
     # يمكن إضافة منطق التصدير هنا
@@ -2171,7 +2155,6 @@ def export_ledger():
 
 @ledger_bp.route("/transaction/<int:id>", methods=["GET"], endpoint="view_transaction")
 @login_required
-# @permission_required("manage_ledger")  # Commented out
 def view_transaction(id):
     """عرض تفاصيل العملية"""
     # يمكن إضافة منطق عرض التفاصيل هنا
@@ -2219,7 +2202,6 @@ def _get_pagination():
 
 @ledger_bp.get("/trial-balance")
 @login_required
-# @permission_required("view_reports", "view_ledger")  # Commented out
 def trial_balance():
     dfrom, dto = _parse_dates()
     q = (db.session.query(
@@ -2243,7 +2225,6 @@ def trial_balance():
 
 @ledger_bp.get("/account/<account>")
 @login_required
-# @permission_required("view_reports", "view_ledger")  # Commented out
 def account_ledger(account):
     dfrom, dto = _parse_dates()
     
@@ -2392,7 +2373,6 @@ def account_ledger(account):
 
 @ledger_bp.get("/entity")
 @login_required
-# @permission_required("view_reports", "view_ledger")  # Commented out
 def entity_ledger():
     dfrom, dto = _parse_dates()
     et = (request.args.get("entity_type") or "").upper().strip()
@@ -2502,7 +2482,6 @@ def entity_ledger():
 
 @ledger_bp.route("/batch/<int:batch_id>", methods=["GET"], endpoint="get_batch_details")
 @login_required
-# @permission_required("manage_ledger")  # Commented out
 def get_batch_details(batch_id):
     """جلب تفاصيل قيد محاسبي (GLBatch + Entries)"""
     try:

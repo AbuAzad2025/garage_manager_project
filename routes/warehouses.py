@@ -430,7 +430,6 @@ def api_prepare_online_fields():
 
 @warehouse_bp.route("/api/apply_online_defaults", methods=["POST"], endpoint="api_apply_online_defaults")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def api_apply_online_defaults():
     data = request.get_json(silent=True) or {}
     price = data.get("price")
@@ -713,7 +712,6 @@ def _is_online_wh(w: Warehouse) -> bool:
 
 @warehouse_bp.route("/", methods=["GET"], endpoint="list")
 @login_required
-# @permission_required("view_warehouses")  # Commented out
 def list_warehouses():
     q = Warehouse.query
     type_ = (request.args.get("type") or "").strip()
@@ -786,7 +784,6 @@ def list_warehouses():
 
 @warehouse_bp.route("/create", methods=["GET", "POST"], endpoint="create")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def create_warehouse():
     from forms import WarehouseForm
 
@@ -853,7 +850,6 @@ def create_warehouse():
 
 @warehouse_bp.route("/<int:warehouse_id>/edit", methods=["GET", "POST"], endpoint="edit")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def edit_warehouse(warehouse_id):
     from forms import WarehouseForm
 
@@ -911,7 +907,6 @@ def edit_warehouse(warehouse_id):
 
 @warehouse_bp.route("/<int:warehouse_id>/delete", methods=["POST"], endpoint="delete")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def delete_warehouse(warehouse_id):
     warehouse = _get_or_404(Warehouse, warehouse_id)
     
@@ -943,7 +938,6 @@ def delete_warehouse(warehouse_id):
 
 @warehouse_bp.route("/<int:warehouse_id>", methods=["GET"], endpoint="detail")
 @login_required
-# @permission_required("view_warehouses", "view_inventory", "manage_inventory")  # Commented out
 def warehouse_detail(warehouse_id):
     w = _get_or_404(Warehouse, warehouse_id)
     stock_levels = (
@@ -969,7 +963,6 @@ def warehouse_detail(warehouse_id):
 
 @warehouse_bp.route("/goto/warehouse-products", methods=["GET"], endpoint="goto_warehouse_products")
 @login_required
-# @permission_required("view_inventory")  # Commented out
 def goto_warehouse_products():
     wid = request.args.get("id", type=int)
     if not wid:
@@ -980,7 +973,6 @@ def goto_warehouse_products():
 
 @warehouse_bp.route("/goto/product-card", methods=["GET"], endpoint="goto_product_card")
 @login_required
-# @permission_required("view_parts")  # Commented out
 def goto_product_card():
     pid = request.args.get("id", type=int)
     if not pid:
@@ -991,7 +983,6 @@ def goto_product_card():
 
 @warehouse_bp.route("/inventory", methods=["GET"], endpoint="inventory_summary")
 @login_required
-# @permission_required("view_inventory")  # Commented out
 def inventory_summary():
     search = (request.args.get("q") or "").strip()
     selected_ids = request.args.getlist("warehouse_ids", type=int)
@@ -1060,7 +1051,6 @@ def inventory_summary():
 
 @warehouse_bp.route("/<int:id>/products", methods=["GET"], endpoint="products")
 @login_required
-# @permission_required("view_inventory")  # Commented out
 def products(id):
     base_warehouse = _get_or_404(Warehouse, id)
     all_whs = Warehouse.query.order_by(Warehouse.name).all()
@@ -1217,7 +1207,6 @@ def transfer_inline(id):
 
 @warehouse_bp.route("/<int:warehouse_id>/products/<int:product_id>", methods=["POST", "PATCH"], endpoint="update_product_inline")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def update_product_inline(warehouse_id, product_id):
     _get_or_404(Warehouse, warehouse_id)
     p = _get_or_404(Product, product_id)
@@ -1327,7 +1316,6 @@ def update_product_inline(warehouse_id, product_id):
 
 @warehouse_bp.get("/<int:warehouse_id>/preview")
 @login_required
-# @permission_required("view_inventory")  # Commented out
 def preview_inventory(warehouse_id: int):
     warehouse = _get_or_404(Warehouse, warehouse_id)
     
@@ -1453,7 +1441,6 @@ def preview_inventory(warehouse_id: int):
 
 @warehouse_bp.route("/<int:id>/add-product", methods=["GET", "POST"], endpoint="add_product")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def add_product(id):
     log = current_app.logger
     warehouse = _get_or_404(Warehouse, id)
@@ -1717,7 +1704,6 @@ def add_product(id):
 
 @warehouse_bp.route("/<int:id>/import", methods=["GET", "POST"], endpoint="import_products")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def import_products(id):
     w = _get_or_404(Warehouse, id)
     form = ImportForm()
@@ -1787,7 +1773,6 @@ def import_products(id):
 
 @warehouse_bp.route("/<int:warehouse_id>/preview/update", methods=["POST"], endpoint="preview_update")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def preview_update(warehouse_id: int):
     w = _get_or_404(Warehouse, warehouse_id)
     data = request.get_json(silent=True) or {}
@@ -1876,7 +1861,6 @@ def preview_update(warehouse_id: int):
 
 @warehouse_bp.route("/<int:id>/import/preview", methods=["GET", "POST"], endpoint="import_preview")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def import_preview(id):
     w = _get_or_404(Warehouse, id)
     token = request.args.get("token") or request.form.get("token")
@@ -1927,7 +1911,6 @@ def import_preview(id):
 
 @warehouse_bp.route("/<int:id>/import/commit", methods=["POST"], endpoint="import_commit")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def import_commit(id):
     w = _get_or_404(Warehouse, id)
     token = request.form.get("token") or request.args.get("token")
@@ -2302,7 +2285,6 @@ def import_commit(id):
 
 @warehouse_bp.route("/<int:warehouse_id>/stock", methods=["POST"], endpoint="ajax_update_stock")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def ajax_update_stock(warehouse_id):
     data = request.get_json(silent=True) or request.form
 
@@ -2404,7 +2386,6 @@ def ajax_update_stock(warehouse_id):
 
 @warehouse_bp.route("/<int:warehouse_id>/transfer", methods=["POST"], endpoint="ajax_transfer")
 @login_required
-# @permission_required("manage_inventory", "manage_warehouses", "warehouse_transfer")  # Commented out
 def ajax_transfer(warehouse_id):
     import logging
     logging.info(f"🔄 بدء عملية التحويل - warehouse_id: {warehouse_id}")
@@ -2537,7 +2518,6 @@ def ajax_transfer(warehouse_id):
 
 @warehouse_bp.route("/<int:warehouse_id>/exchange", methods=["POST"], endpoint="ajax_exchange")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def ajax_exchange(warehouse_id):
     data = request.form if request.form else (request.get_json(silent=True) or {})
     def _i(k, d=None):
@@ -2600,7 +2580,6 @@ def ajax_exchange(warehouse_id):
 
 @warehouse_bp.route("/<int:warehouse_id>/partner-shares", methods=["GET", "POST"], endpoint="partner_shares")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def partner_shares(warehouse_id):
     if request.method == "GET":
         try:
@@ -2653,7 +2632,6 @@ def partner_shares(warehouse_id):
 
 @warehouse_bp.route("/<int:id>/transfers", methods=["GET"], endpoint="transfers")
 @login_required
-# @permission_required("view_inventory")  # Commented out
 def list_transfers(id):
     warehouse = _get_or_404(Warehouse, id)
     transfers = Transfer.query.filter(or_(Transfer.source_id == id, Transfer.destination_id == id)).order_by(Transfer.transfer_date.desc()).all()
@@ -2662,7 +2640,6 @@ def list_transfers(id):
 
 @warehouse_bp.route("/<int:id>/transfers/create", methods=["GET", "POST"], endpoint="create_transfer")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def create_transfer(id=None):
     wid = id
     warehouse = _get_or_404(Warehouse, wid)
@@ -2730,7 +2707,6 @@ def create_transfer(id=None):
 
 @warehouse_bp.route("/parts/<int:product_id>", methods=["GET"], endpoint="product_card")
 @login_required
-# @permission_required("view_parts")  # Commented out
 def product_card(product_id):
     part = Product.query.options(
         joinedload(Product.supplier_international),
@@ -2756,7 +2732,6 @@ def product_card(product_id):
 
 @warehouse_bp.route("/preorders", methods=["GET"], endpoint="preorders_list")
 @login_required
-# @permission_required("view_preorders")  # Commented out
 def preorders_list():
     q = (PreOrder.query.options(
             joinedload(PreOrder.customer),
@@ -2819,7 +2794,6 @@ def preorders_list():
 
 @warehouse_bp.route("/preorders/create", methods=["GET", "POST"], endpoint="preorder_create")
 @login_required
-# @permission_required("add_preorder")  # Commented out
 def preorder_create():
     form = PreOrderForm()
 
@@ -2966,7 +2940,6 @@ def preorder_create():
 
 @warehouse_bp.route("/preorders/<int:preorder_id>", methods=["GET"], endpoint="preorder_detail")
 @login_required
-# @permission_required("view_preorders")  # Commented out
 def preorder_detail(preorder_id):
     preorder = PreOrder.query.options(
         joinedload(PreOrder.customer),
@@ -2983,7 +2956,6 @@ def preorder_detail(preorder_id):
 
 @warehouse_bp.route("/preorders/<int:preorder_id>/convert-to-sale", methods=["POST"], endpoint="preorder_convert_to_sale")
 @login_required
-# @permission_required("create_sale")  # Commented out
 def preorder_convert_to_sale(preorder_id):
     """تحويل الحجز المسبق إلى مبيعة وتوجيه للدفع"""
     from models import Sale, SaleLine, SaleStatus
@@ -3119,7 +3091,6 @@ def preorder_convert_to_sale(preorder_id):
 
 @warehouse_bp.route("/preorders/<int:preorder_id>/fulfill", methods=["POST"], endpoint="preorder_fulfill")
 @login_required
-# @permission_required("edit_preorder")  # Commented out
 def preorder_fulfill(preorder_id):
     """تنفيذ الحجز القديم - سيتم إزالته لاحقاً"""
     preorder = _get_or_404(PreOrder, preorder_id)
@@ -3169,7 +3140,6 @@ def preorder_mark_fulfilled(preorder_id):
 
 @warehouse_bp.route("/preorders/<int:preorder_id>/cancel", methods=["POST"], endpoint="preorder_cancel")
 @login_required
-# @permission_required("delete_preorder")  # Commented out
 def preorder_cancel(preorder_id):
     preorder = _get_or_404(PreOrder, preorder_id)
     ref = preorder.reference or str(preorder.id)
@@ -3197,7 +3167,6 @@ def preorder_cancel(preorder_id):
 
 @warehouse_bp.route("/<int:warehouse_id>/pay", methods=["POST"], endpoint="pay_warehouse")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def pay_warehouse(warehouse_id):
     amount = request.form.get("amount", type=float)
     if not amount or amount <= 0:
@@ -3208,7 +3177,6 @@ def pay_warehouse(warehouse_id):
 
 @warehouse_bp.route("/api/add_customer", methods=["POST"], endpoint="api_add_customer")
 @login_required
-# @permission_required("add_customer")  # Commented out
 def api_add_customer():
     data = request.get_json() or {}
     name = (data.get("name") or "").strip()
@@ -3226,7 +3194,6 @@ def api_add_customer():
 
 @warehouse_bp.route("/api/add_supplier", methods=["POST"], endpoint="api_add_supplier")
 @login_required
-# @permission_required("add_supplier")  # Commented out
 def api_add_supplier():
     data = request.get_json() or {}
     name = (data.get("name") or "").strip()
@@ -3244,7 +3211,6 @@ def api_add_supplier():
 
 @warehouse_bp.route("/api/add_partner", methods=["POST"], endpoint="api_add_partner")
 @login_required
-# @permission_required("add_partner")  # Commented out
 def api_add_partner():
     data = request.get_json() or {}
     name = (data.get("name") or "").strip()
@@ -3262,14 +3228,12 @@ def api_add_partner():
 
 @warehouse_bp.route("/<int:id>/shipments/create", methods=["GET"], endpoint="create_warehouse_shipment")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def create_warehouse_shipment(id):
     return redirect(url_for("shipments_bp.create_shipment", destination_id=id))
 
 
 @warehouse_bp.route("/<int:id>/imports", methods=["GET"], endpoint="import_runs")
 @login_required
-# @permission_required("manage_inventory", "view_inventory", "manage_warehouses")  # Commented out
 def list_import_runs(id):
     w = _get_or_404(Warehouse, id)
     q = ImportRun.query.filter_by(warehouse_id=w.id).order_by(ImportRun.created_at.desc())
@@ -3296,7 +3260,6 @@ def list_import_runs(id):
 
 @warehouse_bp.route("/imports/<int:run_id>/download", methods=["GET"], endpoint="import_run_download")
 @login_required
-# @permission_required("manage_inventory", "view_inventory", "manage_warehouses")  # Commented out
 def download_import_run(run_id: int):
     ir = _get_or_404(ImportRun, run_id)
     if not ir.report_path or not os.path.exists(ir.report_path):

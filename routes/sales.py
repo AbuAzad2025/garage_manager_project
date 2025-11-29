@@ -296,7 +296,6 @@ def _safe_generate_number_after_flush(sale: Sale) -> None:
 
 @sales_bp.route("/dashboard")
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def dashboard():
     from decimal import Decimal
     from models import convert_amount
@@ -394,7 +393,6 @@ def dashboard():
 @sales_bp.route("/", endpoint="list_sales")
 @sales_bp.route("/", endpoint="index")
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def list_sales():
     f = request.args
     q = (Sale.query
@@ -532,128 +530,122 @@ def list_sales():
         _format_sale(s)
     
     from models import fx_rate
-    
-    cache_key_parts = [
-        'sales_summary',
-        str(status_filter_enabled),
-        st or '',
-        cust or '',
-        search_term or '',
-        df or '',
-        dt or ''
-    ]
-    cache_key = ':'.join(cache_key_parts)
-    
-    summary = cache.get(cache_key)
-    if summary is None:
-        all_sales_query = Sale.query.filter(Sale.is_archived.is_(False)).options(
-            selectinload(Sale.payments).load_only(Payment.total_amount, Payment.currency, Payment.direction, Payment.status, Payment.payment_date, Payment.fx_rate_used)
+
+    summary = {
+        'total_sales': 0.0,
+        'total_paid': 0.0,
+        'total_pending': 0.0,
+        'average_sale': 0.0,
+        'sales_count': 0,
+        'sales_by_status': {}
+    }
+
+    all_sales_query = Sale.query.filter(Sale.is_archived.is_(False)).options(
+        selectinload(Sale.payments).load_only(Payment.total_amount, Payment.currency, Payment.direction, Payment.status, Payment.payment_date, Payment.fx_rate_used)
+    )
+    need_customer_join = bool(cust or search_term)
+    if status_filter_enabled:
+        all_sales_query = all_sales_query.filter(Sale.status == st)
+    if need_customer_join:
+        all_sales_query = all_sales_query.outerjoin(Customer)
+    if cust:
+        all_sales_query = all_sales_query.filter(
+            or_(Customer.name.ilike(f"%{cust}%"), Customer.phone.ilike(f"%{cust}%"))
         )
-        need_customer_join = bool(cust or search_term)
-        if status_filter_enabled:
-            all_sales_query = all_sales_query.filter(Sale.status == st)
-        if need_customer_join:
-            all_sales_query = all_sales_query.outerjoin(Customer)
-        if cust:
-            all_sales_query = all_sales_query.filter(
-                or_(Customer.name.ilike(f"%{cust}%"), Customer.phone.ilike(f"%{cust}%"))
-            )
-        if search_term:
-            like_all = f"%{search_term}%"
-            search_filters_all = [
-                Sale.sale_number.ilike(like_all),
-                Sale.notes.ilike(like_all),
-                Sale.currency.ilike(like_all),
-                Sale.receiver_name.ilike(like_all),
-                Customer.name.ilike(like_all),
-                Customer.phone.ilike(like_all),
-            ]
-            if search_term.isdigit():
-                search_filters_all.append(Sale.id == int(search_term))
-            all_sales_query = all_sales_query.filter(or_(*search_filters_all))
-        try:
-            if df:
-                all_sales_query = all_sales_query.filter(Sale.sale_date >= datetime.fromisoformat(df))
-            if dt:
-                all_sales_query = all_sales_query.filter(Sale.sale_date <= datetime.fromisoformat(dt))
-        except Exception:
-            pass
-        
-        all_sales = all_sales_query.limit(5000).all()
-        
-        def _to_ils(value, currency, fx_used, at_date):
-            amount = Decimal(str(value or 0))
-            code = (currency or "ILS").upper()
-            if code != "ILS":
-                if fx_used:
-                    try:
-                        amount *= Decimal(str(fx_used))
-                    except Exception:
-                        pass
-                else:
-                    try:
-                        rate = fx_rate(code, "ILS", at_date, raise_on_missing=False)
-                        if rate and rate > 0:
-                            amount *= Decimal(str(rate))
-                    except Exception:
-                        pass
-            return float(amount)
-        
-        total_sales = 0.0
-        total_paid = 0.0
-        total_pending = 0.0
-        sales_by_status: dict[str, dict[str, float | int]] = {}
-        contributing_sales = 0
-        
-        for sale in all_sales:
-            status = (sale.status or "DRAFT").upper()
-            
-            sale_amount = _to_ils(sale.total_amount, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
-            balance_amount = _to_ils(sale.balance_due, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
-            refund_amount = _to_ils(sale.refunded_total, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
-            
-            paid_amount = 0.0
-            for payment in getattr(sale, "payments", []) or []:
-                if (payment.direction or "").upper() != "IN":
-                    continue
-                if (payment.status or "").upper() != "COMPLETED":
-                    continue
-                paid_amount += _to_ils(payment.total_amount, payment.currency, getattr(payment, "fx_rate_used", None), payment.payment_date)
-            
-            net_amount = sale_amount
-            if status == "REFUNDED":
-                net_amount = max(sale_amount - refund_amount, 0.0)
-                balance_amount = 0.0
-            
-            if status == "CONFIRMED":
-                total_sales += net_amount
-                total_paid += paid_amount
-                total_pending += max(balance_amount, 0.0)
-                contributing_sales += 1
-            elif status not in ("DRAFT", "CANCELLED", "REFUNDED"):
-                total_sales += net_amount
-                total_paid += paid_amount
-                total_pending += max(balance_amount, 0.0)
-                contributing_sales += 1
-            elif status == "REFUNDED":
-                total_paid += min(paid_amount, net_amount)
-            
-            status_entry = sales_by_status.setdefault(status, {"count": 0, "amount": 0.0})
-            status_entry["count"] += 1
-            status_entry["amount"] += net_amount
-        
-        average_sale = total_sales / contributing_sales if contributing_sales else 0.0
-        
-        summary = {
-            'total_sales': total_sales,
-            'total_paid': total_paid,
-            'total_pending': total_pending,
-            'average_sale': average_sale,
-            'sales_count': contributing_sales,
-            'sales_by_status': sales_by_status
-        }
-        
-        cache.set(cache_key, summary, timeout=60)
+    if search_term:
+        like_all = f"%{search_term}%"
+        search_filters_all = [
+            Sale.sale_number.ilike(like_all),
+            Sale.notes.ilike(like_all),
+            Sale.currency.ilike(like_all),
+            Sale.receiver_name.ilike(like_all),
+            Customer.name.ilike(like_all),
+            Customer.phone.ilike(like_all),
+        ]
+        if search_term.isdigit():
+            search_filters_all.append(Sale.id == int(search_term))
+        all_sales_query = all_sales_query.filter(or_(*search_filters_all))
+    try:
+        if df:
+            all_sales_query = all_sales_query.filter(Sale.sale_date >= datetime.fromisoformat(df))
+        if dt:
+            all_sales_query = all_sales_query.filter(Sale.sale_date <= datetime.fromisoformat(dt))
+    except Exception:
+        pass
+
+    all_sales = all_sales_query.limit(5000).all()
+
+    def _to_ils(value, currency, fx_used, at_date):
+        amount = Decimal(str(value or 0))
+        code = (currency or "ILS").upper()
+        if code != "ILS":
+            if fx_used:
+                try:
+                    amount *= Decimal(str(fx_used))
+                except Exception:
+                    pass
+            else:
+                try:
+                    rate = fx_rate(code, "ILS", at_date, raise_on_missing=False)
+                    if rate and rate > 0:
+                        amount *= Decimal(str(rate))
+                except Exception:
+                    pass
+        return float(amount)
+
+    total_sales = 0.0
+    total_paid = 0.0
+    total_pending = 0.0
+    sales_by_status: dict[str, dict[str, float | int]] = {}
+    contributing_sales = 0
+
+    for sale in all_sales:
+        status = (sale.status or "DRAFT").upper()
+
+        sale_amount = _to_ils(sale.total_amount, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
+        balance_amount = _to_ils(sale.balance_due, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
+        refund_amount = _to_ils(sale.refunded_total, sale.currency, getattr(sale, "fx_rate_used", None), sale.sale_date)
+
+        paid_amount = 0.0
+        for payment in getattr(sale, "payments", []) or []:
+            if (payment.direction or "").upper() != "IN":
+                continue
+            if (payment.status or "").upper() != "COMPLETED":
+                continue
+            paid_amount += _to_ils(payment.total_amount, payment.currency, getattr(payment, "fx_rate_used", None), payment.payment_date)
+
+        net_amount = sale_amount
+        if status == "REFUNDED":
+            net_amount = max(sale_amount - refund_amount, 0.0)
+            balance_amount = 0.0
+
+        if status == "CONFIRMED":
+            total_sales += net_amount
+            total_paid += paid_amount
+            total_pending += max(balance_amount, 0.0)
+            contributing_sales += 1
+        elif status not in ("DRAFT", "CANCELLED", "REFUNDED"):
+            total_sales += net_amount
+            total_paid += paid_amount
+            total_pending += max(balance_amount, 0.0)
+            contributing_sales += 1
+        elif status == "REFUNDED":
+            total_paid += min(paid_amount, net_amount)
+
+        status_entry = sales_by_status.setdefault(status, {"count": 0, "amount": 0.0})
+        status_entry["count"] += 1
+        status_entry["amount"] += net_amount
+
+    average_sale = total_sales / contributing_sales if contributing_sales else 0.0
+
+    summary = {
+        'total_sales': total_sales,
+        'total_paid': total_paid,
+        'total_pending': total_pending,
+        'average_sale': average_sale,
+        'sales_count': contributing_sales,
+        'sales_by_status': sales_by_status
+    }
     
     query_args = request.args.to_dict()
     for key in ["page", "print", "scope", "range_start", "range_end", "page_number", "ajax"]:
@@ -841,11 +833,7 @@ def list_sales():
               <i class="fas fa-trash"></i>
             </button>
           </form>
-          <a href="{{ url_for('hard_delete_bp.delete_sale', sale_id=sale.id) }}"
-             class="btn btn-sm btn-outline-danger" title="حذف قوي"
-             onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
-            <i class="fas fa-bomb"></i>
-          </a>
+          
           {% endif %}
         </div>
       </td>
@@ -1096,7 +1084,6 @@ def create_sale():
 
 @sales_bp.route("/<int:id>", methods=["GET"], endpoint="sale_detail")
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def sale_detail(id: int):
     sale = _get_or_404(Sale, id, options=[
         joinedload(Sale.customer), joinedload(Sale.seller), joinedload(Sale.seller_employee),
@@ -1169,7 +1156,6 @@ def sale_detail(id: int):
 
 @sales_bp.route("/<int:id>/payments", methods=["GET"], endpoint="sale_payments")
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def sale_payments(id: int):
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 10, type=int)
@@ -1199,7 +1185,6 @@ def sale_payments(id: int):
 
 @sales_bp.route("/<int:id>/edit", methods=["GET", "POST"], endpoint="edit_sale")
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def edit_sale(id: int):
     sale = _get_or_404(Sale, id)
     if sale.status in ("CANCELLED", "REFUNDED"):
@@ -1290,7 +1275,6 @@ def edit_sale(id: int):
 
 @sales_bp.route("/quick", methods=["POST"])
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def quick_sell():
     try:
         pid = int(request.form.get("product_id") or 0)
@@ -1353,7 +1337,6 @@ def quick_sell():
 
 @sales_bp.route("/<int:id>/status/<status>", methods=["POST"], endpoint="change_status")
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def change_status(id: int, status: str):
     sale = _get_or_404(Sale, id)
     status = (status or "").upper()
@@ -1401,7 +1384,6 @@ def change_status(id: int, status: str):
 @sales_bp.route("/<int:id>/invoice", methods=["GET"], endpoint="generate_invoice")
 @sales_bp.route("/<int:id>/receipt", methods=["GET"], endpoint="sale_receipt")
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def generate_invoice(id: int):
     sale = _get_or_404(Sale, id, options=[
         joinedload(Sale.customer), joinedload(Sale.seller), joinedload(Sale.seller_employee),
@@ -1495,7 +1477,6 @@ def generate_invoice(id: int):
 
 @sales_bp.route("/archive/<int:sale_id>", methods=["POST"])
 @login_required
-# @permission_required("manage_sales")  # Commented out - function not available
 def archive_sale(sale_id):
     # Debug logging removed to avoid Unicode errors
     
@@ -1511,15 +1492,12 @@ def archive_sale(sale_id):
         return redirect(url_for('sales_bp.list_sales'))
         
     except Exception as e:
-        import traceback
-        
         db.session.rollback()
         flash(f'خطأ في أرشفة المبيعة: {str(e)}', 'error')
         return redirect(url_for('sales_bp.list_sales'))
 
 @sales_bp.route('/restore/<int:sale_id>', methods=['POST'])
 @login_required
-# @permission_required('manage_sales')  # Commented out - function not available
 def restore_sale(sale_id):
     """استعادة مبيعة"""
     # Debug logging removed to avoid Unicode errors
@@ -1542,11 +1520,9 @@ def restore_sale(sale_id):
             utils.restore_record(archive.id)
         
         flash(f'تم استعادة المبيعة رقم {sale_id} بنجاح', 'success')
-        print(f"🎉 [SALE RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('sales_bp.list_sales'))
         
     except Exception as e:
-        import traceback
         
         db.session.rollback()
         flash(f'خطأ في استعادة المبيعة: {str(e)}', 'error')

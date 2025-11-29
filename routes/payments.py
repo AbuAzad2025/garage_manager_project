@@ -409,7 +409,6 @@ MAX_SEARCH_LIMIT = 25
 
 @payments_bp.route("/entity-search", methods=["GET"])
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def entity_search():
     t = (request.args.get("type") or "").strip().upper()
     qtxt = (request.args.get("q") or "").strip()
@@ -449,7 +448,6 @@ def entity_search():
 
 @payments_bp.route("/", methods=["GET"], endpoint="index")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def index():
     if not getattr(current_user, "is_authenticated", False):
         return redirect(url_for("auth.login", next=request.full_path))
@@ -1058,7 +1056,6 @@ def index():
 
 @payments_bp.route("/create", methods=["GET", "POST"], endpoint="create_payment")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def create_payment():
     form = PaymentForm()
     # السماح بجميع الاتجاهات لجميع الجهات عدا المصاريف
@@ -1553,9 +1550,7 @@ def create_payment():
                                 _deduct_stock(sale)
                             except Exception as stock_err:
                                 # إذا فشل الخصم، نسجل الخطأ لكن لا نمنع الدفع
-                                import traceback
-                                traceback.print_exc()
-                                print(f"⚠️ تحذير: فشل خصم المخزون للبيع {sale.sale_number}: {stock_err}")
+                                current_app.logger.warning(f"⚠️ تحذير: فشل خصم المخزون للبيع {sale.sale_number}: {stock_err}")
                         
                         # إذا كانت المبيعة من حجز مسبق ومدفوعة بالكامل، نحدث حالة الحجز
                         if sale.preorder_id and sale.balance_due <= 0:
@@ -1586,48 +1581,46 @@ def create_payment():
                     pass
                 db.session.commit()
                 
-                try:
-                    created_checks = False
-                    payment_method_str = str(payment.method).upper()
-                    if ('CHECK' in payment_method_str or 'CHEQUE' in payment_method_str) and payment.check_number and payment.check_bank:
-                        _, created = create_check_record(
-                            payment=payment,
-                            amount=payment.total_amount,
-                            check_number=payment.check_number,
-                            check_bank=payment.check_bank,
-                            check_date=payment.payment_date or datetime.utcnow(),
-                            check_due_date=payment.check_due_date or payment.payment_date,
-                            notes=f"شيك من دفعة رقم {payment.payment_number or payment.id}"
-                        )
-                        created_checks = created or created_checks
-                    for split in payment.splits:
-                        method_str = str(split.method).upper()
-                        if 'CHECK' not in method_str and 'CHEQUE' not in method_str:
-                            continue
-                        details = split.details or {}
-                        check_number = (details.get('check_number') or "").strip()
-                        check_bank = (details.get('check_bank') or "").strip()
-                        if not check_number or not check_bank:
-                            current_app.logger.warning(f"⚠️ شيك بدون رقم أو بنك في دفعة {payment.id}")
-                            continue
-                        check_due_date_raw = details.get('check_due_date') or payment.check_due_date or payment.payment_date
-                        _, created = create_check_record(
-                            payment=payment,
-                            amount=split.amount,
-                            check_number=check_number,
-                            check_bank=check_bank,
-                            check_date=payment.payment_date or datetime.utcnow(),
-                            check_due_date=check_due_date_raw,
-                            notes=f"شيك من دفعة رقم {payment.payment_number or payment.id}"
-                        )
-                        created_checks = created or created_checks
-                    if created_checks:
+                created_checks = False
+                payment_method_str = str(payment.method).upper()
+                if ('CHECK' in payment_method_str or 'CHEQUE' in payment_method_str) and payment.check_number and payment.check_bank:
+                    _, created = create_check_record(
+                        payment=payment,
+                        amount=payment.total_amount,
+                        check_number=payment.check_number,
+                        check_bank=payment.check_bank,
+                        check_date=payment.payment_date or datetime.utcnow(),
+                        check_due_date=payment.check_due_date or payment.payment_date,
+                        notes=f"شيك من دفعة رقم {payment.payment_number or payment.id}"
+                    )
+                    created_checks = created or created_checks
+                for split in payment.splits:
+                    method_str = str(split.method).upper()
+                    if 'CHECK' not in method_str and 'CHEQUE' not in method_str:
+                        continue
+                    details = split.details or {}
+                    check_number = (details.get('check_number') or "").strip()
+                    check_bank = (details.get('check_bank') or "").strip()
+                    if not check_number or not check_bank:
+                        current_app.logger.warning(f"⚠️ شيك بدون رقم أو بنك في دفعة {payment.id}")
+                        continue
+                    check_due_date_raw = details.get('check_due_date') or payment.check_due_date or payment.payment_date
+                    _, created = create_check_record(
+                        payment=payment,
+                        amount=split.amount,
+                        check_number=check_number,
+                        check_bank=check_bank,
+                        check_date=payment.payment_date or datetime.utcnow(),
+                        check_due_date=check_due_date_raw,
+                        notes=f"شيك من دفعة رقم {payment.payment_number or payment.id}"
+                    )
+                    created_checks = created or created_checks
+                if created_checks:
+                    try:
                         db.session.commit()
                         current_app.logger.info(f"✅ تم حفظ الشيكات من دفعة {payment.id}")
-                except Exception as e:
-                    current_app.logger.error(f"❌ فشل إنشاء سجل شيك من دفعة {payment.id}: {str(e)}")
-                    import traceback
-                    current_app.logger.error(traceback.format_exc())
+                    except Exception as e:
+                        current_app.logger.error(f"❌ فشل إنشاء سجل شيك من دفعة {payment.id}: {str(e)}")
                 
                 utils.log_audit("Payment", payment.id, "CREATE")
                 
@@ -1663,8 +1656,6 @@ def create_payment():
                             current_app.logger.info(f"✅ تم تسوية الشيك {check_token} بعد حفظ الدفعة {payment.id}")
                     except Exception as e:
                         current_app.logger.error(f"⚠️ فشل تسوية الشيك {check_token} بعد حفظ الدفعة {payment.id}: {str(e)}")
-                        import traceback
-                        current_app.logger.error(traceback.format_exc())
             except SQLAlchemyError:
                 db.session.rollback()
         except SQLAlchemyError as e:
@@ -1687,7 +1678,6 @@ def create_payment():
 
 @payments_bp.route("/expense/<int:exp_id>/create", methods=["GET", "POST"], endpoint="create_expense_payment")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def create_expense_payment(exp_id):
     exp = utils._get_or_404(Expense, exp_id)
     form = PaymentForm()
@@ -1786,7 +1776,6 @@ def create_expense_payment(exp_id):
 
 @payments_bp.route("/split/<int:split_id>/delete", methods=["DELETE"], endpoint="delete_split")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def delete_split(split_id):
     split = utils._get_or_404(PaymentSplit, split_id)
     try:
@@ -1814,7 +1803,6 @@ def delete_split(split_id):
 
 @payments_bp.route("/<int:payment_id>", methods=["GET"], endpoint="view_payment")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def view_payment(payment_id: int):
     """عرض تفاصيل الدفعة"""
     payment = _safe_get_payment(payment_id, all_rels=True)
@@ -1865,7 +1853,6 @@ def update_payment_status(payment_id: int):
 
 @payments_bp.route("/<int:payment_id>/receipt", methods=["GET"], endpoint="payment_receipt")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def view_receipt(payment_id: int):
     payment = _safe_get_payment(payment_id, all_rels=True)
     if not payment:
@@ -1884,7 +1871,6 @@ def view_receipt(payment_id: int):
 
 @payments_bp.route("/<int:payment_id>/receipt/download", methods=["GET"], endpoint="download_receipt")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def download_receipt(payment_id: int):
     payment = _safe_get_payment(payment_id, all_rels=False)
     if not payment:
@@ -1923,7 +1909,6 @@ def download_receipt(payment_id: int):
 
 @payments_bp.route("/entity-fields", methods=["GET"], endpoint="entity_fields")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def entity_fields():
     """جلب حقول الجهة المرتبطة بالدفعة"""
     entity_type = (request.args.get("type") or "customer").strip().lower()
@@ -2128,7 +2113,6 @@ def fx_rate_lookup():
 
 @payments_bp.route("/api/entities/<entity_type>", methods=["GET"], endpoint="get_entities")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def get_entities(entity_type):
     """API للحصول على الجهات حسب النوع مع فلترة ذكية"""
     search = request.args.get("search", "").strip()
@@ -2390,7 +2374,6 @@ def get_related_party():
 
 @payments_bp.route("/search-entities", methods=["GET"], endpoint="search_entities")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def search_entities():
     """البحث الذكي عن الجهات المرتبطة للدفعات"""
     try:
@@ -2546,7 +2529,6 @@ def search_entities():
 
 @payments_bp.route("/shop/checkout", methods=["POST"], endpoint="shop_checkout")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def shop_checkout():
     """إنشاء طلب دفع للمتجر الإلكتروني"""
     try:
@@ -2687,7 +2669,6 @@ def shop_payment_methods():
 
 @payments_bp.route("/shop/process-payment", methods=["POST"], endpoint="shop_process_payment")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def shop_process_payment():
     """معالجة الدفع للمتجر"""
     try:
@@ -2739,7 +2720,6 @@ def shop_process_payment():
 
 @payments_bp.route("/shop/refund", methods=["POST"], endpoint="shop_refund")
 @login_required
-# @permission_required("manage_payments")  # Commented out
 def shop_refund():
     """استرداد مبلغ للمتجر"""
     try:
@@ -2830,8 +2810,6 @@ def shop_payment_status(payment_id):
         })
         
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 @payments_bp.route("/archive/<int:payment_id>", methods=["POST"])
@@ -2850,8 +2828,6 @@ def archive_payment(payment_id):
         return redirect(url_for('payments.index'))
         
     except Exception as e:
-        import traceback
-        
         db.session.rollback()
         flash(f'خطأ في أرشفة الدفعة: {str(e)}', 'error')
         return redirect(url_for('payments.index'))
@@ -2879,11 +2855,9 @@ def restore_payment(payment_id):
             utils.restore_record(archive.id)
         
         flash(f'تم استعادة الدفعة رقم {payment_id} بنجاح', 'success')
-        print(f"🎉 [PAYMENT RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('payments.index'))
         
     except Exception as e:
-        import traceback
         
         db.session.rollback()
         flash(f'خطأ في استعادة الدفعة: {str(e)}', 'error')

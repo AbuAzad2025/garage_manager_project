@@ -308,6 +308,25 @@
     </div>
   </div>
 
+  <div class="card mb-3 no-print">
+    <div class="card-body">
+      <form method="get" action="{{ url_for('customers_bp.account_statement', customer_id=customer.id) }}" class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label class="form-label">من تاريخ</label>
+          <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date.strftime('%Y-%m-%d') if start_date }}">
+        </div>
+        <div class="col-auto">
+          <label class="form-label">إلى تاريخ</label>
+          <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date.strftime('%Y-%m-%d') if end_date }}">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-filter"></i> تطبيق</button>
+          <a href="{{ url_for('customers_bp.account_statement', customer_id=customer.id) }}?start_date=2000-01-01" class="btn btn-sm btn-outline-secondary">عرض الكل</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ملخص الحساب -->
   <div class="row g-3 mb-4">
     {% set stats = [

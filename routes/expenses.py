@@ -7,7 +7,6 @@ import unicodedata
 from datetime import datetime, date as _date
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from flask import Blueprint, flash, redirect, render_template, render_template_string, abort, request, url_for, Response, current_app, jsonify
-import traceback
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload
@@ -647,14 +646,12 @@ def _csv_safe(v):
 
 @expenses_bp.route("/employees", methods=["GET"], endpoint="employees_list")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def employees_list():
     employees = Employee.query.order_by(Employee.name).all()
     return render_template("expenses/employees_list.html", employees=employees)
 
 @expenses_bp.route("/employees/add", methods=["GET", "POST"], endpoint="add_employee")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def add_employee():
     form = EmployeeForm()
     try:
@@ -681,7 +678,6 @@ def add_employee():
 
 @expenses_bp.route("/employees/edit/<int:emp_id>", methods=["GET", "POST"], endpoint="edit_employee")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def edit_employee(emp_id):
     e = _get_or_404(Employee, emp_id)
     form = EmployeeForm(obj=e)
@@ -779,7 +775,6 @@ def get_installments_due(emp_id):
 
 @expenses_bp.route("/employees/<int:emp_id>/generate-salary", methods=["POST"], endpoint="generate_salary")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def generate_salary(emp_id):
     """توليد راتب شهري تلقائياً مع دعم الدفع الجزئي"""
     from models import ExpenseType, EmployeeAdvanceInstallment
@@ -1062,7 +1057,6 @@ def salary_receipt(salary_exp_id):
 
 @expenses_bp.route("/employees/delete/<int:emp_id>", methods=["POST"], endpoint="delete_employee")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def delete_employee(emp_id):
     e = _get_or_404(Employee, emp_id)
     if Expense.query.filter_by(employee_id=emp_id).first():
@@ -1079,14 +1073,12 @@ def delete_employee(emp_id):
 
 @expenses_bp.route("/types", methods=["GET"], endpoint="types_list")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def types_list():
     types = ExpenseType.query.order_by(ExpenseType.name).all()
     return render_template("expenses/types_list.html", types=types)
 
 @expenses_bp.route("/types/add", methods=["GET", "POST"], endpoint="add_type")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def add_type():
     form = ExpenseTypeForm()
     if form.validate_on_submit():
@@ -1104,7 +1096,6 @@ def add_type():
 
 @expenses_bp.route("/types/edit/<int:type_id>", methods=["GET", "POST"], endpoint="edit_type")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def edit_type(type_id):
     t = _get_or_404(ExpenseType, type_id)
     form = ExpenseTypeForm(obj=t)
@@ -1121,7 +1112,6 @@ def edit_type(type_id):
 
 @expenses_bp.route("/types/delete/<int:type_id>", methods=["POST"], endpoint="delete_type")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def delete_type(type_id):
     t = _get_or_404(ExpenseType, type_id)
     if Expense.query.filter_by(type_id=type_id).first():
@@ -1138,7 +1128,6 @@ def delete_type(type_id):
 
 @expenses_bp.route("/", methods=["GET"], endpoint="list_expenses")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def index():
     query, filt = _base_query_with_filters()
     latest_expense = query.first()
@@ -1435,11 +1424,7 @@ def index():
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <button class="btn btn-sm btn-danger" title="حذف عادي"><i class="fas fa-trash"></i></button>
             </form>
-            <a href="{{ url_for('hard_delete_bp.delete_expense', expense_id=e.id) }}"
-               class="btn btn-sm btn-outline-danger" title="حذف قوي"
-               onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
-              <i class="fas fa-bomb"></i>
-            </a>
+            
           {% endif %}
           {% if current_user.has_permission('manage_payments') and not e.is_paid and e.balance and e.balance > 0 %}
             <a href="{{ url_for('expenses_bp.pay', exp_id=e.id) }}" class="btn btn-sm btn-outline-success" title="دفع ({{ '%.2f'|format(e.balance) }} ₪)"><i class="fas fa-money-bill-wave"></i></a>
@@ -1592,7 +1577,7 @@ def index():
             )
         except Exception as exc:
             current_app.logger.exception("Expenses AJAX rendering failed: %s", exc)
-            return jsonify({"error": traceback.format_exc()}), 500
+            return jsonify({"error": str(exc)}), 500
         else:
             return jsonify(
                 {
@@ -1623,7 +1608,6 @@ def index():
 
 @expenses_bp.route("/<int:exp_id>", methods=["GET"], endpoint="detail")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def detail(exp_id):
     exp = _get_or_404(
         Expense,
@@ -1765,7 +1749,6 @@ def detail(exp_id):
 
 @expenses_bp.route("/add", methods=["GET", "POST"], endpoint="create_expense")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def add():
     from models import Branch, Site
     
@@ -2016,8 +1999,6 @@ def add():
                             current_app.logger.info(f"✅ تم إنشاء سجل شيك من مصروف رقم {exp.id}")
             except Exception as e:
                 current_app.logger.error(f"❌ فشل إنشاء سجل شيك من مصروف {exp.id}: {str(e)}")
-                import traceback
-                current_app.logger.error(traceback.format_exc())
                 db.session.commit()
             
             return redirect(url_for("expenses_bp.list_expenses"))
@@ -2041,8 +2022,6 @@ def add():
                 flash("❌ حدث خطأ غير متوقع - يرجى المحاولة مرة أخرى أو التواصل مع الدعم", "danger")
             
             current_app.logger.error(f"خطأ في إضافة مصروف: {err}")
-            import traceback
-            current_app.logger.error(traceback.format_exc())
     
     return _render_expense_form(form, is_edit=False, types_meta=types_meta, types_list=types_list, **render_kwargs)
 
@@ -2294,7 +2273,6 @@ def quick_partner_service_pay():
 
 @expenses_bp.route("/edit/<int:exp_id>", methods=["GET", "POST"], endpoint="edit")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def edit(exp_id):
     from models import Branch, Site
     
@@ -2406,7 +2384,6 @@ def edit(exp_id):
 
 @expenses_bp.route("/delete/<int:exp_id>", methods=["POST"], endpoint="delete")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def delete(exp_id):
     exp = _get_or_404(Expense, exp_id)
     
@@ -2421,7 +2398,6 @@ def delete(exp_id):
 
 @expenses_bp.route("/<int:exp_id>/pay", methods=["GET"], endpoint="pay")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def pay(exp_id):
     """إعادة توجيه لإنشاء دفعة للنفقة مع البيانات الكاملة"""
     exp = _get_or_404(Expense, exp_id)
@@ -2456,7 +2432,6 @@ def pay(exp_id):
 
 @expenses_bp.route("/export", methods=["GET"], endpoint="export")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def export_csv():
     query, _ = _base_query_with_filters()
     rows = query.limit(50000).all()
@@ -2520,7 +2495,6 @@ def export_csv():
 
 @expenses_bp.route("/print", methods=["GET"], endpoint="print_list")
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def print_list():
     query, filt = _base_query_with_filters()
     rows = query.limit(50000).all()
@@ -2541,7 +2515,6 @@ def print_list():
 
 @expenses_bp.route("/archive/<int:expense_id>", methods=["POST"])
 @login_required
-# @permission_required("manage_expenses")  # Commented out
 def archive_expense(expense_id):
     
     try:
@@ -2556,15 +2529,12 @@ def archive_expense(expense_id):
         return redirect(url_for('expenses_bp.list_expenses'))
         
     except Exception as e:
-        import traceback
-        
         db.session.rollback()
         flash(f'خطأ في أرشفة النفقة: {str(e)}', 'error')
         return redirect(url_for('expenses_bp.list_expenses'))
 
 @expenses_bp.route('/restore/<int:expense_id>', methods=['POST'])
 @login_required
-# @permission_required('manage_expenses')  # Commented out
 def restore_expense(expense_id):
     """استعادة نفقة"""
     
@@ -2585,11 +2555,9 @@ def restore_expense(expense_id):
             utils.restore_record(archive.id)
         
         flash(f'تم استعادة النفقة رقم {expense_id} بنجاح', 'success')
-        print(f"🎉 [EXPENSE RESTORE] تمت العملية بنجاح - إعادة توجيه...")
         return redirect(url_for('expenses_bp.list_expenses'))
         
     except Exception as e:
-        import traceback
         
         db.session.rollback()
         flash(f'خطأ في استعادة النفقة: {str(e)}', 'error')
@@ -2738,7 +2706,7 @@ def generate_all_salaries():
             
             if not emp.branch_id:
                 error_count += 1
-                print(f"❌ موظف {emp.name} ليس لديه branch_id")
+                current_app.logger.warning(f"❌ موظف {emp.name} ليس لديه branch_id")
                 continue
             
             new_expense = Expense(
@@ -2763,9 +2731,7 @@ def generate_all_salaries():
         except Exception as e:
             error_count += 1
             db.session.rollback()
-            import traceback
-            print(f"❌ خطأ في توليد راتب {emp.name}: {str(e)}")
-            traceback.print_exc()
+            current_app.logger.error(f"❌ خطأ في توليد راتب {emp.name}: {str(e)}")
             continue
     
     try:

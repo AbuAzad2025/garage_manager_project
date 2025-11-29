@@ -189,7 +189,6 @@ def _ensure_partner_warehouse(warehouse_id, shipment=None):
 
 @shipments_bp.route("/", methods=["GET"], endpoint="list_shipments")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def list_shipments():
     q = db.session.query(Shipment).filter(Shipment.is_archived == False).options(
         joinedload(Shipment.items),
@@ -277,9 +276,8 @@ def _parse_dt(s):
     except Exception:
         return None
 
-@shipments_bp.route("/data", methods=["GET"])
+@shipments_bp.route("/data", methods=["GET"]) 
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def shipments_data():
     from flask_wtf.csrf import generate_csrf
 
@@ -381,7 +379,6 @@ def shipments_data():
 
 @shipments_bp.route("/create", methods=["GET", "POST"], endpoint="create_shipment")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def create_shipment():
     form = ShipmentForm()
     pre_dest_id = request.args.get("destination_id", type=int)
@@ -558,7 +555,6 @@ def create_shipment():
     return render_template("warehouses/shipment_form.html", form=form, shipment=None)
 @shipments_bp.route("/<int:id>/edit", methods=["GET", "POST"], endpoint="edit_shipment")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def edit_shipment(id: int):
     sh = _sa_get_or_404(Shipment, id, options=[
         joinedload(Shipment.items), 
@@ -788,7 +784,6 @@ def edit_shipment(id: int):
 
 @shipments_bp.route("/<int:id>/delete", methods=["POST"], endpoint="delete_shipment")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def delete_shipment(id: int):
     sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items), joinedload(Shipment.partners)])
     dest_id = sh.destination_id
@@ -829,7 +824,6 @@ def delete_shipment(id: int):
 
 @shipments_bp.route("/<int:id>", methods=["GET"], endpoint="shipment_detail")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def shipment_detail(id: int):
     sh = _sa_get_or_404(
         Shipment,
@@ -925,7 +919,6 @@ def shipment_detail(id: int):
 
 @shipments_bp.route("/<int:id>/mark-arrived", methods=["POST"], endpoint="mark_arrived")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def mark_arrived(id: int):
     sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items)])
     if (sh.status or "").upper() == "ARRIVED":
@@ -968,7 +961,6 @@ def mark_arrived(id: int):
 
 @shipments_bp.route("/<int:id>/cancel", methods=["POST"], endpoint="cancel_shipment")
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def cancel_shipment(id: int):
     sh = _sa_get_or_404(Shipment, id, options=[joinedload(Shipment.items)])
     try:
@@ -999,9 +991,8 @@ def cancel_shipment(id: int):
     return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
 
 
-@shipments_bp.route("/<int:id>/mark-in-transit", methods=["POST"])
+@shipments_bp.route("/<int:id>/mark-in-transit", methods=["POST"]) 
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def mark_in_transit(id):
     sh = _sa_get_or_404(Shipment, id)
     if (sh.status or "").upper() == "IN_TRANSIT":
@@ -1034,9 +1025,8 @@ def mark_in_transit(id):
     return redirect(url_for("shipments_bp.shipment_detail", id=sh.id))
 
 
-@shipments_bp.route("/<int:id>/mark-in-customs", methods=["POST"])
+@shipments_bp.route("/<int:id>/mark-in-customs", methods=["POST"]) 
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def mark_in_customs(id):
     sh = _sa_get_or_404(Shipment, id)
     if (sh.status or "").upper() == "IN_CUSTOMS":
@@ -1071,7 +1061,6 @@ def mark_in_customs(id):
 
 @shipments_bp.route("/<int:id>/mark-delivered", methods=["POST"])
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def mark_delivered(id):
     """
     تسليم الشحنة - ترحيل البنود للمستودعات
@@ -1230,7 +1219,6 @@ def mark_delivered(id):
 
 @shipments_bp.route("/<int:id>/mark-returned", methods=["POST"])
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def mark_returned(id):
     sh = _sa_get_or_404(Shipment, id)
     if (sh.status or "").upper() == "RETURNED":
@@ -1265,7 +1253,6 @@ def mark_returned(id):
 
 @shipments_bp.route("/<int:id>/update-delivery-attempt", methods=["POST"])
 @login_required
-# @permission_required("manage_warehouses")  # Commented out
 def update_delivery_attempt(id):
     sh = _sa_get_or_404(Shipment, id)
     data = request.get_json(silent=True) or {}

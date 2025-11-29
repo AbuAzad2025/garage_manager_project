@@ -1,7 +1,7 @@
 
 from datetime import datetime, date as _date, time as _time
 from decimal import Decimal, ROUND_HALF_UP
-from flask import Blueprint, request, jsonify, render_template, url_for, abort
+from flask import Blueprint, request, jsonify, render_template, url_for, abort, current_app
 from flask_login import login_required
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
@@ -101,7 +101,6 @@ def check_unpriced_items():
 
 @supplier_settlements_bp.route("/settlements", methods=["GET"], endpoint="list")
 @login_required
-# @permission_required("manage_vendors")  # Commented out
 def settlements_list():
     """قائمة تسويات الموردين"""
     from sqlalchemy import desc
@@ -986,8 +985,7 @@ def _calculate_smart_supplier_balance(supplier_id: int, date_from: datetime, dat
             }
         return {"success": False, "error": f"خطأ في الحساب: {str(e)}"}
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        
         return {"success": False, "error": f"خطأ في حساب رصيد المورد: {str(e)}"}
 
 
@@ -2401,8 +2399,7 @@ def approve_settlement(supplier_id):
                 entity_id=supplier_id
             )
     except Exception as e:
-        import sys
-        print(f"⚠️ خطأ في إنشاء قيد GL للتسوية #{settlement.code}: {e}", file=sys.stderr)
+        current_app.logger.error(f"⚠️ خطأ في إنشاء قيد GL للتسوية #{settlement.code}: {e}")
     
     db.session.commit()
     

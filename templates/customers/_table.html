@@ -144,11 +144,6 @@
                     title="حذف عادي">
               <i class="fas fa-trash"></i>
             </button>
-            <a href="{{ url_for('hard_delete_bp.delete_customer', customer_id=customer.id) }}" 
-               class="btn btn-danger btn-action-sm" 
-               title="حذف قوي (مع العمليات العكسية)">
-              <i class="fas fa-bomb"></i>
-            </a>
           </div>
         </td>
         {% endif %}

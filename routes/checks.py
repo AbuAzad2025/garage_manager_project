@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Optional
+import logging
 
 from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
 from flask_login import current_user, login_required
@@ -483,11 +484,9 @@ def _check_gl_batch_reverse(mapper, connection, target):
     except Exception as e:
         try:
             current_app.logger.error(f"⚠️ خطأ في عكس قيد الشيك #{getattr(target, 'id', '?')}: {e}")
-            import traceback
-            current_app.logger.debug(traceback.format_exc())
+            
         except Exception:
-            import sys
-            print(f"⚠️ خطأ في عكس قيد الشيك #{getattr(target, 'id', '?')}: {e}", file=sys.stderr)
+            logging.getLogger(__name__).error(f"⚠️ خطأ في عكس قيد الشيك #{getattr(target, 'id', '?')}: {e}")
 
 
 @event.listens_for(Payment, 'before_delete')
@@ -503,8 +502,7 @@ def _payment_check_before_delete(mapper, connection, target):
     except Exception as e:
         try:
             current_app.logger.error(f"خطأ في حذف القيود المحاسبية للدفعة {getattr(target, 'id', '?')}: {str(e)}")
-            import traceback
-            current_app.logger.debug(traceback.format_exc())
+            
         except Exception:
             pass
 
@@ -544,8 +542,7 @@ def _glbatch_before_delete(mapper, connection, target):
     except Exception as e:
         try:
             current_app.logger.error(f"خطأ في إلغاء الشيك عند حذف القيد (type={getattr(target, 'source_type', '?')}, id={getattr(target, 'source_id', '?')}): {str(e)}")
-            import traceback
-            current_app.logger.debug(traceback.format_exc())
+            
         except Exception:
             pass
 
@@ -631,8 +628,7 @@ def _check_manual_gl_on_insert(mapper, connection, target):
                 entity_type = 'PARTNER'
         except Exception as e:
             current_app.logger.warning(f"⚠️ خطأ في جلب اسم الكيان للشيك #{getattr(target, 'id', '?')}: {e}")
-            import traceback
-            current_app.logger.debug(traceback.format_exc())
+            
             return
         
         if not entity_id:
@@ -656,8 +652,7 @@ def _check_manual_gl_on_insert(mapper, connection, target):
         })
     except Exception as e:
         current_app.logger.warning(f"⚠️ خطأ في وضع علامة لإنشاء GL للشيك #{getattr(target, 'id', '?')}: {e}")
-        import traceback
-        current_app.logger.debug(traceback.format_exc())
+        
 
 
 @event.listens_for(Check, 'after_insert', propagate=True)
@@ -825,8 +820,7 @@ def _check_create_payment_auto(mapper, connection, target):
         current_app.logger.info(f"✅ تم إنشاء دفعة تلقائياً للشيك اليدوي #{target.id} - Payment #{payment_id}")
     except Exception as e:
         current_app.logger.error(f"❌ [CHECK_PAYMENT_AUTO] خطأ في إنشاء دفعة تلقائية للشيك اليدوي #{getattr(target, 'id', '?')}: {e}")
-        import traceback
-        current_app.logger.error(f"❌ [CHECK_PAYMENT_AUTO] Traceback:\n{traceback.format_exc()}")
+        
 
 
 @event.listens_for(Check, 'after_update', propagate=True)
@@ -942,8 +936,7 @@ def _check_manual_gl_on_update(mapper, connection, target):
         )
     except Exception as e:
         current_app.logger.warning(f"⚠️ خطأ في ترحيل الشيك اليدوي #{getattr(target, 'id', '?')} لدفتر الأستاذ عند التحديث: {e}")
-        import traceback
-        current_app.logger.debug(traceback.format_exc())
+        
 
 
 def ensure_check_accounts():
@@ -3628,8 +3621,7 @@ def get_checks():
     
     except Exception as e:
         current_app.logger.error(f"Error fetching checks: {str(e)}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
+        
         return jsonify({
             'success': False,
             'error': str(e)
@@ -3791,8 +3783,7 @@ def get_statistics():
     
     except Exception as e:
         current_app.logger.error(f"Error fetching check statistics: {str(e)}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
+        
         return jsonify({
             'success': False,
             'error': str(e)
@@ -3884,8 +3875,7 @@ def get_first_incomplete_check():
         })
     except Exception as e:
         current_app.logger.error(f"Error fetching first incomplete check: {str(e)}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
+        
         return jsonify({
             'success': False,
             'error': str(e)
@@ -4079,8 +4069,6 @@ def update_check_status(check_id):
     except Exception as err:
         db.session.rollback()
         current_app.logger.error(f"Unexpected error updating check status {check_id}: {err}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(err)}), 500
 
 
@@ -4124,8 +4112,6 @@ def update_check_details(check_token):
     except Exception as err:
         db.session.rollback()
         current_app.logger.error(f"Error updating check details {check_token}: {err}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(err)}), 500
 
 
@@ -4260,8 +4246,6 @@ def mark_check_settled(check_token):
     except Exception as err:
         db.session.rollback()
         current_app.logger.error(f"Error marking check settled {check_token}: {err}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(err)}), 500
 
 
@@ -4499,8 +4483,6 @@ def unsettle_check(check_token):
     except Exception as err:
         db.session.rollback()
         current_app.logger.error(f"Error unsetting check {check_token}: {err}")
-        import traceback
-        current_app.logger.error(traceback.format_exc())
         return jsonify({'success': False, 'error': str(err)}), 500
 
 
@@ -4813,7 +4795,6 @@ def edit_check(check_id):
 
 @checks_bp.route("/detail/<int:check_id>")
 @login_required
-# @permission_required("view_payments")  # Commented out
 def check_detail(check_id):
     """عرض تفاصيل شيك"""
     check = Check.query.get_or_404(check_id)

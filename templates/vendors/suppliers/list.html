@@ -327,13 +327,7 @@
                       <span class="d-none d-lg-inline ms-1">حذف</span>
                     </button>
                   </form>
-                  <a href="{{ url_for('hard_delete_bp.delete_supplier', supplier_id=s.id) }}"
-                     class="btn btn-sm btn-outline-danger d-flex align-items-center"
-                     title="حذف قوي"
-                     onclick="return confirm('حذف قوي - سيتم حذف جميع البيانات المرتبطة!')">
-                    <i class="fas fa-bomb"></i>
-                    <span class="d-none d-lg-inline ms-1">حذف قوي</span>
-                  </a>
+                  
                 {% endif %}
               </div>
             </td>

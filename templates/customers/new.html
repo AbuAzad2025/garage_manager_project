@@ -18,7 +18,7 @@
       {% if form.errors %}
         <div class="alert alert-danger">يرجى تصحيح الحقول المظللة أدناه.</div>
       {% endif %}
-      <form id="customer-create-form" method="post" action="{{ url_for('customers_bp.create_customer') }}" novalidate data-ajax="0">
+      <form id="customer-create-form" method="post" action="{{ url_for('customers_bp.create_customer') }}" novalidate data-ajax="1">
         {{ form.hidden_tag() }}
         <input type="hidden" name="return_to" value="{{ return_to or request.args.get('return_to','') }}">
         <div class="d-flex justify-content-end mb-3 gap-3">
@@ -39,7 +39,7 @@
           </div>
           <div class="form-group col-md-6">
             <label for="{{ form.phone.id }}"><i class="fas fa-phone"></i> رقم الهاتف <span class="text-danger">*</span></label>
-            {{ form.phone(class="form-control form-control-sm" + (' is-invalid' if form.phone.errors else ''), placeholder="05XXXXXXXX", inputmode="tel") }}
+            {{ form.phone(class="form-control form-control-sm" + (' is-invalid' if form.phone.errors else ''), placeholder="05XXXXXXXX", inputmode="tel", required=True) }}
             {% for e in form.phone.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
         </div>
@@ -68,7 +68,7 @@
           </div>
           <div class="form-group col-md-6">
             <label for="{{ form.currency.id }}"><i class="fas fa-coins"></i> العملة <span class="text-danger">*</span></label>
-            {{ form.currency(class="form-control form-control-sm" + (' is-invalid' if form.currency.errors else '')) }}
+            {{ form.currency(class="form-control form-control-sm" + (' is-invalid' if form.currency.errors else ''), required=True) }}
             {% for e in form.currency.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
         </div>
@@ -94,7 +94,7 @@
         <div class="form-row">
           <div class="form-group col-md-6">
             <label for="{{ form.password.id }}"><i class="fas fa-lock"></i> كلمة المرور <span class="text-danger">*</span></label>
-            {{ form.password(class="form-control form-control-sm" + (' is-invalid' if form.password.errors else ''), placeholder="******", autocomplete="new-password") }}
+            {{ form.password(class="form-control form-control-sm" + (' is-invalid' if form.password.errors else ''), placeholder="******", autocomplete="new-password", required=True, minlength="6") }}
             {% for e in form.password.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
           </div>
           <div class="form-group col-md-6">
@@ -109,7 +109,7 @@
           {% for e in form.notes.errors %}<div class="invalid-feedback d-block">{{ e }}</div>{% endfor %}
         </div>
         <div class="mt-4 d-flex">
-          <button type="submit" class="btn btn-success"><i class="fas fa-save ml-1"></i> حفظ</button>
+          <button type="submit" class="btn btn-success no-loading"><i class="fas fa-save ml-1"></i> حفظ</button>
           <a href="{{ url_for('customers_bp.list_customers') }}" class="btn btn-secondary ml-2">إلغاء</a>
         </div>
       </form>

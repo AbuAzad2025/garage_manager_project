@@ -24,7 +24,6 @@ def _wants_json() -> bool:
 
 @parts_bp.get("/", endpoint="parts_list")
 @login_required
-# @permission_required("view_parts")  # Commented out
 def parts_list():
     q = (request.args.get("q") or "").strip()
     qry = Product.query
@@ -37,7 +36,6 @@ def parts_list():
 
 @parts_bp.post("/create")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def parts_create():
     name = (request.form.get("name") or "").strip()
     if not name:
@@ -84,7 +82,6 @@ def parts_create():
 
 @parts_bp.post("/<int:id>/edit")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def parts_edit(id):
     p = db.session.get(Product, id)
     if not p:
@@ -134,7 +131,6 @@ def parts_edit(id):
 
 @parts_bp.get("/<int:id>/stock")
 @login_required
-# @permission_required("view_parts")  # Commented out
 def stock_levels(id):
     p = db.session.get(Product, id)
     if not p:
@@ -150,7 +146,6 @@ def stock_levels(id):
 
 @parts_bp.post("/<int:id>/delete")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def parts_delete(id):
     p = db.session.get(Product, id)
     if not p:
@@ -175,7 +170,6 @@ def parts_delete(id):
 
 @parts_bp.post("/update-cost")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def update_part_cost():
     """تحديث تكلفة منتج واحد"""
     try:
@@ -211,7 +205,6 @@ def update_part_cost():
 
 @parts_bp.post("/update-multiple-costs")
 @login_required
-# @permission_required("manage_inventory")  # Commented out
 def update_multiple_costs():
     """تحديث تكاليف عدة منتجات دفعة واحدة"""
     try:

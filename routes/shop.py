@@ -1130,8 +1130,6 @@ def admin_product_edit(pid):
             # حفظ الصور من الحقول المخفية قبل apply_to
             new_image = request.form.get("image", "").strip()
             new_online_image = request.form.get("online_image", "").strip()
-            print(f"DEBUG: new_image from form = {repr(new_image)}")
-            print(f"DEBUG: new_online_image from form = {repr(new_online_image)}")
             
             form.apply_to(product)
             
@@ -1201,7 +1199,6 @@ def admin_product_update_fields(pid):
     payload = request.get_json(silent=True) or {}
 
     def _clean_img(v):
-        print(f"DEBUG: _clean_img input: {repr(v)}")
         if v is None:
             return None
         s = str(v).strip()
@@ -1221,7 +1218,6 @@ def admin_product_update_fields(pid):
             if not s.startswith("products/") and not s.startswith("uploads/"):
                 s = "products/" + s
             result = s
-        print(f"DEBUG: _clean_img output: {repr(result)}")
         return result
 
     new_name = (payload.get("name") or "").strip() if "name" in payload else None

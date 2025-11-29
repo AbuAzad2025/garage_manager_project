@@ -569,9 +569,7 @@ def get_sale_items(sale_id):
         })
         
     except Exception as e:
-        import traceback
-        print(f"❌ Error in get_sale_items for sale_id={sale_id}: {str(e)}")
-        traceback.print_exc()
+        
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -602,8 +600,5 @@ def get_customer_sales(customer_id: int):
             })
         return jsonify({'success': True, 'sales': data})
     except Exception as e:
-        print(f"❌ Error in get_customer_sales: {e}")
-        import traceback
-        traceback.print_exc()
+        
         return jsonify({'success': False, 'error': str(e)}), 500
-

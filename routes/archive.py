@@ -15,7 +15,6 @@ archive_bp = Blueprint('archive', __name__, url_prefix='/archive')
 
 @archive_bp.route('/')
 @login_required
-# @permission_required('manage_archive')  # Commented out
 def index():
     stats = get_archive_stats()
     recent_archives = Archive.query.order_by(desc(Archive.archived_at)).limit(10).all()
@@ -28,7 +27,6 @@ def index():
 
 @archive_bp.route('/search', methods=['GET', 'POST'])
 @login_required
-# @permission_required('manage_archive')  # Commented out
 def search():
     """البحث في الأرشيفات"""
     # form = ArchiveSearchForm()
@@ -68,7 +66,6 @@ def search():
 
 @archive_bp.route('/bulk-archive', methods=['GET', 'POST'])
 @login_required
-# @super_only  # Commented out
 def bulk_archive():
     """الأرشفة الجماعية"""
     # form = BulkArchiveForm()
@@ -130,7 +127,6 @@ def bulk_archive():
 
 @archive_bp.route('/view/<int:archive_id>')
 @login_required
-# @permission_required('manage_archive')  # Commented out
 def view_archive(archive_id):
     """عرض تفاصيل الأرشيف"""
     archive = Archive.query.get_or_404(archive_id)
@@ -145,7 +141,6 @@ def view_archive(archive_id):
 
 @archive_bp.route('/restore/<int:archive_id>', methods=['GET', 'POST'])
 @login_required
-# @super_only  # Commented out
 def restore_archive(archive_id):
     """استعادة الأرشيف - فقط للمالك أو Super Admin"""
     # التحقق من الصلاحيات
@@ -168,7 +163,6 @@ def restore_archive(archive_id):
 
 @archive_bp.route('/delete/<int:archive_id>', methods=['POST'])
 @login_required
-# @super_only  # Commented out
 def delete_archive(archive_id):
     """حذف الأرشيف نهائياً - فقط للمالك (ID=1)"""
     # التحقق من الصلاحيات - فقط المالك
@@ -190,7 +184,6 @@ def delete_archive(archive_id):
 
 @archive_bp.route('/export')
 @login_required
-# @permission_required('manage_archive')  # Commented out
 def export_archives():
     """تصدير الأرشيفات"""
     # يمكن تطوير هذا لاحقاً لتصدير الأرشيفات

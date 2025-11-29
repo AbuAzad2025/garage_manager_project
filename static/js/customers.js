@@ -7,6 +7,67 @@
   const qs = (sel, root = document) => root.querySelector(sel);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const isEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  const __isDebugCustomers = (() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('debug') === '1' || p.get('debug') === 'customers') return true;
+      return localStorage.getItem('debug_customers') === '1';
+    } catch (_) { return false; }
+  })();
+  const dbg = (...args) => { if (__isDebugCustomers) { try { console.log('[customers]', ...args); } catch (_) {} } };
+  const FIELD_LABELS = {
+    name: 'اسم العميل',
+    phone: 'رقم الهاتف',
+    email: 'البريد الإلكتروني',
+    whatsapp: 'رقم الواتساب',
+    address: 'العنوان',
+    category: 'تصنيف العميل',
+    currency: 'العملة',
+    discount_rate: 'معدل الخصم',
+    credit_limit: 'حد الائتمان',
+    opening_balance: 'الرصيد الافتتاحي',
+    password: 'كلمة المرور',
+    confirm: 'تأكيد كلمة المرور',
+    notes: 'ملاحظات'
+  };
+  const labelFor = (k) => FIELD_LABELS[k] || k;
+  const showFormErrorSummary = (form, errors, message) => {
+    if (!form) return;
+    let host = form.closest('.card-body') || form.parentElement || form;
+    let el = host.querySelector('.ajax-error-summary');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'ajax-error-summary alert alert-danger';
+      host.insertBefore(el, host.firstChild);
+    }
+    const keys = errors ? Object.keys(errors) : [];
+    const msgs = keys.map(k => {
+      const v = errors[k];
+      const txt = Array.isArray(v) ? v.join('، ') : String(v || '');
+      return { k, txt };
+    });
+    const head = message || 'يرجى تصحيح الحقول التالية:';
+    const listHtml = msgs.slice(0, 6).map(it => `<li><strong>${labelFor(it.k)}</strong>: ${it.txt}</li>`).join('');
+    el.innerHTML = `<div class="mb-1">${head}</div><ul class="mb-0 pl-3">${listHtml}</ul>`;
+    try { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
+  };
+  const setSubmitBtnState = (btn, loading) => {
+    if (!btn) return;
+    if (loading) {
+      btn.disabled = true;
+      btn.classList.add('disabled');
+      btn.setAttribute('aria-disabled', 'true');
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-1"></i> جاري الحفظ...';
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('disabled');
+      btn.classList.remove('loading');
+      const sp = btn.querySelector('.btn-spinner');
+      if (sp && sp.parentNode) sp.parentNode.removeChild(sp);
+      btn.removeAttribute('aria-disabled');
+      btn.innerHTML = '<i class="fas fa-save ml-1"></i> حفظ';
+    }
+  };
   const getCsrf = (root = document) => {
     const meta = root.querySelector('meta[name="csrf-token"]');
     if (meta && meta.content) return meta.content;
@@ -16,6 +77,35 @@
   const showToast = (msg, level = "info") => {
     if (typeof window.showNotification === "function") return window.showNotification(msg, level);
     if (!window.showNotification) alert(msg);
+  };
+  const showFormSuccessBanner = (form, text, id, rt) => {
+    if (!form) return;
+    const host = form.closest('.card-body') || form.parentElement || form;
+    const old = host.querySelector('.ajax-success-banner');
+    if (old) { try { old.remove(); } catch (_) {} }
+    const el = document.createElement('div');
+    el.className = 'ajax-success-banner alert alert-success d-flex align-items-center justify-content-between';
+    const msg = document.createElement('div');
+    msg.textContent = text || 'تم إنشاء العميل بنجاح';
+    const actions = document.createElement('div');
+    actions.className = 'd-flex gap-2';
+    if (id) {
+      const openBtn = document.createElement('a');
+      openBtn.href = `/customers/${id}`;
+      openBtn.className = 'btn btn-sm btn-outline-success ml-2';
+      openBtn.textContent = 'فتح العميل';
+      actions.appendChild(openBtn);
+    }
+    if (rt) {
+      const backBtn = document.createElement('a');
+      backBtn.href = rt;
+      backBtn.className = 'btn btn-sm btn-outline-primary ml-2';
+      backBtn.textContent = 'الرجوع';
+      actions.appendChild(backBtn);
+    }
+    el.appendChild(msg);
+    el.appendChild(actions);
+    host.insertBefore(el, host.firstChild);
   };
   const clearFieldErrors = (form) => {
     form.querySelectorAll(".is-invalid").forEach(el => el.classList.remove("is-invalid"));
@@ -27,6 +117,7 @@
       const field = form.querySelector(`[name="${name}"]`);
       if (!field) return;
       field.classList.add("is-invalid");
+      field.setAttribute('aria-invalid', 'true');
       let fb = field.nextElementSibling;
       if (!fb || !fb.classList.contains("invalid-feedback")) {
         fb = document.createElement("div");
@@ -126,10 +217,7 @@
       const submitBtn = form.querySelector('button[type="submit"]');
       if (!form.checkValidity()) {
         e.preventDefault();
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="fas fa-save ml-1"></i> حفظ';
-        }
+        setSubmitBtnState(submitBtn, false);
         const firstInvalid = form.querySelector(':invalid');
         if (firstInvalid) firstInvalid.focus();
         return;
@@ -167,42 +255,75 @@
       const inModal = !!form.closest(".modal");
       const ajaxEnabled = inModal || form.dataset.ajax === "1";
       if (!ajaxEnabled) {
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin ml-1"></i> جاري الحفظ...';
-        }
         return;
       }
       e.preventDefault();
       clearFieldErrors(form);
+      const host = form.closest('.card-body') || form.parentElement || form;
+      const oldSummary = host.querySelector('.ajax-error-summary');
+      if (oldSummary) { try { oldSummary.remove(); } catch (_) {} }
       const csrf = getCsrf(form);
       try {
-        if (submitBtn) {
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin ml-1"></i> جاري الحفظ...';
-        }
+        const snap = {};
+        ['name','phone','email','address','whatsapp','category','currency'].forEach(function(k){
+          const el = form.querySelector('[name="'+k+'"]');
+          if (el) snap[k] = String(el.value||'').slice(0,120);
+        });
+        dbg('submit', { ajaxEnabled, action: form.action, snap });
+      } catch (_) {}
+      try {
+        setSubmitBtnState(submitBtn, true);
         const res = await fetch(form.action, {
           method: "POST",
           body: new FormData(form),
           headers: Object.assign(
-            { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json" },
+            { "X-Requested-With": "XMLHttpRequest", "Accept": "application/json", "Cache-Control": "no-cache" },
             csrf ? { "X-CSRFToken": csrf } : {}
           )
         });
         const ct = res.headers.get("content-type") || "";
         const isJson = ct.includes("application/json");
-        const data = isJson ? await res.json() : null;
+        let data = null;
+        let html = null;
+        if (isJson) {
+          try { data = await res.json(); } catch (_) { data = null; }
+        } else {
+          try { html = await res.text(); } catch (_) { html = null; }
+        }
+        dbg('response', { status: res.status, ok: res.ok, isJson });
         if (!res.ok || (isJson && data && data.ok === false)) {
-          if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-save ml-1"></i> حفظ';
+          setSubmitBtnState(submitBtn, false);
+          let message = (isJson && data && data.message) ? data.message : null;
+          if (isJson && data && data.errors) {
+            applyFieldErrors(form, data.errors);
+            const firstInvalid = form.querySelector('.is-invalid');
+            if (firstInvalid && typeof firstInvalid.focus === 'function') {
+              try { firstInvalid.focus(); } catch (_) {}
+            }
+            showFormErrorSummary(form, data.errors, message || 'تحقق من الحقول');
+            try { dbg('errors', data.errors); } catch (_) {}
+            message = null; // تم عرض ملخص أخطاء واضح؛ لا حاجة لتوست عام
           }
-          const message = (isJson && data && data.message) ? data.message : "فشل إنشاء العميل";
-          if (isJson && data && data.errors) applyFieldErrors(form, data.errors);
+          if (message) showToast(message, 'warning');
           return;
         }
-        const id = isJson && data ? data.id : null;
-        const text = isJson && data ? (data.text || form.querySelector('[name="name"]')?.value || "عميل") : "عميل";
+        if (!isJson) {
+          setSubmitBtnState(submitBtn, false);
+          try { dbg('html_return', { length: html ? html.length : 0 }); } catch (_) {}
+          if (html) {
+            try { window.__CUSTOMERS_INIT__ = false; } catch (_) {}
+            document.open();
+            document.write(html);
+            document.close();
+          }
+          return;
+        }
+        const id = data ? data.id : null;
+        const text = data ? (data.text || form.querySelector('[name="name"]').value || "عميل") : "عميل";
+        setSubmitBtnState(submitBtn, false);
+        showToast('تم إنشاء العميل بنجاح', 'success');
+        const rt = form.querySelector('input[name="return_to"]')?.value || "";
+        showFormSuccessBanner(form, 'تم إنشاء العميل بنجاح', id, rt);
         form.dispatchEvent(new CustomEvent("customer:created", { detail: { id, text }, bubbles: true }));
         const m = form.closest(".modal");
         if (m) {
@@ -212,13 +333,11 @@
             m.classList.remove("show");
           }
         }
-        const rt = form.querySelector('input[name="return_to"]')?.value || "";
-        if (rt) window.location.href = rt;
+        // عدم التحويل التلقائي: يُعرض شريط نجاح مع روابط للعمل بوضوح
       } catch (err) {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="fas fa-save ml-1"></i> حفظ';
-        }
+        setSubmitBtnState(submitBtn, false);
+        try { dbg('network_error', String((err && err.message) || err)); } catch (_) {}
+        showToast('تعذر الاتصال بالخادم.', 'warning');
       }
     });
   });
@@ -264,6 +383,25 @@
   } else {
     initCustomerTable();
   }
+
+  // تركيز أول حقل غير صالح بعد عودة الصفحة من الخادم
+  (function focusFirstInvalidOnLoad(){
+    const firstInvalid = document.querySelector('.is-invalid');
+    if (firstInvalid && typeof firstInvalid.focus === 'function') {
+      try { firstInvalid.focus(); } catch (e) {}
+    }
+  })();
+
+  // إعادة تعيين زر الحفظ عند تحميل صفحة الأخطاء
+  (function resetSubmitBtnOnLoad(){
+    const form = document.querySelector('#customer-create-form');
+    if (!form) return;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (!submitBtn) return;
+    if (submitBtn.disabled || /fa-spinner/.test(submitBtn.innerHTML)) {
+      setSubmitBtnState(submitBtn, false);
+    }
+  })();
 
   const customersTableWrapper = qs("#customers-table-wrapper");
   const paginationWrapper = qs("#customers-pagination-wrapper");

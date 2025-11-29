@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 from functools import wraps
 from datetime import datetime
@@ -689,7 +689,7 @@ def _save_conversation(query: str, response: dict):
             json.dump(conversations, f, ensure_ascii=False, indent=2)
     
     except Exception as e:
-        print(f"Error saving conversation: {e}")
+        current_app.logger.error(f"Error saving conversation: {e}")
 
 
 def _get_recent_conversations(limit: int = 5) -> List[Dict]:
@@ -712,7 +712,7 @@ def _get_recent_conversations(limit: int = 5) -> List[Dict]:
         return []
     
     except Exception as e:
-        print(f"Error loading conversations: {e}")
+        current_app.logger.error(f"Error loading conversations: {e}")
         return []
 
 

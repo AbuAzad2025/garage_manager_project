@@ -49,6 +49,7 @@ from models import (
 import utils
 from utils import archive_record, restore_record
 from utils.balance_calculator import build_customer_balance_view
+from sqlalchemy import text as sa_text
 
 customers_bp = Blueprint(
     "customers_bp",
@@ -416,7 +417,6 @@ def list_customers():
 
 @customers_bp.route("/<int:customer_id>", methods=["GET"], endpoint="customer_detail")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def customer_detail(customer_id):
     customer = db.session.get(Customer, customer_id) or abort(404)
     balance_breakdown = None
@@ -440,7 +440,6 @@ def customer_detail(customer_id):
 
 @customers_bp.route("/<int:customer_id>/analytics", methods=["GET"], endpoint="customer_analytics")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def customer_analytics(customer_id):
     customer = db.session.get(Customer, customer_id) or abort(404)
 
@@ -625,7 +624,6 @@ def customer_analytics(customer_id):
 
 @customers_bp.route("/create", methods=["GET"], endpoint="create_form")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def create_form():
     form = CustomerForm()
     for k in ("name", "phone", "email", "address", "whatsapp", "category", "notes"):
@@ -637,18 +635,54 @@ def create_form():
 
 @customers_bp.route("/create", methods=["POST"], endpoint="create_customer")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def create_customer():
     form = CustomerForm()
     is_ajax = _is_ajax()
+    try:
+        hdr = {
+            "accept": request.headers.get("Accept"),
+            "xreq": request.headers.get("X-Requested-With"),
+            "ctype": request.headers.get("Content-Type"),
+        }
+        snap = {
+            "name": (request.form.get("name") or "")[:120],
+            "phone": (request.form.get("phone") or "")[:50],
+            "email": (request.form.get("email") or "")[:120],
+            "return_to": (request.form.get("return_to") or "")[:200],
+        }
+        current_app.logger.info(f"[customers.create] start is_ajax={is_ajax} hdr={hdr} snap={snap}")
+    except Exception:
+        pass
     if not form.validate_on_submit():
         errs = {k: v for k, v in form.errors.items()}
+        try:
+            current_app.logger.info(f"[customers.create] validate_failed is_ajax={is_ajax} err_keys={list(errs.keys())}")
+        except Exception:
+            pass
         if is_ajax:
             return jsonify({"ok": False, "errors": errs, "message": "تحقق من الحقول"}), 400
         if errs:
             msgs = "; ".join(f"{k}: {', '.join(v)}" for k, v in errs.items())
             flash(f"تحقق من الحقول: {msgs}", "warning")
-        return render_template("customers/new.html", form=form, return_to=request.form.get("return_to")), 400
+        # إبقاء المستخدم على نفس الصفحة مع عرض الأخطاء دون كود خطأ HTTP
+        return render_template("customers/new.html", form=form, return_to=request.form.get("return_to"))
+    # فحص تكرار الهاتف مسبقًا لتجنّب خطأ قاعدة البيانات
+    try:
+        import re
+        phone_in = (form.phone.data or "").strip()
+        s = phone_in
+        s = "+" + re.sub(r"\D", "", s[1:]) if s.startswith("+") else re.sub(r"\D", "", s)
+        exists_obj = db.session.query(Customer.id).filter(Customer.phone == s).first()
+        if exists_obj:
+            dup_errs = {"phone": ["هذا الهاتف مستخدم مسبقًا"]}
+            if is_ajax:
+                return jsonify({"ok": False, "message": "بريد أو هاتف مكرر", "errors": dup_errs, "existing_id": exists_obj.id}), 409
+            for k, v in dup_errs.items():
+                form.errors.setdefault(k, []).extend(v)
+            flash("هذا الهاتف مستخدم مسبقًا", "danger")
+            return render_template("customers/new.html", form=form, return_to=request.form.get("return_to"))
+    except Exception:
+        pass
     cust = Customer(
         name=form.name.data,
         phone=form.phone.data,
@@ -667,8 +701,8 @@ def create_customer():
     if getattr(form, "password", None) and form.password.data:
         cust.set_password(form.password.data)
     db.session.add(cust)
-    db.session.flush()
     try:
+        db.session.flush()
         log_customer_action(cust, "CREATE", None, cust.to_dict() if hasattr(cust, "to_dict") else form.data)
         db.session.commit()
     except IntegrityError as e:
@@ -679,19 +713,38 @@ def create_customer():
         if "email" in detail.lower():
             field_errs["email"] = ["هذا البريد مستخدم مسبقًا"]
         if "phone" in detail.lower() or "whatsapp" in detail.lower():
+            # البحث عن هوية العميل الموجود لإظهار رابط فتحه على الواجهة
+            try:
+                existing_obj = db.session.query(Customer.id).filter(Customer.phone == cust.phone).first()
+                existing_id = existing_obj.id if existing_obj else None
+            except Exception:
+                existing_id = None
             field_errs["phone"] = ["هذا الهاتف مستخدم مسبقًا"]
         if is_ajax:
-            return jsonify({"ok": False, "message": msg, "errors": field_errs}), 409
+            try:
+                current_app.logger.info(f"[customers.create] integrity_error detail={detail}")
+            except Exception:
+                pass
+            payload = {"ok": False, "message": msg, "errors": field_errs}
+            if existing_id:
+                payload["existing_id"] = existing_id
+            return jsonify(payload), 409
         flash(f"{msg} (Unique constraint).", "danger")
-        return render_template("customers/new.html", form=form, return_to=request.form.get("return_to")), 409
+        # إبقاء المستخدم على نفس الصفحة مع الحفاظ على الإدخالات
+        return render_template("customers/new.html", form=form, return_to=request.form.get("return_to"))
     except SQLAlchemyError as e:
         db.session.rollback()
         current_app.logger.exception("SQLAlchemyError while creating customer")
         if is_ajax:
             return jsonify({"ok": False, "message": f"خطأ أثناء إضافة العميل: {e}"}), 500
         flash(f"❌ خطأ أثناء إضافة العميل: {e}", "danger")
-        return render_template("customers/new.html", form=form, return_to=request.form.get("return_to")), 500
+        # إبقاء المستخدم على نفس الصفحة مع عرض الخطأ بشكل ودي
+        return render_template("customers/new.html", form=form, return_to=request.form.get("return_to"))
     if is_ajax:
+        try:
+            current_app.logger.info(f"[customers.create] success id={cust.id}")
+        except Exception:
+            pass
         return jsonify({"ok": True, "id": cust.id, "text": cust.name}), 201
     flash("تم إنشاء العميل بنجاح", "success")
     return_to = request.form.get("return_to") or request.args.get("return_to")
@@ -701,7 +754,6 @@ def create_customer():
 
 @customers_bp.route("/<int:customer_id>/edit", methods=["GET", "POST"], endpoint="edit_customer")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def edit_customer(customer_id):
     cust = db.session.get(Customer, customer_id) or abort(404)
     form = CustomerForm(obj=cust)
@@ -750,7 +802,6 @@ def edit_customer(customer_id):
 
 @customers_bp.route("/<int:id>/delete", methods=["POST"])
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def delete_customer(id):
     """حذف عادي - يحذف فقط إذا لا توجد معاملات"""
     customer = db.session.get(Customer, id) or abort(404)
@@ -780,7 +831,6 @@ def delete_customer(id):
 
 @customers_bp.route("/import", methods=["GET", "POST"], endpoint="import_customers")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def import_customers():
     form = CustomerImportForm()
     if request.method == "GET" or not form.validate_on_submit():
@@ -859,7 +909,6 @@ def import_customers():
 
 @customers_bp.route("/<int:customer_id>/send_whatsapp", methods=["GET"], endpoint="customer_whatsapp")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 @rate_limit(10, 60)
 def customer_whatsapp(customer_id):
     c = db.session.get(Customer, customer_id) or abort(404)
@@ -875,17 +924,14 @@ def customer_whatsapp(customer_id):
 
 @customers_bp.route("/<int:customer_id>/export_vcf", methods=["GET"], endpoint="export_customer_vcf")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def export_customer_vcf(customer_id):
     c = db.session.get(Customer, customer_id) or abort(404)
     safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", (c.name or "contact")).strip("_") or "contact"
     vcf = "BEGIN:VCARD\r\nVERSION:3.0\r\n" f"FN:{c.name}\r\n" f"TEL:{c.phone or ''}\r\n" f"EMAIL:{c.email or ''}\r\n" "END:VCARD\r\n"
     return Response(vcf, mimetype="text/vcard; charset=utf-8", headers={"Content-Disposition": f"attachment; filename={safe_name}.vcf"})
 
-# ⚠️ قبل التعديل: اقرأ ACCOUNTING_RULES.md - قواعد المحاسبة الأساسية
 @customers_bp.route("/<int:customer_id>/account_statement", methods=["GET"], endpoint="account_statement")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def account_statement(customer_id):
     from models import Check, CheckStatus
     
@@ -893,8 +939,41 @@ def account_statement(customer_id):
     db.session.refresh(c)
     
     from datetime import datetime, timedelta
-    start_date = c.created_at or datetime.now() - timedelta(days=365)
-    end_date = datetime.now()
+    start_date_arg = request.args.get("start_date")
+    end_date_arg = request.args.get("end_date")
+    try:
+        start_date = datetime.strptime(start_date_arg, "%Y-%m-%d") if start_date_arg else (datetime.now() - timedelta(days=180))
+    except Exception:
+        start_date = datetime.now() - timedelta(days=180)
+    try:
+        end_date = datetime.strptime(end_date_arg, "%Y-%m-%d") if end_date_arg else datetime.now()
+    except Exception:
+        end_date = datetime.now()
+
+    try:
+        idx_sql = [
+            "CREATE INDEX IF NOT EXISTS idx_payments_customer_date ON payments (customer_id, payment_date)",
+            "CREATE INDEX IF NOT EXISTS idx_payments_status ON payments (status)",
+            "CREATE INDEX IF NOT EXISTS idx_sales_customer_date ON sales (customer_id, sale_date)",
+            "CREATE INDEX IF NOT EXISTS idx_invoices_customer_date ON invoices (customer_id, invoice_date)",
+            "CREATE INDEX IF NOT EXISTS idx_sale_returns_customer ON sale_returns (customer_id)",
+            "CREATE INDEX IF NOT EXISTS idx_services_customer_date ON service_requests (customer_id, completed_at)",
+            "CREATE INDEX IF NOT EXISTS idx_expenses_customer_date ON expenses (customer_id, date)",
+            "CREATE INDEX IF NOT EXISTS idx_checks_payment ON checks (payment_id)",
+            "CREATE INDEX IF NOT EXISTS idx_checks_customer_date ON checks (customer_id, check_date)",
+            "CREATE INDEX IF NOT EXISTS idx_checks_status ON checks (status)"
+        ]
+        for sql in idx_sql:
+            try:
+                db.session.execute(sa_text(sql))
+            except Exception:
+                pass
+        db.session.commit()
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
 
     from utils import D, q0
 
@@ -936,7 +1015,14 @@ def account_statement(customer_id):
 
     entries = []
 
-    invoices = Invoice.query.filter_by(customer_id=customer_id).order_by(Invoice.invoice_date, Invoice.id).all()
+    invoices = (
+        Invoice.query
+        .filter(Invoice.customer_id == customer_id)
+        .filter(Invoice.invoice_date >= start_date)
+        .filter(Invoice.invoice_date <= end_date)
+        .order_by(Invoice.invoice_date, Invoice.id)
+        .all()
+    )
     def generate_statement(entry_type, obj):
         """توليد نص البيان حسب نوع العملية"""
         if entry_type == "INVOICE":
@@ -999,7 +1085,7 @@ def account_statement(customer_id):
     sales = Sale.query.filter_by(customer_id=customer_id).options(
         joinedload(Sale.lines).load_only(SaleLine.id, SaleLine.quantity, SaleLine.unit_price, SaleLine.line_total, SaleLine.line_receiver, SaleLine.note),
         joinedload(Sale.lines).joinedload(SaleLine.product).load_only(Product.id, Product.name)
-    ).order_by(Sale.sale_date, Sale.id).all()
+    ).filter(Sale.sale_date >= start_date).filter(Sale.sale_date <= end_date).order_by(Sale.sale_date, Sale.id).all()
     
     for s in sales:
         if s.preorder_id:
@@ -1049,7 +1135,15 @@ def account_statement(customer_id):
             "currency": getattr(s, 'currency', None) or (getattr(c, 'currency', None) or 'ILS'),
         })
 
-    sale_returns = SaleReturn.query.filter_by(customer_id=customer_id).filter(SaleReturn.status == 'CONFIRMED').order_by(SaleReturn.created_at, SaleReturn.id).all()
+    sale_returns = (
+        SaleReturn.query
+        .filter(SaleReturn.customer_id == customer_id)
+        .filter(SaleReturn.status == 'CONFIRMED')
+        .filter(SaleReturn.created_at >= start_date)
+        .filter(SaleReturn.created_at <= end_date)
+        .order_by(SaleReturn.created_at, SaleReturn.id)
+        .all()
+    )
     for ret in sale_returns:
         entries.append({
             "date": getattr(ret, "created_at", None) or getattr(ret, "updated_at", None),
@@ -1062,7 +1156,14 @@ def account_statement(customer_id):
             "currency": getattr(ret, 'currency', None) or (getattr(c, 'currency', None) or 'ILS'),
         })
 
-    services = ServiceRequest.query.filter_by(customer_id=customer_id).order_by(ServiceRequest.completed_at, ServiceRequest.id).all()
+    services = (
+        ServiceRequest.query
+        .filter(ServiceRequest.customer_id == customer_id)
+        .filter(ServiceRequest.completed_at >= start_date)
+        .filter(ServiceRequest.completed_at <= end_date)
+        .order_by(ServiceRequest.completed_at, ServiceRequest.id)
+        .all()
+    )
     for srv in services:
         service_total = D(getattr(srv, "total_amount", 0) or 0)
         if service_total <= 0:
@@ -1082,7 +1183,7 @@ def account_statement(customer_id):
         PreOrder.customer_id == customer_id,
         PreOrder.status != 'CANCELLED',
         PreOrder.status != 'FULFILLED'
-    ).order_by(PreOrder.created_at, PreOrder.id).all()
+    ).filter(PreOrder.created_at >= start_date).filter(PreOrder.created_at <= end_date).order_by(PreOrder.created_at, PreOrder.id).all()
     
     for pre in preorders:
         prepaid_amount_raw = pre.prepaid_amount
@@ -1113,7 +1214,14 @@ def account_statement(customer_id):
                 "notes": "عربون مدفوع - حق له",
             })
 
-    online_preorders = OnlinePreOrder.query.filter_by(customer_id=customer_id).order_by(OnlinePreOrder.created_at, OnlinePreOrder.id).all()
+    online_preorders = (
+        OnlinePreOrder.query
+        .filter(OnlinePreOrder.customer_id == customer_id)
+        .filter(OnlinePreOrder.created_at >= start_date)
+        .filter(OnlinePreOrder.created_at <= end_date)
+        .order_by(OnlinePreOrder.created_at, OnlinePreOrder.id)
+        .all()
+    )
     for op in online_preorders:
         prepaid_amount = D(op.prepaid_amount or 0)
         total_amount = D(op.total_amount or 0)
@@ -1149,7 +1257,7 @@ def account_statement(customer_id):
     payments_direct = Payment.query.filter(
         Payment.customer_id == customer_id,
         Payment.status.in_(payment_statuses)
-    ).options(joinedload(Payment.splits)).all()
+    ).filter(Payment.payment_date >= start_date).filter(Payment.payment_date <= end_date).options(joinedload(Payment.splits)).all()
     
     payments_direct_filtered = []
     for p in payments_direct:
@@ -1163,17 +1271,17 @@ def account_statement(customer_id):
     payments_from_sales = Payment.query.join(Sale, Payment.sale_id == Sale.id).filter(
         Sale.customer_id == customer_id,
         Payment.status.in_(payment_statuses)
-    ).options(joinedload(Payment.splits)).all()
+    ).filter(Payment.payment_date >= start_date).filter(Payment.payment_date <= end_date).options(joinedload(Payment.splits)).all()
     
     payments_from_invoices = Payment.query.join(Invoice, Payment.invoice_id == Invoice.id).filter(
         Invoice.customer_id == customer_id,
         Payment.status.in_(payment_statuses)
-    ).options(joinedload(Payment.splits)).all()
+    ).filter(Payment.payment_date >= start_date).filter(Payment.payment_date <= end_date).options(joinedload(Payment.splits)).all()
     
     payments_from_services = Payment.query.join(ServiceRequest, Payment.service_id == ServiceRequest.id).filter(
         ServiceRequest.customer_id == customer_id,
         Payment.status.in_(payment_statuses)
-    ).options(joinedload(Payment.splits)).all()
+    ).filter(Payment.payment_date >= start_date).filter(Payment.payment_date <= end_date).options(joinedload(Payment.splits)).all()
     
     payments_from_preorders = Payment.query.join(PreOrder, Payment.preorder_id == PreOrder.id).filter(
         PreOrder.customer_id == customer_id,
@@ -1182,7 +1290,7 @@ def account_statement(customer_id):
             PreOrder.status == 'FULFILLED',
             Payment.sale_id.isnot(None)
         )
-    ).options(joinedload(Payment.splits)).all()
+    ).filter(Payment.payment_date >= start_date).filter(Payment.payment_date <= end_date).options(joinedload(Payment.splits)).all()
     
     from models import Expense
     expense_ids_with_customer = [e.id for e in Expense.query.filter(Expense.customer_id == customer_id).all()]
@@ -1194,13 +1302,13 @@ def account_statement(customer_id):
                 Payment.customer_id == customer_id,
                 Payment.expense_id.in_(expense_ids_with_customer)
             )
-        ).options(joinedload(Payment.splits)).all()
+        ).filter(Payment.payment_date >= start_date).filter(Payment.payment_date <= end_date).options(joinedload(Payment.splits)).all()
     else:
         payments_from_expenses = Payment.query.filter(
             Payment.expense_id.isnot(None),
             Payment.customer_id == customer_id,
             Payment.status.in_(payment_statuses)
-        ).options(joinedload(Payment.splits)).all()
+        ).filter(Payment.payment_date >= start_date).filter(Payment.payment_date <= end_date).options(joinedload(Payment.splits)).all()
 
     seen = set()
     all_payments = []
@@ -1521,9 +1629,7 @@ def account_statement(customer_id):
         if splits:
             from models import PaymentMethod
             
-            payment_checks = Check.query.filter(
-                Check.payment_id == p.id
-            ).all()
+            payment_checks = Check.query.filter(Check.payment_id == p.id).all()
             
             split_checks = []
             for split in splits:
@@ -2361,7 +2467,6 @@ def account_statement(customer_id):
 
 @customers_bp.route("/advanced_filter", methods=["GET"], endpoint="advanced_filter")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def advanced_filter():
     import io, csv
     q = Customer.query
@@ -2453,7 +2558,6 @@ def advanced_filter():
 
 @customers_bp.route("/export", methods=["GET"], endpoint="export_customers")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def export_customers():
     format_type = request.args.get("format", "excel")
     customers = Customer.query.filter(Customer.is_archived == False).limit(10000).all()
@@ -2480,7 +2584,6 @@ def export_customers():
 
 @customers_bp.route("/export/contacts", methods=["GET", "POST"], endpoint="export_contacts")
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def export_contacts():
     form = ExportContactsForm()
     form.customer_ids.choices = [(c.id, f"{c.name} — {c.phone or ''}") for c in Customer.query.order_by(Customer.name).all()]
@@ -2499,7 +2602,6 @@ def export_contacts():
 
 @customers_bp.route("/archive/<int:customer_id>", methods=["POST"])
 @login_required
-# @permission_required("manage_customers")  # Commented out - function not available
 def archive_customer(customer_id):
     
     try:
@@ -2514,7 +2616,6 @@ def archive_customer(customer_id):
         return redirect(url_for('customers_bp.list_customers'))
         
     except Exception as e:
-        import traceback
         
         db.session.rollback()
         flash(f'خطأ في أرشفة العميل: {str(e)}', 'error')
@@ -2522,7 +2623,6 @@ def archive_customer(customer_id):
 
 @customers_bp.route('/restore/<int:customer_id>', methods=['POST'])
 @login_required
-# @permission_required('manage_customers')  # Commented out - function not available
 def restore_customer(customer_id):
     
     try:
@@ -2544,7 +2644,6 @@ def restore_customer(customer_id):
         return redirect(url_for('customers_bp.list_customers'))
         
     except Exception as e:
-        import traceback
         
         db.session.rollback()
         flash(f'خطأ في استعادة العميل: {str(e)}', 'error')

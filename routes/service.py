@@ -210,20 +210,17 @@ def _enum_results_with_counts(enum_cls, labels_map, column):
 
 @service_bp.get("/api/statuses")
 @login_required
-# @permission_required("manage_service")  # Commented out - function not available
 def api_service_statuses():
     return jsonify({"results":_enum_results_with_counts(ServiceStatus, STATUS_LABELS, ServiceRequest.status)})
 
 @service_bp.get("/api/priorities")
 @login_required
-# @permission_required("manage_service")  # Commented out - function not available
 def api_service_priorities():
     priority_labels={"LOW":"منخفضة","MEDIUM":"متوسطة","HIGH":"عالية","URGENT":"عاجلة"}
     return jsonify({"results":_enum_results_with_counts(ServicePriority, priority_labels, ServiceRequest.priority)})
 
 @service_bp.get("/api/options")
 @login_required
-# @permission_required("manage_service")  # Commented out - function not available
 def api_service_options():
     priority_labels={"LOW":"منخفضة","MEDIUM":"متوسطة","HIGH":"عالية","URGENT":"عاجلة"}
     return jsonify({"statuses":_enum_results_with_counts(ServiceStatus, STATUS_LABELS, ServiceRequest.status),"priorities":_enum_results_with_counts(ServicePriority, priority_labels, ServiceRequest.priority)})
@@ -279,7 +276,6 @@ def _build_list_query():
 @service_bp.route('/', methods=['GET'])
 @service_bp.route('/list', methods=['GET'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def list_requests():
     """قائمة طلبات الصيانة مع فلترة وPagination محسّنة"""
     
@@ -410,7 +406,6 @@ def list_requests():
 
 @service_bp.route('/export/csv', methods=['GET'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def export_requests_csv():
     services=_build_list_query().all()
     rows=[_row_dict(sr) for sr in services]
@@ -424,7 +419,6 @@ def export_requests_csv():
 
 @service_bp.route('/dashboard')
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def dashboard():
     total_requests=ServiceRequest.query.count()
     completed_this_month=ServiceRequest.query.filter(ServiceRequest.status==ServiceStatus.COMPLETED, _col('completed_at')>=datetime.now().replace(day=1,hour=0,minute=0,second=0,microsecond=0)).count()
@@ -443,7 +437,6 @@ def dashboard():
 
 @service_bp.route('/new', methods=['GET','POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def create_request():
     form=ServiceRequestForm()
     try: form.vehicle_type_id.endpoint='api.search_equipment_types'
@@ -476,7 +469,6 @@ def create_request():
 
 @service_bp.route('/<int:rid>', methods=['GET'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def view_request(rid):
     service=_get_or_404(ServiceRequest, rid, options=[joinedload(ServiceRequest.customer), joinedload(ServiceRequest.parts).joinedload(ServicePart.part), joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse), joinedload(ServiceRequest.tasks)])
     warehouses=Warehouse.query.order_by(Warehouse.name.asc()).all()
@@ -500,7 +492,6 @@ def view_request(rid):
 
 @service_bp.route('/<int:rid>/receipt', methods=['GET'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def view_receipt(rid):
     service=_get_or_404(ServiceRequest, rid, options=[joinedload(ServiceRequest.customer), joinedload(ServiceRequest.parts).joinedload(ServicePart.part), joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse), joinedload(ServiceRequest.tasks)])
     variant = 'simple' if (request.args.get('simple') or '').strip().lower() in ('1','true','yes') else 'pro'
@@ -509,7 +500,6 @@ def view_receipt(rid):
 
 @service_bp.route('/<int:rid>/receipt/download', methods=['GET'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def download_receipt(rid):
     service=_get_or_404(ServiceRequest, rid, options=[joinedload(ServiceRequest.customer), joinedload(ServiceRequest.parts).joinedload(ServicePart.part), joinedload(ServiceRequest.parts).joinedload(ServicePart.warehouse), joinedload(ServiceRequest.tasks)])
     pdf_data=generate_service_receipt_pdf(service)
@@ -517,7 +507,6 @@ def download_receipt(rid):
 
 @service_bp.route('/<int:rid>/diagnosis', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def update_diagnosis(rid):
     service=_get_or_404(ServiceRequest, rid)
     old={'problem_description':service.problem_description,'diagnosis':service.diagnosis,'resolution':service.resolution,'estimated_duration':service.estimated_duration,'estimated_cost':str(service.estimated_cost or 0),'status':getattr(service.status,"value",service.status)}
@@ -535,7 +524,6 @@ def update_diagnosis(rid):
 
 @service_bp.route('/<int:rid>/discount_tax', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def update_discount_tax(rid):
     """تحديث الخصم الإجمالي والضريبة"""
     service = _get_or_404(ServiceRequest, rid)
@@ -601,7 +589,6 @@ def update_discount_tax(rid):
 
 @service_bp.route('/<int:rid>/<action>', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def toggle_service(rid, action):
     service=_get_or_404(ServiceRequest, rid)
     try:
@@ -642,7 +629,6 @@ def toggle_service(rid, action):
 
 @service_bp.route('/<int:rid>/parts/add', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def add_part(rid):
     service=_get_or_404(ServiceRequest, rid)
     
@@ -724,7 +710,6 @@ def add_part(rid):
 
 @service_bp.route('/parts/<int:pid>/delete', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def delete_part(pid):
     part=_get_or_404(ServicePart, pid)
     rid=part.service_id
@@ -757,7 +742,6 @@ def delete_part(pid):
 
 @service_bp.route('/<int:rid>/tasks/add', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def add_task(rid):
     service=_get_or_404(ServiceRequest, rid)
     
@@ -831,7 +815,6 @@ def add_task(rid):
 
 @service_bp.route('/tasks/<int:tid>/delete', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def delete_task(tid):
     task=_get_or_404(ServiceTask, tid); rid=task.service_id; service=_get_or_404(ServiceRequest, rid)
     
@@ -852,7 +835,6 @@ def delete_task(tid):
 
 @service_bp.route('/<int:rid>/payments/add', methods=['GET','POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def add_payment(rid):
     """إعادة توجيه لإنشاء دفعة للصيانة مع البيانات الكاملة"""
     service = _get_or_404(ServiceRequest, rid)
@@ -896,7 +878,6 @@ def add_payment(rid):
 
 @service_bp.route('/<int:rid>/invoice', methods=['GET','POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def create_invoice(rid):
     svc=_get_or_404(ServiceRequest, rid, options=[joinedload(ServiceRequest.parts), joinedload(ServiceRequest.tasks)])
     try: amount=float(getattr(svc,'balance_due',None) or getattr(svc,'total_cost',0) or 0)
@@ -905,21 +886,18 @@ def create_invoice(rid):
 
 @service_bp.route('/<int:rid>/report')
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def service_report(rid):
     service=_get_or_404(ServiceRequest, rid); pdf=generate_service_receipt_pdf(service)
     return Response(pdf, mimetype='application/pdf', headers={'Content-Disposition': f'inline; filename=service_report_{service.service_number}.pdf'})
 
 @service_bp.route('/<int:rid>/pdf')
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def export_pdf(rid):
     service=_get_or_404(ServiceRequest, rid); pdf=generate_service_receipt_pdf(service)
     return Response(pdf, mimetype='application/pdf', headers={'Content-Disposition': f'attachment; filename=service_{service.service_number}.pdf'})
 
 @service_bp.route('/<int:rid>/delete', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def delete_request(rid):
     service=_get_or_404(ServiceRequest, rid)
     try:
@@ -953,7 +931,6 @@ def search_requests():
 
 @service_bp.route('/<int:rid>/archive', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def archive_request(rid):
     """أرشفة طلب صيانة"""
     from models import Archive
@@ -984,7 +961,6 @@ def archive_request(rid):
 
 @service_bp.route('/analytics')
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def analytics():
     """تحليلات الصيانة المتقدمة"""
     from datetime import datetime, timedelta
@@ -1086,7 +1062,6 @@ def generate_service_receipt_pdf(service_request):
 
 @service_bp.route('/archive/<int:service_id>', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def archive_service(service_id):
     try:
         service = ServiceRequest.query.get_or_404(service_id)
@@ -1103,7 +1078,6 @@ def archive_service(service_id):
 
 @service_bp.route('/restore/<int:service_id>', methods=['POST'])
 @login_required
-# @permission_required('manage_service')  # Commented out - function not available
 def restore_service(service_id):
     try:
         service = ServiceRequest.query.get_or_404(service_id)

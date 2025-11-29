@@ -17,7 +17,7 @@
     <div class="d-flex gap-2">
       {% if (tab or 'expenses') == 'expenses' %}
       <a class="btn btn-success btn-sm"
-         href="{{ url_for('reports_bp.expenses_report', tab='expenses', start=start, end=end, type=selected_type, employee_id=selected_employee_id, warehouse_id=selected_warehouse_id, partner_id=selected_partner_id, is_paid=selected_is_paid, export='csv') }}">
+         href="{{ url_for('reports_bp.expenses_report', tab='expenses', start=start, end=end, type=selected_type, warehouse_id=selected_warehouse_id, partner_id=selected_partner_id, is_paid=selected_is_paid, export='csv') }}">
         <i class="fas fa-file-csv"></i> تصدير CSV
       </a>
       {% elif tab == 'receipts' %}
@@ -34,7 +34,7 @@
   <ul class="nav nav-tabs mb-3" role="tablist">
     <li class="nav-item" role="presentation">
       <a class="nav-link {% if (tab or 'expenses') == 'expenses' %}active{% endif %}"
-         href="{{ url_for('reports_bp.expenses_report', tab='expenses', start=start, end=end, type=selected_type, employee_id=selected_employee_id, warehouse_id=selected_warehouse_id, partner_id=selected_partner_id, is_paid=selected_is_paid) }}">
+         href="{{ url_for('reports_bp.expenses_report', tab='expenses', start=start, end=end, type=selected_type, warehouse_id=selected_warehouse_id, partner_id=selected_partner_id, is_paid=selected_is_paid) }}">
         <i class="fas fa-money-bill-wave"></i> مصروفات
       </a>
     </li>
@@ -91,19 +91,7 @@
           
           
 
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">
-              <i class="fas fa-user-tie text-success"></i> الموظف
-            </label>
-            <select name="employee_id" class="custom-select">
-              <option value="">— جميع الموظفين —</option>
-              {% for emp in employees %}
-                <option value="{{ emp.id }}" {% if selected_employee_id == emp.id %}selected{% endif %}>
-                  {{ emp.name }}{% if emp.position %} - {{ emp.position }}{% endif %}
-                </option>
-              {% endfor %}
-            </select>
-          </div>
+          
           
           
 
@@ -153,7 +141,7 @@
               <i class="fas fa-search"></i> {{ FIELD_LABELS.get("refresh", "تطبيق") }}
             </button>
           </div>
-          {% if start or end or selected_type or selected_employee_id or selected_is_paid %}
+          {% if start or end or selected_type or selected_is_paid %}
           <div class="col-md-3 align-self-end">
             <a href="{{ url_for('reports_bp.expenses_report') }}" class="btn btn-outline-secondary w-100">
               <i class="fas fa-times"></i> إلغاء الفلاتر
