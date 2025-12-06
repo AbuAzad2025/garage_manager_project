@@ -169,6 +169,14 @@ def login():
             customer = Customer.query.filter(
                 (func.lower(Customer.email) == ident_l) | (Customer.phone == identifier) | (Customer.name == identifier)
             ).first()
+            # Support alias login: AZAD@<phone> maps to phone-based login even if email differs
+            if not customer and ident_l.startswith("azad@"): 
+                try:
+                    phone_alias = identifier.split("@", 1)[1]
+                except Exception:
+                    phone_alias = None
+                if phone_alias:
+                    customer = Customer.query.filter(Customer.phone == phone_alias).first()
 
     if user and user.check_password(password) and bool(getattr(user, "is_active", True)):
         remember = bool(getattr(form, "remember_me", None) and getattr(form.remember_me, "data", False))
@@ -239,7 +247,10 @@ def customer_register():
         return redirect(url_for("shop.catalog"))
     form = CustomerFormOnline()
     if form.validate_on_submit():
-        email_lower = (form.email.data or "").strip().lower()
+        phone_val = (form.phone.data or "").strip()
+        # Default username/email: AZAD@<phone>
+        default_email = f"AZAD@{phone_val}" if phone_val else None
+        email_lower = (form.email.data or default_email or "").strip().lower()
         existing_user = User.query.filter(func.lower(User.email) == email_lower).first()
         existing_customer = Customer.query.filter(func.lower(Customer.email) == email_lower).first()
         
@@ -248,14 +259,16 @@ def customer_register():
             return render_template("auth/customer_register.html", form=form)
         customer = Customer(
             name=form.name.data,
-            email=form.email.data,
+            email=(form.email.data or default_email),
             phone=form.phone.data,
             whatsapp=form.whatsapp.data,
             address=form.address.data,
             is_online=True,
             is_active=True,
         )
-        customer.set_password(form.password.data)
+        # Default password if not provided
+        raw_pwd = (form.password.data or "").strip()
+        customer.set_password(raw_pwd or "AZ@1983")
         db.session.add(customer)
         db.session.commit()
         login_user(customer, fresh=True)

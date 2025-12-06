@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 from extensions import db
 from forms import UserForm
-from models import Permission, Role, User, AuditLog
+from models import Permission, Role, User, AuditLog, Customer
 import utils
 
 users_bp = Blueprint("users_bp", __name__, url_prefix="/users", template_folder="templates/users")
@@ -139,6 +139,51 @@ def list_users():
     args = request.args.to_dict(flat=True)
     args.pop("page", None)
     return render_template("users/list.html", users=users, pagination=pagination, search=term, args=args)
+
+
+@users_bp.route("/registered-customers", methods=["GET"], endpoint="registered_customers")
+@login_required
+def registered_customers():
+    q = Customer.query
+    q = q.filter(Customer.is_online == True)
+    term = (request.args.get("search") or "").strip()
+    if term:
+        like = f"%{term}%"
+        q = q.filter(
+            (Customer.name.ilike(like)) |
+            (Customer.phone.ilike(like)) |
+            (Customer.email.ilike(like))
+        )
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+    pagination = q.order_by(Customer.name).paginate(page=page, per_page=per_page, error_out=False)
+    customers = pagination.items
+    if request.args.get("format") == "json" or request.is_json:
+        return jsonify({
+            "data": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "phone": c.phone,
+                    "email": c.email,
+                    "is_active": bool(c.is_active),
+                    "is_online": bool(c.is_online),
+                    "created_at": (c.created_at.isoformat() if getattr(c, "created_at", None) else None),
+                }
+                for c in customers
+            ],
+            "meta": {
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "total": pagination.total,
+                "pages": pagination.pages,
+                "has_next": pagination.has_next,
+                "has_prev": pagination.has_prev
+            }
+        })
+    args = request.args.to_dict(flat=True)
+    args.pop("page", None)
+    return render_template("users/registered_customers.html", customers=customers, pagination=pagination, search=term, args=args)
 
 @users_bp.route("/<int:user_id>", methods=["GET"], endpoint="user_detail")
 @login_required

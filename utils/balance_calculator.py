@@ -171,6 +171,7 @@ def calculate_customer_balance_components(customer_id, session=None):
             Payment.customer_id == customer_id,
             Payment.direction == 'IN',
             Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None),
             or_(
                 Payment.preorder_id.is_(None),
                 Payment.sale_id.isnot(None),
@@ -185,7 +186,8 @@ def calculate_customer_balance_components(customer_id, session=None):
         ).filter(
             Sale.customer_id == customer_id,
             Payment.direction == 'IN',
-            Payment.status.in_(['COMPLETED', 'PENDING'])
+            Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None)
         ).all()
         
         payments_in_from_invoices = session.query(Payment).join(
@@ -195,7 +197,8 @@ def calculate_customer_balance_components(customer_id, session=None):
         ).filter(
             Invoice.customer_id == customer_id,
             Payment.direction == 'IN',
-            Payment.status.in_(['COMPLETED', 'PENDING'])
+            Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None)
         ).all()
         
         payments_in_from_services = session.query(Payment).join(
@@ -205,7 +208,8 @@ def calculate_customer_balance_components(customer_id, session=None):
         ).filter(
             ServiceRequest.customer_id == customer_id,
             Payment.direction == 'IN',
-            Payment.status.in_(['COMPLETED', 'PENDING'])
+            Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None)
         ).all()
         
         payments_in_from_preorders = session.query(Payment).join(
@@ -216,6 +220,7 @@ def calculate_customer_balance_components(customer_id, session=None):
             PreOrder.customer_id == customer_id,
             Payment.direction == 'IN',
             Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None),
             or_(
                 PreOrder.status == 'FULFILLED',
                 Payment.sale_id.isnot(None)
@@ -345,7 +350,8 @@ def calculate_customer_balance_components(customer_id, session=None):
         ).filter(
             Payment.customer_id == customer_id,
             Payment.direction == 'OUT',
-            Payment.status.in_(['COMPLETED', 'PENDING'])
+            Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None)
         ).all()
         
         payments_out_from_sales = session.query(Payment).join(
@@ -355,7 +361,8 @@ def calculate_customer_balance_components(customer_id, session=None):
         ).filter(
             Sale.customer_id == customer_id,
             Payment.direction == 'OUT',
-            Payment.status.in_(['COMPLETED', 'PENDING'])
+            Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None)
         ).all()
         
         payments_out_from_invoices = session.query(Payment).join(
@@ -365,7 +372,8 @@ def calculate_customer_balance_components(customer_id, session=None):
         ).filter(
             Invoice.customer_id == customer_id,
             Payment.direction == 'OUT',
-            Payment.status.in_(['COMPLETED', 'PENDING'])
+            Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None)
         ).all()
         
         payments_out_from_services = session.query(Payment).join(
@@ -375,7 +383,8 @@ def calculate_customer_balance_components(customer_id, session=None):
         ).filter(
             ServiceRequest.customer_id == customer_id,
             Payment.direction == 'OUT',
-            Payment.status.in_(['COMPLETED', 'PENDING'])
+            Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None)
         ).all()
         
         payments_out_from_preorders = session.query(Payment).join(
@@ -385,7 +394,8 @@ def calculate_customer_balance_components(customer_id, session=None):
         ).filter(
             PreOrder.customer_id == customer_id,
             Payment.direction == 'OUT',
-            Payment.status.in_(['COMPLETED', 'PENDING'])
+            Payment.status.in_(['COMPLETED', 'PENDING']),
+            Payment.expense_id.is_(None)
         ).all()
         
         seen_payment_ids_out = set()

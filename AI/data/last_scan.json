@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-27T03:00:00.124353",
+  "timestamp": "2025-12-06T03:00:00.129844",
   "snapshot": {
     "tables": {},
     "routes": [
@@ -1933,14 +1933,6 @@
           "GET"
         ],
         "file": "routes\\financial_reports.py"
-      },
-      {
-        "path": "/customer/<int:customer_id>",
-        "methods": [
-          "GET",
-          "POST"
-        ],
-        "file": "routes\\hard_delete.py"
       },
       {
         "path": "/logs",
@@ -5578,16 +5570,8 @@
       "expenses\\salary_receipt.html",
       "expenses\\types_list.html",
       "expenses\\type_form.html",
-      "hard_delete\\confirm_check.html",
-      "hard_delete\\confirm_customer.html",
-      "hard_delete\\confirm_expense.html",
-      "hard_delete\\confirm_partner.html",
       "hard_delete\\confirm_payment.html",
-      "hard_delete\\confirm_restore.html",
       "hard_delete\\confirm_sale.html",
-      "hard_delete\\confirm_supplier.html",
-      "hard_delete\\delete_service.html",
-      "hard_delete\\logs.html",
       "ledger\\chart_of_accounts.html",
       "ledger\\dashboard.html",
       "ledger\\index.html",

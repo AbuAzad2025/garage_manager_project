@@ -1,106 +1,11 @@
 {
-  "timestamp": "2025-11-27T03:00:00.135982",
+  "timestamp": "2025-12-06T03:00:00.141402",
   "changes": {
     "new_tables": [],
     "new_fields": {},
-    "new_routes": [
-      {
-        "path": "/dashboard\", methods=[\"GET\"], endpoint=\"dashboard",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\admin_reports.py"
-      },
-      {
-        "path": "/api/stats\", methods=[\"GET\"], endpoint=\"api_stats",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\admin_reports.py"
-      },
-      {
-        "path": "/performance-profiler",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\advanced_control.py"
-      },
-      {
-        "path": "/database-optimizer",
-        "methods": [
-          "GET",
-          "POST"
-        ],
-        "file": "routes\\advanced_control.py"
-      },
-      {
-        "path": "/api/performance/stats",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\advanced_control.py"
-      },
-      {
-        "path": "/models/status",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\ai_routes.py"
-      },
-      {
-        "path": "/<int:payment_id>/split/<int:split_id>\", methods=[\"GET\"], endpoint=\"view_payment_split",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\payments.py"
-      },
-      {
-        "path": "/<int:payment_id>_split_<int:split_id>\", methods=[\"GET\"], endpoint=\"view_payment_split_legacy",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\payments.py"
-      },
-      {
-        "path": "/split/<int:split_id>/refund\", methods=[\"POST\"], endpoint=\"refund_split",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\payments.py"
-      },
-      {
-        "path": "/refund/<int:payment_id>\", methods=[\"POST\"], endpoint=\"refund_payment",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\payments.py"
-      },
-      {
-        "path": "/matrix\", methods=[\"GET\"], endpoint=\"matrix",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\permissions.py"
-      },
-      {
-        "path": "/security-audit-report",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\security.py"
-      },
-      {
-        "path": "/api/security-audit/stats",
-        "methods": [
-          "GET"
-        ],
-        "file": "routes\\security.py"
-      }
-    ],
+    "new_routes": [],
     "new_models": [],
-    "new_templates": [
-      "admin\\reports\\dashboard.html"
-    ],
+    "new_templates": [],
     "new_forms": []
   }
 }

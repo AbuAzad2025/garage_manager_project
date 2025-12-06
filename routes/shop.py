@@ -43,10 +43,18 @@ def _inject_shop_helpers():
     def _display_name_for_shop(p: Product) -> str:
         v = getattr(p, "online_name", None) or getattr(p, "commercial_name", None) or getattr(p, "name", "")
         return (v or "").strip()
+    def _is_customer_actor(actor) -> bool:
+        try:
+            if getattr(actor, "__tablename__", None) == "customers":
+                return True
+            return isinstance(actor, Customer)
+        except Exception:
+            return False
     return dict(
         price_for_shop=_price_for_shop,
         csrf_token=generate_csrf,
-        display_name_for_shop=_display_name_for_shop
+        display_name_for_shop=_display_name_for_shop,
+        is_customer_actor=_is_customer_actor
     )
 
 def _get_or_404(model, ident, options=None):

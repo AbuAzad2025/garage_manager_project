@@ -291,10 +291,11 @@
               </div>
               
               <!-- جدول البيانات -->
-              <div class="table-responsive">
-                <table class="table table-bordered table-hover">
-                  <thead class="table-dark">
+              <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                <table id="db-edit-table" class="table table-bordered table-hover">
+                  <thead class="table-dark sticky-top">
                     <tr>
+                      <th>#</th>
                       {% for col in columns %}
                       <th>{{ col }}</th>
                       {% endfor %}
@@ -302,8 +303,11 @@
                     </tr>
                   </thead>
                   <tbody>
-                    {% for row in data[:50] %}
+                    {% for row in data %}
                     <tr data-row-index="{{ loop.index0 }}">
+                      <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-primary row-marker" data-row-index="{{ loop.index0 }}">{{ loop.index }}</button>
+                      </td>
                       {% for col in columns %}
                       <td contenteditable="true" class="editable-cell" 
                           data-row-primary-key="{{ row.get(primary_key_column) or row.get('id') or row.get(columns[0]) or '' }}" 
@@ -349,11 +353,7 @@
                 </table>
               </div>
               
-              {% if data|length > 50 %}
-              <div class="alert alert-info">
-                <i class="fas fa-info-circle"></i> عرض أول 50 سجل من {{ data|length }} سجل
-              </div>
-              {% endif %}
+              
               
               {% else %}
               <div class="alert alert-warning">
@@ -1326,7 +1326,62 @@ document.addEventListener('DOMContentLoaded', function() {
       window.history.pushState({}, '', newUrl);
     });
   });
+
+  // ترقيم الصفحات 10 صفوف باستخدام DataTables مع تحميل ديناميكي للمكتبة إن لزم
+  function loadScriptOnce(src, id, onload) {
+    if (document.getElementById(id)) { onload && onload(); return; }
+    var s = document.createElement('script');
+    s.src = src; s.id = id; s.async = false;
+    s.onload = function(){ onload && onload(); };
+    document.body.appendChild(s);
+  }
+  function ensureDataTables(onready) {
+    if (window.jQuery && $.fn && $.fn.DataTable) { onready && onready(); return; }
+    if (window.jQuery && !($.fn && $.fn.DataTable)) {
+      loadScriptOnce('{{ url_for('static', filename='adminlte/plugins/datatables/jquery.dataTables.min.js') }}', 'dt-core', onready);
+    } else {
+      window.addEventListener('load', function(){
+        if (window.jQuery && $.fn && $.fn.DataTable) { onready && onready(); }
+        else {
+          loadScriptOnce('{{ url_for('static', filename='adminlte/plugins/datatables/jquery.dataTables.min.js') }}', 'dt-core', onready);
+        }
+      });
+    }
+  }
+  ensureDataTables(function(){
+    const $tbl = $('#db-edit-table');
+    if ($tbl.length) {
+      try {
+        $tbl.DataTable({
+          pageLength: 15,
+          paging: true,
+          lengthChange: true,
+          ordering: false,
+          info: true,
+          searching: true,
+          autoWidth: false,
+          scrollX: true,
+          pagingType: 'simple_numbers',
+          lengthMenu: [[15, 25, 50, -1], [15, 25, 50, 'الكل']],
+          dom: "<'row'<'col-sm-6'l><'col-sm-6'f>>" +
+               "<'row'<'col-sm-12'tr>>" +
+               "<'row'<'col-sm-6'i><'col-sm-6'p>>",
+          language: { url: "{{ url_for('static', filename='datatables/Arabic.json') }}" }
+        });
+      } catch (e) {
+        console.warn('DataTables init failed:', e);
+      }
+    }
+  });
   
+  document.querySelectorAll('.row-marker').forEach(btn => {
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('#db-edit-table tbody tr').forEach(r => r.classList.remove('table-warning'));
+      const row = this.closest('tr');
+      if (row) { row.classList.add('table-warning'); }
+    });
+  });
+
   const logContentStyle = document.createElement('style');
   logContentStyle.textContent = `
     .log-pane {

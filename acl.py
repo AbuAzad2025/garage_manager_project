@@ -47,6 +47,21 @@ def attach_acl(
             return
 
         if is_read:
+            # Allow logged-in customers to read their own account statement
+            try:
+                if hasattr(current_user, "__tablename__") and current_user.__tablename__ == "customers":
+                    if path.startswith("/customers/") and path.endswith("/account_statement"):
+                        parts = path.split("/")
+                        if len(parts) >= 4:
+                            try:
+                                cid = int(parts[2])
+                            except Exception:
+                                cid = None
+                            if cid and getattr(current_user, "id", None) == cid:
+                                return
+                            abort(403)
+            except Exception:
+                pass
             if read_perm and not current_user.has_permission(read_perm):
                 abort(403)
         else:

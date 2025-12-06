@@ -407,13 +407,70 @@ def get_ledger_data():
                     expense_entity_name = expense.payee_name
                     expense_entity_type = "جهة"
                 
+                try:
+                    linked_payments = Payment.query.filter(Payment.expense_id == expense.id).filter(Payment.status.in_(['COMPLETED','PENDING'])).order_by(Payment.payment_date, Payment.id).all()
+                except Exception:
+                    linked_payments = []
+
+                description = expense.description or f"مصروف - {exp_type}"
+                if linked_payments:
+                    methods = []
+                    refs = []
+                    checks_info = []
+                    for pmt in linked_payments:
+                        mv = getattr(pmt, 'method', 'cash')
+                        if hasattr(mv, 'value'):
+                            mv = mv.value
+                        mraw = str(mv or '').lower()
+                        method_ar = {
+                            'cash': 'نقداً',
+                            'card': 'بطاقة',
+                            'bank': 'تحويل بنكي',
+                            'online': 'إلكتروني',
+                            'cheque': 'شيك'
+                        }.get(mraw, mraw)
+                        methods.append(method_ar)
+                        refs.append(getattr(pmt, 'payment_number', None) or getattr(pmt, 'receipt_number', None) or f"PAY-{pmt.id}")
+                        if mraw == 'cheque':
+                            cn = getattr(pmt, 'check_number', None)
+                            cb = getattr(pmt, 'check_bank', None)
+                            cd = getattr(pmt, 'check_due_date', None)
+                            if cd:
+                                try:
+                                    cd_str = cd.strftime('%Y-%m-%d')
+                                except Exception:
+                                    cd_str = str(cd)
+                            else:
+                                cd_str = None
+                            parts = []
+                            if cn:
+                                parts.append(f"#{cn}")
+                            if cb:
+                                parts.append(cb)
+                            if cd_str:
+                                parts.append(f"استحقاق: {cd_str}")
+                            if parts:
+                                checks_info.append("شيك " + " - ".join(parts))
+                    mdisp = ", ".join(sorted(set([m for m in methods if m])))
+                    rdisp = ", ".join(sorted(set([r for r in refs if r])))
+                    cdisp = "; ".join(checks_info)
+                    parts = []
+                    if mdisp:
+                        parts.append(f"سداد: {mdisp}")
+                    if rdisp:
+                        parts.append(f"مراجع: {rdisp}")
+                    if cdisp:
+                        parts.append(cdisp)
+                    if parts:
+                        description = f"{description} — " + " | ".join(parts)
+
                 ledger_entries.append({
                     "id": expense.id,
                     "date": expense.date.strftime('%Y-%m-%d'),
                     "transaction_number": f"EXP-{expense.id}",
                     "type": "expense",
                     "type_ar": exp_type,
-                    "description": expense.description or f"مصروف - {exp_type}",
+                    "description": description,
                     "debit": debit,
                     "credit": credit,
                     "balance": running_balance,
@@ -426,20 +483,8 @@ def get_ledger_data():
             payments = LedgerQueryOptimizer.get_payments_optimized(from_date, to_date)
             
             for payment in payments:
-                if payment.entity_type and payment.entity_type.upper() == "EXPENSE" and payment.expense_id:
-                    expense = db.session.get(Expense, payment.expense_id) if payment.expense_id else None
-                    if expense:
-                        exp_type_code = None
-                        if expense.type and hasattr(expense.type, 'code'):
-                            exp_type_code = (expense.type.code or '').strip().upper()
-                        is_service_supply = (
-                            exp_type_code == "PARTNER_EXPENSE" or
-                            exp_type_code == "SUPPLIER_EXPENSE" or
-                            (expense.partner_id and (getattr(expense, 'payee_type', '') or '').upper() == "PARTNER") or
-                            (expense.supplier_id and (getattr(expense, 'payee_type', '') or '').upper() == "SUPPLIER")
-                        )
-                        if not is_service_supply:
-                            continue
+                if getattr(payment, 'expense_id', None):
+                    continue
                 payment_status = getattr(payment, 'status', 'COMPLETED')
                 
                 checks_related = LedgerQueryOptimizer.get_checks_for_payment(payment.id)

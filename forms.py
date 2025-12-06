@@ -3171,10 +3171,10 @@ class StockAdjustmentForm(FlaskForm):
 
 class CustomerFormOnline(FlaskForm):
     name  = StrippedStringField('الاسم الكامل', validators=[DataRequired(), Length(max=100)])
-    email = StrippedStringField('البريد الإلكتروني', validators=[DataRequired(), Email(), Length(max=120)])
+    email = StrippedStringField('البريد الإلكتروني', validators=[Optional(), Email(), Length(max=120)])
     phone = StrippedStringField('رقم الجوال', validators=[DataRequired(), Length(min=7, max=20)])
     whatsapp = StrippedStringField('واتساب', validators=[DataRequired(), Length(min=7, max=20)])
-    password = PasswordField('كلمة المرور', validators=[DataRequired(), Length(min=8, max=128)])
+    password = PasswordField('كلمة المرور', validators=[Optional(), Length(min=8, max=128)])
     confirm_password = PasswordField('تأكيد كلمة المرور', validators=[DataRequired(), EqualTo('password', message="كلمتا المرور غير متطابقتين")])
     address  = StrippedStringField('العنوان', validators=[Optional(), Length(max=200)])
     category = SelectField('فئة العميل', choices=[('عادي', 'عادي'), ('ذهبي', 'ذهبي'), ('بلاتيني', 'بلاتيني')], default='عادي')

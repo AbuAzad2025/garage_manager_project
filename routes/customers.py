@@ -35,6 +35,7 @@ from models import (
     Invoice,
     Payment,
     PaymentStatus,
+    PaymentMethod,
     Product,
     ProductCategory,
     Sale,
@@ -172,7 +173,7 @@ def list_customers():
     target_page = request.args.get("page_number", type=int)
 
     page = max(1, request.args.get("page", 1, type=int))
-    per_page = 10
+    per_page = 15
 
     sort = request.args.get("sort", "balance")
     order = request.args.get("order", "asc")
@@ -683,10 +684,12 @@ def create_customer():
             return render_template("customers/new.html", form=form, return_to=request.form.get("return_to"))
     except Exception:
         pass
+    # Default email: AZAD@<phone> when email not provided
+    default_email = f"AZAD@{(form.phone.data or '').strip()}" if (form.phone.data or '').strip() else None
     cust = Customer(
         name=form.name.data,
         phone=form.phone.data,
-        email=form.email.data or None,
+        email=(form.email.data or default_email) or None,
         address=form.address.data,
         whatsapp=form.whatsapp.data or form.phone.data,
         category=form.category.data,
@@ -698,8 +701,12 @@ def create_customer():
         is_online=form.is_online.data,
         notes=form.notes.data,
     )
-    if getattr(form, "password", None) and form.password.data:
-        cust.set_password(form.password.data)
+    # Default password if empty
+    raw_pwd = (getattr(form, "password", None) and (form.password.data or '').strip()) or ''
+    if raw_pwd:
+        cust.set_password(raw_pwd)
+    else:
+        cust.set_password("AZ@1983")
     db.session.add(cust)
     try:
         db.session.flush()
@@ -842,9 +849,9 @@ def import_customers():
         try:
             name = (row.get("name") or "").strip()
             phone = (row.get("phone") or "").strip()
-            email = (row.get("email") or "").strip()
-            if not name or not phone or not email:
-                raise ValueError("حقول مطلوبة مفقودة: name / phone / email")
+            raw_email = (row.get("email") or "").strip()
+            if not name or not phone:
+                raise ValueError("حقول مطلوبة مفقودة: name / phone")
             if len(phone) > 20:
                 raise ValueError("الهاتف يجب ألا يتجاوز 20 خانة")
             whatsapp = (row.get("whatsapp") or "").strip()
@@ -856,7 +863,10 @@ def import_customers():
             notes = (row.get("notes") or "").strip()
             if len(notes) > 500:
                 raise ValueError("الملاحظات يجب ألا تتجاوز 500 خانة")
-            if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+            # Default email: AZAD@<phone> if email is missing
+            email = raw_email if raw_email else f"AZAD@{phone}"
+            # Allow default username format without domain
+            if raw_email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", raw_email):
                 raise ValueError("صيغة البريد الإلكتروني غير صحيحة")
             category = (row.get("category") or "عادي").strip()
             if category not in ("عادي", "فضي", "ذهبي", "مميز"):
@@ -933,6 +943,8 @@ def export_customer_vcf(customer_id):
 @customers_bp.route("/<int:customer_id>/account_statement", methods=["GET"], endpoint="account_statement")
 @login_required
 def account_statement(customer_id):
+    if getattr(current_user, "__tablename__", "") == "customers" and getattr(current_user, "id", None) != customer_id:
+        abort(403)
     from models import Check, CheckStatus
     
     c = db.session.get(Customer, customer_id) or abort(404)
@@ -942,33 +954,42 @@ def account_statement(customer_id):
     start_date_arg = request.args.get("start_date")
     end_date_arg = request.args.get("end_date")
     try:
-        start_date = datetime.strptime(start_date_arg, "%Y-%m-%d") if start_date_arg else (datetime.now() - timedelta(days=180))
+        start_date = datetime.strptime(start_date_arg, "%Y-%m-%d") if start_date_arg else datetime(2025, 1, 1)
     except Exception:
-        start_date = datetime.now() - timedelta(days=180)
+        start_date = datetime(2025, 1, 1)
     try:
         end_date = datetime.strptime(end_date_arg, "%Y-%m-%d") if end_date_arg else datetime.now()
     except Exception:
         end_date = datetime.now()
 
     try:
-        idx_sql = [
-            "CREATE INDEX IF NOT EXISTS idx_payments_customer_date ON payments (customer_id, payment_date)",
-            "CREATE INDEX IF NOT EXISTS idx_payments_status ON payments (status)",
-            "CREATE INDEX IF NOT EXISTS idx_sales_customer_date ON sales (customer_id, sale_date)",
-            "CREATE INDEX IF NOT EXISTS idx_invoices_customer_date ON invoices (customer_id, invoice_date)",
-            "CREATE INDEX IF NOT EXISTS idx_sale_returns_customer ON sale_returns (customer_id)",
-            "CREATE INDEX IF NOT EXISTS idx_services_customer_date ON service_requests (customer_id, completed_at)",
-            "CREATE INDEX IF NOT EXISTS idx_expenses_customer_date ON expenses (customer_id, date)",
-            "CREATE INDEX IF NOT EXISTS idx_checks_payment ON checks (payment_id)",
-            "CREATE INDEX IF NOT EXISTS idx_checks_customer_date ON checks (customer_id, check_date)",
-            "CREATE INDEX IF NOT EXISTS idx_checks_status ON checks (status)"
-        ]
-        for sql in idx_sql:
+        from flask import current_app
+        if not current_app.config.get("CUSTOMER_STATEMENT_IDX_DONE", False):
+            idx_sql = [
+                "CREATE INDEX IF NOT EXISTS idx_payments_customer_date ON payments (customer_id, payment_date)",
+                "CREATE INDEX IF NOT EXISTS idx_payments_status ON payments (status)",
+                "CREATE INDEX IF NOT EXISTS idx_sales_customer_date ON sales (customer_id, sale_date)",
+                "CREATE INDEX IF NOT EXISTS idx_invoices_customer_date ON invoices (customer_id, invoice_date)",
+                "CREATE INDEX IF NOT EXISTS idx_sale_returns_customer ON sale_returns (customer_id)",
+                "CREATE INDEX IF NOT EXISTS idx_services_customer_date ON service_requests (customer_id, completed_at)",
+                "CREATE INDEX IF NOT EXISTS idx_expenses_customer_date ON expenses (customer_id, date)",
+                "CREATE INDEX IF NOT EXISTS idx_checks_payment ON checks (payment_id)",
+                "CREATE INDEX IF NOT EXISTS idx_checks_customer_date ON checks (customer_id, check_date)",
+                "CREATE INDEX IF NOT EXISTS idx_checks_status ON checks (status)"
+            ]
+            for sql in idx_sql:
+                try:
+                    db.session.execute(sa_text(sql))
+                except Exception:
+                    pass
             try:
-                db.session.execute(sa_text(sql))
+                db.session.commit()
             except Exception:
-                pass
-        db.session.commit()
+                try:
+                    db.session.rollback()
+                except Exception:
+                    pass
+            current_app.config["CUSTOMER_STATEMENT_IDX_DONE"] = True
     except Exception:
         try:
             db.session.rollback()
@@ -1613,10 +1634,12 @@ def account_statement(customer_id):
         if receiver_name and not is_bounced and not has_legal_check:
             payment_statement += f" - لـيـد ({receiver_name})"
         
-        # استخراج Direction value من enum
         direction_value = p.direction.value if hasattr(p.direction, 'value') else str(p.direction)
-        is_out = direction_value == 'OUT'  # صادر من الشركة للعميل
-        is_in = not is_out  # وارد من العميل للشركة
+        is_out = direction_value == 'OUT'
+        is_in = not is_out
+
+        if getattr(p, 'expense_id', None):
+            continue
         
         # حساب debit/credit
         # في محاسبة العملاء:
@@ -2006,7 +2029,10 @@ def account_statement(customer_id):
 
     manual_checks = Check.query.filter(
         Check.customer_id == customer_id,
-        Check.payment_id.is_(None)
+        Check.payment_id.is_(None),
+        Check.check_date >= start_date,
+        Check.check_date <= end_date,
+        ~Check.status.in_([CheckStatus.CANCELLED.value, CheckStatus.ARCHIVED.value])
     ).order_by(Check.check_date, Check.id).all()
     
     for check in manual_checks:
@@ -2118,7 +2144,7 @@ def account_statement(customer_id):
             "notes": check.notes or "شيك يدوي",
         })
 
-    expenses = Expense.query.filter_by(customer_id=customer_id).order_by(Expense.date, Expense.id).all()
+    expenses = Expense.query.filter_by(customer_id=customer_id).filter(Expense.date >= start_date).filter(Expense.date <= end_date).order_by(Expense.date, Expense.id).all()
     for exp in expenses:
         amt = D(exp.amount or 0)
         if exp.currency and exp.currency != "ILS":
@@ -2150,7 +2176,71 @@ def account_statement(customer_id):
             entry_type = "EXPENSE"
             debit_val = amt  # المصروف = عليه (مدين)
             credit_val = D(0)
-        
+
+        try:
+            linked_payments = (
+                Payment.query
+                .filter(Payment.expense_id == exp.id)
+                .filter(Payment.status.in_([PaymentStatus.COMPLETED.value, PaymentStatus.PENDING.value]))
+                .order_by(Payment.payment_date, Payment.id)
+                .all()
+            )
+        except Exception:
+            linked_payments = []
+
+        if linked_payments:
+            methods = []
+            references = []
+            checks_info = []
+            for pmt in linked_payments:
+                method_val = getattr(pmt, 'method', PaymentMethod.CASH.value)
+                if hasattr(method_val, 'value'):
+                    method_val = method_val.value
+                mraw = str(method_val or '').lower()
+                method_map = {
+                    'cash': 'نقداً',
+                    'card': 'بطاقة',
+                    'bank': 'تحويل بنكي',
+                    'online': 'إلكتروني',
+                    'cheque': 'شيك'
+                }
+                methods.append(method_map.get(mraw, mraw))
+                refnum = getattr(pmt, 'payment_number', None) or getattr(pmt, 'receipt_number', None) or f"PAY-{pmt.id}"
+                references.append(refnum)
+                if mraw == 'cheque':
+                    cn = getattr(pmt, 'check_number', None)
+                    cb = getattr(pmt, 'check_bank', None)
+                    cd = getattr(pmt, 'check_due_date', None)
+                    if cd:
+                        try:
+                            cd_str = cd.strftime('%Y-%m-%d')
+                        except Exception:
+                            cd_str = str(cd)
+                    else:
+                        cd_str = None
+                    parts = []
+                    if cn:
+                        parts.append(f"#{cn}")
+                    if cb:
+                        parts.append(cb)
+                    if cd_str:
+                        parts.append(f"استحقاق: {cd_str}")
+                    if parts:
+                        checks_info.append("شيك " + " - ".join(parts))
+
+            methods_display = ", ".join(sorted(set([m for m in methods if m])))
+            refs_display = ", ".join(sorted(set([r for r in references if r])))
+            checks_display = "; ".join(checks_info)
+            inject_parts = []
+            if methods_display:
+                inject_parts.append(f"سداد: {methods_display}")
+            if refs_display:
+                inject_parts.append(f"مراجع: {refs_display}")
+            if checks_display:
+                inject_parts.append(checks_display)
+            if inject_parts:
+                statement = f"{statement} — " + " | ".join(inject_parts)
+
         entries.append({
             "date": exp.date or exp.created_at,
             "type": entry_type,
@@ -2162,7 +2252,6 @@ def account_statement(customer_id):
         })
 
     opening_balance = D(getattr(c, 'opening_balance', 0) or 0)
-    # تحويل الرصيد الافتتاحي إلى الشيكل إذا كانت عملة العميل ليست الشيكل
     if getattr(c, 'currency', None) and c.currency != "ILS":
         try:
             from models import convert_amount
@@ -2172,19 +2261,15 @@ def account_statement(customer_id):
             pass
     
     if opening_balance != 0:
-        opening_date = c.created_at
-        if entries:
-            first_entry_date = min((e["date"] for e in entries if e["date"]), default=c.created_at)
-            if first_entry_date and first_entry_date < c.created_at:
-                opening_date = first_entry_date
+        opening_date = start_date or c.created_at
         
         opening_entry = {
             "date": opening_date,
             "type": "OPENING_BALANCE",
             "ref": "OB-001",
             "statement": "الرصيد الافتتاحي",
-            "debit": abs(opening_balance) if opening_balance < 0 else D(0),  # السالب (عليه) = مدين
-            "credit": abs(opening_balance) if opening_balance > 0 else D(0),  # الموجب (له) = دائن
+            "debit": abs(opening_balance) if opening_balance < 0 else D(0),
+            "credit": abs(opening_balance) if opening_balance > 0 else D(0),
             "notes": "الرصيد السابق قبل بدء النظام",
             "currency": "ILS"
         }
@@ -2195,99 +2280,6 @@ def account_statement(customer_id):
             return (datetime.min, "")  # الرصيد الافتتاحي دائماً أولاً
         return (entry.get("date") or datetime.min, entry.get("ref") or "")
     
-    manual_checks = Check.query.filter(
-        Check.payment_id.is_(None),
-        Check.customer_id == customer_id,
-        ~Check.status.in_([CheckStatus.CANCELLED.value, CheckStatus.ARCHIVED.value])
-    ).all()
-    
-    for check in manual_checks:
-        d = check.check_date
-        amt = D(check.amount or 0)
-        if check.currency and check.currency != "ILS" and amt > 0:
-            try:
-                from models import convert_amount
-                convert_date = d if d else datetime.now()
-                amt = convert_amount(amt, check.currency, "ILS", convert_date)
-            except Exception as e:
-                try:
-                    current_app.logger.error(f"Error converting check #{check.id} amount: {e}")
-                except Exception:
-                    pass
-        
-        direction_value = check.direction.value if hasattr(check.direction, 'value') else str(check.direction)
-        is_out = direction_value == 'OUT'
-        check_status = check.status.value if hasattr(check.status, 'value') else str(check.status)
-        
-        ref = f"شيك #{check.check_number}"
-        check_bank = check.check_bank or ''
-        check_due_date = check.check_due_date.strftime('%Y-%m-%d') if check.check_due_date else ''
-        
-        if check_status == CheckStatus.RETURNED.value or check_status == CheckStatus.BOUNCED.value:
-            if is_out:
-                statement = f"↩️ شيك مرتجع صادر - {check_bank} - {ref}"
-                entry_type = "CHECK_BOUNCED"
-            else:
-                statement = f"↩️ شيك مرتجع وارد - {check_bank} - {ref}"
-                entry_type = "CHECK_BOUNCED"
-        elif check_status == CheckStatus.PENDING.value:
-            statement = f"⏳ شيك معلق - {check_bank} - {ref}"
-            entry_type = "CHECK_PENDING"
-        elif check_status == CheckStatus.CASHED.value:
-            if is_out:
-                statement = f"✅ شيك تم صرفه صادر - {check_bank} - {ref}"
-            else:
-                statement = f"✅ شيك تم صرفه وارد - {check_bank} - {ref}"
-            entry_type = "CHECK_CASHED"
-        elif check_status == CheckStatus.RESUBMITTED.value:
-            statement = f"🔄 شيك معاد للبنك - {check_bank} - {ref}"
-            entry_type = "CHECK_RESUBMITTED"
-        elif check_status == CheckStatus.ARCHIVED.value:
-            statement = f"📦 شيك مؤرشف - {check_bank} - {ref}"
-            entry_type = "CHECK_ARCHIVED"
-        else:
-            if is_out:
-                statement = f"شيك صادر - {check_bank} - {ref}"
-            else:
-                statement = f"شيك وارد - {check_bank} - {ref}"
-            entry_type = "CHECK_PENDING" if check_status == CheckStatus.PENDING.value else "PAYMENT"
-        
-        payment_details = {
-            'method': 'شيك',
-            'method_raw': 'cheque',
-            'check_number': check.check_number,
-            'check_bank': check_bank,
-            'check_due_date': check_due_date,
-            'check_status': check_status,
-            'is_check_settled': False,
-            'is_check_legal': False,
-            'is_check_resubmitted': check_status == CheckStatus.RESUBMITTED.value,
-            'is_check_archived': check_status == CheckStatus.ARCHIVED.value,
-            'check_notes': check.notes or ''
-        }
-        
-        if is_out:
-            entries.append({
-                "date": d,
-                "type": entry_type,
-                "ref": ref,
-                "statement": statement,
-                "debit": amt,
-                "credit": D(0),
-                "payment_details": payment_details,
-                "notes": check.notes or ''
-            })
-        else:
-            entries.append({
-                "date": d,
-                "type": entry_type,
-                "ref": ref,
-                "statement": statement,
-                "debit": D(0),
-                "credit": amt,
-                "payment_details": payment_details,
-                "notes": check.notes or ''
-            })
 
     entries.sort(key=sort_key)
 
@@ -2311,6 +2303,8 @@ def account_statement(customer_id):
     except Exception:
         pass
 
+    
+
     # ابدأ الرصيد الجاري من قيمة الرصيد الافتتاحي بعد التحويل
     opening_entry_val = None
     for e in entries:
@@ -2329,6 +2323,10 @@ def account_statement(customer_id):
     total_credit = sum(e["credit"] for e in entries)
     
     balance = total_credit - total_debit
+    
+    total_debit_period = sum(e["debit"] for e in entries if e.get("type") != "OPENING_BALANCE")
+    total_credit_period = sum(e["credit"] for e in entries if e.get("type") != "OPENING_BALANCE")
+    balance_period = total_credit_period - total_debit_period
     
     if abs(float(balance - running)) > 0.01:
         current_app.logger.warning(
@@ -2459,10 +2457,33 @@ def account_statement(customer_id):
         "total_debit": total_debit,
         "total_credit": total_credit,
         "balance": balance,
+        "period_total_debit": total_debit_period,
+        "period_total_credit": total_credit_period,
+        "period_balance": balance_period,
         "start_date": start_date,
         "end_date": end_date,
         "money_fmt": money_fmt,
     }
+    if request.args.get("format") == "json":
+        return jsonify({
+            "total_debit": float(total_debit),
+            "total_credit": float(total_credit),
+            "balance": float(context["balance"]),
+            "period_total_debit": float(total_debit_period),
+            "period_total_credit": float(total_credit_period),
+            "period_balance": float(balance_period),
+            "entries": [
+                {
+                    "date": (e.get("date").isoformat() if e.get("date") else None),
+                    "type": e.get("type"),
+                    "ref": e.get("ref"),
+                    "statement": e.get("statement"),
+                    "debit": float(e.get("debit", 0) or 0),
+                    "credit": float(e.get("credit", 0) or 0),
+                }
+                for e in entries
+            ],
+        })
     return render_template("customers/account_statement.html", pdf_export=False, **context)
 
 @customers_bp.route("/advanced_filter", methods=["GET"], endpoint="advanced_filter")
@@ -2648,3 +2669,136 @@ def restore_customer(customer_id):
         db.session.rollback()
         flash(f'خطأ في استعادة العميل: {str(e)}', 'error')
         return redirect(url_for('customers_bp.list_customers'))
+
+
+@customers_bp.route('/reset-passwords', methods=['POST'])
+@login_required
+def reset_passwords():
+    """تعيين كلمة مرور موحّدة للعملاء الذين لا يملكون كلمة مرور.
+    يستخدم حقل `password_hash` ويولّد هاش آمن لجميع العملاء القدامى الذين قيمة الحقل لديهم فارغة.
+    تسمية كلمة المرور الافتراضية يمكن تمريرها عبر النموذج باسم `default_password`.
+    """
+    try:
+        from werkzeug.security import generate_password_hash
+        default_password = (request.form.get('default_password') or 'AZ@1983').strip()
+        if not default_password:
+            default_password = 'AZ@1983'
+
+        # تحديث العملاء الذين لا يملكون كلمة مرور فقط
+        updated = 0
+        total_candidates = 0
+        q = Customer.query.filter((Customer.password_hash.is_(None)) | (Customer.password_hash == ''))
+        customers = q.all()
+        total_candidates = len(customers)
+        for cust in customers:
+            try:
+                cust.password_hash = generate_password_hash(default_password)
+                cust.is_online = True
+                # Set default email AZAD@<phone> if missing and phone present, ensuring uniqueness
+                if not (cust.email and str(cust.email).strip()) and (cust.phone and str(cust.phone).strip()):
+                    target_email = f"AZAD@{str(cust.phone).strip()}"
+                    exists = Customer.query.filter(func.lower(Customer.email) == target_email.lower(), Customer.id != cust.id).first()
+                    if not exists:
+                        cust.email = target_email
+                updated += 1
+            except Exception:
+                continue
+
+        db.session.commit()
+        flash(f'✅ تم تعيين كلمة مرور موحّدة لعدد {updated} عميل من أصل {total_candidates}.', 'success')
+        if total_candidates == 0:
+            flash('ℹ️ لا يوجد عملاء بحاجة لتعيين كلمة مرور (الحقل موجود بالفعل).', 'info')
+        return redirect(url_for('customers_bp.list_customers'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطأ في تعيين كلمات المرور: {str(e)}', 'error')
+        return redirect(url_for('customers_bp.list_customers'))
+
+
+@customers_bp.route('/make-online-all', methods=['POST'])
+@login_required
+def make_online_all():
+    try:
+        from werkzeug.security import generate_password_hash
+        default_password = (request.form.get('default_password') or 'AZ@1983').strip() or 'AZ@1983'
+        updated = 0
+        customers = Customer.query.all()
+        for cust in customers:
+            try:
+                cust.is_online = True
+                cust.is_active = True
+                if not (cust.email and str(cust.email).strip()) and (cust.phone and str(cust.phone).strip()):
+                    target_email = f"AZAD@{str(cust.phone).strip()}"
+                    exists = Customer.query.filter(func.lower(Customer.email) == target_email.lower(), Customer.id != cust.id).first()
+                    if not exists:
+                        cust.email = target_email
+                if not (cust.password_hash and str(cust.password_hash).strip()):
+                    cust.password_hash = generate_password_hash(default_password)
+                updated += 1
+            except Exception:
+                continue
+        db.session.commit()
+        flash(f'✅ تم تحويل جميع العملاء ({updated}) إلى وضع الأونلاين مع بيانات افتراضية.', 'success')
+        return redirect(url_for('customers_bp.list_customers'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطأ أثناء تحويل العملاء للأونلاين: {str(e)}', 'error')
+        return redirect(url_for('customers_bp.list_customers'))
+
+
+@customers_bp.route('/set-default-emails', methods=['POST'])
+@login_required
+def set_default_emails():
+    try:
+        updated = 0
+        skipped = 0
+        q = Customer.query.filter((Customer.email.is_(None)) | (Customer.email == ''))
+        customers = q.all()
+        for cust in customers:
+            phone = (getattr(cust, 'phone', None) or '').strip()
+            if not phone:
+                skipped += 1
+                continue
+            target_email = f"AZAD@{phone}"
+            exists = Customer.query.filter(func.lower(Customer.email) == target_email.lower(), Customer.id != cust.id).first()
+            if exists:
+                skipped += 1
+                continue
+            cust.email = target_email
+            updated += 1
+        db.session.commit()
+        flash(f'✅ تم ضبط بريد افتراضي لـ {updated} عميل. تم تخطي {skipped} بسبب تعارض أو عدم وجود هاتف.', 'success')
+        return redirect(url_for('customers_bp.list_customers'))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'خطأ أثناء ضبط البريد الافتراضي: {str(e)}', 'error')
+        return redirect(url_for('customers_bp.list_customers'))
+@customers_bp.route('/export-online-credentials', methods=['GET'])
+@login_required
+def export_online_credentials():
+    customers = Customer.query.order_by(Customer.id.asc()).all()
+    rows = []
+    for c in customers:
+        phone = (getattr(c, 'phone', None) or '').strip()
+        email = (getattr(c, 'email', None) or '').strip()
+        login = f"AZAD@{phone}" if phone else (email or '')
+        password = 'AZ@1983' if (not getattr(c, 'password_hash', None) or c.check_password('AZ@1983')) else ''
+        rows.append({
+            'id': c.id,
+            'name': c.name,
+            'phone': phone,
+            'login': login,
+            'password': password
+        })
+    html = [
+        "<div class='container py-3'>",
+        "<h4><i class='fas fa-id-card'></i> حسابات دخول العملاء</h4>",
+        "<div class='alert alert-info'>كلمة المرور تظهر فقط إذا كانت الافتراضية أو غير موجودة.</div>",
+        "<table class='table table-striped table-bordered'>",
+        "<thead><tr><th>ID</th><th>الاسم</th><th>الجوال</th><th>اسم المستخدم</th><th>كلمة المرور</th></tr></thead>",
+        "<tbody>"
+    ]
+    for r in rows:
+        html.append(f"<tr><td>{r['id']}</td><td>{r['name']}</td><td>{r['phone']}</td><td>{r['login']}</td><td>{r['password'] or '—'}</td></tr>")
+    html.append("</tbody></table></div>")
+    return render_template_string("".join(html))

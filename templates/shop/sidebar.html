@@ -93,6 +93,14 @@
       </h6>
       <ul class="sidebar-menu">
         {% if current_user.is_authenticated %}
+        {% if is_customer_actor(current_user) %}
+        <li>
+          <a href="{{ url_for('customers_bp.account_statement', customer_id=current_user.id) }}" class="sidebar-link {% if request.endpoint == 'customers_bp.account_statement' %}active{% endif %}">
+            <i class="fas fa-file-invoice"></i>
+            <span>كشف حسابي</span>
+          </a>
+        </li>
+        {% endif %}
         <li>
           <a href="{{ url_for('users_bp.profile') }}" class="sidebar-link">
             <i class="fas fa-user-circle"></i>
