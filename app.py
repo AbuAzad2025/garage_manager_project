@@ -400,13 +400,21 @@ def create_app(config_object=Config) -> Flask:
                 return False
 
         def has_any(*codes):
-            if is_super():
-                return True
+            try:
+                from utils import is_super as _is_super
+                if _is_super():
+                    return True
+            except Exception:
+                pass
             return any(has_perm(c) for c in codes)
 
         def has_all(*codes):
-            if is_super():
-                return True
+            try:
+                from utils import is_super as _is_super
+                if _is_super():
+                    return True
+            except Exception:
+                pass
             return all(has_perm(c) for c in codes)
 
         return {"has_perm": has_perm, "has_any": has_any, "has_all": has_all}
@@ -431,7 +439,21 @@ def create_app(config_object=Config) -> Flask:
             return "/?missing=" + ",".join(tried)
 
     app.jinja_env.filters["qr_to_base64"] = utils.qr_to_base64
-    app.jinja_env.filters["format_currency"] = utils.format_currency
+    
+    def _format_currency_filter(value, code=None):
+        try:
+            amount = float(value)
+        except Exception:
+            amount = 0.0
+        cur = (code or "ILS").strip().upper()
+        if cur == "ILS":
+            return utils.format_currency(amount)
+        symbol = {"USD": "$", "EUR": "€", "JOD": "JOD", "ILS": "₪"}.get(cur, cur)
+        try:
+            return f"{amount:,.2f} {symbol}"
+        except Exception:
+            return str(amount)
+    app.jinja_env.filters["format_currency"] = _format_currency_filter
     app.jinja_env.filters["format_percent"] = utils.format_percent
     app.jinja_env.filters["yes_no"] = utils.yes_no
     app.jinja_env.filters["number_format"] = _safe_number_format
@@ -599,6 +621,9 @@ def create_app(config_object=Config) -> Flask:
     attach_acl(checks_bp, read_perm="manage_payments", write_perm="manage_payments")
     
     def _init_ai_systems():
+        if app.config.get("TESTING", False):
+            app.logger.info("AI systems disabled in testing mode.")
+            return
         if not app.config.get("AI_SYSTEMS_ENABLED", True):
             app.logger.info("AI systems disabled via configuration.")
             return
@@ -849,6 +874,21 @@ def create_app(config_object=Config) -> Flask:
             is_super = utils.is_super() if hasattr(utils, 'is_super') else False
             return {"shop_is_super_admin": is_super}
         return {"shop_is_super_admin": False}
+    
+    @app.context_processor
+    def inject_shop_helpers():
+        def is_customer_actor(user):
+            try:
+                from models import Customer
+                if not getattr(user, "is_authenticated", False):
+                    return False
+                if isinstance(user, Customer):
+                    return True
+                role_slug = getattr(getattr(user, "role", None), "slug", "") or ""
+                return str(role_slug).strip().lower() == "customer"
+            except Exception:
+                return False
+        return {"is_customer_actor": is_customer_actor}
     
     @app.template_global()
     def csrf_token():

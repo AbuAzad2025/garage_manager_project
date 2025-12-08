@@ -35,6 +35,7 @@ from models import (
     ensure_currency,
     Branch,
 )
+from models import fx_rate
 import utils
 from utils import D, q0, archive_record, restore_record
 from routes.payments import _ensure_payment_number
@@ -1412,13 +1413,19 @@ def index():
           {% if current_user.has_permission('manage_expenses') %}
             <a href="{{ url_for('expenses_bp.edit', exp_id=e.id) }}" class="btn btn-sm btn-warning" title="تعديل"><i class="fas fa-edit"></i></a>
             {% if e.is_archived %}
-            <button type="button" class="btn btn-action-restore btn-action-sm" title="استعادة" onclick="restoreExpense({{ e.id }})">
-              <i class="fas fa-undo"></i>
-            </button>
+            <form method="post" action="{{ url_for('expenses_bp.restore_expense', expense_id=e.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-action-restore btn-action-sm" title="استعادة">
+                <i class="fas fa-undo"></i>
+              </button>
+            </form>
             {% else %}
-            <button type="button" class="btn btn-action-archive btn-action-sm" title="أرشفة" onclick="archiveExpense({{ e.id }})">
-              <i class="fas fa-archive"></i>
-            </button>
+            <form method="post" action="{{ url_for('expenses_bp.archive_expense', expense_id=e.id) }}" class="d-inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-action-archive btn-action-sm" title="أرشفة">
+                <i class="fas fa-archive"></i>
+              </button>
+            </form>
             {% endif %}
             <form method="post" action="{{ url_for('expenses_bp.delete', exp_id=e.id) }}" onsubmit="return confirm('حذف المصروف؟');" class="d-inline">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

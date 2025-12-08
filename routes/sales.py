@@ -12,6 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload, selectinload, load_only
 from extensions import db, cache
 from models import Sale, SaleLine, Invoice, Customer, Product, AuditLog, Warehouse, User, Payment, StockLevel, Employee, CostCenter
+from models import convert_amount
 from forms import SaleForm
 import utils
 from utils import D, line_total_decimal, money_fmt, archive_record, restore_record  # Import from utils package

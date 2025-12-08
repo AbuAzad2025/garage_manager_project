@@ -543,38 +543,60 @@ def products():
 
 @shop_bp.get("/api/products")
 def api_products():
-    qparam = (request.args.get("query") or "").strip()
-    if not is_super_admin(current_user):
-        pre = db.session.query(Product).filter(Product.is_active.is_(True))
-        if hasattr(Product, "is_published"):
-            try:
-                pre = pre.filter(Product.is_published.is_(True))
-            except Exception:
-                pass
+    try:
+        qparam = (request.args.get("query") or "").strip()
+        if not is_super_admin(current_user):
+            pre = db.session.query(Product).filter(Product.is_active.is_(True))
+            if hasattr(Product, "is_published"):
+                try:
+                    pre = pre.filter(Product.is_published.is_(True))
+                except Exception:
+                    pass
+            if qparam:
+                like = f"%{qparam}%"
+                pre = pre.filter(
+                    (Product.name.ilike(like)) |
+                    (Product.sku.ilike(like)) |
+                    (Product.part_number.ilike(like))
+                )
+            pre_ids = [pid for (pid,) in pre.with_entities(Product.id).all()]
+            _ensure_online_stocklevels_for_products(pre_ids)
+        if is_super_admin(current_user):
+            q = db.session.query(Product)
+        else:
+            q = _apply_online_scope(db.session.query(Product))
         if qparam:
             like = f"%{qparam}%"
-            pre = pre.filter(
+            q = q.filter(
                 (Product.name.ilike(like)) |
                 (Product.sku.ilike(like)) |
                 (Product.part_number.ilike(like))
             )
-        pre_ids = [pid for (pid,) in pre.with_entities(Product.id).all()]
-        _ensure_online_stocklevels_for_products(pre_ids)
-    if is_super_admin(current_user):
-        q = db.session.query(Product)
-    else:
-        q = _apply_online_scope(db.session.query(Product))
-    if qparam:
-        like = f"%{qparam}%"
-        q = q.filter(
-            (Product.name.ilike(like)) |
-            (Product.sku.ilike(like)) |
-            (Product.part_number.ilike(like))
-        )
-    products = q.distinct(Product.id).order_by(Product.name.asc()).all()
-    data = []
-    for p in products:
-        data.append({
+        products = q.distinct(Product.id).order_by(Product.name.asc()).all()
+        data = []
+        for p in products:
+            data.append({
+                "id": p.id,
+                "name": (getattr(p, "online_name", None) or getattr(p, "commercial_name", None) or p.name),
+                "sku": getattr(p, "sku", None),
+                "part_number": getattr(p, "part_number", None),
+                "price": _price_for_shop(p),
+                "online_price": (float(p.online_price) if getattr(p, "online_price", None) is not None else None),
+                "selling_price": (float(p.selling_price) if getattr(p, "selling_price", None) is not None else None),
+                "stock": available_qty(p.id),
+                "image": getattr(p, "image", None),
+                "online_image": getattr(p, "online_image", None),
+                "brand": getattr(p, "brand", None),
+            })
+        return jsonify({"data": data})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+@shop_bp.get("/api/product/<int:pid>")
+def api_product_detail(pid: int):
+    try:
+        p = _get_or_404(Product, pid)
+        return jsonify({
             "id": p.id,
             "name": (getattr(p, "online_name", None) or getattr(p, "commercial_name", None) or p.name),
             "sku": getattr(p, "sku", None),
@@ -586,27 +608,11 @@ def api_products():
             "image": getattr(p, "image", None),
             "online_image": getattr(p, "online_image", None),
             "brand": getattr(p, "brand", None),
+            "unit": getattr(p, "unit", None),
+            "category_name": getattr(p, "category_name", None),
         })
-    return jsonify({"data": data})
-
-@shop_bp.get("/api/product/<int:pid>")
-def api_product_detail(pid: int):
-    p = _get_or_404(Product, pid)
-    return jsonify({
-        "id": p.id,
-        "name": (getattr(p, "online_name", None) or getattr(p, "commercial_name", None) or p.name),
-        "sku": getattr(p, "sku", None),
-        "part_number": getattr(p, "part_number", None),
-        "price": _price_for_shop(p),
-        "online_price": (float(p.online_price) if getattr(p, "online_price", None) is not None else None),
-        "selling_price": (float(p.selling_price) if getattr(p, "selling_price", None) is not None else None),
-        "stock": available_qty(p.id),
-        "image": getattr(p, "image", None),
-        "online_image": getattr(p, "online_image", None),
-        "brand": getattr(p, "brand", None),
-        "unit": getattr(p, "unit", None),
-        "category_name": getattr(p, "category_name", None),
-    })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @shop_bp.route("/order", methods=["POST"], endpoint="place_order")
 @online_customer_required

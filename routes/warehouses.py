@@ -339,25 +339,28 @@ def _normalize_row_types(r: dict) -> dict:
 @warehouse_bp.route("/api/warehouse-info", methods=["GET"], endpoint="api_warehouse_info")
 @login_required
 def api_warehouse_info():
-    wid = request.args.get("id", type=int)
-    if not wid:
-        return jsonify({"error": "id_required"}), 400
-    w = Warehouse.query.filter_by(id=wid).first()
-    if not w:
-        return jsonify({"error": "not_found"}), 404
-    if hasattr(w.warehouse_type, 'value'):
-        wt = w.warehouse_type.value
-    else:
-        wt = str(w.warehouse_type)
-    wt = str(wt).upper() if wt else ""
-    return jsonify({
-        "id": w.id,
-        "name": w.name,
-        "type": wt,
-        "is_online": (wt == "ONLINE"),
-        "online_slug": getattr(w, "online_slug", None),
-        "online_is_default": bool(getattr(w, "online_is_default", False))
-    })
+    try:
+        wid = request.args.get("id", type=int)
+        if not wid:
+            return jsonify({"error": "id_required"}), 400
+        w = Warehouse.query.filter_by(id=wid).first()
+        if not w:
+            return jsonify({"error": "not_found"}), 404
+        if hasattr(w.warehouse_type, 'value'):
+            wt = w.warehouse_type.value
+        else:
+            wt = str(w.warehouse_type)
+        wt = str(wt).upper() if wt else ""
+        return jsonify({
+            "id": w.id,
+            "name": w.name,
+            "type": wt,
+            "is_online": (wt == "ONLINE"),
+            "online_slug": getattr(w, "online_slug", None),
+            "online_is_default": bool(getattr(w, "online_is_default", False))
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @warehouse_bp.route("/api/upload_product_image", methods=["POST"], endpoint="api_upload_product_image")
 @login_required
@@ -409,24 +412,27 @@ def _in_chunks(items, size=500):
 @warehouse_bp.route("/api/prepare_online_fields", methods=["GET"], endpoint="api_prepare_online_fields")
 @login_required
 def api_prepare_online_fields():
-    wid = request.args.get("warehouse_id", type=int)
-    if not wid:
-        return jsonify({"ok": False, "error": "warehouse_id_required"}), 400
-    w = Warehouse.query.filter_by(id=wid).first()
-    if not w:
-        return jsonify({"ok": False, "error": "not_found"}), 404
-    wt = getattr(w.warehouse_type, "value", w.warehouse_type)
-    is_online = str(wt).upper() == "ONLINE"
-    schema = {
-        "base_fields": ["name", "sku", "brand", "part_number",
-                        "price", "selling_price", "purchase_price",
-                        "category_name", "quantity"],
-        "extra_fields": [],
-        "is_online": is_online
-    }
-    if is_online:
-        schema["extra_fields"] = ["online_name", "online_price", "online_image"]
-    return jsonify({"ok": True, "schema": schema})
+    try:
+        wid = request.args.get("warehouse_id", type=int)
+        if not wid:
+            return jsonify({"ok": False, "error": "warehouse_id_required"}), 400
+        w = Warehouse.query.filter_by(id=wid).first()
+        if not w:
+            return jsonify({"ok": False, "error": "not_found"}), 404
+        wt = getattr(w.warehouse_type, "value", w.warehouse_type)
+        is_online = str(wt).upper() == "ONLINE"
+        schema = {
+            "base_fields": ["name", "sku", "brand", "part_number",
+                            "price", "selling_price", "purchase_price",
+                            "category_name", "quantity"],
+            "extra_fields": [],
+            "is_online": is_online
+        }
+        if is_online:
+            schema["extra_fields"] = ["online_name", "online_price", "online_image"]
+        return jsonify({"ok": True, "schema": schema})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 @warehouse_bp.route("/api/apply_online_defaults", methods=["POST"], endpoint="api_apply_online_defaults")
 @login_required
@@ -3280,26 +3286,25 @@ def download_import_run(run_id: int):
 @warehouse_bp.route("/api/products/<int:product_id>/partners", methods=["GET"], endpoint="api_product_partners_list")
 @login_required
 def api_product_partners_list(product_id):
-    """جلب قائمة الشركاء المرتبطين بمنتج"""
-    product = _get_or_404(Product, product_id)
-    
-    partners = (
-        db.session.query(ProductPartnerShare, Partner)
-        .join(Partner, ProductPartnerShare.partner_id == Partner.id)
-        .filter(ProductPartnerShare.product_id == product_id)
-        .all()
-    )
-    
-    result = []
-    for pps, partner in partners:
-        result.append({
-            "id": pps.id,
-            "partner_id": partner.id,
-            "partner_name": partner.name,
-            "share_percentage": float(pps.share_percentage or 0),
-        })
-    
-    return jsonify({"success": True, "partners": result})
+    try:
+        product = _get_or_404(Product, product_id)
+        partners = (
+            db.session.query(ProductPartnerShare, Partner)
+            .join(Partner, ProductPartnerShare.partner_id == Partner.id)
+            .filter(ProductPartnerShare.product_id == product_id)
+            .all()
+        )
+        result = []
+        for pps, partner in partners:
+            result.append({
+                "id": pps.id,
+                "partner_id": partner.id,
+                "partner_name": partner.name,
+                "share_percentage": float(pps.share_percentage or 0),
+            })
+        return jsonify({"success": True, "partners": result})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @warehouse_bp.route("/api/products/<int:product_id>/partners", methods=["POST"], endpoint="api_product_partners_add")
@@ -3407,22 +3412,20 @@ def api_product_partners_delete(product_id, share_id):
 @warehouse_bp.route("/api/products/<int:product_id>/suppliers", methods=["GET"], endpoint="api_product_suppliers_list")
 @login_required
 def api_product_suppliers_list(product_id):
-    """جلب قائمة الموردين المرتبطين بمنتج (عبر supplier_id في Product)"""
-    product = _get_or_404(Product, product_id)
-    
-    # المنتج له مورد واحد فقط في الموديل الحالي (supplier_id)
-    result = []
-    if product.supplier_id:
-        # جلب بيانات المورد من قاعدة البيانات
-        supplier = Supplier.query.get(product.supplier_id)
-        if supplier:
-            result.append({
-                "supplier_id": supplier.id,
-                "supplier_name": supplier.name,
-                "purchase_price": float(product.purchase_price or 0),
-            })
-    
-    return jsonify({"success": True, "suppliers": result})
+    try:
+        product = _get_or_404(Product, product_id)
+        result = []
+        if product.supplier_id:
+            supplier = Supplier.query.get(product.supplier_id)
+            if supplier:
+                result.append({
+                    "supplier_id": supplier.id,
+                    "supplier_name": supplier.name,
+                    "purchase_price": float(product.purchase_price or 0),
+                })
+        return jsonify({"success": True, "suppliers": result})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @warehouse_bp.route("/api/products/<int:product_id>/suppliers", methods=["POST"], endpoint="api_product_suppliers_update")
@@ -3468,20 +3471,24 @@ def api_product_suppliers_update(product_id):
 @warehouse_bp.route("/api/partners/list", methods=["GET"], endpoint="api_partners_list")
 @login_required
 def api_partners_list():
-    """جلب قائمة جميع الشركاء"""
-    partners = Partner.query.order_by(Partner.name).all()
-    return jsonify({
-        "success": True,
-        "partners": [{"id": p.id, "name": p.name} for p in partners]
-    })
+    try:
+        partners = Partner.query.order_by(Partner.name).all()
+        return jsonify({
+            "success": True,
+            "partners": [{"id": p.id, "name": p.name} for p in partners]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @warehouse_bp.route("/api/suppliers/list", methods=["GET"], endpoint="api_suppliers_list")
 @login_required
 def api_suppliers_list():
-    """جلب قائمة جميع الموردين"""
-    suppliers = Supplier.query.order_by(Supplier.name).all()
-    return jsonify({
-        "success": True,
-        "suppliers": [{"id": s.id, "name": s.name} for s in suppliers]
-    })
+    try:
+        suppliers = Supplier.query.order_by(Supplier.name).all()
+        return jsonify({
+            "success": True,
+            "suppliers": [{"id": s.id, "name": s.name} for s in suppliers]
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500

@@ -1,5 +1,5 @@
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from flask import abort, Blueprint, current_app, flash, jsonify, redirect, render_template, render_template_string, request, url_for
 from flask_login import login_required, current_user
@@ -143,7 +143,7 @@ def suppliers_list():
         "branch_id": default_branch.id if default_branch else None,
         "currency_choices": [{"code": code, "label": label} for code, label in CURRENCY_CHOICES],
         "default_currency": "ILS",
-        "today": datetime.utcnow().strftime("%Y-%m-%d"),
+        "today": _utcnow_naive().strftime("%Y-%m-%d"),
     }
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("ajax") == "1"
     if is_ajax:
@@ -204,15 +204,21 @@ def suppliers_list():
               <span class="d-none d-lg-inline ms-1">تعديل</span>
             </a>
             {% if s.is_archived %}
-            <button type="button" class="btn btn-sm btn-success d-flex align-items-center" title="استعادة" onclick="restoreSupplier({{ s.id }})">
-              <i class="fas fa-undo"></i>
-              <span class="d-none d-lg-inline ms-1">استعادة</span>
-            </button>
+            <form method="post" action="{{ url_for('vendors_bp.restore_supplier', supplier_id=s.id) }}" class="d-inline-block">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-sm btn-success d-flex align-items-center" title="استعادة">
+                <i class="fas fa-undo"></i>
+                <span class="d-none d-lg-inline ms-1">استعادة</span>
+              </button>
+            </form>
             {% else %}
-            <button type="button" class="btn btn-sm btn-warning d-flex align-items-center" title="أرشفة" onclick="archiveSupplier({{ s.id }})">
-              <i class="fas fa-archive"></i>
-              <span class="d-none d-lg-inline ms-1">أرشفة</span>
-            </button>
+            <form method="post" action="{{ url_for('vendors_bp.archive_supplier', supplier_id=s.id) }}" class="d-inline-block">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="btn btn-sm btn-warning d-flex align-items-center" title="أرشفة">
+                <i class="fas fa-archive"></i>
+                <span class="d-none d-lg-inline ms-1">أرشفة</span>
+              </button>
+            </form>
             {% endif %}
             <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}" class="d-inline-block">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -353,7 +359,12 @@ def suppliers_delete(id):
 @vendors_bp.get("/suppliers/<int:supplier_id>/statement", endpoint="suppliers_statement")
 @login_required
 def suppliers_statement(supplier_id: int):
-    supplier = _get_or_404(Supplier, supplier_id)
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("ajax") == "1"
+    supplier = db.session.get(Supplier, supplier_id)
+    if not supplier:
+        if is_ajax:
+            return jsonify({"success": False, "message": "not_found"}), 404
+        abort(404)
     db.session.refresh(supplier)
 
     date_from_s = (request.args.get("from") or "").strip()
@@ -1717,7 +1728,7 @@ def suppliers_statement(supplier_id: int):
     balance_data = _calculate_smart_supplier_balance(
         supplier_id,
         df if df else datetime(2024, 1, 1),
-        (dt - timedelta(days=1)) if dt else datetime.utcnow()
+        (dt - timedelta(days=1)) if dt else _utcnow_naive()
     )
     
     balance_unified = balance_data.get('balance', {}).get('amount', 0) if balance_data.get('success') else current_balance
@@ -1877,6 +1888,28 @@ def suppliers_statement(supplier_id: int):
                 "is_available": (qty_i - sold_qty_i) > 0
             })
     
+    if is_ajax:
+        entries_json = []
+        for e in out[:50]:
+            d = e.get("date")
+            ds = d.strftime("%Y-%m-%d") if isinstance(d, datetime) else (d or "")
+            entries_json.append({
+                "date": ds,
+                "type": e.get("type"),
+                "ref": e.get("ref"),
+                "debit": float(e.get("debit", 0)),
+                "credit": float(e.get("credit", 0)),
+                "balance": float(e.get("balance", 0)),
+            })
+        return jsonify({
+            "success": True,
+            "entries": entries_json,
+            "total_debit": float(total_debit),
+            "total_credit": float(total_credit),
+            "balance": float(balance),
+            "date_from": (df.strftime("%Y-%m-%d") if df else None),
+            "date_to": ((dt - timedelta(days=1)).strftime("%Y-%m-%d") if dt else None),
+        })
     return render_template(
         "vendors/suppliers/statement.html",
         supplier=supplier,
@@ -1979,7 +2012,7 @@ def partners_list():
         "branch_id": default_branch.id if default_branch else None,
         "currency_choices": [{"code": code, "label": label} for code, label in CURRENCY_CHOICES],
         "default_currency": "ILS",
-        "today": datetime.utcnow().strftime("%Y-%m-%d"),
+        "today": _utcnow_naive().strftime("%Y-%m-%d"),
     }
     
     summary = {
@@ -2043,21 +2076,27 @@ def partners_list():
           </a>
           <a href="{{ url_for('payments.create_payment') }}?entity_type=PARTNER&entity_id={{ p.id }}&entity_name={{ p.name|urlencode }}"
              class="btn btn-sm btn-primary" title="إضافة دفعة">
-            <i class="fas fa-money-bill-wave"></i><span class="d-none د-xl-inline">دفع</span>
+            <i class="fas fa-money-bill-wave"></i><span class="d-none d-xl-inline">دفع</span>
           </a>
           {% if current_user.has_permission('manage_vendors') %}
             <a href="{{ url_for('vendors_bp.partners_edit', id=p.id) }}"
                class="btn btn-sm btn-secondary" title="تعديل بيانات الشريك">
-              <i class="fas fa-edit"></i><span class="d-none د-xl-inline">تعديل</span>
+              <i class="fas fa-edit"></i><span class="d-none d-xl-inline">تعديل</span>
             </a>
             {% if p.is_archived %}
-              <button type="button" class="btn btn-sm btn-success" onclick="restorePartner({{ p.id }})" title="استعادة الشريك">
-                <i class="fas fa-undo"></i><span class="d-none د-xl-inline">استعادة</span>
-              </button>
+              <form method="post" action="{{ url_for('vendors_bp.restore_partner', partner_id=p.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-success" title="استعادة الشريك">
+                  <i class="fas fa-undo"></i><span class="d-none d-xl-inline">استعادة</span>
+                </button>
+              </form>
             {% else %}
-              <button type="button" class="btn btn-sm btn-outline-warning" onclick="archivePartner({{ p.id }})" title="أرشفة الشريك">
-                <i class="fas fa-archive"></i><span class="d-none d-xl-inline">أرشفة</span>
-              </button>
+              <form method="post" action="{{ url_for('vendors_bp.archive_partner', partner_id=p.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="btn btn-sm btn-outline-warning" title="أرشفة الشريك">
+                  <i class="fas fa-archive"></i><span class="d-none d-xl-inline">أرشفة</span>
+                </button>
+              </form>
             {% endif %}
             <form method="post"
                   action="{{ url_for('vendors_bp.partners_delete', id=p.id) }}"
@@ -2108,7 +2147,12 @@ def partners_list():
 @vendors_bp.get("/partners/<int:partner_id>/statement", endpoint="partners_statement")
 @login_required
 def partners_statement(partner_id: int):
-    partner = _get_or_404(Partner, partner_id)
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.args.get("ajax") == "1"
+    partner = db.session.get(Partner, partner_id)
+    if not partner:
+        if is_ajax:
+            return jsonify({"success": False, "message": "not_found"}), 404
+        abort(404)
 
     date_from_s = (request.args.get("from") or "").strip()
     date_to_s = (request.args.get("to") or "").strip()
@@ -2119,6 +2163,7 @@ def partners_statement(partner_id: int):
         df, dt = None, None
     if dt:
         dt = dt + timedelta(days=1)
+    from models import Expense, ExpenseType
 
     entries = []
     total_debit = Decimal("0.00")
@@ -2187,7 +2232,7 @@ def partners_statement(partner_id: int):
         returns_data = _get_partner_sales_returns(
             partner.id,
             df if df else datetime(2024, 1, 1),
-            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+            (dt - timedelta(days=1)) if dt else _utcnow_naive()
         )
         
         if returns_data and isinstance(returns_data, dict) and returns_data.get("items"):
@@ -2699,7 +2744,7 @@ def partners_statement(partner_id: int):
             partner.id,
             partner,
             df if df else datetime(2024, 1, 1),
-            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+            (dt - timedelta(days=1)) if dt else _utcnow_naive()
         )
         
         if preorders_prepaid_data and isinstance(preorders_prepaid_data, dict) and preorders_prepaid_data.get("items"):
@@ -2738,7 +2783,7 @@ def partners_statement(partner_id: int):
             partner.id,
             partner,
             df if df else datetime(2024, 1, 1),
-            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+            (dt - timedelta(days=1)) if dt else _utcnow_naive()
         )
         
         if preorders_to_partner_data and isinstance(preorders_to_partner_data, dict) and preorders_to_partner_data.get("items"):
@@ -2777,7 +2822,7 @@ def partners_statement(partner_id: int):
             partner.id,
             partner,
             df if df else datetime(2024, 1, 1),
-            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+            (dt - timedelta(days=1)) if dt else _utcnow_naive()
         )
         
         if sales_to_partner_data and isinstance(sales_to_partner_data, dict) and sales_to_partner_data.get("items"):
@@ -2816,7 +2861,7 @@ def partners_statement(partner_id: int):
             partner.id,
             partner,
             df if df else datetime(2024, 1, 1),
-            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+            (dt - timedelta(days=1)) if dt else _utcnow_naive()
         )
         
         if service_fees_data and isinstance(service_fees_data, dict) and service_fees_data.get("items"):
@@ -2854,7 +2899,7 @@ def partners_statement(partner_id: int):
         damaged_items_data = _get_partner_damaged_items(
             partner.id,
             df if df else datetime(2024, 1, 1),
-            (dt - timedelta(days=1)) if dt else datetime.utcnow()
+            (dt - timedelta(days=1)) if dt else _utcnow_naive()
         )
         
         if damaged_items_data and isinstance(damaged_items_data, dict) and damaged_items_data.get("items"):
@@ -2895,7 +2940,7 @@ def partners_statement(partner_id: int):
                 and_(Expense.payee_type == "PARTNER", Expense.payee_entity_id == partner.id)
             ),
             Expense.date >= (df if df else datetime(2024, 1, 1)),
-            Expense.date <= ((dt - timedelta(days=1)) if dt else datetime.utcnow()),
+            Expense.date <= ((dt - timedelta(days=1)) if dt else _utcnow_naive()),
             func.upper(ExpenseType.code) == "PARTNER_EXPENSE"
         ).all()
         
@@ -2993,7 +3038,7 @@ def partners_statement(partner_id: int):
     balance_data = _calculate_smart_partner_balance(
         partner_id,
         df if df else datetime(2024, 1, 1),
-        (dt - timedelta(days=1)) if dt else datetime.utcnow()
+        (dt - timedelta(days=1)) if dt else _utcnow_naive()
     )
     
     balance_unified = balance_data.get('balance', {}).get('amount', 0) if balance_data.get('success') else partner.balance_in_ils
@@ -3124,7 +3169,6 @@ def partners_statement(partner_id: int):
     all_partner_products = []
     try:
         from models import ProductPartner, WarehousePartnerShare, Product, Warehouse, StockLevel, SaleLine, Sale, SaleStatus
-        from sqlalchemy import func
         
         product_shares = db.session.query(
             ProductPartner.product_id,
@@ -3261,6 +3305,28 @@ def partners_statement(partner_id: int):
             })
             total_credit += total_inventory_share_decimal
 
+    if is_ajax:
+        entries_json = []
+        for e in out[:50]:
+            d = e.get("date")
+            ds = d.strftime("%Y-%m-%d") if isinstance(d, datetime) else (d or "")
+            entries_json.append({
+                "date": ds,
+                "type": e.get("type"),
+                "ref": e.get("ref"),
+                "debit": float(e.get("debit", 0)),
+                "credit": float(e.get("credit", 0)),
+                "balance": float(e.get("balance", 0)),
+            })
+        return jsonify({
+            "success": True,
+            "entries": entries_json,
+            "total_debit": float(total_debit),
+            "total_credit": float(total_credit),
+            "balance": float(balance),
+            "date_from": (df.strftime("%Y-%m-%d") if df else None),
+            "date_to": ((dt - timedelta(days=1)).strftime("%Y-%m-%d") if dt else None),
+        })
     return render_template(
         "vendors/partners/statement.html",
         partner=partner,
@@ -3392,7 +3458,7 @@ def partner_smart_settlement(partner_id):
     if date_to:
         date_to = datetime.fromisoformat(date_to)
     else:
-        date_to = datetime.utcnow()
+        date_to = _utcnow_naive()
     
     # حساب الرصيد الذكي
     from routes.partner_settlements import _calculate_smart_partner_balance
@@ -3412,7 +3478,7 @@ def partner_smart_settlement(partner_id):
         code=f"PS-SMART-{partner_id}-{date_from.strftime('%Y%m%d')}",
         lines=[],
         created_at=date_from,
-        updated_at=datetime.utcnow()
+        updated_at=_utcnow_naive()
     )
     
     # توجيه للـ endpoint الجديد
@@ -3746,3 +3812,5 @@ def restore_partner(partner_id):
         db.session.rollback()
         flash(f'خطأ في استعادة الشريك: {str(e)}', 'error')
         return redirect(url_for('vendors_bp.partners_list'))
+def _utcnow_naive():
+    return datetime.now(timezone.utc).replace(tzinfo=None)

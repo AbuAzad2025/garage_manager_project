@@ -1961,8 +1961,8 @@ def account_statement(customer_id):
                             "type": "CHECK_RETURNED",
                             "ref": f"SPLIT-RETURN-{split.id}-CHK-{getattr(split_check, 'id', 'NA')}",
                             "statement": returned_statement,
-                            "debit": D(0),  # كل الدفعات = له (حق له) = دائن
-                            "credit": split_amount_ils,
+                            "debit": split_amount_ils if is_in else D(0),
+                            "credit": split_amount_ils if not is_in else D(0),
                             "payment_details": returned_details,
                             "notes": notes,
                         })
@@ -2063,13 +2063,13 @@ def account_statement(customer_id):
         # الشيك الصادر (OUT) = دفعنا للعميل = debit (مدين) = زيادة ما عليه
         is_in = not is_out
         
-        if is_legal or is_settled or is_bounced:
-            # الشيكات القانونية/المسوية/المرفوضة لا تؤثر على الرصيد
+        if is_legal or is_settled:
             debit_val = D(0)
             credit_val = D(0)
+        elif is_bounced:
+            debit_val = amount if is_in else D(0)
+            credit_val = amount if is_out else D(0)
         else:
-            # الشيك الوارد (IN) = credit (دائن) = تقليل ما عليه
-            # الشيك الصادر (OUT) = debit (مدين) = زيادة ما عليه
             debit_val = amount if is_out else D(0)
             credit_val = amount if is_in else D(0)
         

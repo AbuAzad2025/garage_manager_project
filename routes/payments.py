@@ -2116,19 +2116,17 @@ def fx_rate_lookup():
 def get_entities(entity_type):
     """API للحصول على الجهات حسب النوع مع فلترة ذكية"""
     search = request.args.get("search", "").strip()
-    limit = min(int(request.args.get("limit", 20)), 100)
+    limit = utils._query_limit(20, 100)
     
     try:
         if entity_type == "CUSTOMER":
-            query = Customer.query.filter_by(is_active=True).options(
-                load_only(Customer.id, Customer.name, Customer.phone, Customer.email)
-            )
+            query = Customer.query.filter_by(is_active=True)
             if search:
                 query = query.filter(
                     or_(
                         Customer.name.ilike(f"%{search}%"),
-                        Customer.phone.ilike(f"%{search}%"),
-                        Customer.email.ilike(f"%{search}%")
+                        func.coalesce(Customer.phone, '').ilike(f"%{search}%"),
+                        func.coalesce(Customer.email, '').ilike(f"%{search}%")
                     )
                 )
             entities = query.order_by(Customer.name).limit(limit).all()
@@ -2139,8 +2137,8 @@ def get_entities(entity_type):
                     "name": c.name,
                     "phone": c.phone,
                     "email": c.email,
-                    "display": f"{c.name} - {c.phone}",
-                    "balance": float(c.balance or 0)
+                    "display": f"{c.name} - {c.phone if c.phone else (c.email if c.email else '')}",
+                    "balance": float(getattr(c, "current_balance", None) or getattr(c, "balance", 0) or 0)
                 } for c in entities]
             })
             
@@ -2293,6 +2291,10 @@ def get_entities(entity_type):
             return jsonify({"success": False, "results": [], "message": "نوع جهة غير مدعوم"})
             
     except Exception as e:
+        try:
+            current_app.logger.exception("get_entities error")
+        except Exception:
+            pass
         return jsonify({"success": False, "error": str(e), "results": []}), 500
 
 

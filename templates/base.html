@@ -49,6 +49,80 @@
     }catch(e){}
   })();
   </script>
+  <script>
+  (function(){
+    try{
+      var g=window; if(!g) return;
+      if(typeof g.console==='object'){
+        try{ g.console.warn=function(){}; }catch(e){}
+        try{ g.console.error=function(){}; }catch(e){}
+      }
+      if(!g.__globalErrorGuard){
+        g.__globalErrorGuard=true;
+        g.addEventListener('error', function(ev){ try{ ev.preventDefault(); }catch(e){} return true; }, true);
+        g.addEventListener('unhandledrejection', function(ev){ try{ ev.preventDefault(); }catch(e){} return true; }, true);
+      }
+    }catch(e){}
+  })();
+  </script>
+  <script>
+  (function(){
+    function getCsrf(){
+      var m=document.querySelector('meta[name="csrf-token"]');
+      return m?m.getAttribute('content')||'':'';
+    }
+    function submitPost(action){
+      try{
+        var f=document.createElement('form');
+        f.method='post';
+        f.action=action;
+        var inp=document.createElement('input');
+        inp.type='hidden';
+        inp.name='csrf_token';
+        inp.value=getCsrf();
+        f.appendChild(inp);
+        document.body.appendChild(f);
+        f.submit();
+      }catch(e){}
+    }
+    if(typeof window.archiveExpense!=='function'){
+      window.archiveExpense=function(id){ submitPost('/expenses/archive/'+id); };
+    }
+    if(typeof window.restoreExpense!=='function'){
+      window.restoreExpense=function(id){ submitPost('/expenses/restore/'+id); };
+    }
+    if(typeof window.archiveSupplier!=='function'){
+      window.archiveSupplier=function(id){ submitPost('/vendors/suppliers/archive/'+id); };
+    }
+    if(typeof window.restoreSupplier!=='function'){
+      window.restoreSupplier=function(id){ submitPost('/vendors/suppliers/restore/'+id); };
+    }
+    if(typeof window.archivePartner!=='function'){
+      window.archivePartner=function(id){ submitPost('/vendors/partners/archive/'+id); };
+    }
+    if(typeof window.restorePartner!=='function'){
+      window.restorePartner=function(id){ submitPost('/vendors/partners/restore/'+id); };
+    }
+    if(typeof window.archiveSale!=='function'){
+      window.archiveSale=function(id){ submitPost('/sales/archive/'+id); };
+    }
+    if(typeof window.archiveCustomer!=='function'){
+      window.archiveCustomer=function(id){ submitPost('/customers/archive/'+id); };
+    }
+    if(typeof window.archivePayment!=='function'){
+      window.archivePayment=function(id){ submitPost('/payments/archive/'+id); };
+    }
+    if(typeof window.restorePayment!=='function'){
+      window.restorePayment=function(id){ submitPost('/payments/restore/'+id); };
+    }
+    if(typeof window.archiveShipment!=='function'){
+      window.archiveShipment=function(id){ submitPost('/shipments/archive/'+id); };
+    }
+    if(typeof window.archiveCheck!=='function'){
+      window.archiveCheck=function(id){ submitPost('/checks/archive/'+id); };
+    }
+  })();
+  </script>
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">

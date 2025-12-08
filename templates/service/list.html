@@ -261,13 +261,19 @@
                     <i class="fas fa-print"></i>
                   </a>
                   {% if s.is_archived %}
-                  <button type="button" class="btn btn-success" title="استعادة" onclick="restoreService({{ s.id }})">
-                    <i class="fas fa-undo"></i>
-                  </button>
+                  <form method="post" action="{{ url_for('service.restore_service', service_id=s.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-success" title="استعادة">
+                      <i class="fas fa-undo"></i>
+                    </button>
+                  </form>
                   {% else %}
-                  <button type="button" class="btn btn-warning" title="أرشفة" onclick="archiveService({{ s.id }})">
-                    <i class="fas fa-archive"></i>
-                  </button>
+                  <form method="post" action="{{ url_for('service.archive_service', service_id=s.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-warning" title="أرشفة">
+                      <i class="fas fa-archive"></i>
+                    </button>
+                  </form>
                   {% endif %}
                   {% if current_user.has_permission('manage_service') %}
                   {% endif %}

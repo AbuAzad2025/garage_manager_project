@@ -192,7 +192,7 @@ class Config:
     RATELIMIT_API = "60 per hour;1 per second"
     
     # Cache - تحسين التخزين المؤقت
-    CACHE_TYPE = os.environ.get("CACHE_TYPE", "simple")
+    CACHE_TYPE = os.environ.get("CACHE_TYPE", "flask_caching.backends.SimpleCache")
     CACHE_REDIS_URL = os.environ.get("CACHE_REDIS_URL", REDIS_URL)
     CACHE_DEFAULT_TIMEOUT = _int("CACHE_DEFAULT_TIMEOUT", 1800)
     CACHE_KEY_PREFIX = os.environ.get("CACHE_KEY_PREFIX", "garage_manager")

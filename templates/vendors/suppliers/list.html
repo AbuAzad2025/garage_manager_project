@@ -307,15 +307,21 @@
                     <span class="d-none d-lg-inline ms-1">تعديل</span>
                   </a>
                   {% if s.is_archived %}
-                  <button type="button" class="btn btn-sm btn-success d-flex align-items-center" title="استعادة" onclick="restoreSupplier({{ s.id }})">
-                    <i class="fas fa-undo"></i>
-                    <span class="d-none d-lg-inline ms-1">استعادة</span>
-                  </button>
+                  <form method="post" action="{{ url_for('vendors_bp.restore_supplier', supplier_id=s.id) }}" class="d-inline-block">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-success d-flex align-items-center" title="استعادة">
+                      <i class="fas fa-undo"></i>
+                      <span class="d-none d-lg-inline ms-1">استعادة</span>
+                    </button>
+                  </form>
                   {% else %}
-                  <button type="button" class="btn btn-sm btn-warning d-flex align-items-center" title="أرشفة" onclick="archiveSupplier({{ s.id }})">
-                    <i class="fas fa-archive"></i>
-                    <span class="d-none d-lg-inline ms-1">أرشفة</span>
-                  </button>
+                  <form method="post" action="{{ url_for('vendors_bp.archive_supplier', supplier_id=s.id) }}" class="d-inline-block">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="btn btn-sm btn-warning d-flex align-items-center" title="أرشفة">
+                      <i class="fas fa-archive"></i>
+                      <span class="d-none d-lg-inline ms-1">أرشفة</span>
+                    </button>
+                  </form>
                   {% endif %}
                   <form method="post" action="{{ url_for('vendors_bp.suppliers_delete', id=s.id) }}" class="d-inline-block">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

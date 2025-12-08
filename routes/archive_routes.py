@@ -21,7 +21,8 @@ def archive_shipment(shipment_id):
         )
         from datetime import datetime
         shipment.is_archived = True
-        shipment.archived_at = datetime.utcnow()
+        from datetime import timezone
+        shipment.archived_at = datetime.now(timezone.utc).replace(tzinfo=None)
         shipment.archived_by = current_user.id
         shipment.archive_reason = reason
         db.session.commit()
@@ -48,7 +49,8 @@ def archive_check(check_id):
         )
         from datetime import datetime
         check.is_archived = True
-        check.archived_at = datetime.utcnow()
+        from datetime import timezone
+        check.archived_at = datetime.now(timezone.utc).replace(tzinfo=None)
         check.archived_by = current_user.id
         check.archive_reason = reason
         try:
