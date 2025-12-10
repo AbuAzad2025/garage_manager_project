@@ -2266,7 +2266,7 @@ def _ensure_customer_for_counterparty(connection, *, name, phone, whatsapp=None,
     wa = normalize_phone(whatsapp) if whatsapp else None
 
     def _fallback_phone():
-        token = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+        token = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
         digits = re.sub(r"\D+", "", token)
         if len(digits) < 7:
             digits = digits.rjust(7, "0")

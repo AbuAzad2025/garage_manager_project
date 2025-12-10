@@ -4,7 +4,7 @@ import logging
 
 from flask import Blueprint, render_template, request, jsonify, current_app, flash, redirect, url_for
 from flask_login import current_user, login_required
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from sqlalchemy import and_, or_, desc, func, select
 from sqlalchemy.orm import joinedload, sessionmaker
 from extensions import db
@@ -2911,7 +2911,7 @@ def get_checks():
         source_filter = request.args.get('source')
         
         checks = []
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         check_ids = set()
 
         current_app.logger.info(f"🔍 get_checks API - بدء الجلب من جميع المصادر...")
@@ -3665,7 +3665,7 @@ def get_statistics():
                     amt_ils = Decimal('0.00')
             
             incoming_total += amt_ils
-            if p.check_due_date and p.check_due_date < datetime.utcnow():
+            if p.check_due_date and p.check_due_date < datetime.now(timezone.utc):
                 incoming_overdue += 1
                 incoming_overdue_amount += amt_ils
         
@@ -3677,7 +3677,10 @@ def get_statistics():
                 Payment.method == PaymentMethod.CHEQUE.value,
                 Payment.direction == PaymentDirection.IN.value,
                 Payment.status == PaymentStatus.PENDING.value,
-                Payment.check_due_date.between(datetime.utcnow(), datetime.combine(week_ahead, datetime.max.time()))
+                Payment.check_due_date.between(
+                    datetime.now(timezone.utc),
+                    datetime.combine(week_ahead, datetime.max.time())
+                )
             )
         ).scalar() or 0
         
@@ -3716,7 +3719,7 @@ def get_statistics():
                 Payment.method == PaymentMethod.CHEQUE.value,
                 Payment.direction == PaymentDirection.OUT.value,
                 Payment.status == PaymentStatus.PENDING.value,
-                Payment.check_due_date.between(datetime.utcnow(), datetime.combine(week_ahead, datetime.max.time()))
+                Payment.check_due_date.between(datetime.now(timezone.utc), datetime.combine(week_ahead, datetime.max.time()))
             )
         ).scalar() or 0
         
@@ -3743,7 +3746,7 @@ def get_statistics():
                     amt_ils = Decimal('0.00')
             
             expense_total += amt_ils
-            if exp.check_due_date and exp.check_due_date < datetime.utcnow():
+            if exp.check_due_date and exp.check_due_date < datetime.now(timezone.utc):
                 expense_overdue += 1
                 expense_overdue_amount += amt_ils
         
@@ -3753,7 +3756,7 @@ def get_statistics():
         expense_this_week = db.session.query(db.func.count(Expense.id)).filter(
             and_(
                 Expense.payment_method == 'cheque',
-                Expense.check_due_date.between(datetime.utcnow(), datetime.combine(week_ahead, datetime.max.time())),
+                Expense.check_due_date.between(datetime.now(timezone.utc), datetime.combine(week_ahead, datetime.max.time())),
                 or_(Expense.is_paid == False, Expense.is_paid.is_(None))
             )
         ).scalar() or 0
@@ -4493,7 +4496,7 @@ def get_alerts():
     API للحصول على التنبيهات - محسّن لجلب من جميع المصادر
     """
     try:
-        today = datetime.utcnow().date()
+        today = datetime.now(timezone.utc).date()
         week_ahead = today + timedelta(days=7)
         
         alerts = []
@@ -4501,7 +4504,7 @@ def get_alerts():
         overdue_manual_checks = Check.query.filter(
             and_(
                 Check.status == CheckStatus.PENDING.value,
-                Check.check_due_date < datetime.utcnow()
+                Check.check_due_date < datetime.now(timezone.utc)
             )
         ).all()
         
@@ -4541,7 +4544,7 @@ def get_alerts():
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
                 Payment.status == PaymentStatus.PENDING.value,
-                Payment.check_due_date < datetime.utcnow(),
+                Payment.check_due_date < datetime.now(timezone.utc),
                 Payment.check_number.isnot(None)
             )
         ).all()
@@ -4586,7 +4589,7 @@ def get_alerts():
             and_(
                 Payment.method == PaymentMethod.CHEQUE.value,
                 Payment.status == PaymentStatus.PENDING.value,
-                Payment.check_due_date.between(datetime.utcnow(), datetime.combine(week_ahead, datetime.max.time()))
+                Payment.check_due_date.between(datetime.now(timezone.utc), datetime.combine(week_ahead, datetime.max.time()))
             )
         ).all()
         
@@ -4675,8 +4678,8 @@ def add_check():
                 flash("يرجى ملء جميع الحقول المطلوبة", "danger")
                 return redirect(url_for("checks.add_check"))
             
-            check_date = datetime.strptime(check_date_str, "%Y-%m-%d") if check_date_str else datetime.utcnow()
-            check_due_date = datetime.strptime(check_due_date_str, "%Y-%m-%d") if check_due_date_str else datetime.utcnow()
+            check_date = datetime.strptime(check_date_str, "%Y-%m-%d") if check_date_str else datetime.now(timezone.utc)
+            check_due_date = datetime.strptime(check_due_date_str, "%Y-%m-%d") if check_due_date_str else datetime.now(timezone.utc)
             
             customer_id = int(customer_id_raw) if customer_id_raw else None
             supplier_id = int(supplier_id_raw) if supplier_id_raw else None
@@ -4831,7 +4834,7 @@ def delete_check(check_id):
 @login_required
 def reports():
     """صفحة التقارير - من جميع المصادر"""
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     
     all_checks_response = get_checks()
     all_checks_data = all_checks_response.get_json()

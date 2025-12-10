@@ -203,7 +203,7 @@ def api_saas_create_plan():
 def api_saas_create_subscription():
     """API: إنشاء اشتراك جديد"""
     from models import SaaSSubscription
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     
     try:
         data = request.get_json()
@@ -1438,13 +1438,15 @@ def tools_center():
         },
     }
     
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     from models import NotificationLog, OnlinePayment
     
     email_query = NotificationLog.query.filter_by(type='email')
     email_stats = {
         'total': email_query.count(),
-        'sent_last_day': email_query.filter(NotificationLog.created_at >= datetime.utcnow() - timedelta(days=1)).count(),
+        'sent_last_day': email_query.filter(
+            NotificationLog.created_at >= datetime.now(timezone.utc) - timedelta(days=1)
+        ).count(),
         'failed': email_query.filter_by(status='failed').count(),
     }
     email_logs = email_query.order_by(NotificationLog.created_at.desc()).limit(5).all()
@@ -1797,7 +1799,7 @@ def advanced_analytics():
     from sqlalchemy import func, extract
     from datetime import datetime, timedelta
     
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     start_of_month = now.replace(day=1, hour=0, minute=0, second=0)
     
     analytics = {
@@ -7140,7 +7142,7 @@ def audit_log_viewer():
         writer.writerow(['الوقت', 'المستخدم', 'الجدول', 'رقم السجل', 'الإجراء', 'IP'])
         
         for log in logs_data:
-            user_name = User.query.get(log.user_id).username if log.user_id else 'نظام'
+            user_name = (db.session.get(User, log.user_id).username if log.user_id else 'نظام')
             writer.writerow([
                 log.created_at.strftime('%Y-%m-%d %H:%M:%S') if log.created_at else '',
                 user_name,
@@ -7239,7 +7241,7 @@ def audit_log_detail(log_id):
                 'new': str(new_val) if new_val else '-'
             })
     
-    user_name = User.query.get(log.user_id).username if log.user_id else 'نظام'
+    user_name = (db.session.get(User, log.user_id).username if log.user_id else 'نظام')
     
     if request.accept_mimetypes.best == 'application/json':
         log_dict = {
@@ -7391,4 +7393,3 @@ def api_security_audit_stats():
             'success': False,
             'error': str(e)
         }), 500
-

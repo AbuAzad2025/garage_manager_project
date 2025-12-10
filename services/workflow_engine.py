@@ -86,7 +86,7 @@ class WorkflowEngine:
         attachments: Optional[List[Dict]] = None
     ) -> bool:
         try:
-            instance = WorkflowInstance.query.get(instance_id)
+            instance = db.session.get(WorkflowInstance, instance_id)
             if not instance:
                 return False
             
@@ -147,7 +147,7 @@ class WorkflowEngine:
     @staticmethod
     def cancel_workflow(instance_id: int, cancelled_by_id: int, reason: Optional[str] = None) -> bool:
         try:
-            instance = WorkflowInstance.query.get(instance_id)
+            instance = db.session.get(WorkflowInstance, instance_id)
             if not instance:
                 return False
             

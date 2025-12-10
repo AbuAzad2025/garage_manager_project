@@ -665,6 +665,42 @@ def generate_excel_contacts(customers: Iterable[Any], fields: List[str]) -> Resp
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": 'attachment; filename="contacts.xlsx"'},
     )
+def entity_phone(obj) -> str:
+    for attr in ("phone", "phone_number", "mobile", "whatsapp"):
+        try:
+            v = getattr(obj, attr, None)
+            if v:
+                return str(v)
+        except Exception:
+            continue
+    return ""
+
+def entity_email(obj) -> str:
+    try:
+        v = getattr(obj, "email", None)
+        return v or ""
+    except Exception:
+        return ""
+
+def entity_name(obj) -> str:
+    for attr in ("name", "full_name", "username"):
+        try:
+            v = getattr(obj, attr, None)
+            if v:
+                return str(v)
+        except Exception:
+            continue
+    try:
+        return str(getattr(obj, "id", ""))
+    except Exception:
+        return ""
+
+def entity_display(obj) -> str:
+    n = entity_name(obj)
+    ph = entity_phone(obj)
+    em = entity_email(obj)
+    tail = ph if ph else (em if em else "")
+    return f"{n} - {tail}" if tail else n
 def _get_super_roles():
     try:
         from permissions_config.permissions import PermissionsRegistry
@@ -1578,7 +1614,7 @@ def archive_record(record, reason=None, user_id=None):
         )
         
         record.is_archived = True
-        record.archived_at = datetime.utcnow()
+        record.archived_at = datetime.now(timezone.utc)
         record.archived_by = user_id
         record.archive_reason = reason or 'أرشفة تلقائية'
         
@@ -1632,7 +1668,7 @@ def restore_record(archive_id):
         if not model_class:
             raise ValueError(f'نموذج غير موجود: {model_name}')
         
-        original_record = model_class.query.get(archive.record_id)
+        original_record = db.session.get(model_class, archive.record_id)
         
         if original_record:
             original_record.is_archived = False

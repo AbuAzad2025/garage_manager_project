@@ -185,7 +185,7 @@ def owner_hub():
             health_checks, overall_health = health_cached
         
         SystemSettings.set_setting('system_health_last_run',
-                                   {'checks': health_checks, 'score': overall_health, 'time': datetime.utcnow().isoformat()},
+                                   {'checks': health_checks, 'score': overall_health, 'time': datetime.now(timezone.utc).isoformat()},
                                    data_type='json')
         security_snapshot = _get_security_snapshot()
         security_summary = _summarize_security_snapshot(security_snapshot)
@@ -3942,7 +3942,7 @@ def api_performance_stats():
             'stats': {
                 'query_time_ms': round(query_time, 2),
                 'db_size_mb': round(db_size, 2),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             }
         })
     except Exception as e:

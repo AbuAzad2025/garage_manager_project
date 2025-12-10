@@ -2366,6 +2366,20 @@ def account_statement(customer_id):
         except Exception as e:
             current_app.logger.warning(f"⚠️ تعذر إعادة احتساب رصيد العميل {customer_id}: {e}")
 
+        db.session.refresh(c)
+        current_balance = D(c.current_balance or 0)
+        if abs(float(current_balance - final_running_balance)) > 0.01:
+            c.current_balance = final_running_balance
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            try:
+                from helpers.balance_events import emit_balance_update
+                emit_balance_update('customer', customer_id, float(final_running_balance))
+            except Exception:
+                pass
+
     total_invoices_calc = D('0.00')
     for inv in invoices:
         amt = D(inv.total_amount or 0)

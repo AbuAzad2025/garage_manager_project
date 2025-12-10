@@ -2120,7 +2120,9 @@ def get_entities(entity_type):
     
     try:
         if entity_type == "CUSTOMER":
-            query = Customer.query.filter_by(is_active=True)
+            query = Customer.query.filter_by(is_active=True).options(
+                load_only(Customer.id, Customer.name, Customer.phone, Customer.email)
+            )
             if search:
                 query = query.filter(
                     or_(
@@ -2134,10 +2136,10 @@ def get_entities(entity_type):
                 "success": True,
                 "results": [{
                     "id": c.id,
-                    "name": c.name,
-                    "phone": c.phone,
-                    "email": c.email,
-                    "display": f"{c.name} - {c.phone if c.phone else (c.email if c.email else '')}",
+                    "name": utils.entity_name(c),
+                    "phone": utils.entity_phone(c),
+                    "email": utils.entity_email(c),
+                    "display": utils.entity_display(c),
                     "balance": float(getattr(c, "current_balance", None) or getattr(c, "balance", 0) or 0)
                 } for c in entities]
             })
@@ -2159,10 +2161,10 @@ def get_entities(entity_type):
                 "success": True,
                 "results": [{
                     "id": s.id,
-                    "name": s.name,
-                    "phone": s.phone,
-                    "email": s.email,
-                    "display": f"{s.name} - {s.phone if s.phone else (s.email if s.email else '')}",
+                    "name": utils.entity_name(s),
+                    "phone": utils.entity_phone(s),
+                    "email": utils.entity_email(s),
+                    "display": utils.entity_display(s),
                     "balance": float(s.balance or 0)
                 } for s in entities]
             })
@@ -2184,10 +2186,10 @@ def get_entities(entity_type):
                 "success": True,
                 "results": [{
                     "id": p.id,
-                    "name": p.name,
-                    "phone": p.phone_number,  # ✅ phone_number
-                    "email": p.email,
-                    "display": f"{p.name} - {p.phone_number if p.phone_number else (p.email if p.email else '')}",
+                    "name": utils.entity_name(p),
+                    "phone": utils.entity_phone(p),
+                    "email": utils.entity_email(p),
+                    "display": utils.entity_display(p),
                     "balance": float(p.balance or 0)
                 } for p in entities]
             })

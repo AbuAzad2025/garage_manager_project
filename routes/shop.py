@@ -448,7 +448,7 @@ def catalog():
     page = request.args.get("page", 1, type=int)
     per_page = min(request.args.get("per_page", 50, type=int), 200)
     
-    products = q.distinct(Product.id).order_by(Product.name.asc()).limit(per_page * 10).all()
+    products = q.distinct().order_by(Product.name.asc()).limit(per_page * 10).all()
     if request.is_json or request.args.get("format") == "json":
         return jsonify([
             {
@@ -531,7 +531,7 @@ def products():
             (Product.sku.ilike(like)) |
             (Product.part_number.ilike(like))
         )
-    products = q.distinct(Product.id).order_by(Product.name.asc()).all()
+    products = q.distinct().order_by(Product.name.asc()).all()
     avail_map = {p.id: available_qty(p.id) for p in products}
     return render_template(
         "shop/products.html",
@@ -572,7 +572,7 @@ def api_products():
                 (Product.sku.ilike(like)) |
                 (Product.part_number.ilike(like))
             )
-        products = q.distinct(Product.id).order_by(Product.name.asc()).all()
+        products = q.distinct().order_by(Product.name.asc()).all()
         data = []
         for p in products:
             data.append({

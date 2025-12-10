@@ -1,5 +1,5 @@
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 from flask import (
@@ -385,9 +385,9 @@ def create_shipment():
 
     if request.method == "GET":
         if not form.shipment_date.data:
-            form.shipment_date.data = datetime.utcnow()
+            form.shipment_date.data = datetime.now(timezone.utc)
         if not form.expected_arrival.data:
-            form.expected_arrival.data = datetime.utcnow() + timedelta(days=14)
+            form.expected_arrival.data = datetime.now(timezone.utc) + timedelta(days=14)
 
     if request.method == "POST":
         def _blank_item(f):
@@ -416,7 +416,7 @@ def create_shipment():
         dest_obj = form.destination_id.data
         sh = Shipment(
             shipment_number=form.shipment_number.data or None,
-            shipment_date=form.shipment_date.data or datetime.utcnow(),
+            shipment_date=form.shipment_date.data or datetime.now(timezone.utc),
             expected_arrival=form.expected_arrival.data,
             actual_arrival=form.actual_arrival.data,
             origin=form.origin.data or None,
@@ -938,7 +938,7 @@ def mark_arrived(id: int):
             for it in sh.items
         ])
         sh.status = "ARRIVED"
-        sh.actual_arrival = sh.actual_arrival or datetime.utcnow()
+        sh.actual_arrival = sh.actual_arrival or datetime.now(timezone.utc)
         _compute_totals(sh)
         
         # تحديث رصيد الشركاء عند وصول الشحنة (إذا كان هناك شركاء)
@@ -1121,7 +1121,7 @@ def mark_delivered(id):
                     # توليد باركود بسيط: PRD + timestamp + 4 أرقام عشوائية
                     import random
                     from datetime import datetime
-                    timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+                    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
                     random_digits = str(random.randint(1000, 9999))
                     product.barcode = f"PRD{timestamp}{random_digits}"
             
@@ -1148,7 +1148,7 @@ def mark_delivered(id):
                             rate = ExchangeRate.get_rate(
                                 sh.currency or 'USD',
                                 partner.currency,
-                                sh.delivered_date or datetime.utcnow()
+                                sh.delivered_date or datetime.now(timezone.utc)
                             )
                             if rate:
                                 partner_share_amount = partner_share_amount * float(rate)
@@ -1189,7 +1189,7 @@ def mark_delivered(id):
             
             # تحديث حالة الشحنة
             sh.status = "DELIVERED"
-            sh.delivered_date = datetime.utcnow()
+            sh.delivered_date = datetime.now(timezone.utc)
             
             db.session.commit()
             
@@ -1259,7 +1259,7 @@ def update_delivery_attempt(id):
     
     try:
         sh.delivery_attempts = (sh.delivery_attempts or 0) + 1
-        sh.last_delivery_attempt = datetime.utcnow()
+        sh.last_delivery_attempt = datetime.now(timezone.utc)
         if data.get("notes"):
             sh.notes = (sh.notes or "") + f"\nمحاولة تسليم #{sh.delivery_attempts}: {data.get('notes')}"
         
